@@ -11,6 +11,7 @@ export interface PosLine {
   price: number;
   discount_amount: number;
   hpp_value: number;
+  is_bogo_free?: boolean;
 }
 
 export interface PosHold {

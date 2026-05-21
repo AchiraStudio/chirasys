@@ -6,3 +6,4 @@ pub mod customers;
 pub mod purchasing;
 pub mod sales;
 pub mod promos;
+pub mod accounting;

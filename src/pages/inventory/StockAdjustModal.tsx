@@ -43,15 +43,15 @@ export default function StockAdjustModal({ isOpen, onClose, item, branchId, onSu
         <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">Adjust Stock</h2>
-            <p className="text-sm text-slate-500 font-mono">{item.item_name} | Current: {item.current_qty}</p>
+            <p className="text-sm text-slate-600 font-mono">{item.item_name} | Current: {item.current_qty}</p>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={18} /></button>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={18} /></button>
         </div>
         
         <div className="p-6 space-y-4">
           <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
-            <button onClick={() => setDirection('in')} className={`flex-1 py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-colors ${direction === 'in' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-500'}`}><ArrowUpRight size={16} /> Add Stock</button>
-            <button onClick={() => setDirection('out')} className={`flex-1 py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-colors ${direction === 'out' ? 'bg-white dark:bg-slate-800 text-rose-600 shadow-sm' : 'text-slate-500'}`}><ArrowDownRight size={16} /> Remove</button>
+            <button onClick={() => setDirection('in')} className={`flex-1 py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-colors ${direction === 'in' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-sm' : 'text-slate-600'}`}><ArrowUpRight size={16} /> Add Stock</button>
+            <button onClick={() => setDirection('out')} className={`flex-1 py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-colors ${direction === 'out' ? 'bg-white dark:bg-slate-800 text-rose-600 shadow-sm' : 'text-slate-600'}`}><ArrowDownRight size={16} /> Remove</button>
           </div>
 
           <div>
@@ -74,7 +74,7 @@ export default function StockAdjustModal({ isOpen, onClose, item, branchId, onSu
           </div>
           
           <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-center">
-            <span className="text-sm text-slate-500">New Total: </span>
+            <span className="text-sm text-slate-600">New Total: </span>
             <span className={`font-mono font-bold ${newTotal < 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>{newTotal} {item.unit_name}</span>
           </div>
         </div>

@@ -75,8 +75,8 @@ export default function ReceiveDrawer({ isOpen, onClose, onSuccess, poId, branch
                 {lines.map(line => (
                   <tr key={line.id} className="bg-white dark:bg-slate-950">
                     <td className="p-3 font-medium">{line.item_name}</td>
-                    <td className="p-3 text-slate-500">{line.unit_name}</td>
-                    <td className="p-3 text-slate-500 font-mono text-right">{line.max_qty}</td>
+                    <td className="p-3 text-slate-600">{line.unit_name}</td>
+                    <td className="p-3 text-slate-600 font-mono text-right">{line.max_qty}</td>
                     <td className="p-3"><input type="number" value={line.receiving_now} onChange={e => updateLine(line.id, 'receiving_now', Number(e.target.value))} max={line.max_qty} min="0" className="w-full p-1.5 border rounded bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-center font-bold" /></td>
                     <td className="p-3"><input type="number" value={line.actual_price} onChange={e => updateLine(line.id, 'actual_price', Number(e.target.value))} className="w-full p-1.5 border rounded dark:bg-slate-900 dark:border-slate-700" /></td>
                     <td className="p-3 flex gap-2">

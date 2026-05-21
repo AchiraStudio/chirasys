@@ -52,10 +52,10 @@ export default function CustomerDrawer({ isOpen, onClose, onSuccess, customerToE
             <div className="p-2 bg-brand/10 text-brand rounded-lg"><UserCircle size={20} /></div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">{customerToEdit ? 'Edit Customer' : 'New Customer'}</h2>
-              <p className="text-xs text-slate-500 font-medium">Manage POS client details</p>
+              <p className="text-xs text-slate-600 font-medium">Manage POS client details</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-200 dark:border-slate-700"><X size={18} /></button>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-600 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-200 dark:border-slate-700"><X size={18} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
@@ -65,7 +65,7 @@ export default function CustomerDrawer({ isOpen, onClose, onSuccess, customerToE
             <label className="block text-xs font-semibold mb-1.5">Customer Tier</label>
             <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg">
               {['regular', 'member', 'vip'].map(tier => (
-                <button key={tier} onClick={() => setFormData({...formData, customer_tier: tier})} className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${formData.customer_tier === tier ? 'bg-white dark:bg-slate-700 shadow-sm text-brand' : 'text-slate-500'}`}>{tier}</button>
+                <button key={tier} onClick={() => setFormData({...formData, customer_tier: tier})} className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${formData.customer_tier === tier ? 'bg-white dark:bg-slate-700 shadow-sm text-brand' : 'text-slate-600'}`}>{tier}</button>
               ))}
             </div>
           </div>

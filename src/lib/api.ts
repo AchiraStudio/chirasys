@@ -15,10 +15,28 @@ export interface SaleDetail { sale: Sale; lines: SaleLine[]; payments: SalePayme
 export const getSaleDetail = async (id: string): Promise<SaleDetail> => invoke('get_sale_detail', { id });
 export const createSaleReturn = async (saleId: string, lines: SaleLineInput[], reason: string): Promise<void> => invoke('create_sale_return', { saleId, lines, reason });
 
+// --- Promo Types ---
+export interface Promo { id: string; name: string; description?: string; discount_percent: number; min_qty: number; category_id?: string; item_id?: string; member_only: number; active: number; start_date?: string; end_date?: string; created_at: string; promo_type: string; discount_value?: number; applies_to: string; max_discount_amount?: number; stack_rule: string; priority: number; member_tier?: string; }
+export interface PromoBogoRule { id: string; promo_id: string; buy_qty: number; get_qty: number; free_item_id?: string; free_item_unit_id?: string; free_item_discount_percent?: number; }
+export interface PromoTier { id: string; promo_id: string; min_qty: number; discount_percent: number; }
+export interface PromoDetail { promo: Promo; bogo_rules: PromoBogoRule[]; tiers: PromoTier[]; }
+export interface CreatePromoInput { name: string; description?: string; discount_percent: number; min_qty: number; category_id?: string; item_id?: string; member_only: number; start_date?: string; end_date?: string; promo_type: string; discount_value?: number; applies_to: string; max_discount_amount?: number; stack_rule: string; priority: number; member_tier?: string; bogo_rules: { buy_qty: number; get_qty: number; free_item_id?: string; free_item_unit_id?: string; free_item_discount_percent?: number; }[]; tiers: { min_qty: number; discount_percent: number; }[]; }
+export interface CartLineForDiscount { item_id: string; unit_id: string; category_id?: string; qty: number; price: number; line_index: number; }
+export interface AppliedDiscount { line_index: number; discount_amount: number; promo_id: string; promo_name: string; is_bogo_free_item: boolean; free_item_qty: number; free_item_id?: string; free_item_unit_id?: string; }
+export interface DiscountResult { line_discounts: AppliedDiscount[]; cart_discount: number; cart_discount_promo_id?: string; total_discount: number; }
+
+export const getPromos = async (activeOnly: boolean): Promise<Promo[]> => invoke('get_promos', { activeOnly });
+export const getPromoDetail = async (id: string): Promise<PromoDetail> => invoke('get_promo_detail', { id });
+export const createPromo = async (input: CreatePromoInput): Promise<Promo> => invoke('create_promo', { input });
+export const updatePromo = async (id: string, input: CreatePromoInput): Promise<Promo> => invoke('update_promo', { id, input });
+export const deletePromo = async (id: string): Promise<void> => invoke('delete_promo', { id });
+export const togglePromoActive = async (id: string): Promise<void> => invoke('toggle_promo_active', { id });
+export const calculateDiscounts = async (lines: CartLineForDiscount[], customerTier?: string): Promise<DiscountResult> => invoke('calculate_discounts', { lines, customerTier });
+
 // --- Types ---
 export interface Brand { id: string; name: string; logo_blob?: number[]; created_at: string; }
 export interface Category { id: string; parent_id?: string; name: string; description?: string; color?: string; created_at: string; }
-export interface Item { id: string; sku: string; barcode?: string; name: string; generic_name?: string; category_id?: string; brand_id?: string; hpp_method: string; min_stock: number; has_expiry: number; requires_prescription: number; notes?: string; is_active: number; created_at: string; price?: number; base_unit_id?: string; base_unit_name?: string; avg_hpp?: number; }
+export interface Item { id: string; sku: string; barcode?: string; name: string; generic_name?: string; category_id?: string; brand_id?: string; hpp_method: string; min_stock: number; has_expiry: number; requires_prescription: number; notes?: string; is_active: number; created_at: string; wholesale_price: number; price?: number; base_unit_id?: string; base_unit_name?: string; avg_hpp?: number; }
 export interface ItemUnit { id: string; item_id: string; unit_name: string; conversion: number; is_base: number; barcode?: string; created_at: string; }
 export interface ItemPrice { id: string; item_id: string; unit_id: string; customer_tier: string; price: number; }
 export interface PaginatedItems { items: Item[]; total: number; page: number; per_page: number; }
@@ -149,3 +167,31 @@ export const addPurchasePayment = async (purchaseId: string, amount: number, met
 
 export const createPurchaseReturn = async (purchaseId: string, lines: ReceiveLineInput[], reason: string): Promise<void> =>
   invoke('create_purchase_return', { purchaseId, lines, reason });
+
+// --- Phase 7 Accounting Types ---
+export interface Account { id: string; code: string; name: string; type: string; parent_id?: string; normal_balance: string; is_system: number; is_active: number; }
+export interface CreateAccountInput { code: string; name: string; type: string; parent_id?: string; normal_balance: string; }
+export interface JournalEntry { id: string; entry_no: string; date: string; description?: string; source_type: string; source_id: string; branch_id?: string; created_at: string; }
+export interface JournalLine { id: string; journal_entry_id: string; account_id: string; debit: number; credit: number; notes?: string; account_code?: string; account_name?: string; }
+export interface JournalEntryWithLines { entry: JournalEntry; lines: JournalLine[]; }
+export interface ManualJournalInput { description?: string; branch_id?: string; lines: { account_id: string; debit: number; credit: number; notes?: string; }[]; }
+export interface TrialBalanceRow { account_id: string; code: string; name: string; type: string; total_debit: number; total_credit: number; balance: number; }
+export interface PLRow { account_code: string; account_name: string; amount: number; }
+export interface ProfitLossGroup { group_name: string; rows: PLRow[]; total: number; }
+export interface ProfitLossReport { revenue: ProfitLossGroup; cogs: ProfitLossGroup; gross_profit: number; expenses: ProfitLossGroup; net_profit: number; }
+export interface BSRow { account_code: string; account_name: string; amount: number; }
+export interface BalanceSheet { assets: BSRow[]; total_assets: number; liabilities: BSRow[]; equity: BSRow[]; total_liabilities_equity: number; }
+
+// --- Accounting Invokes ---
+export const getAccounts = async (): Promise<Account[]> => invoke('get_accounts');
+export const createAccount = async (input: CreateAccountInput): Promise<Account> => invoke('create_account', { input });
+export const updateAccount = async (id: string, input: CreateAccountInput): Promise<Account> => invoke('update_account', { id, input });
+export const deleteAccount = async (id: string): Promise<void> => invoke('delete_account', { id });
+
+export const getJournalEntries = async (): Promise<JournalEntry[]> => invoke('get_journal_entries');
+export const getJournalDetail = async (id: string): Promise<JournalEntryWithLines> => invoke('get_journal_detail', { id });
+export const createManualJournal = async (input: ManualJournalInput): Promise<string> => invoke('create_manual_journal', { input });
+
+export const getTrialBalance = async (asOfDate: string): Promise<TrialBalanceRow[]> => invoke('get_trial_balance', { asOfDate });
+export const getProfitLoss = async (startDate: string, endDate: string): Promise<ProfitLossReport> => invoke('get_profit_loss', { startDate, endDate });
+export const getBalanceSheet = async (asOfDate: string): Promise<BalanceSheet> => invoke('get_balance_sheet', { asOfDate });

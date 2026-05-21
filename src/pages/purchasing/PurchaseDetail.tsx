@@ -79,10 +79,10 @@ export default function PurchaseDetail({ purchaseId, onBack }: PurchaseDetailPro
   return (
     <div className="flex flex-col gap-6 animate-in fade-in max-w-5xl mx-auto w-full">
       <div className="flex items-center gap-4">
-        <button onClick={onBack} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-white dark:bg-slate-900 border rounded-xl"><ArrowLeft size={18} /></button>
+        <button onClick={onBack} className="p-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 bg-white dark:bg-slate-900 border rounded-xl"><ArrowLeft size={18} /></button>
         <div>
           <h1 className="text-2xl font-bold">Purchase #{purchase.id.split('-')[0]}</h1>
-          <p className="text-sm text-slate-500">Invoice: {purchase.invoice_no || 'N/A'} &middot; Status: {purchase.status}</p>
+          <p className="text-sm text-slate-600">Invoice: {purchase.invoice_no || 'N/A'} &middot; Status: {purchase.status}</p>
         </div>
         <div className="ml-auto flex gap-2">
           <button onClick={() => setShowReturn(true)} className="flex items-center gap-1 bg-rose-50 text-rose-600 hover:bg-rose-100 px-3 py-1.5 rounded-lg text-sm"><Undo2 size={14} /> Return</button>
@@ -188,7 +188,7 @@ export default function PurchaseDetail({ purchaseId, onBack }: PurchaseDetailPro
                   className="w-20 p-1 border rounded dark:bg-slate-900 text-sm"
                   placeholder="Qty"
                 />
-                <span className="text-xs text-slate-400">/ {r.line.qty_received}</span>
+                <span className="text-xs text-slate-500">/ {r.line.qty_received}</span>
               </div>
             ))}
             <div className="flex justify-end gap-2 mt-4">

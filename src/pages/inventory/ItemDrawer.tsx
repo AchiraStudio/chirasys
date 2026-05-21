@@ -192,7 +192,7 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
       <div className="relative w-full max-w-2xl bg-white dark:bg-[#0B0F19] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-slate-200 dark:border-slate-800">
         
         {isLoadingEdit ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
             <Loader2 className="animate-spin mb-4 text-brand" size={32} />
             <p>Loading record data...</p>
           </div>
@@ -203,15 +203,15 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                 <div className="p-2 bg-brand/10 text-brand rounded-lg"><Pill size={20} /></div>
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 dark:text-white">{editItemId ? 'Edit Medicine' : 'Add New Medicine'}</h2>
-                  <p className="text-xs text-slate-500 font-medium">{editItemId ? 'Update master record details' : 'Create a new master record'}</p>
+                  <p className="text-xs text-slate-600 font-medium">{editItemId ? 'Update master record details' : 'Create a new master record'}</p>
                 </div>
               </div>
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-200 dark:border-slate-700 transition-colors"><X size={18} /></button>
+              <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-200 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-200 dark:border-slate-700 transition-colors"><X size={18} /></button>
             </div>
 
             <div className="flex px-6 border-b border-slate-200 dark:border-slate-800">
               {['basic', 'units', 'pricing', 'settings'].map((tab) => (
-                <button key={tab} onClick={() => setActiveTab(tab as any)} className={`px-4 py-3 text-sm font-semibold capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-brand text-brand' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{tab}</button>
+                <button key={tab} onClick={() => setActiveTab(tab as any)} className={`px-4 py-3 text-sm font-semibold capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-brand text-brand' : 'border-transparent text-slate-600 hover:text-slate-700 dark:hover:text-slate-500'}`}>{tab}</button>
               ))}
             </div>
 
@@ -235,8 +235,8 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                         </>
                       ) : (
                         <>
-                          <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm mb-2 text-slate-400 group-hover:text-brand transition-colors"><ImageIcon size={20} /></div>
-                          <span className="text-[10px] font-semibold text-slate-500">Upload Image</span>
+                          <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm mb-2 text-slate-500 group-hover:text-brand transition-colors"><ImageIcon size={20} /></div>
+                          <span className="text-[10px] font-semibold text-slate-600">Upload Image</span>
                         </>
                       )}
                     </div>
@@ -266,8 +266,8 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                         {draftUnits.map((unit) => (
                           <tr key={unit.tempId} className="bg-white dark:bg-slate-950">
                             <td className="p-3"><input type="text" value={unit.unit_name} onChange={(e) => updateDraftUnit(unit.tempId, 'unit_name', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand/20" /></td>
-                            <td className="p-3">{unit.is_base ? <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold uppercase tracking-wider">Base Unit (1)</span> : <div className="flex items-center gap-2"><span className="text-sm text-slate-500">=</span><input type="number" value={unit.conversion} onChange={(e) => updateDraftUnit(unit.tempId, 'conversion', Number(e.target.value))} className="w-20 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand/20" /><span className="text-sm text-slate-500">{draftUnits.find(u => u.is_base)?.unit_name || 'Base'}s</span></div>}</td>
-                            <td className="p-3 text-center">{!unit.is_base && <button onClick={() => removeDraftUnit(unit.tempId)} className="text-slate-400 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950"><Trash2 size={16} /></button>}</td>
+                            <td className="p-3">{unit.is_base ? <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 text-xs font-bold uppercase tracking-wider">Base Unit (1)</span> : <div className="flex items-center gap-2"><span className="text-sm text-slate-600">=</span><input type="number" value={unit.conversion} onChange={(e) => updateDraftUnit(unit.tempId, 'conversion', Number(e.target.value))} className="w-20 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand/20" /><span className="text-sm text-slate-600">{draftUnits.find(u => u.is_base)?.unit_name || 'Base'}s</span></div>}</td>
+                            <td className="p-3 text-center">{!unit.is_base && <button onClick={() => removeDraftUnit(unit.tempId)} className="text-slate-500 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950"><Trash2 size={16} /></button>}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -309,12 +309,12 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Cost Valuation (HPP) Method</label>
                         <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg">
-                          {['avg', 'fifo', 'lifo'].map(method => (<button key={method} onClick={() => setFormData({...formData, hpp_method: method})} className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${formData.hpp_method === method ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{method}</button>))}
+                          {['avg', 'fifo', 'lifo'].map(method => (<button key={method} onClick={() => setFormData({...formData, hpp_method: method})} className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${formData.hpp_method === method ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 hover:text-slate-700'}`}>{method}</button>))}
                         </div>
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Minimum Stock Alert</label>
-                        <div className="flex items-center gap-3"><input type="number" value={formData.min_stock} onChange={e => setFormData({...formData, min_stock: Number(e.target.value)})} className="w-24 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20 text-center" /><span className="text-sm text-slate-500">Base Units</span></div>
+                        <div className="flex items-center gap-3"><input type="number" value={formData.min_stock} onChange={e => setFormData({...formData, min_stock: Number(e.target.value)})} className="w-24 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20 text-center" /><span className="text-sm text-slate-600">Base Units</span></div>
                       </div>
                     </div>
                     <div className="space-y-4 pt-2">

@@ -35,7 +35,7 @@ export default function ItemDetail({ itemId, onBack, onEditItem, refreshTrigger 
 
   if (loading || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-slate-400 animate-pulse">
+      <div className="flex flex-col items-center justify-center h-full text-slate-500 animate-pulse">
         <Package size={32} className="mb-4 opacity-50" />
         <p>Fetching master record...</p>
       </div>
@@ -50,7 +50,7 @@ export default function ItemDetail({ itemId, onBack, onEditItem, refreshTrigger 
         <div className="absolute top-0 right-0 w-64 h-64 bg-brand opacity-[0.03] dark:opacity-10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
         
         <div className="flex items-center gap-5 relative z-10">
-          <button onClick={onBack} className="p-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-xl transition-all hover:shadow-sm">
+          <button onClick={onBack} className="p-2.5 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 rounded-xl transition-all hover:shadow-sm">
             <ArrowLeft size={18} />
           </button>
           <div className="h-14 w-14 bg-gradient-to-tr from-brand/10 to-indigo-500/10 text-brand rounded-2xl flex items-center justify-center border border-brand/20 shadow-inner">
@@ -59,11 +59,11 @@ export default function ItemDetail({ itemId, onBack, onEditItem, refreshTrigger 
           <div>
             <div className="flex items-center gap-3 mb-1">
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{item.name}</h1>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${item.is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'}`}>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${item.is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'}`}>
                 {item.is_active ? 'Active' : 'Inactive'}
               </span>
             </div>
-            <div className="flex items-center gap-3 text-sm text-slate-500 font-medium">
+            <div className="flex items-center gap-3 text-sm text-slate-600 font-medium">
               <span className="font-mono text-xs bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800">SKU: {item.sku}</span>
               {item.barcode && <span className="font-mono text-xs bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-800">EAN: {item.barcode}</span>}
             </div>
@@ -92,18 +92,18 @@ export default function ItemDetail({ itemId, onBack, onEditItem, refreshTrigger 
               <div className="flex flex-col items-center justify-center p-12 text-center">
                 <AlertCircle size={32} className="text-amber-500 mb-3 opacity-80" />
                 <p className="font-semibold text-slate-700 dark:text-slate-300">No units defined</p>
-                <p className="text-sm text-slate-500 mt-1 max-w-xs">This is likely an old record. Click "Edit Record" to add base units and conversions.</p>
+                <p className="text-sm text-slate-600 mt-1 max-w-xs">This is likely an old record. Click "Edit Record" to add base units and conversions.</p>
               </div>
             ) : (
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50/80 dark:bg-slate-900/50 text-xs uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100 dark:border-slate-800">
+                <thead className="bg-slate-50/80 dark:bg-slate-900/50 text-xs uppercase tracking-wider text-slate-600 font-semibold border-b border-slate-100 dark:border-slate-800">
                   <tr><th className="py-3 px-5">Unit Name</th><th className="py-3 px-5">Conversion Rate</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                   {units.map(u => (
                     <tr key={u.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                       <td className="py-3.5 px-5 font-semibold text-slate-800 dark:text-slate-200">{u.unit_name}</td>
-                      <td className="py-3.5 px-5 text-slate-500 dark:text-slate-400">{u.is_base ? <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs font-bold uppercase">Base Unit (1)</span> : <span>= {u.conversion} Base Units</span>}</td>
+                      <td className="py-3.5 px-5 text-slate-600 dark:text-slate-400">{u.is_base ? <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs font-bold uppercase">Base Unit (1)</span> : <span>= {u.conversion} Base Units</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -120,13 +120,13 @@ export default function ItemDetail({ itemId, onBack, onEditItem, refreshTrigger 
           <div className="flex-1 overflow-x-auto">
             {units.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-12 text-center">
-                <AlertCircle size={32} className="text-slate-300 dark:text-slate-700 mb-3" />
+                <AlertCircle size={32} className="text-slate-500 dark:text-slate-700 mb-3" />
                 <p className="font-semibold text-slate-700 dark:text-slate-300">No pricing available</p>
-                <p className="text-sm text-slate-500 mt-1">Prices require units to be set first.</p>
+                <p className="text-sm text-slate-600 mt-1">Prices require units to be set first.</p>
               </div>
             ) : (
               <table className="w-full text-left text-sm min-w-[500px]">
-                <thead className="bg-slate-50/80 dark:bg-slate-900/50 text-xs uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100 dark:border-slate-800">
+                <thead className="bg-slate-50/80 dark:bg-slate-900/50 text-xs uppercase tracking-wider text-slate-600 font-semibold border-b border-slate-100 dark:border-slate-800">
                   <tr><th className="py-3 px-5">Unit</th><th className="py-3 px-5">Regular</th><th className="py-3 px-5">Member</th><th className="py-3 px-5">VIP</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">

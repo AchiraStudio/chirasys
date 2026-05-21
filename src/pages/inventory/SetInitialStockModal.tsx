@@ -38,9 +38,9 @@ export default function SetInitialStockModal({ isOpen, onClose, item, branchId, 
         <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">Set Initial Stock</h2>
-            <p className="text-sm text-slate-500">{item.item_name}</p> 
+            <p className="text-sm text-slate-600">{item.item_name}</p> 
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={18} /></button>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={18} /></button>
         </div>
         
         <div className="p-6 space-y-4">

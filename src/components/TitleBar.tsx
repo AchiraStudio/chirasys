@@ -42,7 +42,7 @@ export default function TitleBar() {
         data-tauri-drag-region
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
       >
-        <span className="text-[11px] font-semibold tracking-widest uppercase text-slate-500 dark:text-slate-400">
+        <span className="text-[11px] font-semibold tracking-widest uppercase text-slate-600 dark:text-slate-400">
           ChiraSys ERP
         </span>
       </div>
@@ -58,7 +58,7 @@ export default function TitleBar() {
           onClick={minimize}
           className="
             h-full w-11 flex items-center justify-center
-            text-slate-500 dark:text-slate-400
+            text-slate-600 dark:text-slate-400
             hover:bg-slate-100 dark:hover:bg-slate-800
             transition-colors
           "
@@ -72,7 +72,7 @@ export default function TitleBar() {
           onClick={toggleMax}
           className="
             h-full w-11 flex items-center justify-center
-            text-slate-500 dark:text-slate-400
+            text-slate-600 dark:text-slate-400
             hover:bg-slate-100 dark:hover:bg-slate-800
             transition-colors
           "
@@ -88,7 +88,7 @@ export default function TitleBar() {
           onClick={close}
           className="
             h-full w-11 flex items-center justify-center
-            text-slate-500 dark:text-slate-400
+            text-slate-600 dark:text-slate-400
             hover:bg-rose-500 hover:text-white
             transition-colors
           "

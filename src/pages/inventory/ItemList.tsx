@@ -47,7 +47,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Medicines & Items</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your complete product catalog. Total records: {total}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Manage your complete product catalog. Total records: {total}</p>
         </div>
         <button onClick={onAddItem} className="flex items-center gap-2 bg-brand hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98]">
           <Plus size={18} /> Add Medicine
@@ -57,7 +57,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
       <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col flex-1 overflow-hidden">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex gap-4 bg-slate-50/50 dark:bg-slate-900/30">
           <div className="flex-1 flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all">
-            <Search size={16} className="text-slate-400 mr-2" />
+            <Search size={16} className="text-slate-500 mr-2" />
             <input 
               type="text" 
               value={search}
@@ -71,7 +71,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm z-10">
-              <tr className="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800">
+              <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800">
                 <th className="py-4 px-6">Item Name</th>
                 <th className="py-4 px-6">SKU</th>
                 <th className="py-4 px-6 text-center">Status</th>
@@ -85,23 +85,23 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                 <tr key={item.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group ${item.is_active === 0 ? 'opacity-50' : ''}`}>
                   <td className="py-4 px-6">
                     <p className="font-bold text-slate-900 dark:text-white">{item.name}</p>
-                    {item.generic_name && <p className="text-xs text-slate-500 mt-0.5">{item.generic_name}</p>}
+                    {item.generic_name && <p className="text-xs text-slate-600 mt-0.5">{item.generic_name}</p>}
                   </td>
                   <td className="py-4 px-6 font-mono text-xs text-slate-600">{item.sku}</td>
                   <td className="py-4 px-6 text-center">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-bold uppercase ${item.is_active ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-slate-100 text-slate-500 ring-slate-400/20'} ring-1 ring-inset`}>
+                    <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-bold uppercase ${item.is_active ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-slate-100 text-slate-600 ring-slate-400/20'} ring-1 ring-inset`}>
                       {item.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right relative">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => onViewItem(item.id)} className="p-2 text-slate-400 hover:text-brand bg-slate-100 dark:bg-slate-800 rounded-lg" title="View Details">
+                      <button onClick={() => onViewItem(item.id)} className="p-2 text-slate-500 hover:text-brand bg-slate-100 dark:bg-slate-800 rounded-lg" title="View Details">
                         <Eye size={16} />
                       </button>
-                      <button onClick={() => onEditItem(item.id)} className="p-2 text-slate-400 hover:text-amber-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Edit Item">
+                      <button onClick={() => onEditItem(item.id)} className="p-2 text-slate-500 hover:text-amber-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Edit Item">
                         <Edit size={16} />
                       </button>
-                      <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-rose-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Deactivate">
+                      <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-500 hover:text-rose-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Deactivate">
                         <Trash2 size={16} />
                       </button>
                     </div>

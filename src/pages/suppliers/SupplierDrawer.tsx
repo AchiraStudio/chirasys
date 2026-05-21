@@ -52,10 +52,10 @@ export default function SupplierDrawer({ isOpen, onClose, onSuccess, supplierToE
             <div className="p-2 bg-brand/10 text-brand rounded-lg"><Building2 size={20} /></div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">{supplierToEdit ? 'Edit Supplier' : 'New Supplier'}</h2>
-              <p className="text-xs text-slate-500 font-medium">Manage vendor details</p>
+              <p className="text-xs text-slate-600 font-medium">Manage vendor details</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-200 dark:border-slate-700"><X size={18} /></button>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-600 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-200 dark:border-slate-700"><X size={18} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">

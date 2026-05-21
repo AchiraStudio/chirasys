@@ -52,7 +52,20 @@ pub fn run() {
             commands::promos::create_promo,
             commands::promos::update_promo,
             commands::promos::delete_promo,
+            commands::promos::toggle_promo_active,
             commands::promos::calculate_discounts,
+
+            // Phase 7
+            commands::accounting::get_accounts,
+            commands::accounting::create_account,
+            commands::accounting::update_account,
+            commands::accounting::delete_account,
+            commands::accounting::get_journal_entries,
+            commands::accounting::get_journal_detail,
+            commands::accounting::create_manual_journal,
+            commands::accounting::get_trial_balance,
+            commands::accounting::get_profit_loss,
+            commands::accounting::get_balance_sheet,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

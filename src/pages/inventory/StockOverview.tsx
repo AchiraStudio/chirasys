@@ -53,14 +53,14 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Stock Balances</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
             Real-time inventory levels computed from append‑only ledger logs.
           </p>
         </div>
         <button 
           onClick={loadStockData} 
           disabled={loading} 
-          className="p-2.5 text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95"
+          className="p-2.5 text-slate-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95"
         >
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
         </button>
@@ -74,7 +74,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
           </div>
           <div>
             <h4 className="text-2xl font-bold text-slate-900 dark:text-white">{totalItemsCount}</h4>
-            <p className="text-xs font-medium text-slate-400 uppercase">Monitored Items</p>
+            <p className="text-xs font-medium text-slate-500 uppercase">Monitored Items</p>
           </div>
         </div>
         <div className="bg-white dark:bg-[#0B0F19] border border-slate-200/60 dark:border-slate-800/80 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
@@ -83,7 +83,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
           </div>
           <div>
             <h4 className="text-2xl font-bold text-slate-900 dark:text-white">{lowStockCount}</h4>
-            <p className="text-xs font-medium text-slate-400 uppercase">Items Below Minimum</p>
+            <p className="text-xs font-medium text-slate-500 uppercase">Items Below Minimum</p>
           </div>
         </div>
       </div>
@@ -98,7 +98,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
               className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-colors ${
                 filterMode === 'all' 
                   ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-white' 
-                  : 'text-slate-500 hover:text-slate-700'
+                  : 'text-slate-600 hover:text-slate-700'
               }`}
             >
               All Items
@@ -108,14 +108,14 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
               className={`px-4 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${
                 filterMode === 'low' 
                   ? 'bg-white dark:bg-slate-800 text-amber-600 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700'
+                  : 'text-slate-600 hover:text-slate-700'
               }`}
             >
               <AlertTriangle size={12} /> Stock Alerts ({lowStockCount})
             </button>
           </div>
           <div className="flex-1 max-w-md flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3">
-            <Search size={16} className="text-slate-400 mr-2" />
+            <Search size={16} className="text-slate-500 mr-2" />
             <input 
               type="text" 
               value={search} 
@@ -130,7 +130,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm z-10">
-              <tr className="text-slate-500 dark:text-slate-400 text-xs uppercase font-semibold border-b border-slate-200 dark:border-slate-800">
+              <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase font-semibold border-b border-slate-200 dark:border-slate-800">
                 <th className="py-4 px-6">Item</th>
                 <th className="py-4 px-6">SKU</th>
                 <th className="py-4 px-6 text-center">Base Unit</th>
@@ -144,12 +144,12 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                 <tr>
                   <td colSpan={5} className="py-20 text-center">
                     <Loader2 size={24} className="animate-spin mx-auto text-brand" />
-                    <p className="text-xs text-slate-400 mt-2">Loading stock data...</p>
+                    <p className="text-xs text-slate-500 mt-2">Loading stock data...</p>
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-20 text-center text-slate-400">
+                  <td colSpan={5} className="py-20 text-center text-slate-500">
                     No items match your search or filter.
                   </td>
                 </tr>
@@ -167,9 +167,9 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-6 font-mono text-xs text-slate-500">{row.sku}</td>
+                    <td className="py-3 px-6 font-mono text-xs text-slate-600">{row.sku}</td>
                     <td className="py-3 px-6 text-center text-slate-600 dark:text-slate-300">{row.unit_name || '-'}</td>
-                    <td className="py-3 px-6 text-right font-mono text-slate-500">{row.min_stock}</td>
+                    <td className="py-3 px-6 text-right font-mono text-slate-600">{row.min_stock}</td>
                     <td className={`py-3 px-6 text-right font-mono font-bold ${row.is_low_stock ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
                       {row.current_qty}
                     </td>
@@ -178,7 +178,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                         {/* Edit Item Master Data */}
                         <button
                           onClick={() => onEditItem(row.item_id)}
-                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400 transition-all duration-200 transform hover:scale-110 active:scale-95"
+                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400 transition-all duration-200 transform hover:scale-110 active:scale-95"
                           title="Edit Item Details"
                         >
                           <Pencil size={16} />
@@ -187,7 +187,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                         {!row.has_ledger_entries && row.unit_id && (
                           <button
                             onClick={() => setInitItem(row)}
-                            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-brand/10 hover:text-brand dark:hover:bg-brand/20 dark:hover:text-brand-400 transition-all duration-200 transform hover:scale-110 active:scale-95"
+                            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-brand/10 hover:text-brand dark:hover:bg-brand/20 dark:hover:text-brand-400 transition-all duration-200 transform hover:scale-110 active:scale-95"
                             title="Set Initial Stock"
                           >
                             <PackageOpen size={16} />
@@ -197,7 +197,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                         <button
                           onClick={() => setAdjustItem(row)}
                           disabled={!row.unit_id}
-                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 transition-all duration-200 transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 transition-all duration-200 transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Adjust Stock"
                         >
                           <Activity size={16} />
@@ -205,7 +205,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                         {/* View History */}
                         <button
                           onClick={() => setHistoryItem(row)}
-                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-all duration-200 transform hover:scale-110 active:scale-95"
+                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-all duration-200 transform hover:scale-110 active:scale-95"
                           title="Stock History"
                         >
                           <History size={16} />

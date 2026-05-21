@@ -38,8 +38,8 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
                         <CheckCircle2 size={32} />
                     </div>
                     <h2 className="text-2xl font-bold">Payment Successful</h2>
-                    <p className="text-slate-500 mt-2 text-sm">Transaction recorded successfully.</p>
-                    <p className="text-slate-500 font-mono text-xs mt-1">{detail.sale.transaction_no}</p>
+                    <p className="text-slate-600 mt-2 text-sm">Transaction recorded successfully.</p>
+                    <p className="text-slate-600 font-mono text-xs mt-1">{detail.sale.transaction_no}</p>
                 </div>
                 
                 <div className="p-6 bg-slate-50 dark:bg-slate-900/50 flex flex-col gap-3">

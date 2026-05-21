@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, Activity, ChevronDown, LogOut, Database, Pill, Truck, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, Activity, ChevronDown, LogOut, Database, Pill, Truck, ClipboardList, Tag, BookOpen } from 'lucide-react';
 
 interface SidebarProps {
   activeMenu: string;
@@ -13,8 +13,10 @@ const menuItems = [
     { id: 'catalog', icon: Pill, label: 'Catalog' },
     { id: 'suppliers', icon: Truck, label: 'Suppliers' },
     { id: 'customers', icon: Users, label: 'Customers' },
-    { id: 'purchasing', icon: ClipboardList, label: 'Purchasing (PO)' }, // <--- ADDED PHASE 4
+    { id: 'purchasing', icon: ClipboardList, label: 'Purchasing (PO)' },
     { id: 'pos', icon: ShoppingCart, label: 'Sales & POS' },
+    { id: 'promos', icon: Tag, label: 'Promotions' },
+    { id: 'accounting', icon: BookOpen, label: 'Accounting' },
     { id: 'reports', icon: FileText, label: 'Reports' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
@@ -24,19 +26,19 @@ const menuItems = [
       
       {/* Brand & Branch Selector */}
       <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors mt-2">
-        <div className="bg-brand text-white rounded-lg p-1.5 mr-3 shadow-sm shadow-brand/20">
-          <Activity size={18} strokeWidth={2.5} />
+        <div className="w-8 h-8 mr-3 rounded-lg overflow-hidden bg-white shadow-sm flex items-center justify-center p-1">
+          <img src="/cs.ico" alt="ChiraSys" className="w-full h-full object-contain" />
         </div>
         <div className="flex-1">
           <h1 className="text-sm leading-tight text-slate-900 dark:text-slate-100">ChiraSys HQ</h1>
-          <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mt-0.5">Main Branch</p>
+          <p className="text-[11px] font-medium text-slate-600 uppercase tracking-wider mt-0.5">Main Branch</p>
         </div>
-        <ChevronDown size={14} className="text-slate-400 dark:text-slate-500" />
+        <ChevronDown size={14} className="text-slate-500 dark:text-slate-500" />
       </div>
       
       {/* Navigation */}
       <nav className="flex-1 py-6 flex flex-col gap-1.5 px-3 overflow-y-auto custom-scrollbar">
-        <p className="px-3 text-[11px] font-semibold text-slate-400 dark:text-slate-500/80 uppercase tracking-wider mb-2">
+        <p className="px-3 text-[11px] font-semibold text-slate-500 dark:text-slate-500/80 uppercase tracking-wider mb-2">
           Main Navigation
         </p>
         
@@ -57,7 +59,7 @@ const menuItems = [
               <Icon 
                 size={18} 
                 strokeWidth={isActive ? 2.5 : 2} 
-                className={`mr-3 transition-colors ${isActive ? 'text-brand' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} 
+                className={`mr-3 transition-colors ${isActive ? 'text-brand' : 'text-slate-500 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-500'}`} 
               />
               <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>
                 {item.label}
@@ -68,7 +70,7 @@ const menuItems = [
                 <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
                   isActive 
                     ? 'bg-brand/20 text-brand' 
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
                 }`}>
                   12
                 </span>
@@ -86,10 +88,10 @@ const menuItems = [
           </div>
           <div>
             <p className="text-sm font-semibold leading-none text-slate-900 dark:text-slate-200">Admin User</p>
-            <p className="text-[11px] text-slate-500 mt-1">System Admin</p>
+            <p className="text-[11px] text-slate-600 mt-1">System Admin</p>
           </div>
         </div>
-        <LogOut size={16} className="text-slate-400 dark:text-slate-500 group-hover:text-rose-500 dark:group-hover:text-rose-400 transition-colors" />
+        <LogOut size={16} className="text-slate-500 dark:text-slate-500 group-hover:text-rose-500 dark:group-hover:text-rose-400 transition-colors" />
       </div>
     </aside>
   );

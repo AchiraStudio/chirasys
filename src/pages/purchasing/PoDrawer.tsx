@@ -80,17 +80,17 @@ export default function PoDrawer({ isOpen, onClose, onSuccess, branchId }: PoDra
             <div className="space-y-3">
               {lines.map((line) => (
                 <div key={line.tempId} className="flex gap-3 items-end p-3 border rounded-xl dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                  <div className="flex-[2]"><label className="text-xs text-slate-500 mb-1 block">Item</label><select value={line.item_id} onChange={e => handleItemSelect(line.tempId, e.target.value)} className="w-full p-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-700"><option value="">Select Item...</option>{items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}</select></div>
-                  <div className="flex-1"><label className="text-xs text-slate-500 mb-1 block">Unit</label><select value={line.unit_id} onChange={e => updateLine(line.tempId, 'unit_id', e.target.value)} className="w-full p-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-700" disabled={!line.item_id}><option value="">Select...</option>{(unitCache[line.item_id] || []).map(u => <option key={u.id} value={u.id}>{u.unit_name}</option>)}</select></div>
-                  <div className="w-20"><label className="text-xs text-slate-500 mb-1 block">Qty</label><input type="number" value={line.qty} onChange={e => updateLine(line.tempId, 'qty', Number(e.target.value))} className="w-full p-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-700" min="1" /></div>
-                  <div className="w-28"><label className="text-xs text-slate-500 mb-1 block">Est. Cost/Unit</label><input type="number" value={line.price} onChange={e => updateLine(line.tempId, 'price', Number(e.target.value))} className="w-full p-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-700" min="0" /></div>
+                  <div className="flex-[2]"><label className="text-xs text-slate-600 mb-1 block">Item</label><select value={line.item_id} onChange={e => handleItemSelect(line.tempId, e.target.value)} className="w-full p-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-700"><option value="">Select Item...</option>{items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}</select></div>
+                  <div className="flex-1"><label className="text-xs text-slate-600 mb-1 block">Unit</label><select value={line.unit_id} onChange={e => updateLine(line.tempId, 'unit_id', e.target.value)} className="w-full p-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-700" disabled={!line.item_id}><option value="">Select...</option>{(unitCache[line.item_id] || []).map(u => <option key={u.id} value={u.id}>{u.unit_name}</option>)}</select></div>
+                  <div className="w-20"><label className="text-xs text-slate-600 mb-1 block">Qty</label><input type="number" value={line.qty} onChange={e => updateLine(line.tempId, 'qty', Number(e.target.value))} className="w-full p-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-700" min="1" /></div>
+                  <div className="w-28"><label className="text-xs text-slate-600 mb-1 block">Est. Cost/Unit</label><input type="number" value={line.price} onChange={e => updateLine(line.tempId, 'price', Number(e.target.value))} className="w-full p-2 border rounded-lg text-sm dark:bg-slate-900 dark:border-slate-700" min="0" /></div>
                   <button onClick={() => removeLine(line.tempId)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg mb-0.5"><Trash2 size={18}/></button>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="text-right p-4 bg-slate-100 dark:bg-slate-800 rounded-xl"><p className="text-sm text-slate-500">Estimated Total</p><p className="text-2xl font-bold text-brand">Rp {totalEstimate.toLocaleString()}</p></div>
+          <div className="text-right p-4 bg-slate-100 dark:bg-slate-800 rounded-xl"><p className="text-sm text-slate-600">Estimated Total</p><p className="text-2xl font-bold text-brand">Rp {totalEstimate.toLocaleString()}</p></div>
         </div>
 
         <div className="p-4 border-t dark:border-slate-800 flex justify-end gap-3"><button onClick={onClose} className="px-4 py-2 text-sm font-semibold">Cancel</button><button onClick={handleSubmit} disabled={isSubmitting} className="bg-brand text-white px-6 py-2 rounded-lg font-semibold flex items-center gap-2">{isSubmitting ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Send PO</button></div>

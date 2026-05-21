@@ -55,7 +55,7 @@ export default function PurchasingDashboard() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Purchasing</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage supplier orders, received goods, and payments.</p>
+          <p className="text-sm text-slate-600 mt-1">Manage supplier orders, received goods, and payments.</p>
         </div>
         {view === 'po' && (
           <button onClick={() => setIsPoDrawerOpen(true)} className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm hover:bg-blue-600 transition-colors">
@@ -84,7 +84,7 @@ export default function PurchasingDashboard() {
         <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden">
           {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
             <table className="w-full text-left">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold">
+              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold">
                 <tr>
                   <th className="py-4 px-6">PO Number</th>
                   <th className="py-4 px-6">Supplier</th>
@@ -95,15 +95,15 @@ export default function PurchasingDashboard() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
                 {pos.length === 0 ? (
-                  <tr><td colSpan={5} className="py-12 text-center text-slate-400">No Purchase Orders found. Create your first one!</td></tr>
+                  <tr><td colSpan={5} className="py-12 text-center text-slate-500">No Purchase Orders found. Create your first one!</td></tr>
                 ) : pos.map(po => (
                   <tr key={po.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group">
-                    <td className="py-4 px-6 font-mono text-xs text-slate-500 flex items-center gap-2">
-                      <FileText size={14} className="text-slate-400" />
+                    <td className="py-4 px-6 font-mono text-xs text-slate-600 flex items-center gap-2">
+                      <FileText size={14} className="text-slate-500" />
                       {po.id.split('-')[0].toUpperCase()}
                     </td>
                     <td className="py-4 px-6 font-bold">{po.supplier_name}</td>
-                    <td className="py-4 px-6 text-slate-500 flex items-center gap-1"><Clock size={14}/> {po.expected_date || 'N/A'}</td>
+                    <td className="py-4 px-6 text-slate-600 flex items-center gap-1"><Clock size={14}/> {po.expected_date || 'N/A'}</td>
                     <td className="py-4 px-6 text-center">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(po.status)}`}>
                         {po.status}
@@ -130,7 +130,7 @@ export default function PurchasingDashboard() {
         <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden">
           {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
             <table className="w-full text-left">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold">
+              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold">
                 <tr>
                   <th className="py-4 px-6">Invoice No</th>
                   <th className="py-4 px-6">PO Ref</th>
@@ -141,14 +141,14 @@ export default function PurchasingDashboard() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
                 {purchases.length === 0 ? (
-                  <tr><td colSpan={5} className="py-12 text-center text-slate-400">No received goods yet.</td></tr>
+                  <tr><td colSpan={5} className="py-12 text-center text-slate-500">No received goods yet.</td></tr>
                 ) : purchases.map(p => (
                   <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group">
                     <td className="py-4 px-6 font-bold flex items-center gap-2">
-                      <FileText size={14} className="text-slate-400" />
+                      <FileText size={14} className="text-slate-500" />
                       {p.invoice_no || 'No Invoice'}
                     </td>
-                    <td className="py-4 px-6 text-xs text-slate-500 font-mono">{p.po_id?.split('-')[0] || '-'}</td>
+                    <td className="py-4 px-6 text-xs text-slate-600 font-mono">{p.po_id?.split('-')[0] || '-'}</td>
                     <td className="py-4 px-6 font-mono">Rp {p.total_amount.toLocaleString('id-ID')}</td>
                     <td className="py-4 px-6 text-center">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(p.status)}`}>

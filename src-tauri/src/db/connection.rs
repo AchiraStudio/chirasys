@@ -69,5 +69,8 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         }
     }
 
+    let migration_11 = include_str!("./migrations/011_accounting.sql");
+    sqlx::query(migration_11).execute(pool).await.map_err(|e| format!("Migration 011 failed: {}", e))?;
+
     Ok(())
 }

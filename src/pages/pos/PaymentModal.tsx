@@ -65,23 +65,23 @@ export default function PaymentModal({ branchId, cart, total, priceType, onClose
             <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                     <h2 className="text-xl font-bold">Payment</h2>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={20}/></button>
+                    <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={20}/></button>
                 </div>
                 
                 <div className="p-6 space-y-6">
                     <div className="text-center">
-                        <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Due</p>
+                        <p className="text-sm font-medium text-slate-600 uppercase tracking-wider">Total Due</p>
                         <p className="text-4xl font-bold text-brand mt-1">Rp {total.toLocaleString('id-ID')}</p>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                        <button onClick={() => setMethod('cash')} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${method === 'cash' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}><Banknote size={16}/> Cash</button>
-                        <button onClick={() => setMethod('card')} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${method === 'card' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}><CreditCard size={16}/> Card</button>
-                        <button onClick={() => setMethod('qris')} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${method === 'qris' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}><QrCode size={16}/> QRIS</button>
+                        <button onClick={() => setMethod('cash')} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${method === 'cash' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-600 hover:text-slate-700'}`}><Banknote size={16}/> Cash</button>
+                        <button onClick={() => setMethod('card')} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${method === 'card' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-600 hover:text-slate-700'}`}><CreditCard size={16}/> Card</button>
+                        <button onClick={() => setMethod('qris')} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${method === 'qris' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-600 hover:text-slate-700'}`}><QrCode size={16}/> QRIS</button>
                     </div>
 
                     <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Amount Received</label>
+                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 block">Amount Received</label>
                         <div className="flex gap-2">
                             <input 
                                 type="number" 

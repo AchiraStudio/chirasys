@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, User, Banknote, PauseCircle, PlayCircle, Loader2 } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, User, Banknote, PauseCircle, PlayCircle, Loader2, Tag } from 'lucide-react';
 import { usePosStore, PosLine, PosHold } from './POSStore';
-import { getItemsFiltered, Item } from '../../lib/api';
+import { getItemsFiltered, Item, getItem } from '../../lib/api';
+import { applyDiscountsToCart } from '../../lib/discountEngine';
 import PaymentModal from './PaymentModal';
 import ReceiptModal from './ReceiptModal';
 
@@ -10,6 +11,7 @@ export default function POS() {
   
   const [items, setItems] = useState<Item[]>([]);
   const [cart, setCart] = useState<PosLine[]>([]);
+  const [cartDiscount, setCartDiscount] = useState(0);
   const [search, setSearch] = useState('');
   const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
   const [loading, setLoading] = useState(false);
@@ -63,6 +65,113 @@ export default function POS() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Discount Application Effect
+  useEffect(() => {
+    if (cart.length === 0) {
+      setCartDiscount(0);
+      return;
+    }
+
+    const linesForEngine = cart.map((l, i) => ({
+      item_id: l.item_id,
+      unit_id: l.unit_id,
+      category_id: undefined, // Add if you fetch it
+      qty: l.qty,
+      price: l.price,
+      line_index: i
+    }));
+
+    // Customer tier will come from selected customer (currently undefined)
+    applyDiscountsToCart(linesForEngine, undefined, async (result) => {
+      setCartDiscount(result.cart_discount);
+      
+      let needsUpdate = false;
+      let newCart = [...cart];
+      const itemsToAdd = [];
+
+      // Update existing lines
+      for (const lineDisc of result.line_discounts) {
+        if (!lineDisc.is_bogo_free_item) {
+           if (newCart[lineDisc.line_index] && newCart[lineDisc.line_index].discount_amount !== lineDisc.discount_amount) {
+             newCart[lineDisc.line_index].discount_amount = lineDisc.discount_amount;
+             needsUpdate = true;
+           }
+        } else {
+           // Handle BOGO free item
+           // Check if there is already a free line for this promo & index
+           const existingFreeIdx = newCart.findIndex(l => l.is_bogo_free && l.item_id === (lineDisc.free_item_id || newCart[lineDisc.line_index].item_id));
+           if (existingFreeIdx >= 0) {
+              // Update quantity if needed
+              if (newCart[existingFreeIdx].qty !== lineDisc.free_item_qty) {
+                 newCart[existingFreeIdx].qty = lineDisc.free_item_qty;
+                 needsUpdate = true;
+              }
+           } else {
+              // Add new free line
+              const parentLine = newCart[lineDisc.line_index];
+              // Try to find the free item details if it's different
+              let freeItemName = parentLine.item_name;
+              let freeUnitName = parentLine.unit_name;
+              let freeHpp = parentLine.hpp_value;
+              let freePrice = parentLine.price;
+
+              if (lineDisc.free_item_id && lineDisc.free_item_id !== parentLine.item_id) {
+                 const found = items.find(i => i.id === lineDisc.free_item_id);
+                 if (found) {
+                     freeItemName = found.name;
+                     freeUnitName = found.base_unit_name || 'Unit';
+                     freeHpp = found.avg_hpp || 0;
+                     freePrice = found.price || 0;
+                 } else {
+                     freeItemName = "Free Item";
+                 }
+              }
+
+              itemsToAdd.push({
+                  item_id: lineDisc.free_item_id || parentLine.item_id,
+                  item_name: freeItemName,
+                  unit_id: lineDisc.free_item_unit_id || parentLine.unit_id,
+                  unit_name: freeUnitName,
+                  qty: lineDisc.free_item_qty,
+                  price_type: parentLine.price_type,
+                  price: freePrice,
+                  discount_amount: freePrice * lineDisc.free_item_qty, // 100% discount
+                  hpp_value: freeHpp,
+                  is_bogo_free: true
+              });
+              needsUpdate = true;
+           }
+        }
+      }
+
+      // If BOGO conditions no longer met, remove free lines
+      const freeItemIndexes = newCart.map((l, i) => l.is_bogo_free ? i : -1).filter(i => i !== -1);
+      if (freeItemIndexes.length > result.line_discounts.filter(d => d.is_bogo_free_item).length) {
+         // simplified removal: if we have more free lines than bogo rules fired, just remove all free lines and let them re-add next tick
+         newCart = newCart.filter(l => !l.is_bogo_free);
+         needsUpdate = true;
+      }
+
+      if (itemsToAdd.length > 0) {
+         newCart = [...newCart, ...itemsToAdd];
+      }
+
+      // Zero out discounts for lines that no longer have a discount
+      for (let i = 0; i < newCart.length; i++) {
+        if (newCart[i].price > 0 && !result.line_discounts.find(d => d.line_index === i && !d.is_bogo_free_item)) {
+          if (newCart[i].discount_amount !== 0) {
+            newCart[i].discount_amount = 0;
+            needsUpdate = true;
+          }
+        }
+      }
+
+      if (needsUpdate) {
+        setCart(newCart);
+      }
+    });
+  }, [cart.map(l => `${l.item_id}-${l.qty}-${l.price}`).join('|')]);
+
   const handleBarcodeEnter = async (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' && search) {
           // If we have an exact match
@@ -82,13 +191,16 @@ export default function POS() {
 
   const addToCart = (item: Item) => {
       setCart(prev => {
-          const exists = prev.find(l => l.item_id === item.id);
+          // If trying to manually add a free item, skip it
+          if (item.id === 'FREE_ITEM_GUARD') return prev;
+
+          const exists = prev.find(l => l.item_id === item.id && !l.is_bogo_free);
           if (exists) {
-              return prev.map(l => l.item_id === item.id ? { ...l, qty: l.qty + 1 } : l);
+              return prev.map(l => (l.item_id === item.id && !l.is_bogo_free) ? { ...l, qty: l.qty + 1 } : l);
           }
-          // Note: wholesale_price will require the item struct to have it, but for now we fallback to standard prices.
-          // Since we didn't update Item struct in TS, we'll cast or just use standard price for now
-          // Assume standard price is retrieved via api.
+          // Support for wholesale pricing if items have wholesale_price populated
+          const currentPrice = priceType === 'wholesale' && item.wholesale_price ? item.wholesale_price : (item.price || 0);
+
           return [...prev, {
               item_id: item.id,
               item_name: item.name,
@@ -96,7 +208,7 @@ export default function POS() {
               unit_name: item.base_unit_name || 'Unit',
               qty: 1,
               price_type: priceType,
-              price: item.price || 0,
+              price: currentPrice,
               discount_amount: 0,
               hpp_value: item.avg_hpp || 0
           }];
@@ -117,7 +229,7 @@ export default function POS() {
       setCart(prev => prev.filter(l => l.item_id !== itemId));
   };
 
-  const total = cart.reduce((sum, l) => sum + (l.qty * l.price) - l.discount_amount, 0);
+  const total = cart.reduce((sum, l) => sum + (l.qty * l.price) - l.discount_amount, 0) - cartDiscount;
 
   const handleHold = () => {
       if (cart.length === 0) return;
@@ -150,7 +262,7 @@ export default function POS() {
         <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-4 bg-slate-50 dark:bg-slate-950/50">
                 <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                     <input 
                         ref={barcodeInputRef}
                         type="text" 
@@ -164,14 +276,14 @@ export default function POS() {
                 </div>
                 
                 <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
-                    <button onClick={() => setPriceType('retail')} className={`px-4 py-2 rounded-lg text-sm font-bold ${priceType === 'retail' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>Retail</button>
-                    <button onClick={() => setPriceType('wholesale')} className={`px-4 py-2 rounded-lg text-sm font-bold ${priceType === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-500'}`}>Wholesale</button>
+                    <button onClick={() => setPriceType('retail')} className={`px-4 py-2 rounded-lg text-sm font-bold ${priceType === 'retail' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600'}`}>Retail</button>
+                    <button onClick={() => setPriceType('wholesale')} className={`px-4 py-2 rounded-lg text-sm font-bold ${priceType === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600'}`}>Wholesale</button>
                 </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 {search.length < 2 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                    <div className="h-full flex flex-col items-center justify-center text-slate-500">
                         <ShoppingCart size={48} className="mb-4 opacity-20" />
                         <p>Search for an item to add it to the cart.</p>
                     </div>
@@ -186,7 +298,7 @@ export default function POS() {
                                 className="flex flex-col text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:border-brand hover:ring-1 hover:ring-brand transition-all"
                             >
                                 <span className="font-bold text-slate-900 dark:text-white mb-1 line-clamp-2">{item.name}</span>
-                                <span className="text-xs text-slate-500 font-mono mb-3">{item.sku}</span>
+                                <span className="text-xs text-slate-600 font-mono mb-3">{item.sku}</span>
                                 <span className="mt-auto font-bold text-brand">Rp {item.price?.toLocaleString('id-ID')}</span>
                             </button>
                         ))}
@@ -209,7 +321,7 @@ export default function POS() {
             {/* Cart Items */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                 {cart.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                    <div className="h-full flex flex-col items-center justify-center text-slate-500">
                         <p className="text-sm">Cart is empty</p>
                     </div>
                 ) : (
@@ -218,7 +330,13 @@ export default function POS() {
                             <div key={l.item_id} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex gap-3">
                                 <div className="flex-1">
                                     <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">{l.item_name}</h4>
-                                    <p className="text-xs text-slate-500 mt-0.5">Rp {l.price.toLocaleString('id-ID')} / {l.unit_name}</p>
+                                    <p className="text-xs text-slate-600 mt-0.5">Rp {l.price.toLocaleString('id-ID')} / {l.unit_name}</p>
+                                    {l.discount_amount > 0 && (
+                                        <div className="mt-1 flex items-center gap-1">
+                                            <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded uppercase">Discount</span>
+                                            <span className="text-xs text-slate-500 line-through">Rp {(l.qty * l.price).toLocaleString('id-ID')}</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex flex-col items-end justify-between gap-2">
                                     <span className="font-bold text-sm text-brand">Rp {(l.qty * l.price).toLocaleString('id-ID')}</span>
@@ -228,7 +346,7 @@ export default function POS() {
                                         <button onClick={() => updateQty(l.item_id, 1)} className="p-1 hover:text-brand"><Plus size={14}/></button>
                                     </div>
                                 </div>
-                                <button onClick={() => removeItem(l.item_id)} className="text-slate-400 hover:text-rose-500 p-1 self-start"><Trash2 size={16}/></button>
+                                <button onClick={() => removeItem(l.item_id)} className="text-slate-500 hover:text-rose-500 p-1 self-start"><Trash2 size={16}/></button>
                             </div>
                         ))}
                     </div>
@@ -248,8 +366,14 @@ export default function POS() {
 
             {/* Cart Footer */}
             <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                {cartDiscount > 0 && (
+                    <div className="flex justify-between items-center mb-1 text-sm">
+                        <span className="text-green-600 font-medium flex items-center gap-1"><Tag size={14}/> Cart Promo</span>
+                        <span className="font-bold text-green-600">- Rp {cartDiscount.toLocaleString('id-ID')}</span>
+                    </div>
+                )}
                 <div className="flex justify-between items-center mb-4">
-                    <span className="text-slate-500 font-medium">Grand Total</span>
+                    <span className="text-slate-600 font-medium">Grand Total</span>
                     <span className="text-3xl font-bold text-brand">Rp {total.toLocaleString('id-ID')}</span>
                 </div>
                 

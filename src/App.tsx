@@ -13,6 +13,11 @@ import SupplierList from './pages/suppliers/SupplierList';
 import CustomerList from './pages/customers/CustomerList';
 import PurchasingDashboard from './pages/purchasing/PurchasingDashboard';
 import POS from './pages/pos/POS';
+import Suppliers from './pages/purchasing/Suppliers';
+import Purchasing from './pages/purchasing/Purchasing';
+import Promos from './pages/promos/PromoList';
+import Accounting from './pages/accounting/Accounting';
+import PromoList from './pages/promos/PromoList';
 import { Package } from 'lucide-react';
 
 export default function App() {
@@ -45,13 +50,15 @@ export default function App() {
            activeMenu === 'item-detail' && activeItemId ? <ItemDetail itemId={activeItemId} refreshTrigger={refreshTrigger} onBack={() => setActiveMenu('catalog')} onEditItem={() => { setEditItemId(activeItemId); setIsDrawerOpen(true); }} /> :
            activeMenu === 'suppliers' ? <SupplierList /> :
            activeMenu === 'customers' ? <CustomerList /> :
+           activeMenu === 'promos' ? <Promos /> :
+           activeMenu === 'accounting' ? <Accounting /> :
            activeMenu === 'purchasing' ? <PurchasingDashboard /> :
            activeMenu === 'pos' ? <POS /> :
            (
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 p-16 text-center h-full flex flex-col items-center justify-center shadow-sm">
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-full mb-6"><Package size={48} className="text-slate-300" /></div>
+              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-full mb-6"><Package size={48} className="text-slate-500" /></div>
               <h3 className="text-2xl font-bold tracking-tight">{activeMenu.charAt(0).toUpperCase() + activeMenu.slice(1)} Module</h3>
-              <p className="text-slate-500">Currently being scaffolded.</p>
+              <p className="text-slate-600">Currently being scaffolded.</p>
             </div>
           )}
         </div>
