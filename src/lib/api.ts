@@ -1,0 +1,151 @@
+import { invoke } from '@tauri-apps/api/core';
+
+// --- Sales Types ---
+export interface Sale { id: string; transaction_no: string; branch_id: string; customer_id?: string; user_id?: string; total_amount: number; discount_amount: number; tax_amount: number; grand_total: number; status: string; price_type: 'retail' | 'wholesale'; notes?: string; created_at: string; }
+export interface SaleLineInput { item_id: string; unit_id: string; qty: number; price_type: string; price: number; discount_amount: number; hpp_value: number; }
+export interface SalePaymentInput { amount: number; method: string; reference?: string; }
+export interface CreateSaleInput { branch_id: string; customer_id?: string; user_id?: string; total_amount: number; discount_amount: number; tax_amount: number; grand_total: number; price_type: string; notes?: string; lines: SaleLineInput[]; payments: SalePaymentInput[]; }
+export const createSale = async (input: CreateSaleInput): Promise<string> => invoke('create_sale', { input });
+export const getNextTransactionNo = async (branchId: string): Promise<string> => invoke('get_next_transaction_no', { branchId });
+export const getSales = async (branchId: string): Promise<Sale[]> => invoke('get_sales', { branchId });
+
+export interface SaleLine { id: string; sale_id: string; item_id: string; item_name?: string; unit_id: string; unit_name?: string; qty: number; price_type: string; price: number; discount_amount: number; subtotal: number; hpp_value: number; notes?: string; }
+export interface SalePayment { id: string; sale_id: string; amount: number; method: string; reference?: string; created_at: string; }
+export interface SaleDetail { sale: Sale; lines: SaleLine[]; payments: SalePayment[]; }
+export const getSaleDetail = async (id: string): Promise<SaleDetail> => invoke('get_sale_detail', { id });
+export const createSaleReturn = async (saleId: string, lines: SaleLineInput[], reason: string): Promise<void> => invoke('create_sale_return', { saleId, lines, reason });
+
+// --- Types ---
+export interface Brand { id: string; name: string; logo_blob?: number[]; created_at: string; }
+export interface Category { id: string; parent_id?: string; name: string; description?: string; color?: string; created_at: string; }
+export interface Item { id: string; sku: string; barcode?: string; name: string; generic_name?: string; category_id?: string; brand_id?: string; hpp_method: string; min_stock: number; has_expiry: number; requires_prescription: number; notes?: string; is_active: number; created_at: string; price?: number; base_unit_id?: string; base_unit_name?: string; avg_hpp?: number; }
+export interface ItemUnit { id: string; item_id: string; unit_name: string; conversion: number; is_base: number; barcode?: string; created_at: string; }
+export interface ItemPrice { id: string; item_id: string; unit_id: string; customer_tier: string; price: number; }
+export interface PaginatedItems { items: Item[]; total: number; page: number; per_page: number; }
+export interface ItemDetailData { item: Item; units: ItemUnit[]; prices: ItemPrice[]; }
+export interface Supplier { id: string; name: string; contact_person?: string; phone?: string; email?: string; address?: string; payment_terms?: string; notes?: string; is_active: number; created_at: string; updated_at: string; }
+export interface Customer { id: string; name: string; phone?: string; email?: string; address?: string; region?: string; customer_tier: string; loyalty_points: number; credit_limit: number; notes?: string; is_active: number; created_at: string; updated_at: string; }
+export interface StockLedgerRow { id: string; item_id: string; unit_id: string; branch_id: string; qty_change: number; direction: 'in' | 'out'; source_type: string; source_id?: string; hpp_value?: number; expiry_date?: string; batch_no?: string; notes?: string; created_by?: string; created_at: string; }
+export interface StockOverviewRow { item_id: string; item_name: string; sku: string; min_stock: number; has_expiry: number; hpp_method: string; category_name: string | null; unit_id: string | null; unit_name: string | null; current_qty: number; is_low_stock: boolean; has_ledger_entries: boolean; }
+export interface StockMovementRow { id: string; direction: string; qty_change: number; source_type: string; hpp_value?: number; expiry_date?: string; batch_no?: string; notes?: string; created_by_name?: string; created_at: string; running_total: number; }
+export interface LowStockAlert { item_id: string; item_name: string; sku: string; current_qty: number; min_stock: number; unit_name: string; }
+
+// Phase 4 Types
+export interface PurchaseOrder { id: string; branch_id: string; supplier_id: string; supplier_name?: string; status: string; expected_date?: string; notes?: string; created_by?: string; created_at: string; }
+// Update this specific interface in api.ts
+export interface PoLine { 
+    id: string; 
+    po_id: string; 
+    item_id: string; 
+    item_name?: string; 
+    unit_id: string; 
+    unit_name?: string; 
+    qty_ordered: number; 
+    qty_received: number;
+    price_estimate: number; 
+}
+export interface PoLineInput { item_id: string; unit_id: string; qty: number; price: number; }
+export interface ReceiveLineInput { po_line_id: string; item_id: string; unit_id: string; qty_received: number; price_per_unit: number; expiry_date?: string; batch_no?: string; }
+
+export interface Purchase {
+  id: string;
+  po_id?: string;
+  branch_id: string;
+  supplier_id: string;
+  invoice_no?: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
+
+export interface PurchaseLine {
+  id: string;
+  purchase_id: string;
+  item_id: string;
+  item_name?: string;
+  unit_id: string;
+  unit_name?: string;
+  qty_received: number;
+  price_per_unit: number;
+  expiry_date?: string;
+  batch_no?: string;
+}
+
+export interface PurchasePayment {
+  id: string;
+  purchase_id: string;
+  amount: number;
+  method: string;
+  reference?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface PurchaseReturn {
+  id: string;
+  purchase_id: string;
+  supplier_id: string;
+  branch_id: string;
+  reason: string;
+  created_at: string;
+}
+
+export interface PurchaseDetail {
+  purchase: Purchase;
+  lines: PurchaseLine[];
+  payments: PurchasePayment[];
+  returns: PurchaseReturn[];
+}
+
+// --- Invokes ---
+export const getBrands = async (): Promise<Brand[]> => invoke('get_brands');
+export const addBrand = async (name: string): Promise<Brand> => invoke('add_brand', { name });
+export const updateBrand = async (id: string, name: string): Promise<Brand> => invoke('update_brand', { id, name });
+export const deleteBrand = async (id: string): Promise<void> => invoke('delete_brand', { id });
+export const getCategories = async (): Promise<Category[]> => invoke('get_categories');
+export const addCategory = async (name: string, description?: string, color?: string, parentId?: string): Promise<Category> => invoke('add_category', { name, description: description || null, color: color || null, parentId: parentId || null });
+export const updateCategory = async (id: string, name: string): Promise<Category> => invoke('update_category', { id, name });
+export const deleteCategory = async (id: string): Promise<void> => invoke('delete_category', { id });
+
+export const getItemsFiltered = async (search: string = '', categoryId: string = '', brandId: string = '', activeOnly: boolean = false, page: number = 1, perPage: number = 20): Promise<PaginatedItems> => invoke('get_items_filtered', { search: search.trim() || null, categoryId: categoryId || null, brandId: brandId || null, activeOnly, page, perPage });
+export const getItem = async (id: string): Promise<ItemDetailData> => invoke('get_item', { id });
+export const addItem = async (payload: Omit<Item, 'id' | 'created_at' | 'is_active'>): Promise<Item> => invoke('add_item', { sku: payload.sku, barcode: payload.barcode, name: payload.name, genericName: payload.generic_name, categoryId: payload.category_id, brandId: payload.brand_id, hppMethod: payload.hpp_method, minStock: payload.min_stock, hasExpiry: payload.has_expiry, requiresPrescription: payload.requires_prescription, notes: payload.notes });
+export const updateItem = async (id: string, payload: Omit<Item, 'id' | 'created_at' | 'is_active'>): Promise<Item> => invoke('update_item', { id, sku: payload.sku, barcode: payload.barcode, name: payload.name, genericName: payload.generic_name, categoryId: payload.category_id, brandId: payload.brand_id, hppMethod: payload.hpp_method, minStock: payload.min_stock, hasExpiry: payload.has_expiry, requiresPrescription: payload.requires_prescription, notes: payload.notes });
+export const toggleItemActive = async (id: string): Promise<void> => invoke('toggle_item_active', { id });
+export const deleteItem = async (id: string): Promise<void> => invoke('delete_item', { id });
+export const addItemUnit = async (itemId: string, unitName: string, conversion: number, isBase: number, barcode?: string): Promise<ItemUnit> => invoke('add_item_unit', { itemId, unitName, conversion, isBase, barcode: barcode || null });
+export const updateItemUnit = async (id: string, unitName: string, conversion: number, isBase: number, barcode?: string): Promise<ItemUnit> => invoke('update_item_unit', { id, unitName, conversion, isBase, barcode: barcode || null });
+export const deleteItemUnit = async (id: string): Promise<void> => invoke('delete_item_unit', { id });
+export const setItemPrice = async (itemId: string, unitId: string, customerTier: 'regular' | 'member' | 'vip', price: number): Promise<ItemPrice> => invoke('set_item_price', { itemId, unitId, customerTier, price });
+
+export const getStockOverview = async (branchId: string): Promise<StockOverviewRow[]> => invoke('get_stock_overview', { branchId });
+export const getLowStockAlerts = async (branchId: string): Promise<LowStockAlert[]> => invoke('get_low_stock_alerts', { branchId });
+export const getStockMovements = async (itemId: string, branchId: string, limit: number = 50): Promise<StockMovementRow[]> => invoke('get_stock_movements', { itemId, branchId, limit });
+export const adjustStock = async (itemId: string, unitId: string, branchId: string, qty: number, direction: 'in' | 'out', notes?: string, createdBy?: string): Promise<StockLedgerRow> => invoke('adjust_stock', { itemId, unitId, branchId, qty, direction, notes: notes || null, createdBy: createdBy || null });
+export const setInitialStock = async (itemId: string, unitId: string, branchId: string, qty: number, hppValue?: number, notes?: string): Promise<StockLedgerRow> => invoke('set_initial_stock', { itemId, unitId, branchId, qty, hppValue: hppValue || null, notes: notes || null });
+
+export const getSuppliers = async (search: string = '', activeOnly: boolean = false): Promise<Supplier[]> => invoke('get_suppliers', { search: search || null, activeOnly });
+export const addSupplier = async (name: string, contactPerson?: string, phone?: string, email?: string, address?: string, paymentTerms?: string, notes?: string): Promise<Supplier> => invoke('add_supplier', { name, contactPerson: contactPerson || null, phone: phone || null, email: email || null, address: address || null, paymentTerms: paymentTerms || null, notes: notes || null });
+export const updateSupplier = async (id: string, name: string, contactPerson?: string, phone?: string, email?: string, address?: string, paymentTerms?: string, notes?: string): Promise<Supplier> => invoke('update_supplier', { id, name, contactPerson: contactPerson || null, phone: phone || null, email: email || null, address: address || null, paymentTerms: paymentTerms || null, notes: notes || null });
+
+export const getCustomers = async (search: string = '', tier: string = '', activeOnly: boolean = false): Promise<Customer[]> => invoke('get_customers', { search: search || null, tier: tier || null, activeOnly });
+export const addCustomer = async (name: string, phone?: string, email?: string, address?: string, region?: string, customerTier: string = 'regular', creditLimit: number = 0, notes?: string): Promise<Customer> => invoke('add_customer', { name, phone: phone || null, email: email || null, address: address || null, region: region || null, customerTier, creditLimit, notes: notes || null });
+export const updateCustomer = async (id: string, name: string, phone?: string, email?: string, address?: string, region?: string, customerTier: string = 'regular', creditLimit: number = 0, notes?: string): Promise<Customer> => invoke('update_customer', { id, name, phone: phone || null, email: email || null, address: address || null, region: region || null, customerTier, creditLimit, notes: notes || null });
+
+// --- Phase 4 ---
+export const getPurchaseOrders = async (branchId: string): Promise<PurchaseOrder[]> => invoke('get_purchase_orders', { branchId });
+export const getPoLines = async (poId: string): Promise<PoLine[]> => invoke('get_po_lines', { poId });
+export const createPurchaseOrder = async (branchId: string, supplierId: string, expectedDate: string | null, notes: string | null, lines: PoLineInput[]): Promise<string> => invoke('create_purchase_order', { branchId, supplierId, expectedDate, notes, lines });
+export const receiveGoods = async (poId: string, branchId: string, supplierId: string, invoiceNo: string | null, lines: ReceiveLineInput[]): Promise<string> => invoke('receive_goods', { poId, branchId, supplierId, invoiceNo, lines });
+
+export const getPurchases = async (branchId: string, supplierId?: string, status?: string): Promise<Purchase[]> =>
+  invoke('get_purchases', { branchId, supplierId: supplierId || null, status: status || null });
+
+export const getPurchaseDetail = async (id: string): Promise<PurchaseDetail> =>
+  invoke('get_purchase_detail', { id });
+
+export const addPurchasePayment = async (purchaseId: string, amount: number, method: string, reference?: string): Promise<void> =>
+  invoke('add_purchase_payment', { purchaseId, amount, method, reference: reference || null });
+
+export const createPurchaseReturn = async (purchaseId: string, lines: ReceiveLineInput[], reason: string): Promise<void> =>
+  invoke('create_purchase_return', { purchaseId, lines, reason });
