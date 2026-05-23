@@ -27,83 +27,122 @@ pub async fn import_items_excel(
     let sheet_names = workbook.sheet_names().to_owned();
     let first_sheet = sheet_names.first().ok_or("Excel file is empty")?;
 
-    let errors: Vec<String> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
     let mut rows_imported = 0;
 
     if let Ok(range) = workbook.worksheet_range(first_sheet) {
         let mut row_iter = range.rows();
 
-        // Skip header
-        row_iter.next();
+        // --- Read header row and build a name → column-index map ---
+        let header_row = match row_iter.next() {
+            Some(h) => h,
+            None => return Err("Excel file has no header row".to_string()),
+        };
 
-        for (_i, row) in row_iter.enumerate() {
+        // Normalize header: lowercase + underscores
+        let normalize = |s: &str| s.trim().to_lowercase().replace(' ', "_");
+
+        let mut col_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for (i, cell) in header_row.iter().enumerate() {
+            if let Data::String(s) = cell {
+                col_map.insert(normalize(s), i);
+            }
+        }
+
+        // Helper: get cell value as String (handles numeric SKUs like "000001")
+        let cell_str = |d: &Data| -> String {
+            match d {
+                Data::Float(f) => {
+                    if *f == f.floor() && f.abs() < 1e15 {
+                        format!("{:06.0}", f)
+                    } else {
+                        format!("{}", f)
+                    }
+                }
+                Data::Int(i) => format!("{:06}", i),
+                Data::String(s) => s.trim().to_string(),
+                Data::Bool(b) => b.to_string(),
+                Data::Empty => String::new(),
+                _ => d.to_string(),
+            }
+        };
+
+        let get_float = |d: &Data| -> f64 {
+            match d {
+                Data::Float(f) => *f,
+                Data::Int(i) => *i as f64,
+                Data::String(s) => s.replace([',', '.'], "").parse::<f64>().unwrap_or(0.0),
+                _ => 0.0,
+            }
+        };
+
+        // Find column index by trying multiple possible header names
+        let find_col = |aliases: &[&str]| -> Option<usize> {
+            for alias in aliases {
+                if let Some(&idx) = col_map.get(*alias) {
+                    return Some(idx);
+                }
+            }
+            None
+        };
+
+        let col_sku      = find_col(&["kode_item", "sku", "kode"]);
+        let col_barcode  = find_col(&["barcode", "kode_barcode"]);
+        let col_name     = find_col(&["nama_item", "nama", "name"]);
+        let col_jenis    = find_col(&["jenis", "jenis_item"]);
+        let col_merek    = find_col(&["merek", "brand", "merk"]);
+        let col_kategori = find_col(&["kategori", "category", "kategori_item"]);
+        let col_rak      = find_col(&["rak", "rack", "lokasi"]);
+        let col_tipe     = find_col(&["tipe_item", "tipe", "type"]);
+        let col_konversi = find_col(&["konversi", "conversion"]);
+        let col_satuan   = find_col(&["satuan", "unit", "unit_name"]);
+        let col_hpp      = find_col(&["harga_pokok", "hpp", "cost_price"]);
+        let col_jual     = find_col(&["harga_jual", "price", "retail_price", "selling_price"]);
+
+        if col_sku.is_none() {
+            return Err("Kolom 'Kode Item' atau 'SKU' tidak ditemukan di header Excel.".to_string());
+        }
+        if col_name.is_none() {
+            return Err("Kolom 'Nama Item' atau 'Nama' tidak ditemukan di header Excel.".to_string());
+        }
+
+        for (row_idx, row) in row_iter.enumerate() {
             if row.is_empty() {
                 continue;
             }
 
-            // Expected Format:
-            // 0: Kode Item (SKU)
-            // 1: Barcode
-            // 2: Nama Item
-            // 3: Jenis (notes)
-            // 4: Merek (Brand)
-            // 5: Kategori (Category)
-            // 6: Rak (notes)
-            // 7: Tipe Item (notes)
-            // 8: Konversi (Unit conversion)
-            // 9: Satuan (Unit Name)
-            // 10: Harga Pokok (avg_hpp)
-            // 11: Harga Jual (Retail price)
-
-            // Converts any cell type to a string (handles numeric SKUs like "000001")
-            let cell_str = |d: &Data| -> String {
-                match d {
-                    Data::Float(f) => {
-                        // Format numbers without decimal if they are whole numbers
-                        if *f == f.floor() && f.abs() < 1e15 {
-                            format!("{:06.0}", f)
-                        } else {
-                            format!("{}", f)
-                        }
-                    }
-                    Data::Int(i) => format!("{:06}", i),
-                    Data::String(s) => s.trim().to_string(),
-                    Data::Bool(b) => b.to_string(),
-                    Data::Empty => String::new(),
-                    _ => d.to_string(),
-                }
+            let get = |col_opt: Option<usize>| -> &Data {
+                col_opt.and_then(|c| row.get(c)).unwrap_or(&Data::Empty)
             };
 
-            let sku = cell_str(row.get(0).unwrap_or(&Data::Empty));
+            let sku = cell_str(get(col_sku));
             if sku.trim().is_empty() {
                 continue;
             }
 
-            let barcode_raw = cell_str(row.get(1).unwrap_or(&Data::Empty));
-            // Use SKU as barcode fallback if barcode column is empty
+            let barcode_raw = cell_str(get(col_barcode));
             let barcode = if barcode_raw.trim().is_empty() { sku.clone() } else { barcode_raw };
-            let name = cell_str(row.get(2).unwrap_or(&Data::Empty));
-            if name.trim().is_empty() { continue; } // Skip rows with no name
-            let jenis = cell_str(row.get(3).unwrap_or(&Data::Empty));
-            let merek = cell_str(row.get(4).unwrap_or(&Data::Empty));
-            let kategori = cell_str(row.get(5).unwrap_or(&Data::Empty));
-            let rak = cell_str(row.get(6).unwrap_or(&Data::Empty));
-            let tipe_item = cell_str(row.get(7).unwrap_or(&Data::Empty));
+            let name = cell_str(get(col_name));
+            if name.trim().is_empty() {
+                errors.push(format!("Row {}: Nama item kosong, dilewati.", row_idx + 2));
+                continue;
+            }
 
-            // Handle numeric parsing safely
-            let get_float = |d: &Data| -> f64 {
-                match d {
-                    Data::Float(f) => *f,
-                    Data::Int(i) => *i as f64,
-                    Data::String(s) => s.replace(",", "").parse::<f64>().unwrap_or(1.0),
-                    _ => 1.0,
-                }
-            };
+            let jenis     = cell_str(get(col_jenis));
+            let mut merek     = cell_str(get(col_merek));
+            let kategori  = cell_str(get(col_kategori));
+            let rak       = cell_str(get(col_rak));
+            let tipe_item = cell_str(get(col_tipe));
+            let konversi  = { let v = get_float(get(col_konversi)); if v <= 0.0 { 1.0 } else { v } };
+            let satuan    = cell_str(get(col_satuan));
+            let harga_pokok = get_float(get(col_hpp));
+            let harga_jual  = get_float(get(col_jual));
 
-            let konversi = get_float(row.get(8).unwrap_or(&Data::Empty));
-            let satuan = cell_str(row.get(9).unwrap_or(&Data::Empty));
-            let harga_pokok = get_float(row.get(10).unwrap_or(&Data::Empty));
-            let harga_jual = get_float(row.get(11).unwrap_or(&Data::Empty));
+            // Extremely strict validation: Merek should NEVER be a unit name like "PCS", "BOX", "STRIP"
+            let merek_upper = merek.trim().to_uppercase();
+            if merek_upper == "PCS" || merek_upper == "BOX" || merek_upper == "STRIP" || merek_upper == "BOTOL" || merek_upper == "TUBE" || merek_upper == satuan.trim().to_uppercase() {
+                merek = String::new();
+            }
 
             // Notes aggregation
             let notes = format!("Jenis: {} | Rak: {} | Tipe: {}", jenis, rak, tipe_item);
@@ -157,14 +196,12 @@ pub async fn import_items_excel(
                 .unwrap_or(None);
 
             let item_id = if let Some(r) = item_res {
-                // Update existing
                 let _ = sqlx::query(
                     "UPDATE items SET name = ?, barcode = ?, category_id = ?, brand_id = ?, notes = ? WHERE id = ?"
                 ).bind(&name).bind(&barcode).bind(&category_id).bind(&brand_id).bind(&notes).bind(r.get::<String, _>("id"))
                 .execute(&state.db_pool).await;
                 r.get::<String, _>("id")
             } else {
-                // Insert new
                 let new_id = Uuid::new_v4().to_string();
                 let _ = sqlx::query(
                     "INSERT INTO items (id, sku, barcode, name, category_id, brand_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)"
@@ -173,11 +210,11 @@ pub async fn import_items_excel(
                 new_id
             };
 
-            // 4. Upsert Unit
+            // 4. Upsert Unit (normalise to uppercase e.g. "pcs" → "PCS")
             let unit_name = if satuan.trim().is_empty() {
                 "PCS".to_string()
             } else {
-                satuan
+                satuan.trim().to_uppercase()
             };
             let unit_res = sqlx::query(
                 "SELECT id FROM item_units WHERE item_id = ? AND unit_name = ?"
@@ -185,14 +222,12 @@ pub async fn import_items_excel(
             .fetch_optional(&state.db_pool).await.unwrap_or(None);
 
             let unit_id = if let Some(r) = unit_res {
-                // Update
                 let _ = sqlx::query(
                     "UPDATE item_units SET conversion = ? WHERE id = ?"
                 ).bind(konversi).bind(r.get::<String, _>("id"))
                 .execute(&state.db_pool).await;
                 r.get::<String, _>("id")
             } else {
-                // Insert
                 let new_unit_id = Uuid::new_v4().to_string();
                 let is_base = if konversi == 1.0 { 1 } else { 0 };
                 let _ = sqlx::query(
@@ -202,10 +237,8 @@ pub async fn import_items_excel(
                 new_unit_id
             };
 
-            // 5. Update Stock HPP (via fake ledger entry if avg_hpp > 0)
+            // 5. Update HPP
             if harga_pokok > 0.0 {
-                // Simplest way is to just inject an initial stock or adjust an existing ledger row.
-                // We'll update the most recent ledger entry or insert a baseline one.
                 let _ = sqlx::query(
                     "UPDATE stock_ledger SET hpp_value = ? WHERE item_id = ? AND branch_id = 'branch_001'"
                 ).bind(harga_pokok).bind(&item_id)

@@ -308,8 +308,8 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                     <div className="space-y-6">
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Cost Valuation (HPP) Method</label>
-                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg">
-                          {['avg', 'fifo', 'lifo'].map(method => (<button key={method} onClick={() => setFormData({...formData, hpp_method: method})} className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${formData.hpp_method === method ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 hover:text-slate-700'}`}>{method}</button>))}
+                        <div className="p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg text-sm text-slate-600 dark:text-slate-400">
+                          Configured globally in <span className="font-bold text-brand">System Settings</span>.
                         </div>
                       </div>
                       <div>

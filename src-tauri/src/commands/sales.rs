@@ -143,7 +143,69 @@ pub async fn create_sale(
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
+    // Fetch global HPP method
+    let hpp_method: String = sqlx::query_scalar("SELECT value FROM system_settings WHERE key = 'hpp_method'")
+        .fetch_optional(&mut *tx).await.unwrap_or(None).unwrap_or_else(|| "avg".to_string());
+
+    let mut actual_cogs_total = 0.0;
+
     for line in &input.lines {
+        let mut line_hpp_value = line.hpp_value; // fallback to frontend value
+
+        if hpp_method == "avg" {
+            // Keep using the latest moving average from ledger or frontend
+            let latest_hpp: Option<f64> = sqlx::query_scalar(
+                "SELECT hpp_value FROM stock_ledger WHERE item_id = ? AND branch_id = ? AND hpp_value > 0 ORDER BY created_at DESC LIMIT 1"
+            )
+            .bind(&line.item_id).bind(&input.branch_id)
+            .fetch_optional(&mut *tx).await.unwrap_or(None);
+            
+            if let Some(h) = latest_hpp {
+                line_hpp_value = h;
+            }
+        } else {
+            // FIFO or LIFO
+            let order_dir = if hpp_method == "lifo" { "DESC" } else { "ASC" };
+            let query = format!(
+                "SELECT id, (qty_change - qty_consumed) as remaining, hpp_value 
+                 FROM stock_ledger 
+                 WHERE item_id = ? AND branch_id = ? AND direction = 'in' AND (qty_change - qty_consumed) > 0 
+                 ORDER BY created_at {}", order_dir
+            );
+            
+            let layers: Vec<(String, f64, f64)> = sqlx::query_as(&query)
+                .bind(&line.item_id).bind(&input.branch_id)
+                .fetch_all(&mut *tx).await.unwrap_or_default();
+
+            let mut qty_to_consume = line.qty;
+            let mut total_cost_for_line = 0.0;
+
+            for (layer_id, remaining, cost) in layers {
+                if qty_to_consume <= 0.0 { break; }
+                
+                let consume = if remaining > qty_to_consume { qty_to_consume } else { remaining };
+                total_cost_for_line += consume * cost;
+                qty_to_consume -= consume;
+
+                let _ = sqlx::query("UPDATE stock_ledger SET qty_consumed = qty_consumed + ? WHERE id = ?")
+                    .bind(consume).bind(&layer_id)
+                    .execute(&mut *tx).await;
+            }
+            
+            // If there's still qty_to_consume (selling more than we have layers for), use the last known cost for the remainder
+            if qty_to_consume > 0.0 {
+                let fallback = if line_hpp_value > 0.0 { line_hpp_value } else { 0.0 };
+                total_cost_for_line += qty_to_consume * fallback;
+            }
+
+            // Average out the HPP for this specific sale line record
+            if line.qty > 0.0 {
+                line_hpp_value = total_cost_for_line / line.qty;
+            }
+        }
+
+        actual_cogs_total += line.qty * line_hpp_value;
+
         let line_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"INSERT INTO sale_lines (id, sale_id, item_id, unit_id, qty, price_type, price, discount_amount, subtotal, hpp_value)
@@ -151,17 +213,17 @@ pub async fn create_sale(
         )
         .bind(&line_id).bind(&sale_id).bind(&line.item_id).bind(&line.unit_id)
         .bind(line.qty).bind(&line.price_type).bind(line.price).bind(line.discount_amount)
-        .bind(line.qty * line.price - line.discount_amount).bind(line.hpp_value)
+        .bind(line.qty * line.price - line.discount_amount).bind(line_hpp_value)
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
         // Update Stock Ledger (OUT)
         let ledger_id = Uuid::new_v4().to_string();
         let notes = format!("Sale {}", transaction_no);
         sqlx::query(
-            "INSERT INTO stock_ledger (id, item_id, unit_id, branch_id, qty_change, direction, source_type, source_id, notes) VALUES (?, ?, ?, ?, ?, 'out', 'sale', ?, ?)"
+            "INSERT INTO stock_ledger (id, item_id, unit_id, branch_id, qty_change, direction, source_type, source_id, notes, hpp_value) VALUES (?, ?, ?, ?, ?, 'out', 'sale', ?, ?, ?)"
         )
         .bind(ledger_id).bind(&line.item_id).bind(&line.unit_id).bind(&input.branch_id)
-        .bind(line.qty).bind(&sale_id).bind(&notes)
+        .bind(line.qty).bind(&sale_id).bind(&notes).bind(line_hpp_value)
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
@@ -221,7 +283,7 @@ pub async fn create_sale(
     }
 
     // 4. COGS (Debit) and Inventory (Credit)
-    let total_cogs: f64 = input.lines.iter().map(|l| l.qty * l.hpp_value).sum();
+    let total_cogs = actual_cogs_total;
     if total_cogs > 0.0 {
         journal_lines.push(("acc_cogs", total_cogs, 0.0, Some("Cost of Goods Sold")));
         journal_lines.push(("acc_inv", 0.0, total_cogs, Some("Inventory Out")));

@@ -111,26 +111,36 @@ pub async fn receive_goods(
             .bind(&line_id).bind(&purchase_id).bind(&line.item_id).bind(&line.unit_id).bind(line.qty_received).bind(line.price_per_unit).bind(&line.expiry_date).bind(&line.batch_no)
             .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
-        // Weighted Moving Average HPP calculation
-        // Get current qty and last known HPP for this item+branch+unit
-        let (current_qty, last_hpp): (f64, f64) = sqlx::query_as::<_, (f64, f64)>(r#"
-            SELECT
-                COALESCE(SUM(CASE direction WHEN 'in' THEN qty_change WHEN 'out' THEN -qty_change ELSE 0 END), 0),
-                COALESCE((SELECT hpp_value FROM stock_ledger
-                           WHERE item_id = ? AND branch_id = ? AND hpp_value > 0
-                           ORDER BY created_at DESC LIMIT 1), 0)
-            FROM stock_ledger
-            WHERE item_id = ? AND branch_id = ? AND unit_id = ?
-        "#)
-        .bind(&line.item_id).bind(&branch_id)
-        .bind(&line.item_id).bind(&branch_id).bind(&line.unit_id)
-        .fetch_one(&state.db_pool).await.unwrap_or((0.0, 0.0));
+        // Fetch global HPP method
+        let hpp_method: String = sqlx::query_scalar("SELECT value FROM system_settings WHERE key = 'hpp_method'")
+            .fetch_optional(&state.db_pool)
+            .await
+            .unwrap_or(None)
+            .unwrap_or_else(|| "avg".to_string());
 
-        // Weighted average: (existing_qty * old_hpp + new_qty * new_price) / (existing_qty + new_qty)
-        let new_hpp = if current_qty + line.qty_received > 0.0 {
-            (current_qty * last_hpp + line.qty_received * line.price_per_unit)
-                / (current_qty + line.qty_received)
+        let new_hpp = if hpp_method == "avg" {
+            // Weighted Moving Average HPP calculation
+            let (current_qty, last_hpp): (f64, f64) = sqlx::query_as::<_, (f64, f64)>(r#"
+                SELECT
+                    COALESCE(SUM(CASE direction WHEN 'in' THEN qty_change WHEN 'out' THEN -qty_change ELSE 0 END), 0),
+                    COALESCE((SELECT hpp_value FROM stock_ledger
+                               WHERE item_id = ? AND branch_id = ? AND hpp_value > 0
+                               ORDER BY created_at DESC LIMIT 1), 0)
+                FROM stock_ledger
+                WHERE item_id = ? AND branch_id = ? AND unit_id = ?
+            "#)
+            .bind(&line.item_id).bind(&branch_id)
+            .bind(&line.item_id).bind(&branch_id).bind(&line.unit_id)
+            .fetch_one(&state.db_pool).await.unwrap_or((0.0, 0.0));
+
+            if current_qty + line.qty_received > 0.0 {
+                (current_qty * last_hpp + line.qty_received * line.price_per_unit)
+                    / (current_qty + line.qty_received)
+            } else {
+                line.price_per_unit
+            }
         } else {
+            // FIFO / LIFO: Each batch keeps its own exact cost layer
             line.price_per_unit
         };
 

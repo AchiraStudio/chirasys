@@ -82,6 +82,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/015_sync_triggers.sql"), 15),
         (include_str!("./migrations/016_sync_triggers_fix.sql"), 16),
         (include_str!("./migrations/017_admin_v1.sql"), 17),
+        (include_str!("./migrations/018_hpp_engine.sql"), 18),
     ];
 
     for (sql, version) in migrations {

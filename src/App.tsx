@@ -19,6 +19,9 @@ import Accounting from './pages/accounting/Accounting';
 import Reports from './pages/reports/Reports';
 import Settings from './pages/settings/Settings';
 import LoginPage from './pages/auth/LoginPage';
+import AuthScreen from './pages/auth/AuthScreen';
+import SetupScreen from './pages/auth/SetupScreen';
+import ContextMenu from './components/layout/ContextMenu';
 import { useAuthStore } from './store/AuthStore';
 import { getCurrentUser } from './lib/api';
 import { Package, Loader2 } from 'lucide-react';
@@ -120,11 +123,12 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-[#09090b] transition-colors duration-300">
+      <ContextMenu />
       <TitleBar />
       <div className="flex flex-1 overflow-hidden pt-10">
         <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
         <main className="flex-1 flex flex-col h-full relative overflow-hidden">
-        <Topbar activeMenu={activeMenu} />
+        <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
         <div className={`flex-1 overflow-y-auto custom-scrollbar relative ${activeMenu === 'pos' ? 'p-0 bg-slate-100 dark:bg-[#0B0F19]' : 'p-8'}`}>
           {activeMenu === 'dashboard' ? <Dashboard setActiveMenu={setActiveMenu} /> :
            activeMenu === 'master-data' ? <MasterData /> :

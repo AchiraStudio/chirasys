@@ -4,6 +4,7 @@ import { getStockOverview, StockOverviewRow } from '../../lib/api';
 import SetInitialStockModal from './SetInitialStockModal';
 import StockAdjustModal from './StockAdjustModal';
 import StockMovementsPanel from './StockMovementsPanel';
+import BulkStockAdd from './BulkStockAdd';
 
 interface StockOverviewProps {
   refreshTrigger: number;
@@ -19,6 +20,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
   const [initItem, setInitItem] = useState<StockOverviewRow | null>(null);
   const [adjustItem, setAdjustItem] = useState<StockOverviewRow | null>(null);
   const [historyItem, setHistoryItem] = useState<StockOverviewRow | null>(null);
+  const [bulkAdjustOpen, setBulkAdjustOpen] = useState(false);
 
   const DEFAULT_BRANCH_ID = 'branch_001';
 
@@ -57,13 +59,21 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
             Real-time inventory levels computed from append‑only ledger logs.
           </p>
         </div>
-        <button 
-          onClick={loadStockData} 
-          disabled={loading} 
-          className="p-2.5 text-slate-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95"
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setBulkAdjustOpen(true)}
+            className="px-4 py-2 bg-brand text-white text-sm font-bold rounded-xl shadow-sm hover:bg-blue-600 transition active:scale-95 flex items-center gap-2"
+          >
+            <Activity size={16} /> Bulk Adjustment
+          </button>
+          <button 
+            onClick={loadStockData} 
+            disabled={loading} 
+            className="p-2.5 text-slate-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95"
+          >
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -240,6 +250,12 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
         onClose={() => setHistoryItem(null)} 
         item={historyItem} 
         branchId={DEFAULT_BRANCH_ID} 
+      />
+      <BulkStockAdd
+        isOpen={bulkAdjustOpen}
+        onClose={() => setBulkAdjustOpen(false)}
+        branchId={DEFAULT_BRANCH_ID}
+        onSuccess={loadStockData}
       />
     </div>
   );

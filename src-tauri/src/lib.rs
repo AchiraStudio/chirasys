@@ -57,6 +57,8 @@ pub fn run() {
             commands::inventory::get_stock_movements,
             commands::inventory::adjust_stock,
             commands::inventory::set_initial_stock,
+            commands::inventory::apply_hpp_retroactive,
+            commands::inventory::bulk_add_stock,
             commands::suppliers::get_suppliers,
             commands::suppliers::add_supplier,
             commands::suppliers::update_supplier,

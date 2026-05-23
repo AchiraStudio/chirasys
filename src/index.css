@@ -5,7 +5,7 @@
 /* Global Base Typography Setup */
 @layer base {
   body {
-    @apply bg-slate-50 dark:bg-[#09090b] text-slate-600 dark:text-slate-400 antialiased;
+    @apply bg-slate-50 dark:bg-[#09090b] text-slate-700 dark:text-slate-300 antialiased;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -14,6 +14,27 @@
   
   p {
     @apply text-slate-600 dark:text-slate-400;
+  }
+
+  /* Ensure inputs are readable in light mode */
+  input, textarea, select {
+    @apply text-slate-900 dark:text-white;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-slate-400 dark:text-slate-500;
+  }
+
+  /* Remove default number input spinners globally */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
   }
 }
 

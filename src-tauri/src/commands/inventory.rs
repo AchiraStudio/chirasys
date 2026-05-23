@@ -192,3 +192,88 @@ pub async fn adjust_stock(
         .await
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn apply_hpp_retroactive(
+    method: String, // "avg", "fifo", "lifo"
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+
+    // We don't actually recalculate all past sales here (that would alter past financial records, which is illegal in accounting).
+    // Instead, we just reset the qty_consumed to 0 for all IN ledgers, then simulate past sales to consume them properly,
+    // SO THAT future sales start from the correct remaining batch.
+
+    // 1. Reset qty_consumed to 0 globally
+    sqlx::query("UPDATE stock_ledger SET qty_consumed = 0 WHERE direction = 'in'")
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+
+    if method == "fifo" || method == "lifo" {
+        // 2. We need to "consume" the historical sales.
+        // For each item, find total OUT qty, and consume the IN layers according to FIFO/LIFO.
+        let items: Vec<String> = sqlx::query_scalar("SELECT id FROM items").fetch_all(&mut *tx).await.map_err(|e| e.to_string())?;
+
+        for item_id in items {
+            let total_out: Option<f64> = sqlx::query_scalar("SELECT SUM(qty_change) FROM stock_ledger WHERE item_id = ? AND direction = 'out'")
+                .bind(&item_id)
+                .fetch_optional(&mut *tx).await.unwrap_or(Some(0.0));
+            
+            let mut qty_to_consume = total_out.unwrap_or(0.0);
+            if qty_to_consume <= 0.0 { continue; }
+
+            let order_dir = if method == "lifo" { "DESC" } else { "ASC" };
+            let query = format!(
+                "SELECT id, qty_change FROM stock_ledger WHERE item_id = ? AND direction = 'in' ORDER BY created_at {}", order_dir
+            );
+
+            let in_layers: Vec<(String, f64)> = sqlx::query_as(&query)
+                .bind(&item_id)
+                .fetch_all(&mut *tx).await.unwrap_or_default();
+
+            for (layer_id, layer_qty) in in_layers {
+                if qty_to_consume <= 0.0 { break; }
+                let consume = if layer_qty > qty_to_consume { qty_to_consume } else { layer_qty };
+                qty_to_consume -= consume;
+                
+                let _ = sqlx::query("UPDATE stock_ledger SET qty_consumed = ? WHERE id = ?")
+                    .bind(consume).bind(&layer_id)
+                    .execute(&mut *tx).await;
+            }
+        }
+    }
+
+    // Update global setting
+    sqlx::query("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('hpp_method', ?)")
+        .bind(&method)
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok("HPP recalculation successful. Stock layers updated.".to_string())
+}
+
+#[tauri::command]
+pub async fn bulk_add_stock(
+    branch_id: String,
+    items: Vec<crate::db::models::inventory::StockLedger>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+
+    for item in items {
+        let ledger_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO stock_ledger (id, item_id, unit_id, branch_id, qty_change, direction, source_type, notes, hpp_value) VALUES (?, ?, ?, ?, ?, 'in', 'adjustment', ?, ?)"
+        )
+        .bind(ledger_id)
+        .bind(&item.item_id)
+        .bind(&item.unit_id)
+        .bind(&branch_id)
+        .bind(item.qty_change)
+        .bind(&item.notes)
+        .bind(item.hpp_value)
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    }
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok("Bulk stock adjustment successful.".to_string())
+}
