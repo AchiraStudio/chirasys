@@ -18,16 +18,18 @@ pub async fn get_items_filtered(
     state: State<'_, AppState>,
 ) -> Result<PaginatedItems, String> {
     let offset = (page - 1) * per_page;
-    
+
     // Base queries
-    let mut query_str = String::from(r#"
+    let mut query_str = String::from(
+        r#"
         SELECT items.*, 
                (SELECT price FROM item_prices WHERE item_id = items.id AND customer_tier = 'regular' LIMIT 1) as price,
                (SELECT id FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_id,
                (SELECT unit_name FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_name,
                0.0 as avg_hpp
         FROM items WHERE 1=1
-    "#);
+    "#,
+    );
     let mut count_str = String::from("SELECT COUNT(*) FROM items WHERE 1=1");
 
     if active_only {
@@ -47,13 +49,17 @@ pub async fn get_items_filtered(
 
     if let Some(ref s) = search {
         if !s.trim().is_empty() {
-            let search_clause = " AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ? OR generic_name LIKE ?)";
+            let search_clause =
+                " AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ? OR generic_name LIKE ?)";
             query_str.push_str(search_clause);
             count_str.push_str(search_clause);
         }
     }
 
-    query_str.push_str(&format!(" ORDER BY name ASC LIMIT {} OFFSET {}", per_page, offset));
+    query_str.push_str(&format!(
+        " ORDER BY name ASC LIMIT {} OFFSET {}",
+        per_page, offset
+    ));
 
     // Build the execution queries dynamically
     let mut query = sqlx::query_as::<_, Item>(&query_str);
@@ -64,32 +70,42 @@ pub async fn get_items_filtered(
         query = query.bind(cid.clone());
         count_query = count_query.bind(cid.clone());
     }
-    
+
     if let Some(ref bid) = brand_id {
         query = query.bind(bid.clone());
         count_query = count_query.bind(bid.clone());
     }
-    
+
     if let Some(ref s) = search {
         if !s.trim().is_empty() {
             let search_val = format!("%{}%", s.trim());
             // Because we have 4 LIKE clauses, we must bind the value 4 times!
-            query = query.bind(search_val.clone())
-                         .bind(search_val.clone())
-                         .bind(search_val.clone())
-                         .bind(search_val.clone());
-                         
-            count_query = count_query.bind(search_val.clone())
-                                     .bind(search_val.clone())
-                                     .bind(search_val.clone())
-                                     .bind(search_val.clone());
+            query = query
+                .bind(search_val.clone())
+                .bind(search_val.clone())
+                .bind(search_val.clone())
+                .bind(search_val.clone());
+
+            count_query = count_query
+                .bind(search_val.clone())
+                .bind(search_val.clone())
+                .bind(search_val.clone())
+                .bind(search_val.clone());
         }
     }
 
-    let items = query.fetch_all(&state.db_pool).await.map_err(|e| e.to_string())?;
+    let items = query
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
     let total = count_query.fetch_one(&state.db_pool).await.unwrap_or(0);
 
-    Ok(PaginatedItems { items, total, page, per_page })
+    Ok(PaginatedItems {
+        items,
+        total,
+        page,
+        per_page,
+    })
 }
 #[tauri::command]
 pub async fn get_item(id: String, state: State<'_, AppState>) -> Result<ItemDetail, String> {
@@ -102,23 +118,46 @@ pub async fn get_item(id: String, state: State<'_, AppState>) -> Result<ItemDeta
         FROM items WHERE id = ?
     "#;
     let item = sqlx::query_as::<_, Item>(query_str)
-        .bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    let units = sqlx::query_as::<_, ItemUnit>("SELECT * FROM item_units WHERE item_id = ? ORDER BY conversion ASC")
-        .bind(&id).fetch_all(&state.db_pool).await.map_err(|e| e.to_string())?;
+    let units = sqlx::query_as::<_, ItemUnit>(
+        "SELECT * FROM item_units WHERE item_id = ? ORDER BY conversion ASC",
+    )
+    .bind(&id)
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     let prices = sqlx::query_as::<_, ItemPrice>("SELECT * FROM item_prices WHERE item_id = ?")
-        .bind(&id).fetch_all(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .bind(&id)
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    Ok(ItemDetail { item, units, prices })
+    Ok(ItemDetail {
+        item,
+        units,
+        prices,
+    })
 }
 
 #[tauri::command]
 pub async fn add_item(
-    sku: String, barcode: Option<String>, name: String, generic_name: Option<String>,
-    category_id: Option<String>, brand_id: Option<String>, hpp_method: String,
-    min_stock: f64, has_expiry: i32, requires_prescription: i32, notes: Option<String>,
-    state: State<'_, AppState>
+    sku: String,
+    barcode: Option<String>,
+    name: String,
+    generic_name: Option<String>,
+    category_id: Option<String>,
+    brand_id: Option<String>,
+    hpp_method: String,
+    min_stock: f64,
+    has_expiry: i32,
+    requires_prescription: i32,
+    notes: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<Item, String> {
     let id = Uuid::new_v4().to_string();
     sqlx::query(
@@ -135,10 +174,19 @@ pub async fn add_item(
 
 #[tauri::command]
 pub async fn update_item(
-    id: String, sku: String, barcode: Option<String>, name: String, generic_name: Option<String>,
-    category_id: Option<String>, brand_id: Option<String>, hpp_method: String,
-    min_stock: f64, has_expiry: i32, requires_prescription: i32, notes: Option<String>,
-    state: State<'_, AppState>
+    id: String,
+    sku: String,
+    barcode: Option<String>,
+    name: String,
+    generic_name: Option<String>,
+    category_id: Option<String>,
+    brand_id: Option<String>,
+    hpp_method: String,
+    min_stock: f64,
+    has_expiry: i32,
+    requires_prescription: i32,
+    notes: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<Item, String> {
     sqlx::query(
         r#"UPDATE items SET sku=?, barcode=?, name=?, generic_name=?, category_id=?, brand_id=?, 
@@ -155,7 +203,10 @@ pub async fn update_item(
 #[tauri::command]
 pub async fn delete_item(id: String, state: State<'_, AppState>) -> Result<(), String> {
     sqlx::query("UPDATE items SET is_active = 0, updated_at=datetime('now') WHERE id = ?")
-        .bind(&id).execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .bind(&id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -172,7 +223,12 @@ pub async fn toggle_item_active(id: String, state: State<'_, AppState>) -> Resul
 
 #[tauri::command]
 pub async fn add_item_unit(
-    item_id: String, unit_name: String, conversion: f64, is_base: i32, barcode: Option<String>, state: State<'_, AppState>
+    item_id: String,
+    unit_name: String,
+    conversion: f64,
+    is_base: i32,
+    barcode: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<ItemUnit, String> {
     let id = Uuid::new_v4().to_string();
     sqlx::query("INSERT INTO item_units (id, item_id, unit_name, conversion, is_base, barcode) VALUES (?, ?, ?, ?, ?, ?)")
@@ -180,25 +236,45 @@ pub async fn add_item_unit(
         .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
     sqlx::query_as::<_, ItemUnit>("SELECT * FROM item_units WHERE id = ?")
-        .bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn update_item_unit(
-    id: String, unit_name: String, conversion: f64, is_base: i32, barcode: Option<String>, state: State<'_, AppState>
+    id: String,
+    unit_name: String,
+    conversion: f64,
+    is_base: i32,
+    barcode: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<ItemUnit, String> {
     sqlx::query("UPDATE item_units SET unit_name=?, conversion=?, is_base=?, barcode=? WHERE id=?")
-        .bind(&unit_name).bind(conversion).bind(is_base).bind(&barcode).bind(&id)
-        .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .bind(&unit_name)
+        .bind(conversion)
+        .bind(is_base)
+        .bind(&barcode)
+        .bind(&id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
     sqlx::query_as::<_, ItemUnit>("SELECT * FROM item_units WHERE id = ?")
-        .bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn delete_item_unit(id: String, state: State<'_, AppState>) -> Result<(), String> {
     sqlx::query("DELETE FROM item_units WHERE id = ?")
-        .bind(&id).execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .bind(&id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -208,10 +284,14 @@ pub async fn delete_item_unit(id: String, state: State<'_, AppState>) -> Result<
 
 #[tauri::command]
 pub async fn set_item_price(
-    item_id: String, unit_id: String, customer_tier: String, price: f64, state: State<'_, AppState>
+    item_id: String,
+    unit_id: String,
+    customer_tier: String,
+    price: f64,
+    state: State<'_, AppState>,
 ) -> Result<ItemPrice, String> {
     let id = Uuid::new_v4().to_string();
-    
+
     // UPSERT: Insert or Update if the unique constraint (item_id, unit_id, customer_tier) is hit
     sqlx::query(
         r#"
@@ -219,16 +299,26 @@ pub async fn set_item_price(
         VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(item_id, unit_id, customer_tier) 
         DO UPDATE SET price = excluded.price
-        "#
+        "#,
     )
-    .bind(&id).bind(&item_id).bind(&unit_id).bind(&customer_tier).bind(price)
-    .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+    .bind(&id)
+    .bind(&item_id)
+    .bind(&unit_id)
+    .bind(&customer_tier)
+    .bind(price)
+    .execute(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     sqlx::query_as::<_, ItemPrice>(
-        "SELECT * FROM item_prices WHERE item_id = ? AND unit_id = ? AND customer_tier = ?"
+        "SELECT * FROM item_prices WHERE item_id = ? AND unit_id = ? AND customer_tier = ?",
     )
-    .bind(&item_id).bind(&unit_id).bind(&customer_tier)
-    .fetch_one(&state.db_pool).await.map_err(|e| e.to_string())
+    .bind(&item_id)
+    .bind(&unit_id)
+    .bind(&customer_tier)
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())
 }
 
 // Helper function
@@ -242,5 +332,8 @@ async fn get_item_by_id(id: &str, state: &State<'_, AppState>) -> Result<Item, S
         FROM items WHERE id = ?
     "#;
     sqlx::query_as::<_, Item>(query_str)
-        .bind(id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())
+        .bind(id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
 }

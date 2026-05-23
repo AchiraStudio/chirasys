@@ -65,7 +65,7 @@ pub struct StockOverviewRow {
     pub current_qty: f64,
     pub has_ledger_entries: bool,
     #[sqlx(skip)]
-    pub is_low_stock: bool, 
+    pub is_low_stock: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -80,7 +80,7 @@ pub struct StockMovementRow {
     pub notes: Option<String>,
     pub created_by_name: Option<String>,
     pub created_at: String,
-    pub running_total: f64, 
+    pub running_total: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

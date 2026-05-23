@@ -3,5 +3,5 @@
 
 fn main() {
     // We dropped the "_lib" part here
-    chirasys::run() 
+    chirasys::run()
 }

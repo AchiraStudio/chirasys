@@ -20,5 +20,5 @@ pub struct CategoryNode {
     pub color: Option<String>,
     pub parent_id: Option<String>,
     pub children: Vec<CategoryNode>,
-    pub item_count: i64, 
+    pub item_count: i64,
 }

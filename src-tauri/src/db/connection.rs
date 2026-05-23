@@ -1,20 +1,19 @@
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 use std::fs;
 use std::path::PathBuf;
-use tauri::Manager; 
+use tauri::Manager;
 
 pub async fn establish_connection(app_handle: &tauri::AppHandle) -> Result<SqlitePool, String> {
     let app_dir: PathBuf = app_handle
         .path()
         .app_data_dir()
         .expect("Failed to resolve app data directory");
-    
+
     if !app_dir.exists() {
         fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
     }
 
     let db_path = app_dir.join("chirasys.db");
-    
     println!("🗄️ DATABASE IS LOCATED AT: {}", db_path.display());
 
     let database_url = format!("sqlite://{}?mode=rwc", db_path.display());
@@ -31,46 +30,93 @@ pub async fn establish_connection(app_handle: &tauri::AppHandle) -> Result<Sqlit
 }
 
 async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
-    let migration_1 = include_str!("./migrations/001_init.sql");
-    sqlx::query(migration_1).execute(pool).await.map_err(|e| format!("Migration 001 failed: {}", e))?;
+    // Enable WAL mode for much better write performance (~3x faster)
+    sqlx::query("PRAGMA journal_mode=WAL;")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    sqlx::query("PRAGMA synchronous=NORMAL;")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    sqlx::query("PRAGMA cache_size=-32000;")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    sqlx::query("PRAGMA foreign_keys=ON;")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    sqlx::query("PRAGMA temp_store=MEMORY;")
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    let migration_2 = include_str!("./migrations/002_master_data.sql");
-    sqlx::query(migration_2).execute(pool).await.map_err(|e| format!("Migration 002 failed: {}", e))?;
+    // Schema version table: ensures each migration runs only once
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS _schema_version (
+            version    INTEGER PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )",
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
-    let migration_3 = include_str!("./migrations/003_inventory.sql");
-    sqlx::query(migration_3).execute(pool).await.map_err(|e| format!("Migration 003 failed: {}", e))?;
+    // All migrations in order (sql content, version number)
+    let migrations: &[(&str, i32)] = &[
+        (include_str!("./migrations/001_init.sql"), 1),
+        (include_str!("./migrations/002_master_data.sql"), 2),
+        (include_str!("./migrations/003_inventory.sql"), 3),
+        (include_str!("./migrations/004_purchasing.sql"), 4),
+        (include_str!("./migrations/005_fix_source_type.sql"), 5),
+        (include_str!("./migrations/006_sales_and_members.sql"), 6),
+        (include_str!("./migrations/007_promos.sql"), 7),
+        (include_str!("./migrations/008_alter_items.sql"), 8),
+        (include_str!("./migrations/009_health.sql"), 9),
+        (include_str!("./migrations/010_promo_advanced.sql"), 10),
+        (include_str!("./migrations/011_accounting.sql"), 11),
+        (include_str!("./migrations/012_fix_and_seed.sql"), 12),
+        (include_str!("./migrations/013_auth_and_roles.sql"), 13),
+        (include_str!("./migrations/014_sync_queue.sql"), 14),
+        (include_str!("./migrations/015_sync_triggers.sql"), 15),
+        (include_str!("./migrations/016_sync_triggers_fix.sql"), 16),
+        (include_str!("./migrations/017_admin_v1.sql"), 17),
+    ];
 
-    let migration_4 = include_str!("./migrations/004_purchasing.sql");
-    sqlx::query(migration_4).execute(pool).await.map_err(|e| format!("Migration 004 failed: {}", e))?;
+    for (sql, version) in migrations {
+        // Skip if already applied
+        let already_applied: Option<i64> =
+            sqlx::query_scalar("SELECT 1 FROM _schema_version WHERE version = ?")
+                .bind(version)
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| e.to_string())?;
 
-    let migration_5 = include_str!("./migrations/005_fix_source_type.sql");
-    sqlx::query(migration_5).execute(pool).await.map_err(|e| format!("Migration 005 failed: {}", e))?;
-
-    let migration_6 = include_str!("./migrations/006_sales_and_members.sql");
-    sqlx::query(migration_6).execute(pool).await.map_err(|e| format!("Migration 006 failed: {}", e))?;
-
-    let migration_7 = include_str!("./migrations/007_promos.sql");
-    sqlx::query(migration_7).execute(pool).await.map_err(|e| format!("Migration 007 failed: {}", e))?;
-
-    let migration_8 = include_str!("./migrations/008_alter_items.sql");
-    if let Err(e) = sqlx::query(migration_8).execute(pool).await {
-        if !e.to_string().contains("duplicate column name") {
-            return Err(format!("Migration 008 failed: {}", e));
+        if already_applied.is_some() {
+            continue;
         }
+
+        // Run migration — tolerate idempotent errors (duplicate column, already exists)
+        if let Err(e) = sqlx::query(sql).execute(pool).await {
+            let msg = e.to_string();
+            if msg.contains("duplicate column name") || msg.contains("already exists") {
+                println!("⚠️  Migration {} skipped (idempotent): {}", version, msg);
+            } else {
+                return Err(format!("❌ Migration {} failed: {}", version, msg));
+            }
+        }
+
+        // Record as applied
+        sqlx::query("INSERT OR IGNORE INTO _schema_version (version) VALUES (?)")
+            .bind(version)
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        println!("✅ Migration {} applied.", version);
     }
 
-    let migration_9 = include_str!("./migrations/009_health.sql");
-    sqlx::query(migration_9).execute(pool).await.map_err(|e| format!("Migration 009 failed: {}", e))?;
-
-    let migration_10 = include_str!("./migrations/010_promo_advanced.sql");
-    if let Err(e) = sqlx::query(migration_10).execute(pool).await {
-        if !e.to_string().contains("duplicate column name") {
-            return Err(format!("Migration 010 failed: {}", e));
-        }
-    }
-
-    let migration_11 = include_str!("./migrations/011_accounting.sql");
-    sqlx::query(migration_11).execute(pool).await.map_err(|e| format!("Migration 011 failed: {}", e))?;
-
+    println!("✅ All migrations up to date.");
     Ok(())
 }

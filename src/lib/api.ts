@@ -145,10 +145,12 @@ export const setInitialStock = async (itemId: string, unitId: string, branchId: 
 export const getSuppliers = async (search: string = '', activeOnly: boolean = false): Promise<Supplier[]> => invoke('get_suppliers', { search: search || null, activeOnly });
 export const addSupplier = async (name: string, contactPerson?: string, phone?: string, email?: string, address?: string, paymentTerms?: string, notes?: string): Promise<Supplier> => invoke('add_supplier', { name, contactPerson: contactPerson || null, phone: phone || null, email: email || null, address: address || null, paymentTerms: paymentTerms || null, notes: notes || null });
 export const updateSupplier = async (id: string, name: string, contactPerson?: string, phone?: string, email?: string, address?: string, paymentTerms?: string, notes?: string): Promise<Supplier> => invoke('update_supplier', { id, name, contactPerson: contactPerson || null, phone: phone || null, email: email || null, address: address || null, paymentTerms: paymentTerms || null, notes: notes || null });
+export const toggleSupplierActive = async (id: string): Promise<void> => invoke('toggle_supplier_active', { id });
 
 export const getCustomers = async (search: string = '', tier: string = '', activeOnly: boolean = false): Promise<Customer[]> => invoke('get_customers', { search: search || null, tier: tier || null, activeOnly });
 export const addCustomer = async (name: string, phone?: string, email?: string, address?: string, region?: string, customerTier: string = 'regular', creditLimit: number = 0, notes?: string): Promise<Customer> => invoke('add_customer', { name, phone: phone || null, email: email || null, address: address || null, region: region || null, customerTier, creditLimit, notes: notes || null });
 export const updateCustomer = async (id: string, name: string, phone?: string, email?: string, address?: string, region?: string, customerTier: string = 'regular', creditLimit: number = 0, notes?: string): Promise<Customer> => invoke('update_customer', { id, name, phone: phone || null, email: email || null, address: address || null, region: region || null, customerTier, creditLimit, notes: notes || null });
+export const toggleCustomerActive = async (id: string): Promise<void> => invoke('toggle_customer_active', { id });
 
 // --- Phase 4 ---
 export const getPurchaseOrders = async (branchId: string): Promise<PurchaseOrder[]> => invoke('get_purchase_orders', { branchId });
@@ -195,3 +197,59 @@ export const createManualJournal = async (input: ManualJournalInput): Promise<st
 export const getTrialBalance = async (asOfDate: string): Promise<TrialBalanceRow[]> => invoke('get_trial_balance', { asOfDate });
 export const getProfitLoss = async (startDate: string, endDate: string): Promise<ProfitLossReport> => invoke('get_profit_loss', { startDate, endDate });
 export const getBalanceSheet = async (asOfDate: string): Promise<BalanceSheet> => invoke('get_balance_sheet', { asOfDate });
+
+export const cashIn = async (accountId: string, cashAccountId: string, amount: number, description: string, branchId?: string): Promise<string> =>
+  invoke('cash_in', { accountId, cashAccountId, amount, description, branchId: branchId || null });
+export const cashOut = async (accountId: string, cashAccountId: string, amount: number, description: string, branchId?: string): Promise<string> =>
+  invoke('cash_out', { accountId, cashAccountId, amount, description, branchId: branchId || null });
+// --- Phase 8 Banks & Settings ---
+export interface Bank { id: string; name: string; code: string; is_active: number; }
+export const getBanks = async (): Promise<Bank[]> => invoke('get_banks');
+export const getSettings = async (): Promise<{ key: string; value: string; description?: string }[]> => invoke('get_settings');
+export const setSetting = async (key: string, value: string): Promise<void> => invoke('set_setting', { key, value });
+
+// --- Phase 10: Excel Exports & Maintenance ---
+export const exportItemsExcel = async (filePath: string): Promise<string> => invoke('export_items_excel', { filePath });
+export const exportSalesExcel = async (filePath: string): Promise<string> => invoke('export_sales_excel', { filePath });
+export const optimizeDatabase = async (): Promise<string> => invoke('optimize_database');
+
+// --- Phase 8 Report Types ---
+export interface SalesSummaryRow { period_label: string; transaction_count: number; total_revenue: number; total_discount: number; total_cogs: number; gross_profit: number; }
+export interface TopItemRow { item_name: string; sku: string; category_name?: string; qty_sold: number; total_revenue: number; total_cogs: number; gross_margin: number; }
+export interface PaymentMethodRow { method: string; transaction_count: number; total_amount: number; }
+export interface StockValuationRow { item_name: string; sku: string; category_name?: string; unit_name?: string; current_qty: number; avg_hpp: number; total_value: number; }
+export interface ExpiringItemRow { item_name: string; sku: string; batch_no?: string; expiry_date: string; qty: number; days_left: number; }
+export interface OutstandingPayableRow { purchase_id: string; supplier_name: string; invoice_no?: string; total_amount: number; paid_amount: number; balance: number; created_at: string; }
+export interface PurchaseSummaryRow { supplier_name: string; purchase_count: number; total_amount: number; paid_amount: number; }
+export interface CustomerReportRow { customer_name: string; customer_tier: string; transaction_count: number; total_spent: number; }
+
+// --- Phase 8 Report Invokes ---
+export const getSalesSummary = async (branchId: string, dateFrom: string, dateTo: string): Promise<SalesSummaryRow[]> =>
+  invoke('get_sales_summary', { branchId, dateFrom, dateTo });
+export const getTopSellingItems = async (branchId: string, dateFrom: string, dateTo: string, limit: number = 20): Promise<TopItemRow[]> =>
+  invoke('get_top_selling_items', { branchId, dateFrom, dateTo, limit });
+export const getSalesByPaymentMethod = async (branchId: string, dateFrom: string, dateTo: string): Promise<PaymentMethodRow[]> =>
+  invoke('get_sales_by_payment_method', { branchId, dateFrom, dateTo });
+export const getStockValuation = async (branchId: string): Promise<StockValuationRow[]> =>
+  invoke('get_stock_valuation', { branchId });
+export const getExpiringItems = async (branchId: string, daysAhead: number = 30): Promise<ExpiringItemRow[]> =>
+  invoke('get_expiring_items', { branchId, daysAhead });
+export const getOutstandingPayables = async (branchId: string): Promise<OutstandingPayableRow[]> =>
+  invoke('get_outstanding_payables', { branchId });
+export const getPurchaseSummary = async (branchId: string, dateFrom: string, dateTo: string): Promise<PurchaseSummaryRow[]> =>
+  invoke('get_purchase_summary', { branchId, dateFrom, dateTo });
+export const getCustomerReport = async (branchId: string, dateFrom: string, dateTo: string, limit: number = 20): Promise<CustomerReportRow[]> =>
+  invoke('get_customer_report', { branchId, dateFrom, dateTo, limit });
+
+// --- Phase 9 Excel Import ---
+export interface ImportResult { success: boolean; rows_imported: number; errors: string[]; }
+export const importItemsExcel = async (filePath: string): Promise<ImportResult> => invoke('import_items_excel', { filePath });
+
+// --- Phase 9 Auth ---
+import { UserInfo } from '../store/AuthStore';
+export const loginUser = async (username: string, passwordGuess: string): Promise<{ token: string, user: UserInfo }> => 
+  invoke('login', { username, passwordGuess });
+export const getCurrentUser = async (token: string): Promise<UserInfo> => 
+  invoke('get_current_user', { token });
+export const logoutUser = async (token: string): Promise<void> => 
+  invoke('logout', { token });

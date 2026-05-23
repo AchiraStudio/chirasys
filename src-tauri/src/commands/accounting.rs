@@ -1,9 +1,9 @@
 use crate::db::models::accounting::*;
 use crate::AppState;
-use tauri::State;
-use uuid::Uuid;
 use chrono::Local;
 use sqlx::FromRow;
+use tauri::State;
+use uuid::Uuid;
 
 // ==========================================
 // LOCAL RAW QUERY STRUCTS (module-level required for derive)
@@ -42,11 +42,17 @@ pub async fn get_accounts(state: State<'_, AppState>) -> Result<Vec<Account>, St
 }
 
 #[tauri::command]
-pub async fn create_account(input: CreateAccountInput, state: State<'_, AppState>) -> Result<Account, String> {
+pub async fn create_account(
+    input: CreateAccountInput,
+    state: State<'_, AppState>,
+) -> Result<Account, String> {
     // Validate unique code
     let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM accounts WHERE code = ?")
-        .bind(&input.code).fetch_optional(&state.db_pool).await.map_err(|e| e.to_string())?;
-    
+        .bind(&input.code)
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
     if exists.is_some() {
         return Err(format!("Account code {} already exists", input.code));
     }
@@ -60,23 +66,38 @@ pub async fn create_account(input: CreateAccountInput, state: State<'_, AppState
     .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
     sqlx::query_as::<_, Account>("SELECT * FROM accounts WHERE id = ?")
-        .bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn update_account(id: String, input: CreateAccountInput, state: State<'_, AppState>) -> Result<Account, String> {
+pub async fn update_account(
+    id: String,
+    input: CreateAccountInput,
+    state: State<'_, AppState>,
+) -> Result<Account, String> {
     // Check if system account
     let current = sqlx::query_as::<_, Account>("SELECT * FROM accounts WHERE id = ?")
-        .bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    if current.is_system == 1 && (current.r#type != input.r#type || current.normal_balance != input.normal_balance) {
+    if current.is_system == 1
+        && (current.r#type != input.r#type || current.normal_balance != input.normal_balance)
+    {
         return Err("Cannot change type or normal balance of a system account".into());
     }
 
     // Check code unique
     if current.code != input.code {
         let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM accounts WHERE code = ?")
-            .bind(&input.code).fetch_optional(&state.db_pool).await.map_err(|e| e.to_string())?;
+            .bind(&input.code)
+            .fetch_optional(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())?;
         if exists.is_some() {
             return Err(format!("Account code {} already exists", input.code));
         }
@@ -89,29 +110,44 @@ pub async fn update_account(id: String, input: CreateAccountInput, state: State<
     .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
     sqlx::query_as::<_, Account>("SELECT * FROM accounts WHERE id = ?")
-        .bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn delete_account(id: String, state: State<'_, AppState>) -> Result<(), String> {
     let current = sqlx::query_as::<_, Account>("SELECT * FROM accounts WHERE id = ?")
-        .bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
     if current.is_system == 1 {
         return Err("Cannot delete or deactivate system accounts".into());
     }
 
     // Check journal lines
-    let in_use: Option<i64> = sqlx::query_scalar("SELECT 1 FROM journal_lines WHERE account_id = ? LIMIT 1")
-        .bind(&id).fetch_optional(&state.db_pool).await.map_err(|e| e.to_string())?;
-    
+    let in_use: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM journal_lines WHERE account_id = ? LIMIT 1")
+            .bind(&id)
+            .fetch_optional(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
     if in_use.is_some() {
         return Err("Cannot delete account because it has journal entries".into());
     }
 
-    sqlx::query("UPDATE accounts SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?")
-        .bind(&id).execute(&state.db_pool).await.map_err(|e| e.to_string())?;
-    
+    sqlx::query(
+        "UPDATE accounts SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?",
+    )
+    .bind(&id)
+    .execute(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
@@ -125,13 +161,12 @@ pub(crate) async fn post_journal(
     source_id: &str,
     branch_id: Option<&str>,
     description: &str,
-    lines: Vec<(&str, f64, f64, Option<&str>)> // (account_id, debit, credit, notes)
+    lines: Vec<(&str, f64, f64, Option<&str>)>, // (account_id, debit, credit, notes)
 ) -> Result<String, String> {
-    
     // Auto-generate entry_no
     let date_str = Local::now().format("%Y%m%d").to_string();
     let display_date = Local::now().format("%y%m").to_string();
-    
+
     let branch_for_counter = branch_id.unwrap_or("branch_001");
     // We reuse transaction_counters for 'JV'
     let current: Option<i64> = sqlx::query_scalar(
@@ -144,10 +179,14 @@ pub(crate) async fn post_journal(
     let counter = if let Some(c) = current {
         c
     } else {
-        sqlx::query("INSERT INTO transaction_counters (branch_id, date_str, counter) VALUES (?, ?, 1)")
-            .bind(branch_for_counter)
-            .bind(&date_str)
-            .execute(&mut **tx).await.map_err(|e| e.to_string())?;
+        sqlx::query(
+            "INSERT INTO transaction_counters (branch_id, date_str, counter) VALUES (?, ?, 1)",
+        )
+        .bind(branch_for_counter)
+        .bind(&date_str)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
         1
     };
 
@@ -182,7 +221,10 @@ pub(crate) async fn post_journal(
     }
 
     if (total_debit - total_credit).abs() > 0.01 {
-        return Err(format!("Journal entry is not balanced. Debit: {}, Credit: {}", total_debit, total_credit));
+        return Err(format!(
+            "Journal entry is not balanced. Debit: {}, Credit: {}",
+            total_debit, total_credit
+        ));
     }
 
     Ok(entry_id)
@@ -193,41 +235,57 @@ pub(crate) async fn post_journal(
 // ==========================================
 
 #[tauri::command]
-pub async fn create_manual_journal(input: ManualJournalInput, state: State<'_, AppState>) -> Result<String, String> {
+pub async fn create_manual_journal(
+    input: ManualJournalInput,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
     let mut total_debit = 0.0;
     let mut total_credit = 0.0;
 
     for l in &input.lines {
         total_debit += l.debit;
         total_credit += l.credit;
-        
+
         let is_system: i32 = sqlx::query_scalar("SELECT is_system FROM accounts WHERE id = ?")
-            .bind(&l.account_id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())?;
-            
+            .bind(&l.account_id)
+            .fetch_one(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
         if is_system == 1 {
-            return Err(format!("Cannot post manually to system account: {}", l.account_id));
+            return Err(format!(
+                "Cannot post manually to system account: {}",
+                l.account_id
+            ));
         }
     }
 
     if (total_debit - total_credit).abs() > 0.01 {
-        return Err(format!("Journal entry is not balanced. Debit: {}, Credit: {}", total_debit, total_credit));
+        return Err(format!(
+            "Journal entry is not balanced. Debit: {}, Credit: {}",
+            total_debit, total_credit
+        ));
     }
 
     let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
-    
+
     let mut lines = Vec::new();
     for l in &input.lines {
         lines.push((l.account_id.as_str(), l.debit, l.credit, l.notes.as_deref()));
     }
-    
+
     let entry_id = post_journal(
-        &mut tx, 
-        "manual", 
-        "manual", 
-        input.branch_id.as_deref(), 
-        input.description.as_deref().unwrap_or("Manual Journal Entry"), 
-        lines
-    ).await?;
+        &mut tx,
+        "manual",
+        "manual",
+        input.branch_id.as_deref(),
+        input
+            .description
+            .as_deref()
+            .unwrap_or("Manual Journal Entry"),
+        lines,
+    )
+    .await?;
 
     tx.commit().await.map_err(|e| e.to_string())?;
 
@@ -236,23 +294,35 @@ pub async fn create_manual_journal(input: ManualJournalInput, state: State<'_, A
 
 #[tauri::command]
 pub async fn get_journal_entries(state: State<'_, AppState>) -> Result<Vec<JournalEntry>, String> {
-    sqlx::query_as::<_, JournalEntry>("SELECT * FROM journal_entries ORDER BY date DESC, created_at DESC LIMIT 500")
-        .fetch_all(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())
+    sqlx::query_as::<_, JournalEntry>(
+        "SELECT * FROM journal_entries ORDER BY date DESC, created_at DESC LIMIT 500",
+    )
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_journal_detail(id: String, state: State<'_, AppState>) -> Result<JournalEntryWithLines, String> {
+pub async fn get_journal_detail(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<JournalEntryWithLines, String> {
     let entry = sqlx::query_as::<_, JournalEntry>("SELECT * FROM journal_entries WHERE id = ?")
-        .bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let lines = sqlx::query_as::<_, JournalLine>(
         r#"SELECT jl.*, a.code as account_code, a.name as account_name 
            FROM journal_lines jl 
            JOIN accounts a ON jl.account_id = a.id 
-           WHERE jl.journal_entry_id = ?"#
-    ).bind(&id).fetch_all(&state.db_pool).await.map_err(|e| e.to_string())?;
+           WHERE jl.journal_entry_id = ?"#,
+    )
+    .bind(&id)
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(JournalEntryWithLines { entry, lines })
 }
@@ -262,7 +332,10 @@ pub async fn get_journal_detail(id: String, state: State<'_, AppState>) -> Resul
 // ==========================================
 
 #[tauri::command]
-pub async fn get_trial_balance(as_of_date: String, state: State<'_, AppState>) -> Result<Vec<TrialBalanceRow>, String> {
+pub async fn get_trial_balance(
+    as_of_date: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<TrialBalanceRow>, String> {
     let query = r#"
         SELECT 
             a.id as account_id, 
@@ -291,7 +364,11 @@ pub async fn get_trial_balance(as_of_date: String, state: State<'_, AppState>) -
 }
 
 #[tauri::command]
-pub async fn get_profit_loss(start_date: String, end_date: String, state: State<'_, AppState>) -> Result<ProfitLossReport, String> {
+pub async fn get_profit_loss(
+    start_date: String,
+    end_date: String,
+    state: State<'_, AppState>,
+) -> Result<ProfitLossReport, String> {
     // Alias `a.type` as `account_type` to match PLRaw field name
     let query = r#"
         SELECT 
@@ -311,7 +388,8 @@ pub async fn get_profit_loss(start_date: String, end_date: String, state: State<
     "#;
 
     let rows = sqlx::query_as::<_, PLRaw>(query)
-        .bind(&start_date).bind(&end_date)
+        .bind(&start_date)
+        .bind(&end_date)
         .fetch_all(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -325,10 +403,18 @@ pub async fn get_profit_loss(start_date: String, end_date: String, state: State<
     let mut exp_total = 0.0;
 
     for r in rows {
-        let bal = if r.normal_balance == "credit" { r.total_credit - r.total_debit } else { r.total_debit - r.total_credit };
-        
-        let pl_row = PLRow { account_code: r.account_code.clone(), account_name: r.account_name.clone(), amount: bal };
-        
+        let bal = if r.normal_balance == "credit" {
+            r.total_credit - r.total_debit
+        } else {
+            r.total_debit - r.total_credit
+        };
+
+        let pl_row = PLRow {
+            account_code: r.account_code.clone(),
+            account_name: r.account_name.clone(),
+            amount: bal,
+        };
+
         if r.account_type == "income" {
             rev_total += bal;
             revenue_rows.push(pl_row);
@@ -348,16 +434,31 @@ pub async fn get_profit_loss(start_date: String, end_date: String, state: State<
     let net = gross - exp_total;
 
     Ok(ProfitLossReport {
-        revenue: ProfitLossGroup { group_name: "Revenue".to_string(), rows: revenue_rows, total: rev_total },
-        cogs: ProfitLossGroup { group_name: "Cost of Goods Sold".to_string(), rows: cogs_rows, total: cogs_total },
+        revenue: ProfitLossGroup {
+            group_name: "Revenue".to_string(),
+            rows: revenue_rows,
+            total: rev_total,
+        },
+        cogs: ProfitLossGroup {
+            group_name: "Cost of Goods Sold".to_string(),
+            rows: cogs_rows,
+            total: cogs_total,
+        },
         gross_profit: gross,
-        expenses: ProfitLossGroup { group_name: "Operating Expenses".to_string(), rows: exp_rows, total: exp_total },
+        expenses: ProfitLossGroup {
+            group_name: "Operating Expenses".to_string(),
+            rows: exp_rows,
+            total: exp_total,
+        },
         net_profit: net,
     })
 }
 
 #[tauri::command]
-pub async fn get_balance_sheet(as_of_date: String, state: State<'_, AppState>) -> Result<BalanceSheet, String> {
+pub async fn get_balance_sheet(
+    as_of_date: String,
+    state: State<'_, AppState>,
+) -> Result<BalanceSheet, String> {
     // Alias `a.type` as `account_type` to match BSRaw field name
     let query = r#"
         SELECT 
@@ -391,13 +492,30 @@ pub async fn get_balance_sheet(as_of_date: String, state: State<'_, AppState>) -
     let mut e_total = 0.0;
 
     for r in rows {
-        let bal = if r.normal_balance == "debit" { r.total_debit - r.total_credit } else { r.total_credit - r.total_debit };
-        let bs_row = BSRow { account_code: r.account_code, account_name: r.account_name, amount: bal };
-        
+        let bal = if r.normal_balance == "debit" {
+            r.total_debit - r.total_credit
+        } else {
+            r.total_credit - r.total_debit
+        };
+        let bs_row = BSRow {
+            account_code: r.account_code,
+            account_name: r.account_name,
+            amount: bal,
+        };
+
         match r.account_type.as_str() {
-            "asset" => { a_total += bal; asset_rows.push(bs_row); },
-            "liability" => { l_total += bal; liab_rows.push(bs_row); },
-            "equity" => { e_total += bal; equity_rows.push(bs_row); },
+            "asset" => {
+                a_total += bal;
+                asset_rows.push(bs_row);
+            }
+            "liability" => {
+                l_total += bal;
+                liab_rows.push(bs_row);
+            }
+            "equity" => {
+                e_total += bal;
+                equity_rows.push(bs_row);
+            }
             _ => {}
         }
     }
@@ -409,4 +527,72 @@ pub async fn get_balance_sheet(as_of_date: String, state: State<'_, AppState>) -
         equity: equity_rows,
         total_liabilities_equity: l_total + e_total,
     })
+}
+
+// ==========================================
+// CASH IN / CASH OUT
+// ==========================================
+
+/// Kas Masuk — Cash received (e.g. owner deposit, misc income)
+/// DR: Kas/Bank  →  CR: specified contra-account
+#[tauri::command]
+pub async fn cash_in(
+    account_id: String,
+    cash_account_id: String,
+    amount: f64,
+    description: String,
+    branch_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    if amount <= 0.0 {
+        return Err("Jumlah harus lebih dari 0".into());
+    }
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+    let lines = vec![
+        (cash_account_id.as_str(), amount, 0.0, Some("Kas Masuk")),
+        (account_id.as_str(), 0.0, amount, Some("Kas Masuk")),
+    ];
+    let entry_id = post_journal(
+        &mut tx,
+        "manual",
+        "cash_in",
+        branch_id.as_deref(),
+        &description,
+        lines,
+    )
+    .await?;
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(entry_id)
+}
+
+/// Kas Keluar — Cash paid out (e.g. expenses, purchases)
+/// DR: specified account  →  CR: Kas/Bank
+#[tauri::command]
+pub async fn cash_out(
+    account_id: String,
+    cash_account_id: String,
+    amount: f64,
+    description: String,
+    branch_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    if amount <= 0.0 {
+        return Err("Jumlah harus lebih dari 0".into());
+    }
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+    let lines = vec![
+        (account_id.as_str(), amount, 0.0, Some("Kas Keluar")),
+        (cash_account_id.as_str(), 0.0, amount, Some("Kas Keluar")),
+    ];
+    let entry_id = post_journal(
+        &mut tx,
+        "manual",
+        "cash_out",
+        branch_id.as_deref(),
+        &description,
+        lines,
+    )
+    .await?;
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(entry_id)
 }

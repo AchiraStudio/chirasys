@@ -1,410 +1,456 @@
+// src/pages/pos/POS.tsx — Full keyboard-driven POS with Indonesian UI
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, User, Banknote, PauseCircle, PlayCircle, Loader2, Tag } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, ShoppingCart, User, PauseCircle, PlayCircle, Loader2, Tag, UserCheck, RefreshCw } from 'lucide-react';
 import { usePosStore, PosLine, PosHold } from './POSStore';
-import { getItemsFiltered, Item, getItem } from '../../lib/api';
+import { getItemsFiltered, Item, Customer } from '../../lib/api';
 import { applyDiscountsToCart } from '../../lib/discountEngine';
+import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import PaymentModal from './PaymentModal';
 import ReceiptModal from './ReceiptModal';
+import CustomerPickerModal from './CustomerPickerModal';
 
 export default function POS() {
   const DEFAULT_BRANCH = 'branch_001';
-  
+
   const [items, setItems] = useState<Item[]>([]);
   const [cart, setCart] = useState<PosLine[]>([]);
   const [cartDiscount, setCartDiscount] = useState(0);
   const [search, setSearch] = useState('');
   const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
   const [loading, setLoading] = useState(false);
-  
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
   // Modals
   const [showPayment, setShowPayment] = useState(false);
+  const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
 
-  const barcodeInputRef = useRef<HTMLInputElement>(null);
-  
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const holds = usePosStore(state => state.holds);
   const addHold = usePosStore(state => state.addHold);
   const removeHold = usePosStore(state => state.removeHold);
 
+  // Hardware Barcode Scanner Hook
+  useBarcodeScanner(async (barcode) => {
+    if (showPayment || showCustomerPicker || receiptSaleId) return;
+    
+    // Check locally first
+    const exact = items.find(i => i.sku === barcode || i.barcode === barcode);
+    if (exact) {
+      addToCart(exact);
+      setSearch('');
+    } else {
+      // Fetch from DB if not in current view
+      setLoading(true);
+      try {
+        const res = await getItemsFiltered(barcode, '', '', true, 1, 5);
+        const match = res.items.find(i => i.sku === barcode || i.barcode === barcode);
+        if (match) {
+          addToCart(match);
+          setSearch('');
+        } else {
+          setSearch(barcode); // Just show it in the search bar if not found
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+  });
+
+  // Global keyboard shortcuts
   useEffect(() => {
-    // Keep barcode input focused
+    const handleKeydown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs (except our global ones)
+      const isInInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+
+      switch (e.key) {
+        case 'F1':
+          e.preventDefault();
+          searchInputRef.current?.focus();
+          break;
+        case 'F3':
+          e.preventDefault();
+          if (!showPayment) setShowCustomerPicker(true);
+          break;
+        case 'F4':
+          e.preventDefault();
+          if (cart.length > 0 && !showPayment) handleHold();
+          break;
+        case 'F5':
+          e.preventDefault();
+          if (holds.length > 0 && !showPayment) handleResume(holds[0]);
+          break;
+        case 'F9':
+          e.preventDefault();
+          if (!showPayment && cart.length > 0 && confirm('Batalkan transaksi ini?')) {
+            setCart([]);
+            setCartDiscount(0);
+          }
+          break;
+        case 'F10':
+          e.preventDefault();
+          if (cart.length > 0 && !showPayment) setShowPayment(true);
+          break;
+        case 'F11':
+          e.preventDefault();
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+          } else {
+            document.documentElement.requestFullscreen().catch(() => {});
+          }
+          break;
+        case 'F12':
+          e.preventDefault();
+          if (cart.length > 0 && !showPayment) {
+            setCart(prev => prev.slice(0, -1));
+          }
+          break;
+        case 'Escape':
+          if (showPayment) setShowPayment(false);
+          if (showCustomerPicker) setShowCustomerPicker(false);
+          if (receiptSaleId) setReceiptSaleId(null);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, [cart, holds, showPayment, showCustomerPicker, receiptSaleId]);
+
+  // Auto-focus search on non-input clicks
+  useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
-      // If they clicked on a form element, don't steal focus
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLButtonElement) return;
-      barcodeInputRef.current?.focus();
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLButtonElement || e.target instanceof HTMLSelectElement) return;
+      searchInputRef.current?.focus();
     };
     window.addEventListener('click', handleGlobalClick);
-    
-    // F2 shortcut
-    const handleKeydown = (e: KeyboardEvent) => {
-        if (e.key === 'F2') {
-            e.preventDefault();
-            if (cart.length > 0) setShowPayment(true);
-        }
-    };
-    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
 
-    return () => {
-        window.removeEventListener('click', handleGlobalClick);
-        window.removeEventListener('keydown', handleKeydown);
-    };
-  }, [cart]);
-
+  // Search items
   useEffect(() => {
     const fetchSearch = async () => {
-        if (search.length < 2) { setItems([]); return; }
-        setLoading(true);
-        try {
-            const result = await getItemsFiltered(search, '', '', true, 1, 20);
-            setItems(result.items);
-        } finally {
-            setLoading(false);
-        }
+      if (search.length < 2) { setItems([]); return; }
+      setLoading(true);
+      try {
+        const result = await getItemsFiltered(search, '', '', true, 1, 20);
+        setItems(result.items);
+      } finally { setLoading(false); }
     };
     const timer = setTimeout(fetchSearch, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Discount Application Effect
+  // Apply discounts
   useEffect(() => {
-    if (cart.length === 0) {
-      setCartDiscount(0);
-      return;
-    }
-
+    if (cart.length === 0) { setCartDiscount(0); return; }
     const linesForEngine = cart.map((l, i) => ({
-      item_id: l.item_id,
-      unit_id: l.unit_id,
-      category_id: undefined, // Add if you fetch it
-      qty: l.qty,
-      price: l.price,
-      line_index: i
+      item_id: l.item_id, unit_id: l.unit_id, category_id: undefined,
+      qty: l.qty, price: l.price, line_index: i
     }));
-
-    // Customer tier will come from selected customer (currently undefined)
-    applyDiscountsToCart(linesForEngine, undefined, async (result) => {
+    applyDiscountsToCart(linesForEngine, selectedCustomer?.customer_tier, async (result) => {
       setCartDiscount(result.cart_discount);
-      
       let needsUpdate = false;
       let newCart = [...cart];
-      const itemsToAdd = [];
+      const itemsToAdd: PosLine[] = [];
 
-      // Update existing lines
       for (const lineDisc of result.line_discounts) {
         if (!lineDisc.is_bogo_free_item) {
-           if (newCart[lineDisc.line_index] && newCart[lineDisc.line_index].discount_amount !== lineDisc.discount_amount) {
-             newCart[lineDisc.line_index].discount_amount = lineDisc.discount_amount;
-             needsUpdate = true;
-           }
+          if (newCart[lineDisc.line_index] && newCart[lineDisc.line_index].discount_amount !== lineDisc.discount_amount) {
+            newCart[lineDisc.line_index].discount_amount = lineDisc.discount_amount;
+            needsUpdate = true;
+          }
         } else {
-           // Handle BOGO free item
-           // Check if there is already a free line for this promo & index
-           const existingFreeIdx = newCart.findIndex(l => l.is_bogo_free && l.item_id === (lineDisc.free_item_id || newCart[lineDisc.line_index].item_id));
-           if (existingFreeIdx >= 0) {
-              // Update quantity if needed
-              if (newCart[existingFreeIdx].qty !== lineDisc.free_item_qty) {
-                 newCart[existingFreeIdx].qty = lineDisc.free_item_qty;
-                 needsUpdate = true;
-              }
-           } else {
-              // Add new free line
-              const parentLine = newCart[lineDisc.line_index];
-              // Try to find the free item details if it's different
-              let freeItemName = parentLine.item_name;
-              let freeUnitName = parentLine.unit_name;
-              let freeHpp = parentLine.hpp_value;
-              let freePrice = parentLine.price;
-
-              if (lineDisc.free_item_id && lineDisc.free_item_id !== parentLine.item_id) {
-                 const found = items.find(i => i.id === lineDisc.free_item_id);
-                 if (found) {
-                     freeItemName = found.name;
-                     freeUnitName = found.base_unit_name || 'Unit';
-                     freeHpp = found.avg_hpp || 0;
-                     freePrice = found.price || 0;
-                 } else {
-                     freeItemName = "Free Item";
-                 }
-              }
-
+          const existingFreeIdx = newCart.findIndex(l => l.is_bogo_free && l.item_id === (lineDisc.free_item_id || newCart[lineDisc.line_index]?.item_id));
+          if (existingFreeIdx >= 0) {
+            if (newCart[existingFreeIdx].qty !== lineDisc.free_item_qty) {
+              newCart[existingFreeIdx].qty = lineDisc.free_item_qty;
+              needsUpdate = true;
+            }
+          } else {
+            const parentLine = newCart[lineDisc.line_index];
+            if (parentLine) {
               itemsToAdd.push({
-                  item_id: lineDisc.free_item_id || parentLine.item_id,
-                  item_name: freeItemName,
-                  unit_id: lineDisc.free_item_unit_id || parentLine.unit_id,
-                  unit_name: freeUnitName,
-                  qty: lineDisc.free_item_qty,
-                  price_type: parentLine.price_type,
-                  price: freePrice,
-                  discount_amount: freePrice * lineDisc.free_item_qty, // 100% discount
-                  hpp_value: freeHpp,
-                  is_bogo_free: true
+                item_id: lineDisc.free_item_id || parentLine.item_id,
+                item_name: parentLine.item_name,
+                unit_id: lineDisc.free_item_unit_id || parentLine.unit_id,
+                unit_name: parentLine.unit_name,
+                qty: lineDisc.free_item_qty,
+                price_type: parentLine.price_type,
+                price: parentLine.price,
+                discount_amount: parentLine.price * lineDisc.free_item_qty,
+                hpp_value: parentLine.hpp_value,
+                is_bogo_free: true,
               });
               needsUpdate = true;
-           }
-        }
-      }
-
-      // If BOGO conditions no longer met, remove free lines
-      const freeItemIndexes = newCart.map((l, i) => l.is_bogo_free ? i : -1).filter(i => i !== -1);
-      if (freeItemIndexes.length > result.line_discounts.filter(d => d.is_bogo_free_item).length) {
-         // simplified removal: if we have more free lines than bogo rules fired, just remove all free lines and let them re-add next tick
-         newCart = newCart.filter(l => !l.is_bogo_free);
-         needsUpdate = true;
-      }
-
-      if (itemsToAdd.length > 0) {
-         newCart = [...newCart, ...itemsToAdd];
-      }
-
-      // Zero out discounts for lines that no longer have a discount
-      for (let i = 0; i < newCart.length; i++) {
-        if (newCart[i].price > 0 && !result.line_discounts.find(d => d.line_index === i && !d.is_bogo_free_item)) {
-          if (newCart[i].discount_amount !== 0) {
-            newCart[i].discount_amount = 0;
-            needsUpdate = true;
+            }
           }
         }
       }
 
-      if (needsUpdate) {
-        setCart(newCart);
+      const freeItemCount = newCart.filter(l => l.is_bogo_free).length;
+      if (freeItemCount > result.line_discounts.filter(d => d.is_bogo_free_item).length) {
+        newCart = newCart.filter(l => !l.is_bogo_free);
+        needsUpdate = true;
       }
+      if (itemsToAdd.length > 0) { newCart = [...newCart, ...itemsToAdd]; }
+
+      for (let i = 0; i < newCart.length; i++) {
+        if (newCart[i].price > 0 && !result.line_discounts.find(d => d.line_index === i && !d.is_bogo_free_item)) {
+          if (newCart[i].discount_amount !== 0) { newCart[i].discount_amount = 0; needsUpdate = true; }
+        }
+      }
+      if (needsUpdate) setCart(newCart);
     });
   }, [cart.map(l => `${l.item_id}-${l.qty}-${l.price}`).join('|')]);
 
   const handleBarcodeEnter = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter' && search) {
-          // If we have an exact match
-          if (items.length === 1) {
-              addToCart(items[0]);
-              setSearch('');
-          } else {
-              // Try to find exact SKU
-              const exact = items.find(i => i.sku === search);
-              if (exact) {
-                  addToCart(exact);
-                  setSearch('');
-              }
-          }
+    if (e.key === 'Enter' && search) {
+      if (items.length === 1) { addToCart(items[0]); setSearch(''); }
+      else {
+        const exact = items.find(i => i.sku === search || i.barcode === search);
+        if (exact) { addToCart(exact); setSearch(''); }
       }
+    }
   };
 
   const addToCart = (item: Item) => {
-      setCart(prev => {
-          // If trying to manually add a free item, skip it
-          if (item.id === 'FREE_ITEM_GUARD') return prev;
-
-          const exists = prev.find(l => l.item_id === item.id && !l.is_bogo_free);
-          if (exists) {
-              return prev.map(l => (l.item_id === item.id && !l.is_bogo_free) ? { ...l, qty: l.qty + 1 } : l);
-          }
-          // Support for wholesale pricing if items have wholesale_price populated
-          const currentPrice = priceType === 'wholesale' && item.wholesale_price ? item.wholesale_price : (item.price || 0);
-
-          return [...prev, {
-              item_id: item.id,
-              item_name: item.name,
-              unit_id: item.base_unit_id || 'unknown',
-              unit_name: item.base_unit_name || 'Unit',
-              qty: 1,
-              price_type: priceType,
-              price: currentPrice,
-              discount_amount: 0,
-              hpp_value: item.avg_hpp || 0
-          }];
-      });
+    setCart(prev => {
+      const exists = prev.find(l => l.item_id === item.id && !l.is_bogo_free);
+      if (exists) return prev.map(l => (l.item_id === item.id && !l.is_bogo_free) ? { ...l, qty: l.qty + 1 } : l);
+      const price = priceType === 'wholesale' && item.wholesale_price ? item.wholesale_price : (item.price || 0);
+      return [...prev, {
+        item_id: item.id, item_name: item.name,
+        unit_id: item.base_unit_id || 'unknown', unit_name: item.base_unit_name || 'Unit',
+        qty: 1, price_type: priceType, price, discount_amount: 0, hpp_value: item.avg_hpp || 0
+      }];
+    });
   };
 
   const updateQty = (itemId: string, delta: number) => {
-      setCart(prev => prev.map(l => {
-          if (l.item_id === itemId) {
-              const newQty = l.qty + delta;
-              return newQty > 0 ? { ...l, qty: newQty } : l;
-          }
-          return l;
-      }));
+    setCart(prev => prev.map(l => {
+      if (l.item_id === itemId && !l.is_bogo_free) {
+        const newQty = l.qty + delta;
+        return newQty > 0 ? { ...l, qty: newQty } : l;
+      }
+      return l;
+    }));
   };
 
-  const removeItem = (itemId: string) => {
-      setCart(prev => prev.filter(l => l.item_id !== itemId));
-  };
+  const removeItem = (itemId: string) => setCart(prev => prev.filter(l => !(l.item_id === itemId && !l.is_bogo_free)));
 
   const total = cart.reduce((sum, l) => sum + (l.qty * l.price) - l.discount_amount, 0) - cartDiscount;
 
   const handleHold = () => {
-      if (cart.length === 0) return;
-      addHold({
-          id: Date.now().toString(),
-          timestamp: new Date().toLocaleTimeString(),
-          lines: cart,
-          price_type: priceType,
-          total
-      });
-      setCart([]);
+    if (cart.length === 0) return;
+    addHold({ id: Date.now().toString(), timestamp: new Date().toLocaleTimeString('id-ID'), lines: cart, price_type: priceType, total });
+    setCart([]); setCartDiscount(0);
   };
 
   const handleResume = (hold: PosHold) => {
-      setCart(hold.lines);
-      setPriceType(hold.price_type);
-      removeHold(hold.id);
+    setCart(hold.lines); setPriceType(hold.price_type); removeHold(hold.id);
   };
 
-  const handlePaymentSuccess = async (saleId: string) => {
-      setCart([]);
-      setShowPayment(false);
-      setReceiptSaleId(saleId);
+  const handlePaymentSuccess = (saleId: string) => {
+    setCart([]); setCartDiscount(0); setSearch(''); setShowPayment(false); setReceiptSaleId(saleId);
   };
+
+  const TIER_LABEL: Record<string, string> = { regular: 'Regular', member: 'Member', vip: 'VIP' };
 
   return (
-    <div className="flex h-full bg-slate-100 dark:bg-[#0B0F19] p-4 gap-4 animate-in fade-in">
-        
-        {/* Left Side: Items & Search */}
-        <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-4 bg-slate-50 dark:bg-slate-950/50">
-                <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                    <input 
-                        ref={barcodeInputRef}
-                        type="text" 
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyDown={handleBarcodeEnter}
-                        placeholder="Scan barcode or type to search..." 
-                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand outline-none"
-                        autoFocus
-                    />
-                </div>
-                
-                <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
-                    <button onClick={() => setPriceType('retail')} className={`px-4 py-2 rounded-lg text-sm font-bold ${priceType === 'retail' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600'}`}>Retail</button>
-                    <button onClick={() => setPriceType('wholesale')} className={`px-4 py-2 rounded-lg text-sm font-bold ${priceType === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600'}`}>Wholesale</button>
-                </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                {search.length < 2 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-500">
-                        <ShoppingCart size={48} className="mb-4 opacity-20" />
-                        <p>Search for an item to add it to the cart.</p>
-                    </div>
-                ) : loading ? (
-                    <div className="h-full flex justify-center items-center"><Loader2 className="animate-spin text-brand" size={32} /></div>
-                ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {items.map(item => (
-                            <button 
-                                key={item.id} 
-                                onClick={() => addToCart(item)}
-                                className="flex flex-col text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:border-brand hover:ring-1 hover:ring-brand transition-all"
-                            >
-                                <span className="font-bold text-slate-900 dark:text-white mb-1 line-clamp-2">{item.name}</span>
-                                <span className="text-xs text-slate-600 font-mono mb-3">{item.sku}</span>
-                                <span className="mt-auto font-bold text-brand">Rp {item.price?.toLocaleString('id-ID')}</span>
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+    <div className="flex h-full w-full bg-slate-100 dark:bg-[#0B0F19] p-4 gap-4 animate-in fade-in">
+      {/* LEFT: Item Search */}
+      <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden min-w-0">
+        <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/50 shrink-0">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={handleBarcodeEnter}
+              placeholder="Scan barcode atau ketik nama obat... (F1)"
+              className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none text-slate-900 dark:text-white placeholder-slate-400"
+              autoFocus
+            />
+          </div>
+          <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
+            <button onClick={() => setPriceType('retail')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${priceType === 'retail' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Eceran</button>
+            <button onClick={() => setPriceType('wholesale')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${priceType === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Grosir</button>
+          </div>
         </div>
 
-        {/* Right Side: Cart */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden w-96 min-w-[380px] max-w-[420px]">
-            {/* Customer Info */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-brand/5 flex justify-between items-center">
-                <div className="flex items-center gap-2 text-brand">
-                    <User size={18} />
-                    <span className="font-bold text-sm">Walk-in Customer</span>
-                </div>
-                <button className="text-xs font-bold text-brand hover:underline">Select</button>
+        <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
+          {search.length < 2 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 select-none">
+              <ShoppingCart size={48} className="mb-3 opacity-20" />
+              <p className="text-sm">Scan barcode atau ketik nama obat</p>
+              <p className="text-xs mt-1 text-slate-400">Tekan F1 untuk fokus pencarian</p>
             </div>
-
-            {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-                {cart.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-500">
-                        <p className="text-sm">Cart is empty</p>
-                    </div>
-                ) : (
-                    <div className="space-y-2">
-                        {cart.map(l => (
-                            <div key={l.item_id} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex gap-3">
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">{l.item_name}</h4>
-                                    <p className="text-xs text-slate-600 mt-0.5">Rp {l.price.toLocaleString('id-ID')} / {l.unit_name}</p>
-                                    {l.discount_amount > 0 && (
-                                        <div className="mt-1 flex items-center gap-1">
-                                            <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded uppercase">Discount</span>
-                                            <span className="text-xs text-slate-500 line-through">Rp {(l.qty * l.price).toLocaleString('id-ID')}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex flex-col items-end justify-between gap-2">
-                                    <span className="font-bold text-sm text-brand">Rp {(l.qty * l.price).toLocaleString('id-ID')}</span>
-                                    <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
-                                        <button onClick={() => updateQty(l.item_id, -1)} className="p-1 hover:text-brand"><Minus size={14}/></button>
-                                        <span className="w-8 text-center text-sm font-bold">{l.qty}</span>
-                                        <button onClick={() => updateQty(l.item_id, 1)} className="p-1 hover:text-brand"><Plus size={14}/></button>
-                                    </div>
-                                </div>
-                                <button onClick={() => removeItem(l.item_id)} className="text-slate-500 hover:text-rose-500 p-1 self-start"><Trash2 size={16}/></button>
-                            </div>
-                        ))}
-                    </div>
-                )}
+          ) : loading ? (
+            <div className="h-full flex justify-center items-center"><Loader2 className="animate-spin text-brand" size={28} /></div>
+          ) : items.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+              <Search size={36} className="mb-2 opacity-30" />
+              <p className="text-sm">Tidak ada produk ditemukan</p>
             </div>
-
-            {/* Holds Area */}
-            {holds.length > 0 && (
-                <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-amber-50/50 dark:bg-amber-900/10 flex gap-2 overflow-x-auto custom-scrollbar">
-                    {holds.map(h => (
-                        <button key={h.id} onClick={() => handleResume(h)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800/50 rounded-lg whitespace-nowrap text-xs font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-50 transition-colors shadow-sm">
-                            <PlayCircle size={14} /> Resume {h.timestamp}
-                        </button>
-                    ))}
-                </div>
-            )}
-
-            {/* Cart Footer */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
-                {cartDiscount > 0 && (
-                    <div className="flex justify-between items-center mb-1 text-sm">
-                        <span className="text-green-600 font-medium flex items-center gap-1"><Tag size={14}/> Cart Promo</span>
-                        <span className="font-bold text-green-600">- Rp {cartDiscount.toLocaleString('id-ID')}</span>
-                    </div>
-                )}
-                <div className="flex justify-between items-center mb-4">
-                    <span className="text-slate-600 font-medium">Grand Total</span>
-                    <span className="text-3xl font-bold text-brand">Rp {total.toLocaleString('id-ID')}</span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                    <button onClick={handleHold} disabled={cart.length === 0} className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-sm">
-                        <PauseCircle size={18} /> Hold
-                    </button>
-                    <button onClick={() => setShowPayment(true)} disabled={cart.length === 0} className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold bg-brand text-white hover:bg-blue-600 disabled:opacity-50 transition-colors shadow-sm">
-                        <Banknote size={18} /> Pay (F2)
-                    </button>
-                </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {items.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => addToCart(item)}
+                  className="flex flex-col text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 hover:border-brand hover:ring-1 hover:ring-brand/50 transition-all active:scale-[0.97]"
+                >
+                  <span className="font-bold text-sm text-slate-900 dark:text-white mb-1 line-clamp-2 leading-tight">{item.name}</span>
+                  <span className="text-[11px] text-slate-500 font-mono mb-2">{item.sku}</span>
+                  <span className="mt-auto font-bold text-brand text-sm">Rp {(item.price || 0).toLocaleString('id-ID')}</span>
+                </button>
+              ))}
             </div>
+          )}
         </div>
 
-        {showPayment && (
-            <PaymentModal 
-                branchId={DEFAULT_BRANCH}
-                cart={cart}
-                total={total}
-                priceType={priceType}
-                onClose={() => setShowPayment(false)}
-                onSuccess={handlePaymentSuccess}
-            />
+        {/* Keyboard Shortcut Hint Bar */}
+        <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500 font-medium shrink-0">
+          {[['F1','Cari'],['F3','Pelanggan'],['F4','Tahan'],['F5','Lanjut'],['F9','Baru'],['F10','Bayar'],['F11','Layar Penuh'],['F12','Hapus Baris']].map(([k, v]) => (
+            <span key={k} className="flex items-center gap-2"><kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-2 py-0.5 rounded text-[11px] font-bold text-slate-700 dark:text-slate-300">{k}</kbd> {v}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* RIGHT: Cart */}
+      <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden w-80 xl:w-96 shrink-0">
+        {/* Customer Header */}
+        <div
+          className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors"
+          onClick={() => setShowCustomerPicker(true)}
+        >
+          <div className="flex items-center gap-2">
+            <UserCheck size={15} className="text-brand" />
+            <div>
+              <p className="text-xs font-bold text-slate-900 dark:text-white leading-none">
+                {selectedCustomer ? selectedCustomer.name : 'Pelanggan Umum'}
+              </p>
+              {selectedCustomer && (
+                <p className="text-[10px] text-slate-500 mt-0.5">{TIER_LABEL[selectedCustomer.customer_tier] || 'Regular'}</p>
+              )}
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-1 rounded-lg">F3 Ubah</span>
+        </div>
+
+        {/* Cart Items */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+          {cart.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 select-none">
+              <ShoppingCart size={36} className="mb-2 opacity-20" />
+              <p className="text-xs">Keranjang kosong</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {cart.map((l, idx) => (
+                <div key={`${l.item_id}-${idx}`} className={`p-3 rounded-xl border flex gap-2 ${l.is_bogo_free ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/50' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800'}`}>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-1">
+                      {l.is_bogo_free && <span className="text-emerald-600 mr-1">FREE</span>}
+                      {l.item_name}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Rp {l.price.toLocaleString('id-ID')} / {l.unit_name}</p>
+                    {l.discount_amount > 0 && (
+                      <span className="text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded mt-1 inline-block">
+                        -Rp {l.discount_amount.toLocaleString('id-ID')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end justify-between gap-1">
+                    <span className="font-bold text-xs text-brand">Rp {((l.qty * l.price) - l.discount_amount).toLocaleString('id-ID')}</span>
+                    {!l.is_bogo_free && (
+                      <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <button onClick={() => updateQty(l.item_id, -1)} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400"><Minus size={12}/></button>
+                        <span className="w-7 text-center text-xs font-bold text-slate-900 dark:text-white">{l.qty}</span>
+                        <button onClick={() => updateQty(l.item_id, 1)} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400"><Plus size={12}/></button>
+                      </div>
+                    )}
+                  </div>
+                  {!l.is_bogo_free && (
+                    <button onClick={() => removeItem(l.item_id)} className="text-slate-400 hover:text-rose-500 p-0.5 self-start"><Trash2 size={14}/></button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Held Transactions */}
+        {holds.length > 0 && (
+          <div className="p-2 border-t border-slate-200 dark:border-slate-800 bg-amber-50/50 dark:bg-amber-900/10 flex gap-1.5 overflow-x-auto custom-scrollbar">
+            {holds.map(h => (
+              <button key={h.id} onClick={() => handleResume(h)} className="flex items-center gap-1 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800/50 rounded-lg whitespace-nowrap text-[11px] font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-50 transition-colors">
+                <PlayCircle size={12} /> {h.timestamp}
+              </button>
+            ))}
+          </div>
         )}
 
-        {receiptSaleId && (
-            <ReceiptModal 
-                saleId={receiptSaleId}
-                onClose={() => setReceiptSaleId(null)}
-            />
-        )}
+        {/* Cart Footer */}
+        <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 shrink-0">
+          {cartDiscount > 0 && (
+            <div className="flex justify-between items-center mb-1 text-xs">
+              <span className="text-green-600 font-medium flex items-center gap-1"><Tag size={11}/> Promo Keranjang</span>
+              <span className="font-bold text-green-600">-Rp {cartDiscount.toLocaleString('id-ID')}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Total</span>
+            <span className="text-2xl font-extrabold text-brand">Rp {total.toLocaleString('id-ID')}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handleHold}
+              disabled={cart.length === 0}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors"
+            >
+              <PauseCircle size={15}/> Tahan (F4)
+            </button>
+            <button
+              onClick={() => setShowPayment(true)}
+              disabled={cart.length === 0}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-brand text-white hover:bg-blue-600 disabled:opacity-40 transition-colors shadow-sm"
+            >
+              Bayar (F10)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showPayment && (
+        <PaymentModal
+          branchId={DEFAULT_BRANCH}
+          cart={cart}
+          total={total}
+          priceType={priceType}
+          customerId={selectedCustomer?.id}
+          onClose={() => setShowPayment(false)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+      {showCustomerPicker && (
+        <CustomerPickerModal
+          isOpen={showCustomerPicker}
+          onClose={() => setShowCustomerPicker(false)}
+          onSelect={setSelectedCustomer}
+          selectedId={selectedCustomer?.id}
+        />
+      )}
+      {receiptSaleId && (
+        <ReceiptModal
+          saleId={receiptSaleId}
+          onClose={() => { setReceiptSaleId(null); searchInputRef.current?.focus(); }}
+        />
+      )}
     </div>
   );
 }

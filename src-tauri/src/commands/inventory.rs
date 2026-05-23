@@ -1,10 +1,15 @@
-use crate::db::models::inventory::{StockLedger, StockOverviewRow, StockMovementRow, LowStockAlert};
+use crate::db::models::inventory::{
+    LowStockAlert, StockLedger, StockMovementRow, StockOverviewRow,
+};
 use crate::AppState;
 use tauri::State;
 use uuid::Uuid;
 
 #[tauri::command]
-pub async fn get_stock_overview(branch_id: String, state: State<'_, AppState>) -> Result<Vec<StockOverviewRow>, String> {
+pub async fn get_stock_overview(
+    branch_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<StockOverviewRow>, String> {
     let query = r#"
         SELECT 
             i.id          AS item_id,
@@ -42,19 +47,26 @@ pub async fn get_stock_overview(branch_id: String, state: State<'_, AppState>) -
         .map_err(|e| e.to_string())?;
 
     // Map and compute boolean in Rust
-    let mapped_rows = rows.into_iter().map(|mut r| {
-        r.is_low_stock = r.current_qty <= r.min_stock;
-        r
-    }).collect();
+    let mapped_rows = rows
+        .into_iter()
+        .map(|mut r| {
+            r.is_low_stock = r.current_qty <= r.min_stock;
+            r
+        })
+        .collect();
 
     Ok(mapped_rows)
 }
 
 #[tauri::command]
-pub async fn get_low_stock_alerts(branch_id: String, state: State<'_, AppState>) -> Result<Vec<LowStockAlert>, String> {
+pub async fn get_low_stock_alerts(
+    branch_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<LowStockAlert>, String> {
     let overview = get_stock_overview(branch_id, state).await?;
-    
-    let alerts = overview.into_iter()
+
+    let alerts = overview
+        .into_iter()
         .filter(|r| r.is_low_stock)
         .map(|r| LowStockAlert {
             item_id: r.item_id,
@@ -70,7 +82,12 @@ pub async fn get_low_stock_alerts(branch_id: String, state: State<'_, AppState>)
 }
 
 #[tauri::command]
-pub async fn get_stock_movements(item_id: String, branch_id: String, limit: i64, state: State<'_, AppState>) -> Result<Vec<StockMovementRow>, String> {
+pub async fn get_stock_movements(
+    item_id: String,
+    branch_id: String,
+    limit: i64,
+    state: State<'_, AppState>,
+) -> Result<Vec<StockMovementRow>, String> {
     // 1. Fetch ledger chronologically to compute running totals accurately
     let ledger_entries = sqlx::query_as::<_, StockLedger>(
         "SELECT * FROM stock_ledger WHERE item_id = ? AND branch_id = ? ORDER BY created_at ASC LIMIT ?"
@@ -82,7 +99,11 @@ pub async fn get_stock_movements(item_id: String, branch_id: String, limit: i64,
     let mut movements = Vec::new();
 
     for entry in ledger_entries {
-        let change = if entry.direction == "out" { -entry.qty_change } else { entry.qty_change };
+        let change = if entry.direction == "out" {
+            -entry.qty_change
+        } else {
+            entry.qty_change
+        };
         running_total += change;
 
         movements.push(StockMovementRow {
@@ -107,15 +128,22 @@ pub async fn get_stock_movements(item_id: String, branch_id: String, limit: i64,
 
 #[tauri::command]
 pub async fn set_initial_stock(
-    item_id: String, unit_id: String, branch_id: String, 
-    qty: f64, hpp_value: Option<f64>, notes: Option<String>, 
-    state: State<'_, AppState>
+    item_id: String,
+    unit_id: String,
+    branch_id: String,
+    qty: f64,
+    hpp_value: Option<f64>,
+    notes: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<StockLedger, String> {
-    
     // Safety check: Ensure no ledger rows exist for this item+branch yet
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM stock_ledger WHERE item_id = ? AND branch_id = ?")
-        .bind(&item_id).bind(&branch_id)
-        .fetch_one(&state.db_pool).await.map_err(|e| e.to_string())?;
+    let count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM stock_ledger WHERE item_id = ? AND branch_id = ?")
+            .bind(&item_id)
+            .bind(&branch_id)
+            .fetch_one(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
     if count > 0 {
         return Err("Initial stock has already been set for this item.".to_string());
@@ -130,17 +158,26 @@ pub async fn set_initial_stock(
     .bind(&hpp_value).bind(&notes)
     .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
-    sqlx::query_as::<_, StockLedger>("SELECT * FROM stock_ledger WHERE id = ?").bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())
+    sqlx::query_as::<_, StockLedger>("SELECT * FROM stock_ledger WHERE id = ?")
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn adjust_stock(
-    item_id: String, unit_id: String, branch_id: String, 
-    qty: f64, direction: String, notes: Option<String>, created_by: Option<String>,
-    state: State<'_, AppState>
+    item_id: String,
+    unit_id: String,
+    branch_id: String,
+    qty: f64,
+    direction: String,
+    notes: Option<String>,
+    created_by: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<StockLedger, String> {
     let id = Uuid::new_v4().to_string();
-    
+
     sqlx::query(
         r#"INSERT INTO stock_ledger (id, item_id, unit_id, branch_id, qty_change, direction, source_type, notes, created_by) 
            VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?, ?)"#
@@ -149,5 +186,9 @@ pub async fn adjust_stock(
     .bind(&direction).bind(&notes).bind(&created_by)
     .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
-    sqlx::query_as::<_, StockLedger>("SELECT * FROM stock_ledger WHERE id = ?").bind(&id).fetch_one(&state.db_pool).await.map_err(|e| e.to_string())
+    sqlx::query_as::<_, StockLedger>("SELECT * FROM stock_ledger WHERE id = ?")
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
 }

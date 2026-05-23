@@ -68,13 +68,13 @@ export default function PurchasingDashboard() {
       <div className="flex gap-2">
         <button
           onClick={() => setView('po')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${view === 'po' ? 'bg-brand text-white' : 'bg-white dark:bg-slate-900 border'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${view === 'po' ? 'bg-brand text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
         >
           Purchase Orders
         </button>
         <button
           onClick={() => setView('purchases')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${view === 'purchases' ? 'bg-brand text-white' : 'bg-white dark:bg-slate-900 border'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${view === 'purchases' ? 'bg-brand text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
         >
           Received Goods
         </button>

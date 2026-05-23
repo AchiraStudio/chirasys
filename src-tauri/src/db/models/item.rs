@@ -13,13 +13,13 @@ pub struct Item {
     pub hpp_method: String,
     pub image_blob: Option<Vec<u8>>,
     pub min_stock: f64,
-    pub has_expiry: i32, // SQLite boolean
+    pub has_expiry: i32,            // SQLite boolean
     pub requires_prescription: i32, // SQLite boolean
     pub notes: Option<String>,
     pub is_active: i32, // SQLite boolean
     pub created_at: String,
     pub updated_at: String,
-    
+
     // Virtual fields joined for POS efficiency
     pub wholesale_price: f64,
     pub price: Option<f64>,

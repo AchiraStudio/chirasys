@@ -15,7 +15,7 @@ pub struct Promo {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub created_at: String,
-    
+
     // New fields in Phase 6
     pub promo_type: String,
     pub discount_value: Option<f64>,
@@ -87,7 +87,7 @@ pub struct CreatePromoInput {
     pub member_only: i32,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
-    
+
     pub promo_type: String,
     pub discount_value: Option<f64>,
     pub applies_to: String,
@@ -95,7 +95,7 @@ pub struct CreatePromoInput {
     pub stack_rule: String,
     pub priority: i32,
     pub member_tier: Option<String>,
-    
+
     pub bogo_rules: Vec<BogoRuleInput>,
     pub tiers: Vec<PromoTierInput>,
 }
