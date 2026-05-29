@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Save } from 'lucide-react';
-import { ManualJournalInput, createManualJournal, getAccounts, Account } from '../../lib/api';
+import { createManualJournal, getAccounts, Account } from '../../lib/api';
 
 interface ManualJournalModalProps {
   isOpen: boolean;

@@ -16,7 +16,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
   const [isImporting, setIsImporting] = useState(false);
   
   const [search, setSearch] = useState('');
-  const [page, _setPage] = useState(1); // Underscore to ignore TS warning until we build pagination
+  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
   const loadData = async () => {
@@ -167,6 +167,27 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
+          <p className="text-sm text-slate-500">
+            Menampilkan {items.length} dari {total} data (Halaman {page} dari {Math.ceil(total / 20) || 1})
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              Sebelumnya
+            </button>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={page >= Math.ceil(total / 20) || items.length === 0}
+              className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              Selanjutnya
+            </button>
+          </div>
         </div>
       </div>
     </div>

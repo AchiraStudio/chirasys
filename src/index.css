@@ -5,7 +5,7 @@
 /* Global Base Typography Setup */
 @layer base {
   body {
-    @apply bg-slate-50 dark:bg-[#09090b] text-slate-700 dark:text-slate-300 antialiased;
+    @apply bg-slate-50 dark:bg-[#0B0F19] text-slate-700 dark:text-slate-300 antialiased;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -39,19 +39,28 @@
 }
 
 /* Custom Scrollbar for a premium feel */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full border-[1px] border-transparent bg-clip-padding;
 }
 
-::-webkit-scrollbar-thumb:hover {
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-400 dark:bg-slate-600;
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  @apply bg-white/70 dark:bg-[#0B0F19]/70 backdrop-blur-xl border border-white/20 dark:border-white/5;
+}
+
+.glass-card {
+  @apply bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all duration-300;
 }

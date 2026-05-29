@@ -7,7 +7,7 @@ export interface SalePaymentInput { amount: number; method: string; reference?: 
 export interface CreateSaleInput { branch_id: string; customer_id?: string; user_id?: string; total_amount: number; discount_amount: number; tax_amount: number; grand_total: number; price_type: string; notes?: string; lines: SaleLineInput[]; payments: SalePaymentInput[]; }
 export const createSale = async (input: CreateSaleInput): Promise<string> => invoke('create_sale', { input });
 export const getNextTransactionNo = async (branchId: string): Promise<string> => invoke('get_next_transaction_no', { branchId });
-export const getSales = async (branchId: string): Promise<Sale[]> => invoke('get_sales', { branchId });
+export const getSales = async (branchId: string, customerId?: string): Promise<Sale[]> => invoke('get_sales', { branchId, customerId: customerId || null });
 
 export interface SaleLine { id: string; sale_id: string; item_id: string; item_name?: string; unit_id: string; unit_name?: string; qty: number; price_type: string; price: number; discount_amount: number; subtotal: number; hpp_value: number; notes?: string; }
 export interface SalePayment { id: string; sale_id: string; amount: number; method: string; reference?: string; created_at: string; }
@@ -64,6 +64,7 @@ export interface PoLine {
 }
 export interface PoLineInput { item_id: string; unit_id: string; qty: number; price: number; }
 export interface ReceiveLineInput { po_line_id: string; item_id: string; unit_id: string; qty_received: number; price_per_unit: number; expiry_date?: string; batch_no?: string; }
+export const cancelPurchaseOrder = async (id: string): Promise<void> => invoke('cancel_purchase_order', { id });
 
 export interface Purchase {
   id: string;
@@ -141,6 +142,12 @@ export const getLowStockAlerts = async (branchId: string): Promise<LowStockAlert
 export const getStockMovements = async (itemId: string, branchId: string, limit: number = 50): Promise<StockMovementRow[]> => invoke('get_stock_movements', { itemId, branchId, limit });
 export const adjustStock = async (itemId: string, unitId: string, branchId: string, qty: number, direction: 'in' | 'out', notes?: string, createdBy?: string): Promise<StockLedgerRow> => invoke('adjust_stock', { itemId, unitId, branchId, qty, direction, notes: notes || null, createdBy: createdBy || null });
 export const setInitialStock = async (itemId: string, unitId: string, branchId: string, qty: number, hppValue?: number, notes?: string): Promise<StockLedgerRow> => invoke('set_initial_stock', { itemId, unitId, branchId, qty, hppValue: hppValue || null, notes: notes || null });
+
+// Opname
+export interface OpnameLineInput { item_id: string; unit_id: string; actual_qty: number; notes: string; }
+export const createOpnameSession = async (branchId: string, createdBy?: string, notes?: string): Promise<string> => invoke('create_opname_session', { branchId, createdBy: createdBy || null, notes: notes || null });
+export const submitOpnameLines = async (opnameId: string, lines: OpnameLineInput[]): Promise<void> => invoke('submit_opname_lines', { opnameId, lines });
+export const finalizeOpname = async (opnameId: string): Promise<void> => invoke('finalize_opname', { opnameId });
 
 export const getSuppliers = async (search: string = '', activeOnly: boolean = false): Promise<Supplier[]> => invoke('get_suppliers', { search: search || null, activeOnly });
 export const addSupplier = async (name: string, contactPerson?: string, phone?: string, email?: string, address?: string, paymentTerms?: string, notes?: string): Promise<Supplier> => invoke('add_supplier', { name, contactPerson: contactPerson || null, phone: phone || null, email: email || null, address: address || null, paymentTerms: paymentTerms || null, notes: notes || null });

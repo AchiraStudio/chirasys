@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Database, CheckCircle2, Loader2, Save, AlertTriangle, X } from 'lucide-react';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon } from 'lucide-react';
 import { optimizeDatabase, getSettings, setSetting } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
+import UserManagement from './UserManagement';
 
 // Keys that should render as a <select> instead of a text input
 const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
   hpp_method: [
+    { label: 'Average (AVG)', value: 'avg' },
+    { label: 'First In First Out (FIFO)', value: 'fifo' },
+    { label: 'Last In First Out (LIFO)', value: 'lifo' },
+  ],
+  hpp_method_default: [
     { label: 'Average (AVG)', value: 'avg' },
     { label: 'First In First Out (FIFO)', value: 'fifo' },
     { label: 'Last In First Out (LIFO)', value: 'lifo' },
@@ -32,13 +38,14 @@ const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
 
 export default function Settings() {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
 
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [configs, setConfigs] = useState<{key: string, value: string, description?: string}[]>([]);
   const [saving, setSaving] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'system' | 'users'>('system');
 
   useEffect(() => {
     loadSettings();
@@ -81,13 +88,45 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-300 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">System Settings</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Configure application preferences and maintenance.</p>
+    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6 flex flex-col gap-6 animate-in fade-in duration-300 max-w-4xl mx-auto w-full">
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            <SettingsIcon className="text-brand" /> Pengaturan Sistem
+          </h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Konfigurasi preferensi aplikasi dan manajemen pengguna.</p>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="flex gap-4 border-b border-slate-200 dark:border-slate-800">
+        <button
+          onClick={() => setActiveTab('system')}
+          className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
+            activeTab === 'system' 
+              ? 'border-brand text-brand' 
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          Konfigurasi Umum
+        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
+              activeTab === 'users' 
+                ? 'border-brand text-brand' 
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Manajemen Pengguna
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'users' ? (
+        <UserManagement />
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2">
         {/* DB Reset Card — Admin Only */}
         {isAdmin && (
           <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
@@ -144,7 +183,8 @@ export default function Settings() {
             )}
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Reset DB Warning Modal */}
       {showResetModal && (
@@ -252,7 +292,7 @@ function SettingRow({ config, onSave }: { config: { key: string; value: string; 
           />
         )}
         
-        {config.key === 'hpp_method' && (
+        {(config.key === 'hpp_method' || config.key === 'hpp_method_default') && (
           <button 
             onClick={handleApplyHpp}
             disabled={applyingHpp}

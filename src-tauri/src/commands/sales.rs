@@ -242,9 +242,17 @@ pub async fn create_sale(
     // -----------------------------------------------------
     let mut journal_lines = Vec::new();
 
+    let tax_mode: String = sqlx::query_scalar("SELECT value FROM system_settings WHERE key = 'tax_mode'")
+        .fetch_optional(&mut *tx).await.unwrap_or(None).unwrap_or_else(|| "none".to_string());
+
+    let mut actual_sales_revenue = input.total_amount;
+    if tax_mode == "include" && input.tax_amount > 0.0 {
+        actual_sales_revenue -= input.tax_amount;
+    }
+
     // 1. Credit Sales (Income) -> grand_total before discount if using full price logic, but simpler:
-    // Actually, Penjualan is total_amount (before tax/discount)
-    journal_lines.push(("acc_sales", 0.0, input.total_amount, Some("Sales Revenue")));
+    // Actually, Penjualan is total_amount (before tax/discount), adjusted for include tax
+    journal_lines.push(("acc_sales", 0.0, actual_sales_revenue, Some("Sales Revenue")));
 
     // 2. Debit Diskon Penjualan (Expense/Contra-Revenue)
     if input.discount_amount > 0.0 {
@@ -253,6 +261,16 @@ pub async fn create_sale(
             input.discount_amount,
             0.0,
             Some("Sales Discount"),
+        ));
+    }
+    
+    // 2.5 Credit Tax Payable (Liability)
+    if input.tax_amount > 0.0 {
+        journal_lines.push((
+            "acc_tax",
+            0.0,
+            input.tax_amount,
+            Some("Tax Payable"),
         ));
     }
 
@@ -306,12 +324,21 @@ pub async fn create_sale(
 }
 
 #[tauri::command]
-pub async fn get_sales(branch_id: String, state: State<'_, AppState>) -> Result<Vec<Sale>, String> {
-    sqlx::query_as::<_, Sale>("SELECT * FROM sales WHERE branch_id = ? ORDER BY created_at DESC")
-        .bind(&branch_id)
-        .fetch_all(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())
+pub async fn get_sales(branch_id: String, customer_id: Option<String>, state: State<'_, AppState>) -> Result<Vec<Sale>, String> {
+    if let Some(cid) = customer_id {
+        sqlx::query_as::<_, Sale>("SELECT * FROM sales WHERE branch_id = ? AND customer_id = ? ORDER BY created_at DESC")
+            .bind(&branch_id)
+            .bind(&cid)
+            .fetch_all(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        sqlx::query_as::<_, Sale>("SELECT * FROM sales WHERE branch_id = ? ORDER BY created_at DESC")
+            .bind(&branch_id)
+            .fetch_all(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]

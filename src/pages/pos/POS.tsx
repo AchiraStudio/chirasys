@@ -1,16 +1,16 @@
 // src/pages/pos/POS.tsx — Full keyboard-driven POS with Indonesian UI
 import { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Minus, Trash2, ShoppingCart, User, PauseCircle, PlayCircle, Loader2, Tag, UserCheck, RefreshCw } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Minus, Trash2, Clock, UserCheck, PauseCircle, PlayCircle, Loader2 } from 'lucide-react';
 import { usePosStore, PosLine, PosHold } from './POSStore';
-import { getItemsFiltered, Item, Customer } from '../../lib/api';
+import { getItemsFiltered, Item, Customer, getSettings } from '../../lib/api';
 import { applyDiscountsToCart } from '../../lib/discountEngine';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import PaymentModal from './PaymentModal';
 import ReceiptModal from './ReceiptModal';
 import CustomerPickerModal from './CustomerPickerModal';
+import SalesHistoryModal from './SalesHistoryModal';
 
 export default function POS() {
-  const DEFAULT_BRANCH = 'branch_001';
 
   const [items, setItems] = useState<Item[]>([]);
   const [cart, setCart] = useState<PosLine[]>([]);
@@ -19,16 +19,28 @@ export default function POS() {
   const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
   const [loading, setLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [taxMode, setTaxMode] = useState<string>('none');
+  const [taxRate, setTaxRate] = useState<number>(0);
 
   // Modals
   const [showPayment, setShowPayment] = useState(false);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const holds = usePosStore(state => state.holds);
   const addHold = usePosStore(state => state.addHold);
   const removeHold = usePosStore(state => state.removeHold);
+
+  useEffect(() => {
+    getSettings().then(settings => {
+      const mode = settings.find(s => s.key === 'tax_mode')?.value || 'none';
+      const rate = parseFloat(settings.find(s => s.key === 'tax_rate')?.value || '0');
+      setTaxMode(mode);
+      setTaxRate(rate);
+    }).catch(console.error);
+  }, []);
 
   // Hardware Barcode Scanner Hook
   useBarcodeScanner(async (barcode) => {
@@ -61,7 +73,7 @@ export default function POS() {
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts when typing in inputs (except our global ones)
-      const isInInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      // const isInInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
       switch (e.key) {
         case 'F1':
@@ -202,7 +214,7 @@ export default function POS() {
       }
       if (needsUpdate) setCart(newCart);
     });
-  }, [cart.map(l => `${l.item_id}-${l.qty}-${l.price}`).join('|')]);
+  }, [cart.map(l => `${l.item_id}-${l.qty}-${l.price}`).join('|'), selectedCustomer?.customer_tier]);
 
   const handleBarcodeEnter = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && search) {
@@ -239,7 +251,9 @@ export default function POS() {
 
   const removeItem = (itemId: string) => setCart(prev => prev.filter(l => !(l.item_id === itemId && !l.is_bogo_free)));
 
-  const total = cart.reduce((sum, l) => sum + (l.qty * l.price) - l.discount_amount, 0) - cartDiscount;
+  const subtotal = cart.reduce((sum, l) => sum + (l.qty * l.price) - l.discount_amount, 0) - cartDiscount;
+  const taxAmount = taxMode === 'exclude' ? subtotal * (taxRate / 100) : (taxMode === 'include' ? subtotal * (1 - 1 / (1 + taxRate / 100)) : 0);
+  const total = taxMode === 'exclude' ? subtotal + taxAmount : subtotal;
 
   const handleHold = () => {
     if (cart.length === 0) return;
@@ -396,12 +410,26 @@ export default function POS() {
 
         {/* Cart Footer */}
         <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 shrink-0">
-          {cartDiscount > 0 && (
-            <div className="flex justify-between items-center mb-1 text-xs">
-              <span className="text-green-600 font-medium flex items-center gap-1"><Tag size={11}/> Promo Keranjang</span>
-              <span className="font-bold text-green-600">-Rp {cartDiscount.toLocaleString('id-ID')}</span>
+          <div className="flex justify-between items-center mb-2">
+            <button onClick={() => setShowHistory(true)} className="flex items-center px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+              <Clock size={14} className="mr-1.5" />
+              <span className="text-xs font-semibold">Riwayat</span>
+            </button>
+            <div className="text-right">
+              {cartDiscount > 0 && (
+                <div className="flex justify-end gap-2 text-xs">
+                  <span className="text-slate-500">Diskon:</span>
+                  <span className="font-bold text-green-600">-Rp {cartDiscount.toLocaleString('id-ID')}</span>
+                </div>
+              )}
+              {taxMode !== 'none' && taxRate > 0 && (
+                <div className="flex justify-end gap-2 text-xs mt-0.5">
+                  <span className="text-slate-500">Pajak ({taxRate}%{taxMode === 'include' ? ' Termasuk' : ''}):</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">Rp {taxAmount.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                </div>
+              )}
             </div>
-          )}
+          </div>
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Total</span>
             <span className="text-2xl font-extrabold text-brand">Rp {total.toLocaleString('id-ID')}</span>
@@ -428,11 +456,13 @@ export default function POS() {
       {/* Modals */}
       {showPayment && (
         <PaymentModal
-          branchId={DEFAULT_BRANCH}
+          branchId="branch_001"
           cart={cart}
           total={total}
           priceType={priceType}
           customerId={selectedCustomer?.id}
+          taxAmount={taxAmount}
+          discountAmount={cart.reduce((s, l) => s + (l.discount_amount || 0), 0) + cartDiscount}
           onClose={() => setShowPayment(false)}
           onSuccess={handlePaymentSuccess}
         />
@@ -449,6 +479,12 @@ export default function POS() {
         <ReceiptModal
           saleId={receiptSaleId}
           onClose={() => { setReceiptSaleId(null); searchInputRef.current?.focus(); }}
+        />
+      )}
+      {showHistory && (
+        <SalesHistoryModal
+          isOpen={showHistory}
+          onClose={() => { setShowHistory(false); searchInputRef.current?.focus(); }}
         />
       )}
     </div>

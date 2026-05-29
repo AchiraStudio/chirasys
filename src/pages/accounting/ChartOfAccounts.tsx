@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getAccounts, deleteAccount, Account } from '../../lib/api';
-import { Plus, Edit2, Trash2, Lock, Unlock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Lock } from 'lucide-react';
 import AccountDrawer from './AccountDrawer';
 
 export default function ChartOfAccounts() {
@@ -89,7 +89,7 @@ export default function ChartOfAccounts() {
                       {acc.code}
                     </td>
                     <td className="px-6 py-3 font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                        {acc.is_system === 1 && <Lock size={14} className="text-amber-500" title="System Account" />}
+                        {acc.is_system === 1 && <Lock size={14} className="text-amber-500" />}
                         {acc.name}
                     </td>
                     <td className="px-6 py-3">

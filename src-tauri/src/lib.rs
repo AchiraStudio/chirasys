@@ -59,6 +59,9 @@ pub fn run() {
             commands::inventory::set_initial_stock,
             commands::inventory::apply_hpp_retroactive,
             commands::inventory::bulk_add_stock,
+            commands::inventory::create_opname_session,
+            commands::inventory::submit_opname_lines,
+            commands::inventory::finalize_opname,
             commands::suppliers::get_suppliers,
             commands::suppliers::add_supplier,
             commands::suppliers::update_supplier,
@@ -72,6 +75,7 @@ pub fn run() {
             commands::purchasing::get_po_lines,
             commands::purchasing::create_purchase_order,
             commands::purchasing::receive_goods,
+            commands::purchasing::cancel_purchase_order,
             commands::purchasing::add_purchase_payment, // ADDED
             commands::purchasing::create_purchase_return, // ADDED
             commands::purchasing::get_purchases,
@@ -121,6 +125,10 @@ pub fn run() {
             commands::auth::login,
             commands::auth::logout,
             commands::auth::get_current_user,
+            commands::auth::get_users,
+            commands::auth::create_user,
+            commands::auth::toggle_user_active,
+            commands::auth::reset_user_password,
             
             // Phase 9 - Sync
             commands::sync::receive_cloud_sync,

@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { BookOpen, FileText, PieChart, TrendingUp, TrendingDown, AlignLeft } from 'lucide-react';
+import { BookOpen, FileText, PieChart, TrendingUp, AlignLeft } from 'lucide-react';
 import ChartOfAccounts from './ChartOfAccounts';
 import JournalList from './JournalList';
 import ReportTB from './ReportTB';
 import ReportPL from './ReportPL';
 import ReportBS from './ReportBS';
+import CashTransactions from './CashTransactions';
+import { Wallet } from 'lucide-react';
 
 export default function Accounting() {
   const [activeTab, setActiveTab] = useState('journals');
 
   const tabs = [
     { id: 'journals', label: 'Journal Entries', icon: BookOpen },
+    { id: 'cash', label: 'Cash Transactions', icon: Wallet },
     { id: 'coa', label: 'Chart of Accounts', icon: AlignLeft },
     { id: 'tb', label: 'Trial Balance', icon: FileText },
     { id: 'pl', label: 'Profit & Loss', icon: TrendingUp },
@@ -18,7 +21,7 @@ export default function Accounting() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0B0F19] p-4 lg:p-8 animate-in fade-in">
+    <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-in fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
            <BookOpen size={24} className="text-brand" />
@@ -48,8 +51,9 @@ export default function Accounting() {
         })}
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6">
         {activeTab === 'journals' && <JournalList />}
+        {activeTab === 'cash' && <CashTransactions />}
         {activeTab === 'coa' && <ChartOfAccounts />}
         {activeTab === 'tb' && <ReportTB />}
         {activeTab === 'pl' && <ReportPL />}

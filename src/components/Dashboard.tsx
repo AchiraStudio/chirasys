@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { AlertCircle, TrendingUp } from 'lucide-react';
-import { getLowStockAlerts, LowStockAlert } from '../lib/api';
+import { AlertCircle, DollarSign, ShoppingCart, Activity, ArrowRight } from 'lucide-react';
+import { getLowStockAlerts, LowStockAlert, getSalesSummary, SalesSummaryRow, getSales, Sale } from '../lib/api';
 
 interface DashboardProps {
   setActiveMenu: (menu: string) => void;
@@ -11,73 +11,130 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
   const [alertsLoading, setAlertsLoading] = useState(true);
   const DEFAULT_BRANCH_ID = 'branch_001';
 
+  const [summary, setSummary] = useState<SalesSummaryRow | null>(null);
+  const [sales, setSales] = useState<Sale[]>([]);
+
   useEffect(() => {
     setAlertsLoading(true);
     getLowStockAlerts(DEFAULT_BRANCH_ID)
       .then(setAlerts)
       .catch(console.error)
       .finally(() => setAlertsLoading(false));
+      
+    const today = new Date().toISOString().split('T')[0];
+    getSalesSummary(DEFAULT_BRANCH_ID, today, today).then(res => {
+      if (res.length > 0) setSummary(res[0]);
+    }).catch(console.error);
+    
+    getSales(DEFAULT_BRANCH_ID).then(res => {
+      setSales(res.slice(0, 5));
+    }).catch(console.error);
   }, []);
 
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
-      <div className="flex justify-between items-end">
+    <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in duration-500 w-full max-w-7xl mx-auto">
+      <div className="flex justify-between items-end shrink-0">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Overview</h1>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Here is what's happening today.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="flex-1 flex flex-col min-h-0 pr-2 pb-6">
+        <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* LEFT: Placeholder for future real metrics */}
-        <div className="xl:col-span-2 flex flex-col gap-8">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-10 flex flex-col items-center justify-center text-center min-h-[220px]">
-            <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-4">
-              <TrendingUp size={36} className="text-slate-400 dark:text-slate-500" />
+        <div className="xl:col-span-2 flex flex-col gap-6 min-h-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
+            <div className="glass-card rounded-2xl p-6 flex flex-col justify-between">
+              <div className="flex justify-between items-start mb-4">
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Hari Ini</p>
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
+                  <DollarSign size={20} />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Rp {(summary?.total_revenue || 0).toLocaleString('id-ID')}</h3>
+                <p className="text-sm text-slate-500 mt-2">Total Pendapatan</p>
+              </div>
             </div>
-            <h3 className="font-bold text-slate-700 dark:text-slate-300">Sales analytics coming soon</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-500 mt-1 max-w-sm">
-              Revenue, transaction count, and daily charts will appear here once sales data is recorded.
-            </p>
-            <button
-              onClick={() => setActiveMenu('pos')}
-              className="mt-6 px-5 py-2.5 bg-brand text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors shadow-sm"
-            >
-              Start Selling via POS
-            </button>
+            
+            <div className="glass-card rounded-2xl p-6 flex flex-col justify-between">
+              <div className="flex justify-between items-start mb-4">
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Transaksi</p>
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
+                  <ShoppingCart size={20} />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{summary?.transaction_count || 0}</h3>
+                <p className="text-sm text-slate-500 mt-2">Penjualan Selesai</p>
+              </div>
+            </div>
+
+            <div className="glass-card rounded-2xl p-6 flex flex-col justify-between">
+              <div className="flex justify-between items-start mb-4">
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Laba Kotor</p>
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
+                  <Activity size={20} />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Rp {(summary?.gross_profit || 0).toLocaleString('id-ID')}</h3>
+                <p className="text-sm text-slate-500 mt-2">Estimasi Kasar</p>
+              </div>
+            </div>
           </div>
 
-          {/* Recent transactions placeholder */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="glass-card rounded-2xl overflow-hidden flex flex-col flex-1 min-h-0">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Recent Transactions</h3>
+              <h3 className="font-bold text-lg text-slate-900 dark:text-white">Transaksi Terakhir</h3>
               <button
                 onClick={() => setActiveMenu('pos')}
-                className="text-sm font-medium text-brand hover:underline"
+                className="text-sm font-medium text-brand hover:underline flex items-center gap-1"
               >
-                Go to POS
+                Buka POS <ArrowRight size={14} />
               </button>
             </div>
-            <div className="p-12 flex flex-col items-center justify-center text-center">
-              <p className="text-sm text-slate-500 dark:text-slate-500">No transactions recorded yet.</p>
-              <p className="text-xs text-slate-400 dark:text-slate-600 mt-1">
-                Completed sales will appear here automatically.
-              </p>
+            {sales.length === 0 ? (
+              <div className="p-12 flex flex-col items-center justify-center text-center flex-1">
+                <p className="text-sm text-slate-500 dark:text-slate-500">Belum ada transaksi.</p>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <table className="w-full text-left">
+                <thead className="bg-slate-50 dark:bg-slate-900/50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="py-3 px-6">Waktu</th>
+                    <th className="py-3 px-6">No Transaksi</th>
+                    <th className="py-3 px-6 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                  {sales.map(s => (
+                    <tr key={s.id}>
+                      <td className="py-3 px-6">{new Date(s.created_at).toLocaleTimeString()}</td>
+                      <td className="py-3 px-6 font-mono text-slate-600">{s.transaction_no}</td>
+                      <td className="py-3 px-6 text-right font-bold text-emerald-600">Rp {s.grand_total.toLocaleString('id-ID')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+            )}
           </div>
         </div>
 
         {/* RIGHT: Low Stock Alerts (real data) */}
-        <div className="flex flex-col gap-6">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-            <h3 className="font-bold text-lg mb-5 flex items-center text-slate-900 dark:text-white">
+        <div className="flex flex-col min-h-0">
+          <div className="glass-card rounded-2xl p-6 flex flex-col flex-1 min-h-0 overflow-hidden">
+            <h3 className="font-bold text-lg mb-5 flex items-center text-slate-900 dark:text-white shrink-0">
               <span className="relative flex h-3 w-3 mr-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
               </span>
               Low Stock Alerts
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0">
               {alertsLoading ? (
                 <p className="text-sm text-slate-500 dark:text-slate-500 text-center py-4">Loading...</p>
               ) : alerts.length === 0 ? (
@@ -104,12 +161,13 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
             </div>
             <button
               onClick={() => setActiveMenu('purchasing')}
-              className="w-full mt-6 py-2.5 bg-brand text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-blue-600 transition-colors"
+              className="w-full mt-6 py-2.5 bg-brand text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-blue-600 transition-colors shrink-0"
             >
               Create Purchase Order
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

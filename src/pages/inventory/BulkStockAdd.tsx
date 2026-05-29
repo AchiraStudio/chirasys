@@ -150,7 +150,7 @@ export default function BulkStockAdd({ isOpen, onClose, branchId, onSuccess }: B
                       <div className="font-bold text-slate-900 dark:text-white">{item.name}</div>
                       <div className="text-[10px] font-mono text-slate-500">{item.sku} • {item.base_unit_name || 'Unit'}</div>
                     </td>
-                    <td className="py-2 px-4 text-slate-600 dark:text-slate-400">{item.category_name || '-'}</td>
+                    <td className="py-2 px-4 text-slate-600 dark:text-slate-400">{(item as any).category_name || '-'}</td>
                     <td className="py-2 px-4">
                       <input 
                         type="number"

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Loader2, Package, RefreshCw } from 'lucide-react';
 import { getStockValuation, StockValuationRow } from '../../lib/api';
+import { downloadCsv } from '../../lib/exportCsv';
 
 interface Props { onBack: () => void; }
 
@@ -44,6 +45,16 @@ export default function LaporanStok({ onBack }: Props) {
           </div>
           <button onClick={fetchData} className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button 
+            onClick={() => {
+              const headers = ['Item', 'SKU', 'Kategori', 'Satuan', 'Stok', 'HPP Rata-rata', 'Nilai Total'];
+              const rows = filtered.map(r => [r.item_name, r.sku, r.category_name, r.unit_name, r.current_qty, r.avg_hpp, r.total_value]);
+              downloadCsv('Laporan_Stok.csv', headers, rows);
+            }}
+            className="px-4 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors border border-emerald-200"
+          >
+            Export CSV
           </button>
         </div>
       </div>

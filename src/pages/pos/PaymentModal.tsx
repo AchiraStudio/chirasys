@@ -2,8 +2,9 @@
 // Full rebuild — Indonesian UI, split-tender, banks selector
 import { useState, useEffect, useRef } from 'react';
 import { PosLine } from './POSStore';
-import { createSale, CreateSaleInput, getCustomers, Customer } from '../../lib/api';
+import { createSale, CreateSaleInput } from '../../lib/api';
 import { X, Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2 } from 'lucide-react';
+import { useAuthStore } from '../../store/AuthStore';
 import { invoke } from '@tauri-apps/api/core';
 
 interface PaymentModalProps {
@@ -12,6 +13,8 @@ interface PaymentModalProps {
     total: number;
     priceType: string;
     customerId?: string;
+    taxAmount: number;
+    discountAmount: number; // ADDED
     onClose: () => void;
     onSuccess: (saleId: string) => void;
 }
@@ -28,7 +31,7 @@ const PAYMENT_METHODS = [
 
 type MethodKey = typeof PAYMENT_METHODS[number]['key'];
 
-export default function PaymentModal({ branchId, cart, total, priceType, customerId, onClose, onSuccess }: PaymentModalProps) {
+export default function PaymentModal({ branchId, cart, total, priceType, customerId, taxAmount, discountAmount, onClose, onSuccess }: PaymentModalProps) {
     const [amounts, setAmounts] = useState<Record<MethodKey, string>>({
         cash: total.toString(), transfer: '', debit: '', credit: '', qris: ''
     });
@@ -37,6 +40,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
     const [voucher, setVoucher] = useState('');
     const [loading, setLoading] = useState(false);
     const cashInputRef = useRef<HTMLInputElement>(null);
+    const { user } = useAuthStore();
 
     const totalBayar = PAYMENT_METHODS.reduce((sum, m) => sum + (parseFloat(amounts[m.key]) || 0), 0);
     const kembali = totalBayar - total;
@@ -85,15 +89,14 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
             }));
 
         const totalAmount = cart.reduce((s, l) => s + l.qty * l.price, 0);
-        const discountAmount = cart.reduce((s, l) => s + l.discount_amount, 0);
 
         const input: CreateSaleInput = {
             branch_id: branchId,
             customer_id: customerId,
-            user_id: undefined,
+            user_id: user?.id,
             total_amount: totalAmount,
             discount_amount: discountAmount,
-            tax_amount: 0,
+            tax_amount: taxAmount,
             grand_total: total,
             price_type: priceType,
             lines: cart.map(l => ({
@@ -106,6 +109,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                 hpp_value: l.hpp_value,
             })),
             payments,
+            notes: voucher ? `VOUCHER: ${voucher}` : undefined,
         };
 
         try {

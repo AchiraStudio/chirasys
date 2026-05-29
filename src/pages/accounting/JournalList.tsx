@@ -9,6 +9,11 @@ export default function JournalList() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 20;
+  
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [isVoucherOpen, setIsVoucherOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -28,11 +33,23 @@ export default function JournalList() {
     fetchEntries();
   }, []);
 
-  const filteredEntries = entries.filter(e => 
-    (e.entry_no?.toLowerCase().includes(search.toLowerCase())) ||
-    (e.description?.toLowerCase().includes(search.toLowerCase())) ||
-    (e.source_id?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredEntries = entries.filter(e => {
+    const d = new Date(e.date);
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    
+    if (start && d < start) return false;
+    if (end && d > new Date(new Date(endDate).getTime() + 86400000)) return false; // add 1 day to include end date entirely
+
+    return (
+      (e.entry_no?.toLowerCase().includes(search.toLowerCase())) ||
+      (e.description?.toLowerCase().includes(search.toLowerCase())) ||
+      (e.source_id?.toLowerCase().includes(search.toLowerCase()))
+    );
+  });
+
+  const totalPages = Math.ceil(filteredEntries.length / itemsPerPage);
+  const paginatedEntries = filteredEntries.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   return (
     <div className="flex flex-col h-full fade-in">
@@ -44,12 +61,27 @@ export default function JournalList() {
           <p className="text-slate-600 text-sm mt-1">Review all automated and manual ledger postings.</p>
         </div>
         <div className="flex gap-3">
+          <div className="flex gap-2">
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={e => { setStartDate(e.target.value); setPage(1); }} 
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:border-brand"
+            />
+            <span className="self-center text-slate-500 text-sm">to</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={e => { setEndDate(e.target.value); setPage(1); }} 
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:border-brand"
+            />
+          </div>
           <div className="relative w-64">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
              <input 
                  type="text" 
                  value={search}
-                 onChange={e => setSearch(e.target.value)}
+                 onChange={e => { setSearch(e.target.value); setPage(1); }}
                  placeholder="Search journals..." 
                  className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand outline-none"
              />
@@ -75,10 +107,10 @@ export default function JournalList() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
                 <tr><td colSpan={5} className="text-center py-10 text-slate-600">Loading journals...</td></tr>
-              ) : filteredEntries.length === 0 ? (
+              ) : paginatedEntries.length === 0 ? (
                 <tr><td colSpan={5} className="text-center py-10 text-slate-600">No journal entries found.</td></tr>
               ) : (
-                filteredEntries.map(entry => (
+                paginatedEntries.map(entry => (
                   <tr key={entry.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                     <td className="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-400">
                       {new Date(entry.date).toLocaleDateString()} {new Date(entry.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -100,6 +132,29 @@ export default function JournalList() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
+            <span className="text-sm text-slate-500">
+              Showing {(page - 1) * itemsPerPage + 1} to {Math.min(page * itemsPerPage, filteredEntries.length)} of {filteredEntries.length} entries
+            </span>
+            <div className="flex gap-2">
+              <button 
+                disabled={page === 1} 
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                Previous
+              </button>
+              <button 
+                disabled={page === totalPages} 
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <JournalVoucher 

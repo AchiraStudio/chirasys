@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, Activity, ChevronDown, LogOut, Database, Pill, Truck, ClipboardList, Tag, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, ChevronDown, LogOut, Database, Pill, Truck, ClipboardList, Tag, BookOpen } from 'lucide-react';
 import { getLowStockAlerts, logoutUser } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 
@@ -31,6 +31,7 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
     { id: 'pos',         icon: ShoppingCart,    label: 'Kasir & POS', roles: ['owner', 'admin', 'kasir'] },
     { id: 'master-data', icon: Database,        label: 'Master Data', roles: ['owner', 'admin', 'gudang'] },
     { id: 'inventory',   icon: Package,         label: 'Stok Inventaris', badge: lowStockCount > 0 ? lowStockCount : null, roles: ['owner', 'admin', 'gudang', 'kasir'] },
+    { id: 'stock-opname',icon: ClipboardList,   label: 'Stock Opname', roles: ['owner', 'admin', 'gudang'] },
     { id: 'catalog',     icon: Pill,            label: 'Katalog Produk', roles: ['owner', 'admin', 'gudang'] },
     { id: 'suppliers',   icon: Truck,           label: 'Pemasok', roles: ['owner', 'admin', 'gudang'] },
     { id: 'customers',   icon: Users,           label: 'Pelanggan', roles: ['owner', 'admin', 'kasir'] },

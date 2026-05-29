@@ -1,6 +1,6 @@
 // src/pages/reports/LaporanPelanggan.tsx
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2, Crown, Star } from 'lucide-react';
+import { ArrowLeft, Loader2, Crown } from 'lucide-react';
 import { getCustomerReport, CustomerReportRow } from '../../lib/api';
 
 interface Props { onBack: () => void; }

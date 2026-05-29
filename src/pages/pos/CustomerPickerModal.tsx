@@ -1,6 +1,6 @@
 // src/pages/pos/CustomerPickerModal.tsx
 import { useState, useEffect } from 'react';
-import { Search, X, UserCheck, Star, Crown, Loader2 } from 'lucide-react';
+import { Search, X, UserCheck, Loader2 } from 'lucide-react';
 import { getCustomers, Customer } from '../../lib/api';
 
 interface Props {

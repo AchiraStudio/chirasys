@@ -1,6 +1,6 @@
 // src/pages/reports/LaporanPenjualan.tsx
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Loader2, TrendingUp, ShoppingCart, Tag, DollarSign } from 'lucide-react';
+import { ArrowLeft, Loader2, TrendingUp, ShoppingCart, Tag, DollarSign } from 'lucide-react';
 import { getSalesSummary, SalesSummaryRow } from '../../lib/api';
 
 interface Props { onBack: () => void; }

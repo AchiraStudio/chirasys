@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { getTopSellingItems, TopItemRow } from '../../lib/api';
+import { downloadCsv } from '../../lib/exportCsv';
 
 interface Props { onBack: () => void; }
 const today = () => new Date().toISOString().split('T')[0];
@@ -39,6 +40,16 @@ export default function LaporanItemTerlaris({ onBack }: Props) {
           <span className="text-xs text-slate-500">–</span>
           <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" />
           <button onClick={fetchData} className="px-4 py-2 bg-brand text-white rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors">Tampilkan</button>
+          <button 
+            onClick={() => {
+              const headers = ['#', 'Nama Item', 'SKU', 'Kategori', 'Qty Terjual', 'Total Penjualan', 'Total HPP', 'Margin (%)'];
+              const rows = data.map((r, i) => [i + 1, r.item_name, r.sku, r.category_name, r.qty_sold, r.total_revenue, r.total_cogs, r.gross_margin.toFixed(1)]);
+              downloadCsv('Laporan_Item_Terlaris.csv', headers, rows);
+            }}
+            className="px-4 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors border border-emerald-200"
+          >
+            Export CSV
+          </button>
         </div>
       </div>
 

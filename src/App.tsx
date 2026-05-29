@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import TitleBar from './components/TitleBar';
 import MasterData from './pages/inventory/MasterData'; 
 import StockOverview from './pages/inventory/StockOverview'; 
+import StockOpname from './pages/inventory/StockOpname';
 import ItemList from './pages/inventory/ItemList';
 import ItemDetail from './pages/inventory/ItemDetail';
 import ItemDrawer from './pages/inventory/ItemDrawer';
@@ -12,19 +13,17 @@ import SupplierList from './pages/suppliers/SupplierList';
 import CustomerList from './pages/customers/CustomerList';
 import PurchasingDashboard from './pages/purchasing/PurchasingDashboard';
 import POS from './pages/pos/POS';
-import Suppliers from './pages/purchasing/Suppliers';
-import Purchasing from './pages/purchasing/Purchasing';
 import Promos from './pages/promos/PromoList';
 import Accounting from './pages/accounting/Accounting';
 import Reports from './pages/reports/Reports';
 import Settings from './pages/settings/Settings';
 import LoginPage from './pages/auth/LoginPage';
-import AuthScreen from './pages/auth/AuthScreen';
-import SetupScreen from './pages/auth/SetupScreen';
 import ContextMenu from './components/layout/ContextMenu';
 import { useAuthStore } from './store/AuthStore';
 import { getCurrentUser } from './lib/api';
+import { useSyncStore } from './store/SyncStore';
 import { Package, Loader2 } from 'lucide-react';
+import { useZoomStore } from './store/ZoomStore';
 
 export default function App() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
@@ -35,6 +34,31 @@ export default function App() {
 
   const { token, user, setAuth, clearAuth } = useAuthStore();
   const [isVerifying, setIsVerifying] = useState(true);
+
+  const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
+
+  useEffect(() => {
+    (document.documentElement.style as any).zoom = `${zoom}%`;
+  }, [zoom]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault();
+          zoomIn();
+        } else if (e.key === '-') {
+          e.preventDefault();
+          zoomOut();
+        } else if (e.key === '0') {
+          e.preventDefault();
+          reset();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [zoomIn, zoomOut, reset]);
 
   useEffect(() => {
     const verifySession = async () => {
@@ -62,6 +86,9 @@ export default function App() {
     const setupRealtime = async () => {
       const { supabase } = await import('./lib/supabase');
       const { invoke } = await import('@tauri-apps/api/core');
+      const { setStatus, setLastSyncTime } = useSyncStore.getState();
+
+      setStatus('connecting');
 
       const channel = supabase
         .channel('chirasys-sync')
@@ -81,13 +108,19 @@ export default function App() {
           (payload) => {
             console.log('🔄 Cloud update received (stock_ledger):', payload);
             invoke('receive_cloud_sync', { tableName: 'stock_ledger', payload: payload.new })
-              .then(() => setRefreshTrigger(p => p + 1))
+              .then(() => {
+                setRefreshTrigger(p => p + 1);
+                setLastSyncTime(new Date());
+              })
               .catch(console.error);
           }
         )
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             console.log('✅ Connected to Supabase Realtime');
+            setStatus('connected');
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            setStatus('error');
           }
         });
 
@@ -127,9 +160,9 @@ export default function App() {
       <TitleBar />
       <div className="flex flex-1 overflow-hidden pt-10">
         <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-        <main className="flex-1 flex flex-col h-full relative overflow-hidden">
+        <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50 dark:bg-[#0B0F19]">
         <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-        <div className={`flex-1 overflow-y-auto custom-scrollbar relative ${activeMenu === 'pos' ? 'p-0 bg-slate-100 dark:bg-[#0B0F19]' : 'p-8'}`}>
+        <div className={`flex-1 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-6 md:p-8'}`}>
           {activeMenu === 'dashboard' ? <Dashboard setActiveMenu={setActiveMenu} /> :
            activeMenu === 'master-data' ? <MasterData /> :
            activeMenu === 'inventory' ? (
@@ -141,6 +174,7 @@ export default function App() {
               }} 
             />
           ) :
+           activeMenu === 'stock-opname' ? <StockOpname /> :
            activeMenu === 'catalog' ? <ItemList refreshTrigger={refreshTrigger} onViewItem={(id) => { setActiveItemId(id); setActiveMenu('item-detail'); }} onEditItem={(id) => { setEditItemId(id); setIsDrawerOpen(true); }} onAddItem={() => { setEditItemId(null); setIsDrawerOpen(true); }} /> :
            activeMenu === 'item-detail' && activeItemId ? <ItemDetail itemId={activeItemId} refreshTrigger={refreshTrigger} onBack={() => setActiveMenu('catalog')} onEditItem={() => { setEditItemId(activeItemId); setIsDrawerOpen(true); }} /> :
            activeMenu === 'suppliers' ? <SupplierList /> :

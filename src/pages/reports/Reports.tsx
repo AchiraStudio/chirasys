@@ -1,6 +1,6 @@
 // src/pages/reports/Reports.tsx — Laporan Hub
 import React, { useState } from 'react';
-import { ShoppingCart, TrendingUp, CreditCard, Package, AlertTriangle, FileText, Truck, Users, ArrowLeft } from 'lucide-react';
+import { ShoppingCart, TrendingUp, CreditCard, Package, AlertTriangle, FileText, Truck, Users } from 'lucide-react';
 import LaporanPenjualan from './LaporanPenjualan';
 import LaporanItemTerlaris from './LaporanItemTerlaris';
 import LaporanMetodePembayaran from './LaporanMetodePembayaran';

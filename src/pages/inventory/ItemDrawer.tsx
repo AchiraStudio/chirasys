@@ -135,7 +135,7 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
     try {
       const cleanPayload = {
         ...formData, barcode: formData.barcode.trim() || undefined, generic_name: formData.generic_name.trim() || undefined,
-        category_id: formData.category_id || undefined, brand_id: formData.brand_id || undefined, notes: undefined
+        category_id: formData.category_id || undefined, brand_id: formData.brand_id || undefined, notes: undefined, wholesale_price: 0
       };
 
       if (editItemId) {

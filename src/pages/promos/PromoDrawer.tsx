@@ -31,7 +31,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
   const [searchResults, setSearchResults] = useState<Item[]>([]);
   const [isSearchingItem, setIsSearchingItem] = useState(false);
   const [showItemDropdown, setShowItemDropdown] = useState(false);
-  const [selectedItemName, setSelectedItemName] = useState('');
+  const [, setSelectedItemName] = useState('');
 
   useEffect(() => {
     loadCategories();

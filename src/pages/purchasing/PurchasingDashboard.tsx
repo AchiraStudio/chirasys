@@ -1,7 +1,7 @@
 // src/pages/purchasing/PurchasingDashboard.tsx
 import { useState, useEffect } from 'react';
-import { getPurchaseOrders, getPurchases, PurchaseOrder, Purchase } from '../../lib/api';
-import { Loader2, Plus, FileText, CheckCircle2, Clock, Inbox } from 'lucide-react';
+import { getPurchaseOrders, getPurchases, PurchaseOrder, Purchase, cancelPurchaseOrder, getSuppliers, Supplier } from '../../lib/api';
+import { Loader2, Plus, FileText, CheckCircle2, Clock, Inbox, X } from 'lucide-react';
 import PoDrawer from './PoDrawer';
 import ReceiveDrawer from './ReceiveDrawer';
 import PurchaseDetail from './PurchaseDetail';
@@ -11,6 +11,8 @@ export default function PurchasingDashboard() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'po' | 'purchases'>('po');
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierFilter, setSupplierFilter] = useState('');
 
   const [isPoDrawerOpen, setIsPoDrawerOpen] = useState(false);
   const [receivePoId, setReceivePoId] = useState<string | null>(null);
@@ -23,12 +25,22 @@ export default function PurchasingDashboard() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadPOs(), loadPurchases()]).finally(() => setLoading(false));
+    Promise.all([loadPOs(), loadPurchases(), getSuppliers().then(setSuppliers)]).finally(() => setLoading(false));
   }, []);
 
   const refreshAll = () => {
     loadPOs();
     loadPurchases();
+  };
+
+  const handleCancelPO = async (poId: string) => {
+    if (!confirm('Are you sure you want to cancel this Purchase Order?')) return;
+    try {
+      await cancelPurchaseOrder(poId);
+      refreshAll();
+    } catch (e: any) {
+      alert(e.toString());
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -81,10 +93,10 @@ export default function PurchasingDashboard() {
       </div>
 
       {view === 'po' ? (
-        <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden">
+        <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden flex flex-col">
           {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold">
+            <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
+              <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
                 <tr>
                   <th className="py-4 px-6">PO Number</th>
                   <th className="py-4 px-6">Supplier</th>
@@ -109,46 +121,66 @@ export default function PurchasingDashboard() {
                         {po.status}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right">
-                      {po.status !== 'received' && (
-                        <button onClick={() => setReceivePoId(po.id)} className="bg-brand text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors shadow-sm flex items-center gap-1.5 ml-auto">
-                          <Inbox size={14} /> Receive Goods
-                        </button>
+                    <td className="py-4 px-6 text-right flex justify-end gap-2">
+                      {po.status !== 'received' && po.status !== 'cancelled' && (
+                        <>
+                          <button onClick={() => handleCancelPO(po.id)} className="bg-rose-100 text-rose-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-rose-200 transition-colors shadow-sm flex items-center gap-1.5">
+                            <X size={14} /> Cancel
+                          </button>
+                          <button onClick={() => setReceivePoId(po.id)} className="bg-brand text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors shadow-sm flex items-center gap-1.5">
+                            <Inbox size={14} /> Receive Goods
+                          </button>
+                        </>
                       )}
                       {po.status === 'received' && (
                         <span className="text-emerald-500 flex items-center justify-end gap-1 text-xs font-bold uppercase"><CheckCircle2 size={14}/> Completed</span>
+                      )}
+                      {po.status === 'cancelled' && (
+                        <span className="text-rose-500 flex items-center justify-end gap-1 text-xs font-bold uppercase"><X size={14}/> Cancelled</span>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       ) : (
         /* Received Goods List */
-        <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden">
+        <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex justify-end">
+            <select
+              value={supplierFilter}
+              onChange={(e) => setSupplierFilter(e.target.value)}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:border-brand"
+            >
+              <option value="">All Suppliers</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
           {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold">
+            <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
+              <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
                 <tr>
                   <th className="py-4 px-6">Invoice No</th>
-                  <th className="py-4 px-6">PO Ref</th>
+                  <th className="py-4 px-6">Supplier</th>
                   <th className="py-4 px-6">Total</th>
                   <th className="py-4 px-6 text-center">Status</th>
                   <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
-                {purchases.length === 0 ? (
+                {purchases.filter(p => !supplierFilter || p.supplier_id === supplierFilter).length === 0 ? (
                   <tr><td colSpan={5} className="py-12 text-center text-slate-500">No received goods yet.</td></tr>
-                ) : purchases.map(p => (
+                ) : purchases.filter(p => !supplierFilter || p.supplier_id === supplierFilter).map(p => (
                   <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group">
                     <td className="py-4 px-6 font-bold flex items-center gap-2">
                       <FileText size={14} className="text-slate-500" />
                       {p.invoice_no || 'No Invoice'}
                     </td>
-                    <td className="py-4 px-6 text-xs text-slate-600 font-mono">{p.po_id?.split('-')[0] || '-'}</td>
+                    <td className="py-4 px-6 font-semibold">
+                      {suppliers.find(s => s.id === p.supplier_id)?.name || 'Unknown Supplier'}
+                    </td>
                     <td className="py-4 px-6 font-mono">Rp {p.total_amount.toLocaleString('id-ID')}</td>
                     <td className="py-4 px-6 text-center">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(p.status)}`}>
@@ -166,7 +198,7 @@ export default function PurchasingDashboard() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}

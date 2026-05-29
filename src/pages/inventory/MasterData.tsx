@@ -91,7 +91,7 @@ export default function MasterData() {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl mx-auto animate-in fade-in duration-500">
+    <div className="flex-1 min-h-0 w-full flex flex-col gap-6 max-w-5xl mx-auto animate-in fade-in duration-500">
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Master Data</h1>
@@ -99,14 +99,14 @@ export default function MasterData() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+      <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
         <div className="flex border-b border-slate-200 dark:border-slate-800 px-6 pt-4 bg-slate-50/50 dark:bg-slate-900/30">
           <button onClick={() => { setActiveTab('categories'); setEditingId(null); }} className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all font-medium text-sm ${activeTab === 'categories' ? 'border-brand text-brand' : 'border-transparent text-slate-600'}`}><FolderTree size={18} />Categories</button>
           <button onClick={() => { setActiveTab('brands'); setEditingId(null); }} className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all font-medium text-sm ${activeTab === 'brands' ? 'border-brand text-brand' : 'border-transparent text-slate-600'}`}><Tag size={18} />Brands</button>
         </div>
 
-        <div className="p-6 flex-1 flex flex-col">
-          <form onSubmit={handleAddItem} className="flex gap-3 mb-8 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+        <div className="p-6 flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
+          <form onSubmit={handleAddItem} className="flex shrink-0 gap-3 mb-8 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
             <input type="text" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder={`Add new ${activeTab === 'brands' ? 'brand' : 'category'} name...`} disabled={isSubmitting} className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand/20 transition-all" />
             {activeTab === 'categories' && (
               <select value={selectedParentId} onChange={(e) => setSelectedParentId(e.target.value)} className="w-48 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand/20">
@@ -119,7 +119,7 @@ export default function MasterData() {
             </button>
           </form>
 
-          <div className="flex-1">
+          <div className="flex-1 min-h-0">
             {loading ? <div className="flex flex-col items-center py-20 text-slate-500"><Loader2 size={32} className="animate-spin mb-4 text-brand" /><p>Loading registry data...</p></div> : 
              activeTab === 'categories' ? (
               <div className="bg-white dark:bg-[#0B0F19] rounded-xl border border-slate-200 dark:border-slate-800 p-4">{categories.length === 0 ? <p className="text-center text-slate-600 py-10">No categories found.</p> : renderCategoryTree(null, 0)}</div>

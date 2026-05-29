@@ -277,3 +277,101 @@ pub async fn bulk_add_stock(
     tx.commit().await.map_err(|e| e.to_string())?;
     Ok("Bulk stock adjustment successful.".to_string())
 }
+
+#[tauri::command]
+pub async fn create_opname_session(
+    branch_id: String,
+    created_by: Option<String>,
+    notes: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let id = Uuid::new_v4().to_string();
+    sqlx::query("INSERT INTO stock_opnames (id, branch_id, status, notes, created_by) VALUES (?, ?, 'draft', ?, ?)")
+        .bind(&id).bind(&branch_id).bind(&notes).bind(&created_by)
+        .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+    Ok(id)
+}
+
+#[derive(serde::Deserialize)]
+pub struct OpnameLineInput {
+    pub item_id: String,
+    pub unit_id: String,
+    pub actual_qty: f64,
+    pub notes: Option<String>,
+}
+
+#[tauri::command]
+pub async fn submit_opname_lines(
+    opname_id: String,
+    lines: Vec<OpnameLineInput>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+    
+    // First, clear existing lines for this session if any
+    sqlx::query("DELETE FROM stock_opname_lines WHERE opname_id = ?").bind(&opname_id).execute(&mut *tx).await.map_err(|e| e.to_string())?;
+
+    let opname: (String,) = sqlx::query_as("SELECT branch_id FROM stock_opnames WHERE id = ?")
+        .bind(&opname_id).fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
+    let branch_id = opname.0;
+
+    for line in lines {
+        // Calculate expected qty
+        let expected_qty: Option<f64> = sqlx::query_scalar(
+            "SELECT SUM(CASE direction WHEN 'in' THEN qty_change WHEN 'out' THEN -qty_change ELSE 0 END) FROM stock_ledger WHERE item_id = ? AND branch_id = ?"
+        ).bind(&line.item_id).bind(&branch_id).fetch_optional(&mut *tx).await.unwrap_or(Some(0.0));
+        
+        let expected = expected_qty.unwrap_or(0.0);
+        let diff = line.actual_qty - expected;
+        
+        // HPP Value for diff
+        let hpp: Option<f64> = sqlx::query_scalar("SELECT hpp_value FROM stock_ledger WHERE item_id = ? AND branch_id = ? ORDER BY created_at DESC LIMIT 1")
+            .bind(&line.item_id).bind(&branch_id).fetch_optional(&mut *tx).await.unwrap_or(Some(0.0));
+        
+        let line_id = Uuid::new_v4().to_string();
+        sqlx::query("INSERT INTO stock_opname_lines (id, opname_id, item_id, unit_id, expected_qty, actual_qty, diff_qty, hpp_value, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(line_id).bind(&opname_id).bind(&line.item_id).bind(&line.unit_id)
+            .bind(expected).bind(line.actual_qty).bind(diff).bind(hpp.unwrap_or(0.0) * diff.abs()).bind(&line.notes)
+            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    }
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn finalize_opname(
+    opname_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+    
+    // Get branch
+    let opname: (String,) = sqlx::query_as("SELECT branch_id FROM stock_opnames WHERE id = ?")
+        .bind(&opname_id).fetch_one(&mut *tx).await.map_err(|e| e.to_string())?;
+    let branch_id = opname.0;
+
+    // Get lines
+    #[derive(sqlx::FromRow)]
+    struct LineRow { item_id: String, unit_id: String, diff_qty: f64, hpp_value: f64 }
+    
+    let lines = sqlx::query_as::<_, LineRow>("SELECT item_id, unit_id, diff_qty, hpp_value FROM stock_opname_lines WHERE opname_id = ? AND diff_qty != 0")
+        .bind(&opname_id).fetch_all(&mut *tx).await.map_err(|e| e.to_string())?;
+
+    for line in lines {
+        let dir = if line.diff_qty > 0.0 { "in" } else { "out" };
+        let qty = line.diff_qty.abs();
+        let hpp = if line.diff_qty != 0.0 { line.hpp_value / qty } else { 0.0 };
+        let ledger_id = Uuid::new_v4().to_string();
+        
+        sqlx::query("INSERT INTO stock_ledger (id, item_id, unit_id, branch_id, qty_change, direction, source_type, source_id, notes, hpp_value) VALUES (?, ?, ?, ?, ?, ?, 'adjustment', ?, 'Stock Opname', ?)")
+            .bind(ledger_id).bind(&line.item_id).bind(&line.unit_id).bind(&branch_id)
+            .bind(qty).bind(dir).bind(&opname_id).bind(hpp)
+            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    }
+
+    sqlx::query("UPDATE stock_opnames SET status = 'completed', completed_at = datetime('now') WHERE id = ?")
+        .bind(&opname_id).execute(&mut *tx).await.map_err(|e| e.to_string())?;
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(())
+}

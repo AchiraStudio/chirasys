@@ -1,5 +1,7 @@
-import { Sun, Moon, Bell, Search, Plus } from 'lucide-react';
+import { Sun, Moon, Bell, Search, Plus, Cloud, CloudOff, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
 import { useTheme } from '../ThemeProvider';
+import { useSyncStore } from '../../store/SyncStore';
+import { useZoomStore } from '../../store/ZoomStore';
 
 interface TopbarProps {
   activeMenu: string;
@@ -8,6 +10,8 @@ interface TopbarProps {
 
 export default function Topbar({ activeMenu, setActiveMenu }: TopbarProps) {
   const { theme, setTheme } = useTheme();
+  const { status, lastSyncTime } = useSyncStore();
+  const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
 
   const PAGE_TITLES: Record<string, string> = {
     dashboard: 'Overview',
@@ -27,7 +31,7 @@ export default function Topbar({ activeMenu, setActiveMenu }: TopbarProps) {
   const title = PAGE_TITLES[activeMenu] ?? activeMenu.replace(/-/g, ' ');
 
   return (
-    <header className="h-20 bg-white/70 dark:bg-[#09090b]/70 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 flex items-center px-8 justify-between sticky top-0 z-10 transition-colors duration-300">
+    <header className="h-20 glass border-b flex items-center px-8 justify-between sticky top-0 z-10 transition-colors duration-300">
       
       {/* Dynamic Page Title */}
       <div>
@@ -51,6 +55,23 @@ export default function Topbar({ activeMenu, setActiveMenu }: TopbarProps) {
           </kbd>
         </div>
 
+        {/* Sync Status */}
+        <div className="hidden md:flex items-center text-xs font-semibold" title={lastSyncTime ? `Last sync: ${lastSyncTime.toLocaleTimeString('id-ID')}` : 'Syncing...'}>
+          {status === 'connected' ? (
+            <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-full">
+              <Cloud size={14} /> Online
+            </span>
+          ) : status === 'connecting' ? (
+            <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-full">
+              <RefreshCw size={14} className="animate-spin" /> Connecting
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 px-3 py-1.5 rounded-full">
+              <CloudOff size={14} /> Offline
+            </span>
+          )}
+        </div>
+
         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
 
         {/* Notification Bell */}
@@ -59,6 +80,31 @@ export default function Topbar({ activeMenu, setActiveMenu }: TopbarProps) {
           <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-[#09090b]"></span>
         </button>
         
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full p-1">
+          <button
+            onClick={zoomOut}
+            className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-1.5 rounded-full hover:bg-white dark:hover:bg-slate-800"
+            title="Zoom Out (Ctrl -)"
+          >
+            <ZoomOut size={14} />
+          </button>
+          <button
+            onClick={reset}
+            className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-2 py-0.5 rounded transition-colors hover:bg-white dark:hover:bg-slate-800"
+            title="Reset Zoom (Ctrl 0)"
+          >
+            {zoom}%
+          </button>
+          <button
+            onClick={zoomIn}
+            className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-1.5 rounded-full hover:bg-white dark:hover:bg-slate-800"
+            title="Zoom In (Ctrl +)"
+          >
+            <ZoomIn size={14} />
+          </button>
+        </div>
+
         {/* Theme Toggle */}
         <button 
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

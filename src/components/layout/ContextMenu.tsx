@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Copy, Navigation, RefreshCw, Scissors, ClipboardPaste } from 'lucide-react';
+import { Copy, Navigation, RefreshCw, ClipboardPaste, Code2 } from 'lucide-react';
+import { useAuthStore } from '../../store/AuthStore';
 
 export default function ContextMenu() {
   const [show, setShow] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
@@ -75,6 +78,34 @@ export default function ContextMenu() {
       >
         <Navigation size={14} className="text-slate-400 -rotate-90" /> Go Back
       </button>
+
+      {isAdmin && (
+        <>
+      <div className="h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
+          <button
+            onClick={async () => {
+              setShow(false);
+              try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                // Tauri v2: open devtools via the webview plugin command
+                await invoke('plugin:webview|open_devtools');
+              } catch {
+                // Fallback: try the window-level __TAURI_INTERNALS__ method
+                try {
+                  const { getCurrentWebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+                  const win = getCurrentWebviewWindow();
+                  await (win as any).openDevTools();
+                } catch (e2) {
+                  console.error('DevTools open failed:', e2);
+                }
+              }
+            }}
+            className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+          >
+            <Code2 size={14} /> Inspect Element
+          </button>
+        </>
+      )}
     </div>
   );
 }

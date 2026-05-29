@@ -95,12 +95,13 @@ pub async fn receive_goods(
         total_amount += line.qty_received * line.price_per_unit;
     }
 
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+
     sqlx::query("INSERT INTO purchases (id, po_id, branch_id, supplier_id, invoice_no, total_amount, status) VALUES (?, ?, ?, ?, ?, ?, 'unpaid')")
         .bind(&purchase_id).bind(&po_id).bind(&branch_id).bind(&supplier_id).bind(&invoice_no).bind(total_amount)
-        .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
     for line in lines {
-        // Skip processing if nothing was received for this line
         if line.qty_received <= 0.0 {
             continue;
         }
@@ -109,17 +110,15 @@ pub async fn receive_goods(
 
         sqlx::query("INSERT INTO purchase_lines (id, purchase_id, item_id, unit_id, qty_received, price_per_unit, expiry_date, batch_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
             .bind(&line_id).bind(&purchase_id).bind(&line.item_id).bind(&line.unit_id).bind(line.qty_received).bind(line.price_per_unit).bind(&line.expiry_date).bind(&line.batch_no)
-            .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
-        // Fetch global HPP method
         let hpp_method: String = sqlx::query_scalar("SELECT value FROM system_settings WHERE key = 'hpp_method'")
-            .fetch_optional(&state.db_pool)
+            .fetch_optional(&mut *tx)
             .await
             .unwrap_or(None)
             .unwrap_or_else(|| "avg".to_string());
 
         let new_hpp = if hpp_method == "avg" {
-            // Weighted Moving Average HPP calculation
             let (current_qty, last_hpp): (f64, f64) = sqlx::query_as::<_, (f64, f64)>(r#"
                 SELECT
                     COALESCE(SUM(CASE direction WHEN 'in' THEN qty_change WHEN 'out' THEN -qty_change ELSE 0 END), 0),
@@ -131,7 +130,7 @@ pub async fn receive_goods(
             "#)
             .bind(&line.item_id).bind(&branch_id)
             .bind(&line.item_id).bind(&branch_id).bind(&line.unit_id)
-            .fetch_one(&state.db_pool).await.unwrap_or((0.0, 0.0));
+            .fetch_one(&mut *tx).await.unwrap_or((0.0, 0.0));
 
             if current_qty + line.qty_received > 0.0 {
                 (current_qty * last_hpp + line.qty_received * line.price_per_unit)
@@ -140,7 +139,6 @@ pub async fn receive_goods(
                 line.price_per_unit
             }
         } else {
-            // FIFO / LIFO: Each batch keeps its own exact cost layer
             line.price_per_unit
         };
 
@@ -155,23 +153,21 @@ pub async fn receive_goods(
         )
         .bind(&ledger_id).bind(&line.item_id).bind(&line.unit_id).bind(&branch_id).bind(line.qty_received)
         .bind(&purchase_id).bind(new_hpp).bind(&line.expiry_date).bind(&line.batch_no).bind(&notes)
-        .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
-        // Update PO Line received quantity
         sqlx::query("UPDATE po_lines SET qty_received = qty_received + ? WHERE id = ?")
             .bind(line.qty_received)
             .bind(&line.po_line_id)
-            .execute(&state.db_pool)
+            .execute(&mut *tx)
             .await
             .map_err(|e| e.to_string())?;
     }
 
-    // Determine new PO status (partial or received)
     let unfulfilled_lines: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM po_lines WHERE po_id = ? AND qty_received < qty_ordered",
     )
     .bind(&po_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -184,9 +180,32 @@ pub async fn receive_goods(
     sqlx::query("UPDATE purchase_orders SET status = ? WHERE id = ?")
         .bind(new_status)
         .bind(&po_id)
-        .execute(&state.db_pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
+
+    let inv_account_id: Option<String> = sqlx::query_scalar("SELECT id FROM accounts WHERE code = '1-1200'")
+        .fetch_optional(&mut *tx).await.map_err(|e| e.to_string())?;
+    let ap_account_id: Option<String> = sqlx::query_scalar("SELECT id FROM accounts WHERE code = '2-2000'")
+        .fetch_optional(&mut *tx).await.map_err(|e| e.to_string())?;
+
+    if let (Some(inv_id), Some(ap_id)) = (inv_account_id, ap_account_id) {
+        if total_amount > 0.0 {
+            crate::commands::accounting::post_journal(
+                &mut tx,
+                "purchase",
+                &purchase_id,
+                Some(&branch_id),
+                &format!("Penerimaan Barang PO {}", po_id),
+                vec![
+                    (inv_id.as_str(), total_amount, 0.0, None),
+                    (ap_id.as_str(), 0.0, total_amount, None),
+                ]
+            ).await?;
+        }
+    }
+
+    tx.commit().await.map_err(|e| e.to_string())?;
 
     Ok(purchase_id)
 }
@@ -356,4 +375,29 @@ pub async fn get_purchase_detail(
         payments,
         returns,
     })
+}
+
+#[tauri::command]
+pub async fn cancel_purchase_order(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    // Only allow cancelling if status is not 'received'
+    let current_status: String = sqlx::query_scalar("SELECT status FROM purchase_orders WHERE id = ?")
+        .bind(&id)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if current_status == "received" {
+        return Err("Cannot cancel a purchase order that has already been received.".to_string());
+    }
+
+    sqlx::query("UPDATE purchase_orders SET status = 'cancelled' WHERE id = ?")
+        .bind(&id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }

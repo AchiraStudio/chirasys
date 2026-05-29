@@ -26,7 +26,7 @@ export default function PromoList() {
   }, [activeOnly]);
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to toggle active status for this promo?')) {
+    if (confirm('Toggle active status for this promo?')) {
       await togglePromoActive(id);
       fetchPromos();
     }
@@ -54,8 +54,8 @@ export default function PromoList() {
       </div>
 
       <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
-        <div className="overflow-x-auto flex-1 custom-scrollbar">
-          <table className="w-full text-sm text-left">
+        <div className="overflow-auto flex-1 custom-scrollbar relative">
+          <table className="w-full text-sm text-left border-collapse">
             <thead className="text-xs text-slate-600 bg-slate-50/50 dark:bg-slate-800/50 uppercase font-semibold sticky top-0 backdrop-blur-md">
               <tr>
                 <th className="px-6 py-4 rounded-tl-xl">Name</th>
