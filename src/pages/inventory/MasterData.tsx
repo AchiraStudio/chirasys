@@ -31,7 +31,15 @@ export default function MasterData() {
     if (!newItemName.trim()) return;
     setIsSubmitting(true);
     try {
-      if (activeTab === 'brands') { await addBrand(newItemName.trim()); } 
+      if (activeTab === 'brands') { 
+        await addBrand(newItemName.trim());
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          await invoke('auto_assign_brands');
+        } catch (e) {
+          console.warn("Failed to auto-assign brands", e);
+        }
+      } 
       else { await addCategory(newItemName.trim(), undefined, undefined, selectedParentId || undefined); }
       setNewItemName(''); setSelectedParentId('');
       loadData();

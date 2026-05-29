@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Loader2, Eye, Trash2, Edit, Upload, Download } from 'lucide-react';
+import { Plus, Search, Loader2, Eye, Trash2, Edit, Upload, Download, HelpCircle } from 'lucide-react';
 import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel } from '../../lib/api';
 import { open, save } from '@tauri-apps/plugin-dialog';
+import TourGuide from '../../components/ui/TourGuide';
 
 interface ItemListProps {
   onViewItem: (id: string) => void;
@@ -18,6 +19,28 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+
+  // Tour State
+  const [runTour, setRunTour] = useState(false);
+  const inventoryTourSteps = [
+    {
+      target: '.tour-inv-add',
+      content: 'Klik di sini untuk menambah item/obat baru secara manual ke dalam sistem.',
+      disableBeacon: true,
+    },
+    {
+      target: '.tour-inv-import',
+      content: 'Gunakan fitur ini untuk memasukkan banyak data sekaligus dari file Excel (.xlsx).',
+    },
+    {
+      target: '.tour-inv-search',
+      content: 'Cari barang dengan cepat menggunakan nama, SKU, atau scan barcode.',
+    },
+    {
+      target: '.tour-inv-table',
+      content: 'Tabel ini menampilkan seluruh katalog Anda. Klik icon mata untuk melihat detail pergerakan stok.',
+    }
+  ];
 
   const loadData = async () => {
     setLoading(true);
@@ -56,6 +79,12 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
       setIsImporting(true);
       const res = await importItemsExcel(file as string);
       if (res.success) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          await invoke('auto_assign_brands');
+        } catch (e) {
+          console.warn("Failed to auto-assign brands", e);
+        }
         alert(`Berhasil import ${res.rows_imported} baris data!`);
         loadData();
       } else {
@@ -101,19 +130,22 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
           <button 
             onClick={handleImport}
             disabled={isImporting}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-xl transition-all font-semibold text-sm disabled:opacity-50 border border-indigo-200 dark:border-indigo-500/20 active:scale-[0.98]">
+            className="tour-inv-import flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-xl transition-all font-semibold text-sm disabled:opacity-50 border border-indigo-200 dark:border-indigo-500/20 active:scale-[0.98]">
             {isImporting ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
             {isImporting ? 'Mengimpor...' : 'Impor'}
           </button>
-          <button onClick={onAddItem} className="flex items-center gap-2 bg-brand hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98]">
+          <button onClick={onAddItem} className="tour-inv-add flex items-center gap-2 bg-brand hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98]">
             <Plus size={18} /> Tambah Item
+          </button>
+          <button onClick={() => setRunTour(true)} className="p-2.5 text-slate-500 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors" title="Bantuan & Panduan">
+            <HelpCircle size={20} />
           </button>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col flex-1 overflow-hidden">
+      <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col flex-1 overflow-hidden tour-inv-table">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex gap-4 bg-slate-50/50 dark:bg-slate-900/30">
-          <div className="flex-1 flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all">
+          <div className="tour-inv-search flex-1 flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all">
             <Search size={16} className="text-slate-500 mr-2" />
             <input 
               type="text" 
@@ -190,6 +222,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
           </div>
         </div>
       </div>
+      <TourGuide steps={inventoryTourSteps} run={runTour} onFinish={() => setRunTour(false)} />
     </div>
   );
 }

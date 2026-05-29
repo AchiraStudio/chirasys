@@ -16,7 +16,7 @@ interface PaymentModalProps {
     taxAmount: number;
     discountAmount: number; // ADDED
     onClose: () => void;
-    onSuccess: (saleId: string) => void;
+    onSuccess: (saleId: string, print: boolean) => void;
 }
 
 interface Bank { id: string; name: string; code: string; }
@@ -53,15 +53,18 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
         setTimeout(() => cashInputRef.current?.focus(), 100);
     }, []);
 
-    // Keyboard shortcut: Enter = pay, ESC = close
+    // Keyboard shortcut: F10 = Simpan, Alt+F10 = Simpan & Cetak, ESC = close
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
-            if (e.key === 'Enter' && isReady && !loading) handlePay();
+            if (e.key === 'F10' && isReady && !loading) {
+                e.preventDefault();
+                handlePay(e.altKey);
+            }
             if (e.key === 'Escape') onClose();
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [isReady, loading, amounts]);
+    }, [isReady, loading, amounts, bankIds, voucher]);
 
     const setAmount = (method: MethodKey, val: string) => {
         setAmounts(prev => ({ ...prev, [method]: val }));
@@ -76,7 +79,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
         setAmounts(prev => ({ ...prev, cash: remaining > 0 ? remaining.toString() : '' }));
     };
 
-    const handlePay = async () => {
+    const handlePay = async (print: boolean) => {
         if (!isReady || loading) return;
         setLoading(true);
 
@@ -114,7 +117,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
 
         try {
             const saleId = await createSale(input);
-            onSuccess(saleId);
+            onSuccess(saleId, print);
         } catch (e) {
             alert('Pembayaran gagal: ' + e);
         } finally {
@@ -233,20 +236,29 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                 </div>
 
                 {/* Action Buttons */}
-                <div className="px-6 pb-6 flex gap-3">
+                <div className="px-6 pb-6 flex flex-col gap-3">
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => handlePay(false)}
+                            disabled={!isReady || loading}
+                            className="flex-[1] py-3.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        >
+                            Simpan (F10)
+                        </button>
+                        <button
+                            onClick={() => handlePay(true)}
+                            disabled={!isReady || loading}
+                            className="flex-[2] py-3.5 bg-brand text-white rounded-xl text-sm font-bold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        >
+                            {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+                            {loading ? 'Memproses...' : 'Simpan + Cetak (Alt+F10)'}
+                        </button>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="flex-1 py-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                        className="w-full py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     >
                         Batal (ESC)
-                    </button>
-                    <button
-                        onClick={handlePay}
-                        disabled={!isReady || loading}
-                        className="flex-[2] py-3.5 bg-brand text-white rounded-xl text-sm font-bold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                    >
-                        {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                        {loading ? 'Memproses...' : 'Simpan + Cetak (Enter)'}
                     </button>
                 </div>
             </div>

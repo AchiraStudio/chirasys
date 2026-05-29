@@ -90,32 +90,29 @@ export default function App() {
 
       setStatus('connecting');
 
-      const channel = supabase
-        .channel('chirasys-sync')
-        .on(
+      let channel = supabase.channel('chirasys-sync');
+
+      const tablesToSync = [
+        'sales', 'stock_ledger', 'categories', 'brands', 'items', 'item_units', 'item_prices'
+      ];
+
+      tablesToSync.forEach(table => {
+        channel = channel.on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'sales' },
+          { event: '*', schema: 'public', table },
           (payload) => {
-            console.log('🔄 Cloud update received (sales):', payload);
-            invoke('receive_cloud_sync', { tableName: 'sales', payload: payload.new })
-              .then(() => setRefreshTrigger(p => p + 1))
-              .catch(console.error);
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'stock_ledger' },
-          (payload) => {
-            console.log('🔄 Cloud update received (stock_ledger):', payload);
-            invoke('receive_cloud_sync', { tableName: 'stock_ledger', payload: payload.new })
+            console.log(`🔄 Cloud update received (${table}):`, payload);
+            invoke('receive_cloud_sync', { tableName: table, payload: payload.new })
               .then(() => {
                 setRefreshTrigger(p => p + 1);
                 setLastSyncTime(new Date());
               })
               .catch(console.error);
           }
-        )
-        .subscribe((status) => {
+        );
+      });
+
+      channel.subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             console.log('✅ Connected to Supabase Realtime');
             setStatus('connected');

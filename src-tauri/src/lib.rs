@@ -35,6 +35,7 @@ pub fn run() {
             commands::masters::add_brand,
             commands::masters::update_brand,
             commands::masters::delete_brand,
+            commands::masters::auto_assign_brands,
             commands::masters::get_categories,
             commands::masters::add_category,
             commands::masters::update_category,
@@ -48,6 +49,7 @@ pub fn run() {
             commands::items::update_item,
             commands::items::delete_item,
             commands::items::toggle_item_active,
+            commands::items::bulk_update_category,
             commands::items::add_item_unit,
             commands::items::update_item_unit,
             commands::items::delete_item_unit,
@@ -86,6 +88,7 @@ pub fn run() {
             commands::sales::get_sale_detail,
             commands::sales::create_sale_return,
             commands::sales::get_next_transaction_no,
+            commands::sales::open_cash_drawer,
             // Phase 6
             commands::promos::get_promos,
             commands::promos::get_promo_detail,
@@ -135,6 +138,8 @@ pub fn run() {
 
             // Phase 10 - Maintenance
             commands::maintenance::optimize_database,
+            commands::maintenance::open_devtools,
+            commands::admin::reset_db_specific,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

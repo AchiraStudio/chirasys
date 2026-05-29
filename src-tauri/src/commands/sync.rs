@@ -139,26 +139,24 @@ pub async fn receive_cloud_sync(table_name: String, payload: serde_json::Value, 
             let branch_id = payload.get("branch_id").and_then(|v| v.as_str()).unwrap_or_default();
             let customer_id = payload.get("customer_id").and_then(|v| v.as_str());
             let tx_no = payload.get("transaction_no").and_then(|v| v.as_str()).unwrap_or_default();
-            let tx_date = payload.get("transaction_date").and_then(|v| v.as_str()).unwrap_or_default();
-            let method = payload.get("payment_method").and_then(|v| v.as_str()).unwrap_or_default();
             let total = payload.get("total_amount").and_then(|v| v.as_f64()).unwrap_or_default();
             let disc = payload.get("discount_amount").and_then(|v| v.as_f64()).unwrap_or_default();
             let tax = payload.get("tax_amount").and_then(|v| v.as_f64()).unwrap_or_default();
-            let net = payload.get("net_amount").and_then(|v| v.as_f64()).unwrap_or_default();
-            let paid = payload.get("paid_amount").and_then(|v| v.as_f64()).unwrap_or_default();
-            let change = payload.get("change_amount").and_then(|v| v.as_f64()).unwrap_or_default();
+            let grand_total = payload.get("net_amount").and_then(|v| v.as_f64()).unwrap_or_default();
             let status = payload.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+            let price_type = payload.get("price_type").and_then(|v| v.as_str()).unwrap_or_default();
             let notes = payload.get("notes").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str()).unwrap_or_default();
             
             let _ = sqlx::query(
-                "INSERT INTO sales (id, branch_id, customer_id, transaction_no, transaction_date, payment_method, total_amount, discount_amount, tax_amount, net_amount, paid_amount, change_amount, status, notes, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                "INSERT INTO sales (id, branch_id, customer_id, transaction_no, user_id, total_amount, discount_amount, tax_amount, grand_total, status, price_type, notes, created_at)
+                 VALUES (?, ?, ?, ?, 'system_sync', ?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(id) DO UPDATE SET 
-                 status=excluded.status, payment_method=excluded.payment_method, paid_amount=excluded.paid_amount, change_amount=excluded.change_amount, notes=excluded.notes"
+                 status=excluded.status, notes=excluded.notes"
             )
-            .bind(id).bind(branch_id).bind(customer_id).bind(tx_no).bind(tx_date)
-            .bind(method).bind(total).bind(disc).bind(tax).bind(net).bind(paid)
-            .bind(change).bind(status).bind(notes)
+            .bind(id).bind(branch_id).bind(customer_id).bind(tx_no)
+            .bind(total).bind(disc).bind(tax).bind(grand_total)
+            .bind(status).bind(price_type).bind(notes).bind(created_at)
             .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
         }
         "stock_ledger" => {
@@ -179,6 +177,100 @@ pub async fn receive_cloud_sync(table_name: String, payload: serde_json::Value, 
             )
             .bind(id).bind(item_id).bind(branch_id).bind(tx_date).bind(source)
             .bind(source_id).bind(qty).bind(hpp).bind(notes)
+            .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        }
+        "categories" => {
+            let id = payload.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+            let parent_id = payload.get("parent_id").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str()).unwrap_or_default();
+            let desc = payload.get("description").and_then(|v| v.as_str());
+            let color = payload.get("color").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str()).unwrap_or_default();
+            
+            let _ = sqlx::query(
+                "INSERT INTO categories (id, parent_id, name, description, color, created_at, created_by)
+                 VALUES (?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET 
+                 parent_id=excluded.parent_id, name=excluded.name, description=excluded.description, color=excluded.color"
+            )
+            .bind(id).bind(parent_id).bind(name).bind(desc).bind(color).bind(created_at)
+            .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        }
+        "brands" => {
+            let id = payload.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+            let name = payload.get("name").and_then(|v| v.as_str()).unwrap_or_default();
+            let created_at = payload.get("created_at").and_then(|v| v.as_str()).unwrap_or_default();
+            
+            let _ = sqlx::query(
+                "INSERT INTO brands (id, name, created_at, created_by)
+                 VALUES (?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET name=excluded.name"
+            )
+            .bind(id).bind(name).bind(created_at)
+            .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        }
+        "items" => {
+            let id = payload.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+            let sku = payload.get("sku").and_then(|v| v.as_str()).unwrap_or_default();
+            let barcode = payload.get("barcode").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str()).unwrap_or_default();
+            let generic_name = payload.get("generic_name").and_then(|v| v.as_str());
+            let category_id = payload.get("category_id").and_then(|v| v.as_str());
+            let brand_id = payload.get("brand_id").and_then(|v| v.as_str());
+            let hpp_method = payload.get("hpp_method").and_then(|v| v.as_str()).unwrap_or_default();
+            let min_stock = payload.get("min_stock").and_then(|v| v.as_f64()).unwrap_or_default();
+            let has_expiry = payload.get("has_expiry").and_then(|v| v.as_i64()).unwrap_or_default();
+            let req_rx = payload.get("requires_prescription").and_then(|v| v.as_i64()).unwrap_or_default();
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let is_active = payload.get("is_active").and_then(|v| v.as_i64()).unwrap_or_default();
+            let wholesale_price = payload.get("wholesale_price").and_then(|v| v.as_f64()).unwrap_or_default();
+            let created_at = payload.get("created_at").and_then(|v| v.as_str()).unwrap_or_default();
+            
+            let _ = sqlx::query(
+                "INSERT INTO items (id, sku, barcode, name, generic_name, category_id, brand_id, hpp_method, min_stock, has_expiry, requires_prescription, notes, is_active, wholesale_price, created_at, created_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET 
+                 sku=excluded.sku, barcode=excluded.barcode, name=excluded.name, generic_name=excluded.generic_name, category_id=excluded.category_id, brand_id=excluded.brand_id, hpp_method=excluded.hpp_method, min_stock=excluded.min_stock, has_expiry=excluded.has_expiry, requires_prescription=excluded.requires_prescription, notes=excluded.notes, is_active=excluded.is_active, wholesale_price=excluded.wholesale_price"
+            )
+            .bind(id).bind(sku).bind(barcode).bind(name).bind(generic_name)
+            .bind(category_id).bind(brand_id).bind(hpp_method).bind(min_stock)
+            .bind(has_expiry).bind(req_rx).bind(notes).bind(is_active)
+            .bind(wholesale_price).bind(created_at)
+            .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        }
+        "item_units" => {
+            let id = payload.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+            let item_id = payload.get("item_id").and_then(|v| v.as_str()).unwrap_or_default();
+            let unit_name = payload.get("unit_name").and_then(|v| v.as_str()).unwrap_or_default();
+            let conversion = payload.get("conversion").and_then(|v| v.as_f64()).unwrap_or_default();
+            let is_base = payload.get("is_base").and_then(|v| v.as_i64()).unwrap_or_default();
+            let barcode = payload.get("barcode").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str()).unwrap_or_default();
+            
+            let _ = sqlx::query(
+                "INSERT INTO item_units (id, item_id, unit_name, conversion, is_base, barcode, created_at, created_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET 
+                 unit_name=excluded.unit_name, conversion=excluded.conversion, is_base=excluded.is_base, barcode=excluded.barcode"
+            )
+            .bind(id).bind(item_id).bind(unit_name).bind(conversion)
+            .bind(is_base).bind(barcode).bind(created_at)
+            .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
+        }
+        "item_prices" => {
+            let id = payload.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+            let item_id = payload.get("item_id").and_then(|v| v.as_str()).unwrap_or_default();
+            let unit_id = payload.get("unit_id").and_then(|v| v.as_str()).unwrap_or_default();
+            let customer_tier = payload.get("customer_tier").and_then(|v| v.as_str()).unwrap_or_default();
+            let price = payload.get("price").and_then(|v| v.as_f64()).unwrap_or_default();
+            
+            let _ = sqlx::query(
+                "INSERT INTO item_prices (id, item_id, unit_id, customer_tier, price, created_by)
+                 VALUES (?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET 
+                 price=excluded.price"
+            )
+            .bind(id).bind(item_id).bind(unit_id).bind(customer_tier).bind(price)
             .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
         }
         _ => {}

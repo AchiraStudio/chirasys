@@ -10,7 +10,11 @@ export default function ContextMenu() {
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
-      // Allow default context menu on input fields so users can easily paste/copy native text
+      // Allow native context menu (including Inspect) when Shift is held
+      if (e.shiftKey) return;
+
+      // In dev mode, allow F12 and native devtools shortcuts to still work
+      // Don't intercept if target is an input/textarea
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -81,22 +85,21 @@ export default function ContextMenu() {
 
       {isAdmin && (
         <>
-      <div className="h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
+        <div className="h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
           <button
             onClick={async () => {
               setShow(false);
+              // Try Tauri v2 devtools API first
               try {
                 const { invoke } = await import('@tauri-apps/api/core');
-                // Tauri v2: open devtools via the webview plugin command
-                await invoke('plugin:webview|open_devtools');
+                await invoke('open_devtools');
               } catch {
-                // Fallback: try the window-level __TAURI_INTERNALS__ method
                 try {
-                  const { getCurrentWebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-                  const win = getCurrentWebviewWindow();
-                  await (win as any).openDevTools();
+                  // Fallback: simulate F12
+                  const ev = new KeyboardEvent('keydown', { key: 'F12', keyCode: 123, bubbles: true });
+                  document.dispatchEvent(ev);
                 } catch (e2) {
-                  console.error('DevTools open failed:', e2);
+                  console.log('Open DevTools manually with F12 or Shift+Right-click');
                 }
               }
             }}

@@ -219,6 +219,7 @@ export const setSetting = async (key: string, value: string): Promise<void> => i
 export const exportItemsExcel = async (filePath: string): Promise<string> => invoke('export_items_excel', { filePath });
 export const exportSalesExcel = async (filePath: string): Promise<string> => invoke('export_sales_excel', { filePath });
 export const optimizeDatabase = async (): Promise<string> => invoke('optimize_database');
+export const resetDbSpecific = async (target: string): Promise<string> => invoke('reset_db_specific', { target });
 
 // --- Phase 8 Report Types ---
 export interface SalesSummaryRow { period_label: string; transaction_count: number; total_revenue: number; total_discount: number; total_cogs: number; gross_profit: number; }

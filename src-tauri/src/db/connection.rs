@@ -83,6 +83,12 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/016_sync_triggers_fix.sql"), 16),
         (include_str!("./migrations/017_admin_v1.sql"), 17),
         (include_str!("./migrations/018_hpp_engine.sql"), 18),
+        (include_str!("./migrations/019_stock_opname.sql"), 19),
+        (include_str!("./migrations/021_tax_account.sql"), 21),
+        (include_str!("./migrations/022_users_created_at.sql"), 22),
+        (include_str!("./migrations/023_fix_stock_ledger_trigger.sql"), 23),
+        (include_str!("./migrations/024_master_data_sync.sql"), 24),
+        (include_str!("./migrations/025_fix_sales_sync_trigger.sql"), 25),
     ];
 
     for (sql, version) in migrations {

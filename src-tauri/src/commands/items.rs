@@ -217,6 +217,25 @@ pub async fn toggle_item_active(id: String, state: State<'_, AppState>) -> Resul
     Ok(())
 }
 
+#[tauri::command]
+pub async fn bulk_update_category(
+    item_ids: Vec<String>,
+    category_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+    for id in item_ids {
+        sqlx::query("UPDATE items SET category_id = ?, updated_at=datetime('now') WHERE id = ?")
+            .bind(&category_id)
+            .bind(&id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 // ==========================================
 // ITEM UNITS
 // ==========================================

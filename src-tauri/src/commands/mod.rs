@@ -12,3 +12,4 @@ pub mod auth;
 pub mod sync;
 pub mod suppliers;
 pub mod maintenance;
+pub mod admin;

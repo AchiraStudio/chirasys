@@ -336,7 +336,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
               <div className="grid grid-cols-2 gap-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800/30">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Stack Rule</label>
-                  <select value={formData.stack_rule} onChange={e => setFormData({...formData, stack_rule: e.target.value})} className="input-field bg-white">
+                  <select value={formData.stack_rule} onChange={e => setFormData({...formData, stack_rule: e.target.value})} className="input-field">
                     <option value="best_only">Best Only (Recommended)</option>
                     <option value="additive">Additive (Stacks with others)</option>
                     <option value="none">None (Exclusive)</option>
@@ -344,7 +344,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
-                  <input type="number" value={formData.priority} onChange={e => setFormData({...formData, priority: parseInt(e.target.value)})} className="input-field bg-white" placeholder="0 = highest" />
+                  <input type="number" value={formData.priority} onChange={e => setFormData({...formData, priority: parseInt(e.target.value)})} className="input-field" placeholder="0 = highest" />
                 </div>
               </div>
 

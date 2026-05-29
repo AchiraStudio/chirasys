@@ -1,6 +1,6 @@
 // src/pages/pos/POS.tsx — Full keyboard-driven POS with Indonesian UI
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Search, Plus, Minus, Trash2, Clock, UserCheck, PauseCircle, PlayCircle, Loader2 } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Minus, Trash2, Clock, UserCheck, PauseCircle, PlayCircle, Loader2, HelpCircle } from 'lucide-react';
 import { usePosStore, PosLine, PosHold } from './POSStore';
 import { getItemsFiltered, Item, Customer, getSettings } from '../../lib/api';
 import { applyDiscountsToCart } from '../../lib/discountEngine';
@@ -9,6 +9,7 @@ import PaymentModal from './PaymentModal';
 import ReceiptModal from './ReceiptModal';
 import CustomerPickerModal from './CustomerPickerModal';
 import SalesHistoryModal from './SalesHistoryModal';
+import TourGuide from '../../components/ui/TourGuide';
 
 export default function POS() {
 
@@ -27,6 +28,28 @@ export default function POS() {
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
+  
+  // Tour State
+  const [runTour, setRunTour] = useState(false);
+  const posTourSteps = [
+    {
+      target: '.tour-pos-search',
+      content: 'Ketik nama barang atau scan barcode di sini. Tekan Enter untuk langsung memasukkan barang ke keranjang.',
+      disableBeacon: true,
+    },
+    {
+      target: '.tour-pos-cart',
+      content: 'Daftar barang belanjaan akan muncul di sini. Anda bisa mengubah jumlah atau memberikan diskon per item.',
+    },
+    {
+      target: '.tour-pos-customer',
+      content: 'Pilih pelanggan jika ini adalah pelanggan terdaftar. Ini akan mengaktifkan harga khusus member jika ada.',
+    },
+    {
+      target: '.tour-pos-payment',
+      content: 'Klik Bayar (F10) untuk memproses pembayaran dan mencetak struk.',
+    }
+  ];
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const holds = usePosStore(state => state.holds);
@@ -79,6 +102,12 @@ export default function POS() {
         case 'F1':
           e.preventDefault();
           searchInputRef.current?.focus();
+          break;
+        case 'F2':
+          e.preventDefault();
+          import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('open_cash_drawer').catch(console.warn);
+          });
           break;
         case 'F3':
           e.preventDefault();
@@ -265,8 +294,9 @@ export default function POS() {
     setCart(hold.lines); setPriceType(hold.price_type); removeHold(hold.id);
   };
 
-  const handlePaymentSuccess = (saleId: string) => {
-    setCart([]); setCartDiscount(0); setSearch(''); setShowPayment(false); setReceiptSaleId(saleId);
+  const handlePaymentSuccess = (saleId: string, print: boolean) => {
+    setCart([]); setCartDiscount(0); setSearch(''); setShowPayment(false);
+    if (print) setReceiptSaleId(saleId);
   };
 
   const TIER_LABEL: Record<string, string> = { regular: 'Regular', member: 'Member', vip: 'VIP' };
@@ -276,7 +306,7 @@ export default function POS() {
       {/* LEFT: Item Search */}
       <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden min-w-0">
         <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/50 shrink-0">
-          <div className="flex-1 relative">
+          <div className="flex-1 relative tour-pos-search">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               ref={searchInputRef}
@@ -293,6 +323,9 @@ export default function POS() {
             <button onClick={() => setPriceType('retail')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${priceType === 'retail' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Eceran</button>
             <button onClick={() => setPriceType('wholesale')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${priceType === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Grosir</button>
           </div>
+          <button onClick={() => setRunTour(true)} className="p-2.5 text-slate-500 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors" title="Bantuan & Panduan">
+            <HelpCircle size={20} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
@@ -338,7 +371,7 @@ export default function POS() {
       <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden w-80 xl:w-96 shrink-0">
         {/* Customer Header */}
         <div
-          className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors"
+          className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors tour-pos-customer"
           onClick={() => setShowCustomerPicker(true)}
         >
           <div className="flex items-center gap-2">
@@ -356,7 +389,7 @@ export default function POS() {
         </div>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 tour-pos-cart">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 select-none">
               <ShoppingCart size={36} className="mb-2 opacity-20" />
@@ -445,7 +478,7 @@ export default function POS() {
             <button
               onClick={() => setShowPayment(true)}
               disabled={cart.length === 0}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-brand text-white hover:bg-blue-600 disabled:opacity-40 transition-colors shadow-sm"
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-brand text-white hover:bg-blue-600 disabled:opacity-40 transition-colors shadow-sm tour-pos-payment"
             >
               Bayar (F10)
             </button>

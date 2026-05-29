@@ -29,3 +29,10 @@ pub async fn optimize_database(state: State<'_, AppState>) -> Result<String, Str
 
     Ok("Database optimized and cleaned successfully!".to_string())
 }
+
+#[tauri::command]
+pub async fn open_devtools(_webview: tauri::WebviewWindow) -> Result<(), String> {
+    #[cfg(debug_assertions)]
+    _webview.open_devtools();
+    Ok(())
+}

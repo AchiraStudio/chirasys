@@ -251,10 +251,19 @@ pub async fn apply_hpp_retroactive(
     Ok("HPP recalculation successful. Stock layers updated.".to_string())
 }
 
+#[derive(serde::Deserialize)]
+pub struct BulkStockInput {
+    pub item_id: String,
+    pub unit_id: String,
+    pub qty_change: f64,
+    pub hpp_value: Option<f64>,
+    pub notes: Option<String>,
+}
+
 #[tauri::command]
 pub async fn bulk_add_stock(
     branch_id: String,
-    items: Vec<crate::db::models::inventory::StockLedger>,
+    items: Vec<BulkStockInput>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;

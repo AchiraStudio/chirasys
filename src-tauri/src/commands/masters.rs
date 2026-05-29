@@ -62,6 +62,68 @@ pub async fn delete_brand(id: String, state: State<'_, AppState>) -> Result<(), 
     Ok(())
 }
 
+#[tauri::command]
+pub async fn auto_assign_brands(state: State<'_, AppState>) -> Result<String, String> {
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+
+    // 1. Cleanup bad brands created by accident
+    let bad_units = ["PCS", "BOX", "STRIP", "BOTOL", "TUBE", "AMPUL", "VIAL", "KAPSUL", "TABLET"];
+    for bad in &bad_units {
+        // Unlink from items
+        sqlx::query("UPDATE items SET brand_id = NULL WHERE brand_id IN (SELECT id FROM brands WHERE UPPER(name) = ?)")
+            .bind(bad)
+            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+        
+        // Delete the brand
+        sqlx::query("DELETE FROM brands WHERE UPPER(name) = ?")
+            .bind(bad)
+            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    }
+
+    // 2. Fetch all valid brands
+    let brands: Vec<(String, String)> = sqlx::query_as("SELECT id, name FROM brands")
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // 3. Fetch all items with no brand
+    let items: Vec<(String, String)> = sqlx::query_as("SELECT id, name FROM items WHERE brand_id IS NULL OR brand_id = ''")
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut updated_count = 0;
+
+    for (item_id, item_name) in items {
+        let upper_name = item_name.to_uppercase();
+        for (brand_id, brand_name) in &brands {
+            let upper_brand = brand_name.to_uppercase();
+            
+            // Check if the item name ends with the brand name (e.g. "TAB HJ")
+            // Or contains it surrounded by spaces, or in parentheses
+            let padded_name = format!(" {} ", upper_name.replace('(', " ").replace(')', " "));
+            let padded_brand = format!(" {} ", upper_brand);
+            
+            if padded_name.contains(&padded_brand) {
+                // Match found!
+                sqlx::query("UPDATE items SET brand_id = ? WHERE id = ?")
+                    .bind(brand_id)
+                    .bind(&item_id)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                
+                updated_count += 1;
+                break; // stop searching brands for this item
+            }
+        }
+    }
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+    
+    Ok(format!("Successfully cleaned up invalid brands and auto-assigned brands to {} items.", updated_count))
+}
+
 // --- CATEGORIES ---
 
 #[tauri::command]

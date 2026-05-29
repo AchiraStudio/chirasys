@@ -44,7 +44,8 @@ export default function Settings() {
   const [successMsg, setSuccessMsg] = useState('');
   const [configs, setConfigs] = useState<{key: string, value: string, description?: string}[]>([]);
   const [saving, setSaving] = useState(false);
-  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetTarget, setResetTarget] = useState<'sales' | 'inventory' | 'all' | 'maintenance' | null>(null);
+  const [confirmText, setConfirmText] = useState('');
   const [activeTab, setActiveTab] = useState<'system' | 'users'>('system');
 
   useEffect(() => {
@@ -61,13 +62,23 @@ export default function Settings() {
   };
 
   const handleResetDB = async () => {
+    if (!resetTarget) return;
+    if (resetTarget !== 'maintenance' && confirmText !== 'DELETE') return;
+
     setLoading(true);
     setSuccessMsg('');
-    setShowResetModal(false);
     try {
-      const msg = await optimizeDatabase();
-      setSuccessMsg(msg);
+      if (resetTarget === 'maintenance') {
+        const msg = await optimizeDatabase();
+        setSuccessMsg(msg);
+      } else {
+        const { resetDbSpecific } = await import('../../lib/api');
+        const msg = await resetDbSpecific(resetTarget);
+        setSuccessMsg(msg);
+      }
       setTimeout(() => setSuccessMsg(''), 6000);
+      setResetTarget(null);
+      setConfirmText('');
     } catch (e) {
       alert(`Reset failed: ${e}`);
     } finally {
@@ -129,34 +140,67 @@ export default function Settings() {
         <div className="grid gap-6 md:grid-cols-2">
         {/* DB Reset Card — Admin Only */}
         {isAdmin && (
-          <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+          <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-rose-200 dark:border-rose-900 shadow-sm p-6 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-xl">
                 <Database size={24} />
               </div>
               <div>
-                <h2 className="font-bold text-slate-900 dark:text-white">Database Maintenance</h2>
-                <p className="text-xs text-slate-500">Admin only — runs VACUUM + ANALYZE</p>
+                <h2 className="font-bold text-rose-600 dark:text-rose-500">Danger Zone</h2>
+                <p className="text-xs text-slate-500">Admin only — Data Wipe & Maintenance</p>
               </div>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-              Resets the database engine: cleans deleted rows, reclaims fragmented disk space, and regenerates query plans.
-              <span className="block mt-1 font-semibold text-rose-600 dark:text-rose-400 text-xs">⚠ This operation cannot be undone.</span>
-            </p>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowResetModal(true)}
-                disabled={loading}
-                className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
-                {loading ? 'Resetting...' : 'Reset DB'}
-              </button>
-              {successMsg && (
-                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-                  <CheckCircle2 size={14} /> {successMsg}
-                </span>
-              )}
+            
+            <div className="space-y-4 mt-2 flex-1">
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setResetTarget('sales')}
+                  disabled={loading}
+                  className="w-full py-2.5 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-100 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-sm transition-all"
+                >
+                  Reset Data Penjualan (Sales)
+                </button>
+                <p className="text-[10px] text-slate-500 text-center">Menghapus transaksi POS, pembayaran, dan jurnal.</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setResetTarget('inventory')}
+                  disabled={loading}
+                  className="w-full py-2.5 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-100 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-sm transition-all"
+                >
+                  Reset Data Inventory (Stok)
+                </button>
+                <p className="text-[10px] text-slate-500 text-center">Menghapus mutasi stok dan data pembelian.</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setResetTarget('all')}
+                  disabled={loading}
+                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-rose-600/20"
+                >
+                  Reset Semua Data (Factory Reset)
+                </button>
+                <p className="text-[10px] text-slate-500 text-center">Menghapus Master Data, Inventory, Sales, dan Antrian Sinkronisasi lokal.</p>
+              </div>
+
+              <div className="h-px bg-slate-100 dark:bg-slate-800 my-2"></div>
+              
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => setResetTarget('maintenance')}
+                  disabled={loading}
+                  className="text-xs font-bold text-slate-500 hover:text-brand flex items-center gap-1"
+                >
+                  <Database size={12} /> Optimize DB (VACUUM)
+                </button>
+                {successMsg && (
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                    <CheckCircle2 size={12} /> {successMsg}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -187,7 +231,7 @@ export default function Settings() {
       )}
 
       {/* Reset DB Warning Modal */}
-      {showResetModal && (
+      {resetTarget !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-[#0B0F19] rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -195,32 +239,59 @@ export default function Settings() {
                 <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl">
                   <AlertTriangle size={20} />
                 </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-lg">Reset Database?</h3>
+                <h3 className="font-bold text-slate-900 dark:text-white text-lg">
+                  {resetTarget === 'maintenance' ? 'Optimize Database?' : 'Wipe Database?'}
+                </h3>
               </div>
-              <button onClick={() => setShowResetModal(false)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+              <button onClick={() => setResetTarget(null)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
                 <X size={18} />
               </button>
             </div>
             <div className="p-6">
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                This will run <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">VACUUM</code>, <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">ANALYZE</code>, and clean old sync records on the local database.
-              </p>
-              <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
-                The application may freeze briefly while this runs. No data will be deleted.
-              </p>
+              {resetTarget === 'maintenance' ? (
+                <>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                    This will run <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">VACUUM</code> and <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">ANALYZE</code> on the local database.
+                  </p>
+                  <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
+                    The application may freeze briefly. No data will be deleted.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 font-semibold text-rose-600 dark:text-rose-400">
+                    ⚠ PERINGATAN: Operasi ini bersifat PERMANEN dan tidak dapat dibatalkan.
+                    {resetTarget === 'sales' && ' Data Transaksi Penjualan dan Jurnal akan dihapus sepenuhnya.'}
+                    {resetTarget === 'inventory' && ' Data Pembelian, Mutasi Stok, dan Ledger akan dihapus sepenuhnya.'}
+                    {resetTarget === 'all' && ' SEMUA DATA (Master Data, Stok, Penjualan) akan dihapus sepenuhnya dan sistem kembali ke pengaturan awal (kosong).'}
+                  </p>
+                  <p className="text-xs text-slate-500 mb-2">
+                    Ketik <strong>DELETE</strong> di bawah ini untuk mengonfirmasi.
+                  </p>
+                  <input
+                    type="text"
+                    value={confirmText}
+                    onChange={e => setConfirmText(e.target.value)}
+                    placeholder="DELETE"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-rose-200 dark:border-rose-800 rounded-xl px-4 py-2.5 text-sm font-bold text-rose-600 focus:ring-2 focus:ring-rose-500 outline-none uppercase"
+                  />
+                </>
+              )}
             </div>
             <div className="px-6 pb-6 flex gap-3">
               <button
-                onClick={() => setShowResetModal(false)}
+                onClick={() => setResetTarget(null)}
                 className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
-                Cancel
+                Batal
               </button>
               <button
                 onClick={handleResetDB}
-                className="flex-[2] py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold transition-colors"
+                disabled={resetTarget !== 'maintenance' && confirmText !== 'DELETE'}
+                className="flex-[2] py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Yes, Reset Database
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? 'Memproses...' : 'Ya, Eksekusi'}
               </button>
             </div>
           </div>

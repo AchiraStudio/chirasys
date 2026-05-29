@@ -445,3 +445,10 @@ pub async fn create_sale_return(
     tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
+
+#[tauri::command]
+pub async fn open_cash_drawer() -> Result<String, String> {
+    // Phase 10: Placeholder for ESC/POS printer drawer kick
+    println!("🔔 Cash drawer triggered via shortcut (F2)!");
+    Ok("Drawer triggered".to_string())
+}
