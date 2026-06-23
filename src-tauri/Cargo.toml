@@ -23,6 +23,7 @@ calamine = "0.35.0"
 tauri-plugin-dialog = "2"
 bcrypt = "0.19.1"
 reqwest = { version = "0.13.3", features = ["json"] }
+regex = "1.12.4"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

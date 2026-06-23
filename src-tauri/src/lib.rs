@@ -36,6 +36,7 @@ pub fn run() {
             commands::masters::update_brand,
             commands::masters::delete_brand,
             commands::masters::auto_assign_brands,
+            commands::masters::discover_potential_brands,
             commands::masters::get_categories,
             commands::masters::add_category,
             commands::masters::update_category,
@@ -135,6 +136,15 @@ pub fn run() {
             
             // Phase 9 - Sync
             commands::sync::receive_cloud_sync,
+            commands::sync::join_workspace,
+            commands::sync::create_workspace,
+            commands::sync::create_workspace_invite,
+            commands::sync::get_sync_status,
+            commands::sync::leave_workspace,
+            commands::sync::sysadmin_login,
+            commands::sync::sysadmin_get_workspaces,
+            commands::sync::sysadmin_create_workspace,
+            commands::sync::sysadmin_create_workspace_invite,
 
             // Phase 10 - Maintenance
             commands::maintenance::optimize_database,

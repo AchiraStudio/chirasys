@@ -6,7 +6,7 @@ import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ThemeProvider defaultTheme="system" storageKey="chirasys-theme">
+    <ThemeProvider defaultTheme="light" storageKey="chirasys-theme">
       <App />
     </ThemeProvider>
   </React.StrictMode>

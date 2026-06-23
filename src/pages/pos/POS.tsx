@@ -520,6 +520,11 @@ export default function POS() {
           onClose={() => { setShowHistory(false); searchInputRef.current?.focus(); }}
         />
       )}
+      <TourGuide
+        steps={posTourSteps}
+        run={runTour}
+        onFinish={() => setRunTour(false)}
+      />
     </div>
   );
 }

@@ -1,9 +1,9 @@
 // src/pages/pos/PaymentModal.tsx
-// Full rebuild — Indonesian UI, split-tender, banks selector
+// Redesigned UI — Modern, responsive 2-column layout, quick-cash helpers, and theme consistency.
 import { useState, useEffect, useRef } from 'react';
 import { PosLine } from './POSStore';
 import { createSale, CreateSaleInput } from '../../lib/api';
-import { X, Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2 } from 'lucide-react';
+import { X, Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2, CheckCircle2, Ticket } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -14,7 +14,7 @@ interface PaymentModalProps {
     priceType: string;
     customerId?: string;
     taxAmount: number;
-    discountAmount: number; // ADDED
+    discountAmount: number;
     onClose: () => void;
     onSuccess: (saleId: string, print: boolean) => void;
 }
@@ -22,11 +22,11 @@ interface PaymentModalProps {
 interface Bank { id: string; name: string; code: string; }
 
 const PAYMENT_METHODS = [
-    { key: 'cash',      label: 'Tunai',        icon: Banknote,       color: 'emerald' },
-    { key: 'transfer',  label: 'Transfer Bank', icon: ArrowRightLeft,  color: 'blue'    },
-    { key: 'debit',     label: 'Kartu Debit',  icon: CreditCard,      color: 'indigo'  },
-    { key: 'credit',    label: 'Kartu Kredit', icon: CreditCard,      color: 'purple'  },
-    { key: 'qris',      label: 'QRIS/E-Money', icon: Smartphone,      color: 'amber'   },
+    { key: 'cash',      label: 'Tunai',        icon: Banknote,       colorClass: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
+    { key: 'transfer',  label: 'Transfer',     icon: ArrowRightLeft,  colorClass: 'text-blue-500 bg-blue-500/10 border-blue-500/20'    },
+    { key: 'debit',     label: 'Debit Card',   icon: CreditCard,      colorClass: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20'  },
+    { key: 'credit',    label: 'Kredit Card',  icon: CreditCard,      colorClass: 'text-purple-500 bg-purple-500/10 border-purple-500/20'  },
+    { key: 'qris',      label: 'QRIS',         icon: Smartphone,      colorClass: 'text-amber-500 bg-amber-500/10 border-amber-500/20'   },
 ] as const;
 
 type MethodKey = typeof PAYMENT_METHODS[number]['key'];
@@ -35,11 +35,12 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
     const [amounts, setAmounts] = useState<Record<MethodKey, string>>({
         cash: total.toString(), transfer: '', debit: '', credit: '', qris: ''
     });
+    const [activeMethod, setActiveMethod] = useState<MethodKey>('cash');
     const [bankIds, setBankIds] = useState<Record<string, string>>({ debit: '', credit: '', transfer: '' });
     const [banks, setBanks] = useState<Bank[]>([]);
     const [voucher, setVoucher] = useState('');
     const [loading, setLoading] = useState(false);
-    const cashInputRef = useRef<HTMLInputElement>(null);
+    const amountInputRef = useRef<HTMLInputElement>(null);
     const { user } = useAuthStore();
 
     const totalBayar = PAYMENT_METHODS.reduce((sum, m) => sum + (parseFloat(amounts[m.key]) || 0), 0);
@@ -49,9 +50,14 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
     useEffect(() => {
         // Load banks from DB
         invoke<Bank[]>('get_banks').then(setBanks).catch(() => {});
-        // Focus cash input
-        setTimeout(() => cashInputRef.current?.focus(), 100);
+        // Focus active input
+        setTimeout(() => amountInputRef.current?.focus(), 150);
     }, []);
+
+    useEffect(() => {
+        // Focus input when active method changes
+        amountInputRef.current?.focus();
+    }, [activeMethod]);
 
     // Keyboard shortcut: F10 = Simpan, Alt+F10 = Simpan & Cetak, ESC = close
     useEffect(() => {
@@ -71,12 +77,24 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
     };
 
     const handleExact = () => {
-        // Fill remaining in cash
-        const nonCash = PAYMENT_METHODS
-            .filter(m => m.key !== 'cash')
+        const nonActive = PAYMENT_METHODS
+            .filter(m => m.key !== activeMethod)
             .reduce((sum, m) => sum + (parseFloat(amounts[m.key]) || 0), 0);
-        const remaining = Math.max(0, total - nonCash);
-        setAmounts(prev => ({ ...prev, cash: remaining > 0 ? remaining.toString() : '' }));
+        const remaining = Math.max(0, total - nonActive);
+        setAmount(activeMethod, remaining > 0 ? remaining.toString() : '');
+    };
+
+    const handleQuickCash = (value: number, type: 'add' | 'set') => {
+        const currentVal = parseFloat(amounts[activeMethod]) || 0;
+        if (type === 'add') {
+            setAmount(activeMethod, (currentVal + value).toString());
+        } else {
+            setAmount(activeMethod, value.toString());
+        }
+    };
+
+    const handleClear = () => {
+        setAmount(activeMethod, '');
     };
 
     const handlePay = async (print: boolean) => {
@@ -126,141 +144,269 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#0B0F19] rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-200/80 dark:border-slate-800/85 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+                
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-                    <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">PEMBAYARAN</h2>
-                    <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 dark:border-slate-800/60">
+                    <div>
+                        <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Checkout Transaksi</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pilih metode pembayaran dan masukkan jumlah bayar</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all">
                         <X size={20} />
                     </button>
                 </div>
 
-                {/* Total Banner */}
-                <div className="mx-6 mt-5 p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-700/50 rounded-2xl text-center">
-                    <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">TOTAL TAGIHAN</p>
-                    <p className="text-3xl font-extrabold text-amber-700 dark:text-amber-300">
-                        Rp {total.toLocaleString('id-ID')}
-                    </p>
-                </div>
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 grid grid-cols-1 md:grid-cols-12 gap-8">
+                    
+                    {/* Left Column: Payment Inputs & Methods (7 cols) */}
+                    <div className="md:col-span-7 space-y-6">
+                        
+                        {/* Payment Methods Grid Selector */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-3">Metode Pembayaran</label>
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                {PAYMENT_METHODS.map((method) => {
+                                    const Icon = method.icon;
+                                    const isActive = activeMethod === method.key;
+                                    const hasValue = parseFloat(amounts[method.key]) > 0;
+                                    return (
+                                        <button
+                                            key={method.key}
+                                            onClick={() => setActiveMethod(method.key)}
+                                            className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center gap-2 border transition-all text-center group cursor-pointer ${
+                                                isActive 
+                                                    ? 'bg-brand/10 border-brand text-brand shadow-sm shadow-brand/10' 
+                                                    : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+                                            }`}
+                                        >
+                                            <div className={`p-2.5 rounded-xl transition-colors ${method.colorClass}`}>
+                                                <Icon size={20} />
+                                            </div>
+                                            <span className="text-xs font-bold tracking-tight">{method.label}</span>
+                                            
+                                            {/* Badge indicating this method has an entered amount */}
+                                            {hasValue && !isActive && (
+                                                <div className="absolute top-2 right-2 text-emerald-500 dark:text-emerald-400">
+                                                    <CheckCircle2 size={14} className="fill-emerald-500/10" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
-                {/* Payment Methods */}
-                <div className="px-6 py-4 space-y-3">
-                    {PAYMENT_METHODS.map((method) => {
-                        const Icon = method.icon;
-                        const needsBank = ['transfer', 'debit', 'credit'].includes(method.key);
-                        return (
-                            <div key={method.key}>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-32 flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 shrink-0">
-                                        <Icon size={15} className="text-slate-500" />
-                                        {method.label}
-                                    </div>
-                                    <div className="flex-1 relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-medium">Rp</span>
-                                        <input
-                                            ref={method.key === 'cash' ? cashInputRef : undefined}
-                                            type="number"
-                                            value={amounts[method.key]}
-                                            onChange={e => setAmount(method.key, e.target.value)}
-                                            placeholder="0"
-                                            className="w-full pl-10 pr-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand outline-none text-right"
-                                        />
-                                    </div>
-                                    {method.key === 'cash' && (
+                        {/* Input Field for Active Method */}
+                        <div className="bg-slate-50/50 dark:bg-slate-900/35 border border-slate-100 dark:border-slate-800/80 rounded-3xl p-5 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                    Jumlah ({PAYMENT_METHODS.find(m => m.key === activeMethod)?.label})
+                                </span>
+                                <button
+                                    onClick={handleClear}
+                                    className="text-xs font-bold text-rose-500 dark:text-rose-400 hover:underline"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-lg font-bold">Rp</span>
+                                <input
+                                    ref={amountInputRef}
+                                    type="number"
+                                    value={amounts[activeMethod]}
+                                    onChange={e => setAmount(activeMethod, e.target.value)}
+                                    placeholder="0"
+                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl text-xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-brand focus:border-brand outline-none text-right shadow-inner"
+                                />
+                            </div>
+
+                            {/* Bank Selection dropdown if applicable */}
+                            {['transfer', 'debit', 'credit'].includes(activeMethod) && (
+                                <div className="space-y-2 pt-2 animate-in slide-in-from-top-2 duration-200">
+                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">Pilih Rekening Bank</label>
+                                    <select
+                                        value={bankIds[activeMethod] || ''}
+                                        onChange={e => setBankIds(prev => ({ ...prev, [activeMethod]: e.target.value }))}
+                                        className="w-full bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-brand focus:border-brand outline-none shadow-sm"
+                                    >
+                                        <option value="">-- Pilih Bank --</option>
+                                        {banks.map(b => (
+                                            <option key={b.id} value={b.id}>{b.code} — {b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Quick Cash Buttons (Only for Tunai/Cash) */}
+                            {activeMethod === 'cash' && (
+                                <div className="space-y-2 pt-2">
+                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Bantuan Uang Tunai</label>
+                                    <div className="grid grid-cols-3 gap-2">
                                         <button
                                             onClick={handleExact}
-                                            className="text-xs font-bold text-brand hover:underline shrink-0 px-2"
+                                            className="py-2.5 bg-brand/5 dark:bg-brand/10 hover:bg-brand/10 dark:hover:bg-brand/20 text-brand font-bold text-xs rounded-xl border border-brand/10 transition-colors"
                                         >
-                                            Pas
+                                            Uang Pas
                                         </button>
-                                    )}
-                                </div>
-                                {needsBank && parseFloat(amounts[method.key]) > 0 && (
-                                    <div className="ml-[9.5rem] mt-1.5">
-                                        <select
-                                            value={bankIds[method.key] || ''}
-                                            onChange={e => setBankIds(prev => ({ ...prev, [method.key]: e.target.value }))}
-                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none"
+                                        <button
+                                            onClick={() => handleQuickCash(50000, 'set')}
+                                            className="py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors"
                                         >
-                                            <option value="">-- Pilih Bank --</option>
-                                            {banks.map(b => (
-                                                <option key={b.id} value={b.id}>{b.code} — {b.name}</option>
-                                            ))}
-                                        </select>
+                                            Rp 50.000
+                                        </button>
+                                        <button
+                                            onClick={() => handleQuickCash(100000, 'set')}
+                                            className="py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors"
+                                        >
+                                            Rp 100.000
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <button
+                                            onClick={() => handleQuickCash(10000, 'add')}
+                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors"
+                                        >
+                                            +10.000
+                                        </button>
+                                        <button
+                                            onClick={() => handleQuickCash(20000, 'add')}
+                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors"
+                                        >
+                                            +20.000
+                                        </button>
+                                        <button
+                                            onClick={() => handleQuickCash(50000, 'add')}
+                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors"
+                                        >
+                                            +50.000
+                                        </button>
+                                        <button
+                                            onClick={() => handleQuickCash(100000, 'add')}
+                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors"
+                                        >
+                                            +100.000
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Split Tender Overview (Summary of entered payments) */}
+                        {PAYMENT_METHODS.some(m => parseFloat(amounts[m.key]) > 0 && m.key !== activeMethod) && (
+                            <div className="border border-slate-100 dark:border-slate-800 rounded-3xl p-5 space-y-3">
+                                <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Rincian Split Payment</span>
+                                <div className="space-y-2">
+                                    {PAYMENT_METHODS.map(m => {
+                                        const amount = parseFloat(amounts[m.key]) || 0;
+                                        if (amount === 0) return null;
+                                        return (
+                                            <div key={m.key} className="flex justify-between items-center text-sm">
+                                                <span className="font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                                                    <span className="w-2 h-2 rounded-full bg-slate-400"></span> {m.label}
+                                                </span>
+                                                <span className="font-bold text-slate-900 dark:text-white">Rp {amount.toLocaleString('id-ID')}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Voucher Section */}
+                        <div className="bg-slate-50/30 dark:bg-slate-900/10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3">
+                            <div className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg">
+                                <Ticket size={18} />
+                            </div>
+                            <div className="flex-1">
+                                <input
+                                    type="text"
+                                    value={voucher}
+                                    onChange={e => setVoucher(e.target.value.toUpperCase())}
+                                    placeholder="Masukkan kode voucher/promo..."
+                                    className="w-full bg-transparent border-none outline-none text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-0 p-0"
+                                />
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Right Column: Billing Summary & Actions (5 cols) */}
+                    <div className="md:col-span-5 flex flex-col justify-between space-y-6">
+                        
+                        {/* Summary Sticky/Visual Card */}
+                        <div className="bg-slate-900 text-white rounded-3xl p-6 space-y-6 shadow-xl relative overflow-hidden dark:bg-slate-900/80 dark:border dark:border-slate-800">
+                            
+                            {/* Abstract gradient backdrop */}
+                            <div className="absolute top-0 right-0 w-48 h-48 bg-brand opacity-25 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                            
+                            <div className="space-y-4 relative z-10">
+                                <div>
+                                    <p className="text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">Total Tagihan</p>
+                                    <h3 className="text-3xl font-black text-white mt-1">Rp {total.toLocaleString('id-ID')}</h3>
+                                </div>
+                                
+                                <div className="h-px bg-slate-800"></div>
+
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-semibold text-slate-400">Total Pembayaran</span>
+                                    <span className="text-base font-bold text-slate-200">Rp {totalBayar.toLocaleString('id-ID')}</span>
+                                </div>
+
+                                {kembali > 0 ? (
+                                    <div className="flex justify-between items-center pt-2">
+                                        <span className="text-xs font-bold text-emerald-400">Uang Kembalian</span>
+                                        <span className="text-xl font-extrabold text-emerald-400">Rp {kembali.toLocaleString('id-ID')}</span>
+                                    </div>
+                                ) : totalBayar > 0 && totalBayar < total ? (
+                                    <div className="flex justify-between items-center pt-2">
+                                        <span className="text-xs font-bold text-rose-400">Kekurangan</span>
+                                        <span className="text-xl font-extrabold text-rose-400">Rp {(total - totalBayar).toLocaleString('id-ID')}</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-between items-center pt-2">
+                                        <span className="text-xs font-bold text-amber-400">Status</span>
+                                        <span className="text-xs font-bold bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full border border-amber-500/10">Belum Lunas</span>
                                     </div>
                                 )}
                             </div>
-                        );
-                    })}
-                </div>
-
-                {/* Voucher */}
-                <div className="px-6 pb-3">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-slate-500 w-32 shrink-0">Kode Voucher</span>
-                        <input
-                            type="text"
-                            value={voucher}
-                            onChange={e => setVoucher(e.target.value.toUpperCase())}
-                            placeholder="Masukkan kode voucher..."
-                            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand text-slate-900 dark:text-white"
-                        />
-                    </div>
-                </div>
-
-                {/* Total Bayar & Kembali */}
-                <div className="px-6 pb-4 space-y-2">
-                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/50 rounded-xl flex justify-between items-center">
-                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">TOTAL BAYAR</span>
-                        <span className="text-lg font-extrabold text-emerald-700 dark:text-emerald-300">
-                            Rp {totalBayar.toLocaleString('id-ID')}
-                        </span>
-                    </div>
-                    {kembali > 0 && (
-                        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700/50 rounded-xl flex justify-between items-center">
-                            <span className="text-sm font-bold text-orange-700 dark:text-orange-400">KEMBALIAN</span>
-                            <span className="text-lg font-extrabold text-orange-700 dark:text-orange-300">
-                                Rp {kembali.toLocaleString('id-ID')}
-                            </span>
                         </div>
-                    )}
-                    {totalBayar > 0 && totalBayar < total && (
-                        <div className="p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700/50 rounded-xl flex justify-between items-center">
-                            <span className="text-sm font-bold text-rose-700 dark:text-rose-400">KURANG</span>
-                            <span className="text-lg font-extrabold text-rose-700 dark:text-rose-300">
-                                Rp {(total - totalBayar).toLocaleString('id-ID')}
-                            </span>
+
+                        {/* Action Buttons */}
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => handlePay(true)}
+                                disabled={!isReady || loading}
+                                className="w-full py-4 bg-brand hover:bg-blue-600 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold shadow-lg shadow-brand/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+                                <span>{loading ? 'Memproses...' : 'Simpan & Cetak (Alt+F10)'}</span>
+                            </button>
+
+                            <button
+                                onClick={() => handlePay(false)}
+                                disabled={!isReady || loading}
+                                className="w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                Simpan Transaksi (F10)
+                            </button>
+
+                            <button
+                                onClick={onClose}
+                                className="w-full py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer"
+                            >
+                                Batal (ESC)
+                            </button>
                         </div>
-                    )}
+
+                    </div>
+
                 </div>
 
-                {/* Action Buttons */}
-                <div className="px-6 pb-6 flex flex-col gap-3">
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => handlePay(false)}
-                            disabled={!isReady || loading}
-                            className="flex-[1] py-3.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                        >
-                            Simpan (F10)
-                        </button>
-                        <button
-                            onClick={() => handlePay(true)}
-                            disabled={!isReady || loading}
-                            className="flex-[2] py-3.5 bg-brand text-white rounded-xl text-sm font-bold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                        >
-                            {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                            {loading ? 'Memproses...' : 'Simpan + Cetak (Alt+F10)'}
-                        </button>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="w-full py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                    >
-                        Batal (ESC)
-                    </button>
-                </div>
             </div>
         </div>
     );

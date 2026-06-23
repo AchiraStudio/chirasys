@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand: #2563eb;
+  --color-sidebar: #1e293b;
+  --color-sidebarHover: #334155;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Global Base Typography Setup */

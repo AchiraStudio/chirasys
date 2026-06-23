@@ -47,7 +47,7 @@ export default function StockOpname() {
     try {
       // Use large limit to load all items — same fix as BulkStockAdd
       const { getItemsFiltered } = await import('../../lib/api');
-      const res = await getItemsFiltered('', '', '', true, 1, 9999);
+      await getItemsFiltered('', '', '', true, 1, 9999);
       // Map to StockOverviewRow-compatible structure via getStockOverview
       const data = await getStockOverview(DEFAULT_BRANCH);
       setItems(data);
@@ -202,12 +202,12 @@ export default function StockOpname() {
                         <span className="text-xs text-slate-400 italic">belum dihitung</span>
                       ) : (
                         <span className={`font-mono font-bold ${
-                          (actualQty[item.item_id] - item.current_qty) > 0 ? 'text-emerald-600' : 
-                          (actualQty[item.item_id] - item.current_qty) < 0 ? 'text-rose-600' : 
+                          diff > 0 ? 'text-emerald-600' : 
+                          diff < 0 ? 'text-rose-600' : 
                           'text-slate-400'
                         }`}>
-                          {(actualQty[item.item_id] - item.current_qty) > 0 ? '+' : ''}
-                          {(actualQty[item.item_id] - item.current_qty)}
+                          {diff > 0 ? '+' : ''}
+                          {diff}
                         </span>
                       )}
                     </td>

@@ -89,6 +89,8 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/023_fix_stock_ledger_trigger.sql"), 23),
         (include_str!("./migrations/024_master_data_sync.sql"), 24),
         (include_str!("./migrations/025_fix_sales_sync_trigger.sql"), 25),
+        (include_str!("./migrations/026_workspace.sql"), 26),
+        (include_str!("./migrations/027_deduplicate_masters.sql"), 27),
     ];
 
     for (sql, version) in migrations {

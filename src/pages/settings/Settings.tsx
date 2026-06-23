@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon } from 'lucide-react';
-import { optimizeDatabase, getSettings, setSetting } from '../../lib/api';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut } from 'lucide-react';
+import { optimizeDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import UserManagement from './UserManagement';
 
@@ -46,11 +46,25 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [resetTarget, setResetTarget] = useState<'sales' | 'inventory' | 'all' | 'maintenance' | null>(null);
   const [confirmText, setConfirmText] = useState('');
-  const [activeTab, setActiveTab] = useState<'system' | 'users'>('system');
+  const [activeTab, setActiveTab] = useState<'system' | 'users' | 'sync'>('system');
+
+  // Sync / workspace state
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [inviteRole, setInviteRole] = useState<'admin' | 'worker'>('worker');
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   useEffect(() => {
     loadSettings();
+    loadSyncStatus();
   }, []);
+
+  const loadSyncStatus = async () => {
+    try {
+      const s = await getSyncStatus();
+      setSyncStatus(s);
+    } catch { /* offline */ }
+  };
 
   const loadSettings = async () => {
     try {
@@ -98,6 +112,28 @@ export default function Settings() {
     }
   };
 
+  const handleGenerateInvite = async () => {
+    setInviteLoading(true);
+    setInviteToken(null);
+    try {
+      const token = await createWorkspaceInvite(inviteRole);
+      setInviteToken(token);
+    } catch (e: any) {
+      alert(`Failed to generate invite: ${e.message || e}`);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleLeaveWorkspace = async () => {
+    if (!confirm('Leave workspace? All local data stays, but cloud sync will stop.')) return;
+    try {
+      await leaveWorkspace();
+      setSyncStatus(null);
+      await loadSyncStatus();
+    } catch (e) { console.error(e); }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6 flex flex-col gap-6 animate-in fade-in duration-300 max-w-4xl mx-auto w-full">
       <div className="flex justify-between items-end">
@@ -120,6 +156,19 @@ export default function Settings() {
         >
           Konfigurasi Umum
         </button>
+        <button
+          onClick={() => { setActiveTab('sync'); loadSyncStatus(); }}
+          className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'sync' 
+              ? 'border-brand text-brand' 
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          <Globe size={14} /> Cloud & Sync
+          {syncStatus?.pending_count ? (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{syncStatus.pending_count}</span>
+          ) : null}
+        </button>
         {isAdmin && (
           <button
             onClick={() => setActiveTab('users')}
@@ -136,6 +185,115 @@ export default function Settings() {
 
       {activeTab === 'users' ? (
         <UserManagement />
+      ) : activeTab === 'sync' ? (
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Workspace Status */}
+          <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col gap-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-brand/10 text-brand rounded-xl"><Globe size={20} /></div>
+                <div>
+                  <h2 className="font-bold text-slate-900 dark:text-white">Workspace</h2>
+                  <p className="text-xs text-slate-500">Cloud sync status</p>
+                </div>
+              </div>
+              <button onClick={loadSyncStatus} className="p-2 text-slate-400 hover:text-brand rounded-lg hover:bg-brand/10 transition-colors">
+                <RefreshCw size={16} />
+              </button>
+            </div>
+
+            {syncStatus?.workspace_id ? (
+              <>
+                <div className="flex items-center gap-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl">
+                  <CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">{syncStatus.workspace_name}</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-500 font-mono">{syncStatus.workspace_code}</p>
+                  </div>
+                  <Wifi size={16} className="text-emerald-500" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending</p>
+                    <p className={`text-2xl font-black mt-1 ${syncStatus.pending_count > 0 ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.pending_count}</p>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Failed</p>
+                    <p className={`text-2xl font-black mt-1 ${syncStatus.failed_count > 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.failed_count}</p>
+                  </div>
+                </div>
+                {syncStatus.last_synced && (
+                  <p className="text-xs text-slate-400">Last synced: {new Date(syncStatus.last_synced).toLocaleString()}</p>
+                )}
+                <button
+                  onClick={handleLeaveWorkspace}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-rose-200 dark:border-rose-800/50 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-sm font-semibold transition-colors"
+                >
+                  <LogOut size={16} /> Leave Workspace
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <WifiOff size={32} className="text-slate-300 dark:text-slate-600" />
+                <p className="text-sm font-medium text-slate-500">Not connected to a workspace.</p>
+                <p className="text-xs text-slate-400">Log out and use the workspace button on the login screen to connect.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Invite Generator (admin only) */}
+          {isAdmin && syncStatus?.workspace_id && (
+            <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col gap-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 rounded-xl"><Link2 size={20} /></div>
+                <div>
+                  <h2 className="font-bold text-slate-900 dark:text-white">Generate Invite</h2>
+                  <p className="text-xs text-slate-500">Share a code so others can join your workspace</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Role for new member</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['admin', 'worker'] as const).map(r => (
+                    <label key={r} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+                      inviteRole === r ? 'bg-brand/5 border-brand' : 'border-slate-200 dark:border-slate-700 hover:border-brand/50'
+                    }`}>
+                      <input type="radio" name="role" value={r} checked={inviteRole === r} onChange={() => setInviteRole(r)} className="text-brand" />
+                      <span className="text-sm font-semibold capitalize text-slate-700 dark:text-slate-300">{r}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={handleGenerateInvite}
+                disabled={inviteLoading}
+                className="flex items-center justify-center gap-2 w-full bg-brand hover:bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm transition-all shadow-md shadow-brand/20 disabled:opacity-50"
+              >
+                {inviteLoading ? <Loader2 size={18} className="animate-spin" /> : <Link2 size={18} />}
+                Generate Invite Token
+              </button>
+
+              {inviteToken && (
+                <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Invite Token (valid 7 days)</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs font-mono text-brand break-all">{inviteToken}</code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(inviteToken); }}
+                      className="flex-shrink-0 p-2 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
+                      title="Copy"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
         {/* DB Reset Card — Admin Only */}

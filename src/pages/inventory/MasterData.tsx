@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Tag, FolderTree, Plus, Loader2, Trash2, Edit2, Save, X, ChevronRight } from 'lucide-react';
-import { getBrands, addBrand, updateBrand, deleteBrand, getCategories, addCategory, updateCategory, deleteCategory, Brand, Category } from '../../lib/api';
+import { Tag, FolderTree, Plus, Loader2, Trash2, Edit2, Save, X, ChevronRight, Wand2 } from 'lucide-react';
+import { getBrands, addBrand, updateBrand, deleteBrand, getCategories, addCategory, updateCategory, deleteCategory, Brand, Category, discoverPotentialBrands, DiscoveredBrand } from '../../lib/api';
 
 export default function MasterData() {
   const [activeTab, setActiveTab] = useState<'categories' | 'brands'>('categories');
@@ -14,6 +14,12 @@ export default function MasterData() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+
+  const [showDiscovery, setShowDiscovery] = useState(false);
+  const [discoveredBrands, setDiscoveredBrands] = useState<DiscoveredBrand[]>([]);
+  const [selectedDiscovered, setSelectedDiscovered] = useState<Set<string>>(new Set());
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [isAddingDiscovered, setIsAddingDiscovered] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -63,6 +69,48 @@ export default function MasterData() {
       else { await deleteCategory(id); }
       loadData();
     } catch (error) { alert("Delete failed. Item might be in use."); }
+  };
+
+  const handleDiscover = async () => {
+    setShowDiscovery(true);
+    setIsDiscovering(true);
+    setDiscoveredBrands([]);
+    setSelectedDiscovered(new Set());
+    try {
+      const results = await discoverPotentialBrands();
+      // Filter out brands that already exist
+      const existingNames = new Set(brands.map(b => b.name.toUpperCase()));
+      setDiscoveredBrands(results.filter(r => !existingNames.has(r.name.toUpperCase())));
+    } catch (e) {
+      console.error(e);
+      alert("Failed to discover brands.");
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
+  const handleAddDiscovered = async () => {
+    if (selectedDiscovered.size === 0) return;
+    setIsAddingDiscovered(true);
+    try {
+      // Add all selected brands sequentially
+      for (const bName of Array.from(selectedDiscovered)) {
+        await addBrand(bName);
+      }
+      
+      // Auto assign
+      const { invoke } = await import('@tauri-apps/api/core');
+      const msg = await invoke('auto_assign_brands');
+      alert(msg as string);
+
+      setShowDiscovery(false);
+      loadData();
+    } catch (e) {
+      console.error(e);
+      alert("Error adding brands: " + e);
+    } finally {
+      setIsAddingDiscovered(false);
+    }
   };
 
   const renderCategoryTree = (parentId: string | null = null, depth = 0) => {
@@ -125,6 +173,11 @@ export default function MasterData() {
             <button type="submit" disabled={isSubmitting || !newItemName.trim()} className="bg-brand text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-50 flex items-center gap-2">
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Save
             </button>
+            {activeTab === 'brands' && (
+              <button type="button" onClick={handleDiscover} className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-emerald-500/20 active:scale-[0.98] flex items-center gap-2 whitespace-nowrap">
+                <Wand2 size={18} /> Discover Brands
+              </button>
+            )}
           </form>
 
           <div className="flex-1 min-h-0">
@@ -156,6 +209,104 @@ export default function MasterData() {
           </div>
         </div>
       </div>
+
+      {showDiscovery && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDiscovery(false)} />
+          <div className="relative bg-white dark:bg-[#0B0F19] rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-emerald-50/50 dark:bg-emerald-900/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-lg">
+                  <Wand2 size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white">Discover Potential Brands</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Scanning unassigned medicines for brand names...</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDiscovery(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/50 dark:bg-transparent">
+              {isDiscovering ? (
+                <div className="flex flex-col items-center py-20 text-slate-500">
+                  <Loader2 size={40} className="animate-spin mb-4 text-emerald-500" />
+                  <p className="font-medium">Analyzing inventory...</p>
+                </div>
+              ) : discoveredBrands.length === 0 ? (
+                <div className="text-center py-20">
+                  <Tag size={48} className="mx-auto text-slate-300 dark:text-slate-700 mb-4" />
+                  <p className="text-slate-600 dark:text-slate-400 font-medium">No potential new brands discovered.</p>
+                  <p className="text-sm text-slate-500 mt-1">All items might already be assigned, or no new patterns were found.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center px-1">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Found <span className="font-bold text-slate-900 dark:text-white">{discoveredBrands.length}</span> potential brands. Select ones to add:</p>
+                    <button 
+                      onClick={() => {
+                        if (selectedDiscovered.size === discoveredBrands.length) {
+                          setSelectedDiscovered(new Set());
+                        } else {
+                          setSelectedDiscovered(new Set(discoveredBrands.map(b => b.name)));
+                        }
+                      }}
+                      className="text-sm font-semibold text-brand hover:text-blue-700"
+                    >
+                      {selectedDiscovered.size === discoveredBrands.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {discoveredBrands.map((brand, idx) => (
+                      <label 
+                        key={idx}
+                        className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                          selectedDiscovered.has(brand.name) 
+                            ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50 shadow-sm' 
+                            : 'bg-white border-slate-200 hover:border-emerald-300 dark:bg-[#0B0F19] dark:border-slate-800 dark:hover:border-emerald-700/50'
+                        }`}
+                      >
+                        <input 
+                          type="checkbox" 
+                          className="mt-1 w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                          checked={selectedDiscovered.has(brand.name)}
+                          onChange={(e) => {
+                            const newSet = new Set(selectedDiscovered);
+                            if (e.target.checked) newSet.add(brand.name);
+                            else newSet.delete(brand.name);
+                            setSelectedDiscovered(newSet);
+                          }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-900 dark:text-white text-sm truncate" title={brand.name}>{brand.name}</p>
+                          <p className="text-[10px] font-semibold text-slate-500 uppercase mt-0.5">{brand.count} items</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B0F19] flex justify-end gap-3">
+              <button onClick={() => setShowDiscovery(false)} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                Cancel
+              </button>
+              <button 
+                onClick={handleAddDiscovered} 
+                disabled={isAddingDiscovered || selectedDiscovered.size === 0} 
+                className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-emerald-500/20 disabled:opacity-50"
+              >
+                {isAddingDiscovered ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                Add {selectedDiscovered.size} Brands
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

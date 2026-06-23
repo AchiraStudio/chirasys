@@ -121,6 +121,9 @@ export const getBrands = async (): Promise<Brand[]> => invoke('get_brands');
 export const addBrand = async (name: string): Promise<Brand> => invoke('add_brand', { name });
 export const updateBrand = async (id: string, name: string): Promise<Brand> => invoke('update_brand', { id, name });
 export const deleteBrand = async (id: string): Promise<void> => invoke('delete_brand', { id });
+
+export interface DiscoveredBrand { name: string; count: number; }
+export const discoverPotentialBrands = async (): Promise<DiscoveredBrand[]> => invoke('discover_potential_brands');
 export const getCategories = async (): Promise<Category[]> => invoke('get_categories');
 export const addCategory = async (name: string, description?: string, color?: string, parentId?: string): Promise<Category> => invoke('add_category', { name, description: description || null, color: color || null, parentId: parentId || null });
 export const updateCategory = async (id: string, name: string): Promise<Category> => invoke('update_category', { id, name });
@@ -260,4 +263,36 @@ export const loginUser = async (username: string, passwordGuess: string): Promis
 export const getCurrentUser = async (token: string): Promise<UserInfo> => 
   invoke('get_current_user', { token });
 export const logoutUser = async (token: string): Promise<void> => 
-  invoke('logout', { token });
+  invoke('logout', { token });
+
+// --- Workspace & Sync ---
+export interface WorkspaceInfo { id: string; name: string; code: string; }
+export interface SyncStatus {
+  workspace_id: string;
+  workspace_name: string;
+  workspace_code: string;
+  pending_count: number;
+  failed_count: number;
+  last_synced: string | null;
+}
+export const joinWorkspace = async (codeOrToken: string): Promise<WorkspaceInfo> =>
+  invoke('join_workspace', { codeOrToken });
+export const createWorkspace = async (name: string, code: string): Promise<WorkspaceInfo> =>
+  invoke('create_workspace', { name, code });
+export const createWorkspaceInvite = async (role: string, email?: string): Promise<string> =>
+  invoke('create_workspace_invite', { role, email: email || null });
+export const getSyncStatus = async (): Promise<SyncStatus> =>
+  invoke('get_sync_status');
+export const leaveWorkspace = async (): Promise<void> =>
+  invoke('leave_workspace');
+
+// --- System Admin ---
+export interface WorkspaceListInfo { id: string; name: string; code: string; created_at: string; }
+export const sysadminLogin = async (username: string, passwordHash: string): Promise<boolean> =>
+  invoke('sysadmin_login', { username, passwordHash });
+export const sysadminGetWorkspaces = async (): Promise<WorkspaceListInfo[]> =>
+  invoke('sysadmin_get_workspaces');
+export const sysadminCreateWorkspace = async (name: string, code: string): Promise<WorkspaceInfo> =>
+  invoke('sysadmin_create_workspace', { name, code });
+export const sysadminCreateWorkspaceInvite = async (workspaceId: string, role: string): Promise<string> =>
+  invoke('sysadmin_create_workspace_invite', { workspaceId, role });
