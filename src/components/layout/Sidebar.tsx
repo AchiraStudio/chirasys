@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, ChevronDown, LogOut, Database, Pill, Truck, ClipboardList, Tag, BookOpen } from 'lucide-react';
-import { getLowStockAlerts, logoutUser } from '../../lib/api';
+import { getLowStockAlerts, logoutUser, getSyncStatus, SyncStatus } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 
 interface SidebarProps {
@@ -10,6 +10,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const { user, token, clearAuth } = useAuthStore();
 
   useEffect(() => {
@@ -19,6 +20,10 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
         .then(alerts => setLowStockCount(alerts.length))
         .catch(() => {});
     }
+    
+    getSyncStatus()
+      .then(s => setSyncStatus(s))
+      .catch(() => {});
   }, [user]);
 
   const handleLogout = async () => {
@@ -104,20 +109,28 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
       </nav>
 
       {/* User Profile Footer */}
-      <div onClick={handleLogout} className="p-4 m-3 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/30 flex items-center justify-between group hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:border-rose-200 dark:hover:border-rose-800/50 transition-all cursor-pointer">
-        <div className="flex items-center gap-3">
-          <div 
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-inner"
-            style={{ backgroundColor: user?.avatar_color || '#3B82F6' }}
-          >
-            {user?.name.substring(0, 2).toUpperCase() || 'U'}
+      <div className="mt-auto mx-3 mb-3 flex flex-col gap-1">
+        {syncStatus?.workspace_name && (
+          <div className="px-3 py-2.5 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/30 rounded-xl flex items-center justify-between">
+            <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">{syncStatus.workspace_name}</span>
+            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 bg-white dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded shadow-sm">{syncStatus.workspace_code}</span>
           </div>
-          <div>
-            <p className="text-sm font-semibold leading-none text-slate-900 dark:text-slate-200">{user?.name}</p>
-            <p className="text-[11px] text-slate-500 mt-1 capitalize">{user?.role}</p>
+        )}
+        <div onClick={handleLogout} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/30 flex items-center justify-between group hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:border-rose-200 dark:hover:border-rose-800/50 transition-all cursor-pointer">
+          <div className="flex items-center gap-3">
+            <div 
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-inner"
+              style={{ backgroundColor: user?.avatar_color || '#3B82F6' }}
+            >
+              {user?.name.substring(0, 2).toUpperCase() || 'U'}
+            </div>
+            <div>
+              <p className="text-sm font-semibold leading-none text-slate-900 dark:text-slate-200">{user?.name}</p>
+              <p className="text-[11px] text-slate-500 mt-1 capitalize">{user?.role}</p>
+            </div>
           </div>
+          <LogOut size={16} className="text-slate-500 dark:text-slate-500 group-hover:text-rose-500 dark:group-hover:text-rose-400 transition-colors" />
         </div>
-        <LogOut size={16} className="text-slate-500 dark:text-slate-500 group-hover:text-rose-500 dark:group-hover:text-rose-400 transition-colors" />
       </div>
     </aside>
   );

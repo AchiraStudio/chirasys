@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut } from 'lucide-react';
-import { optimizeDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace } from '../../lib/api';
+import { optimizeDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import UserManagement from './UserManagement';
 
@@ -293,6 +293,13 @@ export default function Settings() {
               )}
             </div>
           )}
+
+          {/* Sysadmin Only: Global Workspace Management */}
+          {user?.username === 'admin' && (
+            <div className="md:col-span-2">
+              <SysadminWorkspaceManagement />
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
@@ -535,3 +542,194 @@ function SettingRow({ config, onSave }: { config: { key: string; value: string; 
     </div>
   );
 }
+
+function SysadminWorkspaceManagement() {
+  const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newCode, setNewCode] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const [inviteWsId, setInviteWsId] = useState<string | null>(null);
+  const [inviteRole, setInviteRole] = useState<'admin' | 'worker'>('admin');
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  useEffect(() => {
+    loadWorkspaces();
+  }, []);
+
+  const loadWorkspaces = async () => {
+    setLoading(true);
+    try {
+      const data = await sysadminGetWorkspaces();
+      setWorkspaces(data);
+    } catch (e: any) {
+      setError(e.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    setError('');
+    try {
+      await sysadminCreateWorkspace(newName, newCode);
+      setShowCreate(false);
+      setNewName('');
+      setNewCode('');
+      await loadWorkspaces();
+    } catch (e: any) {
+      setError(e.message || String(e));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleGenerateInvite = async (wsId: string) => {
+    setInviteLoading(true);
+    setInviteToken(null);
+    try {
+      const token = await sysadminCreateWorkspaceInvite(wsId, inviteRole);
+      setInviteToken(token);
+    } catch (e: any) {
+      alert(`Failed to generate invite: ${e.message || e}`);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-indigo-200 dark:border-indigo-900 shadow-sm p-6 flex flex-col gap-5 mt-4">
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 rounded-xl">
+            <Globe size={20} />
+          </div>
+          <div>
+            <h2 className="font-bold text-slate-900 dark:text-white">System Admin Workspaces</h2>
+            <p className="text-xs text-slate-500">Manage all client workspaces</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowCreate(!showCreate)}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-semibold transition-all"
+        >
+          New Workspace
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-sm">
+          {error}
+        </div>
+      )}
+
+      {showCreate && (
+        <form onSubmit={handleCreate} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Workspace Name</label>
+              <input
+                type="text"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder="e.g. Apotek Maju Pusat"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-indigo-500 text-sm text-slate-900 dark:text-white"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Unique Code</label>
+              <input
+                type="text"
+                value={newCode}
+                onChange={e => setNewCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
+                placeholder="e.g. MAJU-01"
+                className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-indigo-500 uppercase font-mono text-sm text-slate-900 dark:text-white"
+                maxLength={32}
+                required
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
+            <button type="submit" disabled={creating} className="px-4 py-2 text-sm font-semibold bg-indigo-500 text-white hover:bg-indigo-600 rounded-lg flex items-center gap-2">
+              {creating && <Loader2 size={14} className="animate-spin" />}
+              Create
+            </button>
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center p-8"><Loader2 size={24} className="animate-spin text-indigo-500" /></div>
+      ) : workspaces.length === 0 ? (
+        <div className="text-center p-8 text-slate-500 text-sm">No workspaces found.</div>
+      ) : (
+        <div className="space-y-3">
+          {workspaces.map(ws => (
+            <div key={ws.id} className="p-3 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between group hover:border-indigo-300 transition-colors">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white">{ws.name}</h3>
+                <div className="flex items-center gap-3 mt-1">
+                  <code className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">{ws.code}</code>
+                </div>
+              </div>
+              
+              {inviteWsId === ws.id ? (
+                <div className="flex items-center gap-2">
+                  <select 
+                    value={inviteRole}
+                    onChange={e => setInviteRole(e.target.value as any)}
+                    className="text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="worker">Worker</option>
+                  </select>
+                  <button 
+                    onClick={() => handleGenerateInvite(ws.id)}
+                    disabled={inviteLoading}
+                    className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold rounded-md flex items-center gap-1"
+                  >
+                    {inviteLoading ? <Loader2 size={12} className="animate-spin" /> : 'Generate Invite'}
+                  </button>
+                  <button onClick={() => {setInviteWsId(null); setInviteToken(null);}} className="p-1.5 text-slate-400 hover:text-rose-500"><X size={14} /></button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setInviteWsId(ws.id); setInviteToken(null); }}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg"
+                >
+                  <Link2 size={14} /> Add User
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {inviteToken && (
+        <div className="mt-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-2">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Invite Token Generated</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-xs font-mono text-brand break-all p-2 bg-white dark:bg-slate-950 rounded border border-slate-200 dark:border-slate-700 select-all">{inviteToken}</code>
+            <button
+              onClick={() => navigator.clipboard.writeText(inviteToken)}
+              className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200 rounded-lg"
+              title="Copy"
+            >
+              <Copy size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
