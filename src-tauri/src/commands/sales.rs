@@ -382,7 +382,7 @@ pub async fn get_sale_detail(
 #[tauri::command]
 pub async fn create_sale_return(
     sale_id: String,
-    lines: Vec<crate::db::models::sales::SaleLineInput>,
+    lines: Vec<crate::db::models::sales::SaleReturnLineInput>,
     reason: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
@@ -406,8 +406,9 @@ pub async fn create_sale_return(
 
     for line in &lines {
         let line_id = Uuid::new_v4().to_string();
-        sqlx::query("INSERT INTO sale_return_lines (id, return_id, item_id, unit_id, qty) VALUES (?, ?, ?, ?, ?)")
-            .bind(&line_id).bind(&return_id).bind(&line.item_id).bind(&line.unit_id).bind(line.qty)
+        let refund_amount = line.qty * line.price;
+        sqlx::query("INSERT INTO sale_return_lines (id, return_id, sale_line_id, item_id, qty, refund_amount) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(&line_id).bind(&return_id).bind(&line.sale_line_id).bind(&line.item_id).bind(line.qty).bind(refund_amount)
             .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
         // Reverse stock ledger (IN)

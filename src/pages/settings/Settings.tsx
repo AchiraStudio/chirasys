@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut } from 'lucide-react';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock } from 'lucide-react';
 import { optimizeDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import UserManagement from './UserManagement';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 // Keys that should render as a <select> instead of a text input
 const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
@@ -36,17 +37,38 @@ const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
   ],
 };
 
+// Keys managed separately in the Profil section — hide from General list
+const PROFILE_KEYS = ['company_name', 'branch_name'];
+
 export default function Settings() {
   const { user } = useAuthStore();
+  const isOwner = user?.role === 'owner';
   const isAdmin = user?.role === 'admin' || user?.role === 'owner';
 
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [configs, setConfigs] = useState<{key: string, value: string, description?: string}[]>([]);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'system' | 'users' | 'sync'>('system');
+
+  // Profile settings
+  const [companyName, setCompanyName] = useState('');
+  const [branchName, setBranchName] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState('');
+
+  // Confirm modals
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    variant?: 'danger' | 'warning' | 'primary' | 'logout';
+    confirmLabel?: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  // DB Reset state
   const [resetTarget, setResetTarget] = useState<'sales' | 'inventory' | 'all' | 'maintenance' | null>(null);
   const [confirmText, setConfirmText] = useState('');
-  const [activeTab, setActiveTab] = useState<'system' | 'users' | 'sync'>('system');
 
   // Sync / workspace state
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
@@ -70,8 +92,33 @@ export default function Settings() {
     try {
       const data = await getSettings();
       setConfigs(data);
+      const co = data.find(s => s.key === 'company_name');
+      const br = data.find(s => s.key === 'branch_name');
+      if (co) setCompanyName(co.value);
+      if (br) setBranchName(br.value);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    setProfileSuccess('');
+    try {
+      if (isOwner) await setSetting('company_name', companyName);
+      if (isAdmin) await setSetting('branch_name', branchName);
+      setProfileSuccess('Tersimpan!');
+      setTimeout(() => setProfileSuccess(''), 3000);
+    } catch (e) {
+      setConfirmModal({
+        title: 'Gagal Menyimpan',
+        message: `Terjadi kesalahan: ${e}`,
+        variant: 'warning',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -94,7 +141,13 @@ export default function Settings() {
       setResetTarget(null);
       setConfirmText('');
     } catch (e) {
-      alert(`Reset failed: ${e}`);
+      setConfirmModal({
+        title: 'Reset Gagal',
+        message: `Reset gagal: ${e}`,
+        variant: 'danger',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
     } finally {
       setLoading(false);
     }
@@ -106,7 +159,13 @@ export default function Settings() {
       await setSetting(key, value);
       await loadSettings();
     } catch (e) {
-      alert(`Save failed: ${e}`);
+      setConfirmModal({
+        title: 'Gagal Menyimpan',
+        message: `Gagal menyimpan pengaturan: ${e}`,
+        variant: 'warning',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
     } finally {
       setSaving(false);
     }
@@ -119,20 +178,37 @@ export default function Settings() {
       const token = await createWorkspaceInvite(inviteRole);
       setInviteToken(token);
     } catch (e: any) {
-      alert(`Failed to generate invite: ${e.message || e}`);
+      setConfirmModal({
+        title: 'Gagal Generate Invite',
+        message: e.message || String(e),
+        variant: 'warning',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
     } finally {
       setInviteLoading(false);
     }
   };
 
-  const handleLeaveWorkspace = async () => {
-    if (!confirm('Leave workspace? All local data stays, but cloud sync will stop.')) return;
-    try {
-      await leaveWorkspace();
-      setSyncStatus(null);
-      await loadSyncStatus();
-    } catch (e) { console.error(e); }
+  const handleLeaveWorkspace = () => {
+    setConfirmModal({
+      title: 'Tinggalkan Workspace?',
+      message: 'Semua data lokal akan tetap tersimpan, tetapi cloud sync akan berhenti.',
+      variant: 'danger',
+      confirmLabel: 'Ya, Tinggalkan',
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try {
+          await leaveWorkspace();
+          setSyncStatus(null);
+          await loadSyncStatus();
+        } catch (e) { console.error(e); }
+      },
+    });
   };
+
+  // General configs minus the profile keys
+  const generalConfigs = configs.filter(c => !PROFILE_KEYS.includes(c.key));
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6 flex flex-col gap-6 animate-in fade-in duration-300 max-w-4xl mx-auto w-full">
@@ -226,18 +302,20 @@ export default function Settings() {
                 {syncStatus.last_synced && (
                   <p className="text-xs text-slate-400">Last synced: {new Date(syncStatus.last_synced).toLocaleString()}</p>
                 )}
-                <button
-                  onClick={handleLeaveWorkspace}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-rose-200 dark:border-rose-800/50 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-sm font-semibold transition-colors"
-                >
-                  <LogOut size={16} /> Leave Workspace
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={handleLeaveWorkspace}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-rose-200 dark:border-rose-800/50 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-sm font-semibold transition-colors"
+                  >
+                    <LogOut size={16} /> Leave Workspace
+                  </button>
+                )}
               </>
             ) : (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
                 <WifiOff size={32} className="text-slate-300 dark:text-slate-600" />
                 <p className="text-sm font-medium text-slate-500">Not connected to a workspace.</p>
-                <p className="text-xs text-slate-400">Log out and use the workspace button on the login screen to connect.</p>
+                <p className="text-xs text-slate-400">Use the workspace code field on the login screen to connect.</p>
               </div>
             )}
           </div>
@@ -303,99 +381,182 @@ export default function Settings() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
-        {/* DB Reset Card — Admin Only */}
-        {isAdmin && (
-          <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-rose-200 dark:border-rose-900 shadow-sm p-6 flex flex-col h-full">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-xl">
-                <Database size={24} />
+
+          {/* ── Profil Perusahaan & Cabang Card ── */}
+          <div className="md:col-span-2 bg-white dark:bg-[#0B0F19] rounded-2xl border border-brand/20 dark:border-brand/20 shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-brand/10 text-brand rounded-xl">
+                <Building2 size={22} />
               </div>
-              <div>
-                <h2 className="font-bold text-rose-600 dark:text-rose-500">Danger Zone</h2>
-                <p className="text-xs text-slate-500">Admin only — Data Wipe & Maintenance</p>
+              <div className="flex-1">
+                <h2 className="font-bold text-slate-900 dark:text-white">Profil Perusahaan & Cabang</h2>
+                <p className="text-xs text-slate-500">Ditampilkan di sidebar aplikasi</p>
               </div>
+              {profileSuccess && (
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 animate-in fade-in duration-200">
+                  <CheckCircle2 size={13} /> {profileSuccess}
+                </span>
+              )}
+              {profileSaving && <Loader2 size={14} className="animate-spin text-slate-400" />}
             </div>
-            
-            <div className="space-y-4 mt-2 flex-1">
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => setResetTarget('sales')}
-                  disabled={loading}
-                  className="w-full py-2.5 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-100 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-sm transition-all"
-                >
-                  Reset Data Penjualan (Sales)
-                </button>
-                <p className="text-[10px] text-slate-500 text-center">Menghapus transaksi POS, pembayaran, dan jurnal.</p>
+
+            <div className="grid md:grid-cols-2 gap-5">
+              {/* Company Name — Owner only */}
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-2">
+                  <Building2 size={11} /> Nama Perusahaan
+                  {!isOwner && <Lock size={11} className="text-slate-400 ml-1" />}
+                </label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                  disabled={!isOwner}
+                  placeholder="ChiraSys HQ"
+                  className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white outline-none transition-all ${
+                    isOwner
+                      ? 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-brand'
+                      : 'border-slate-100 dark:border-slate-800 opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900/50'
+                  }`}
+                />
+                {!isOwner && (
+                  <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
+                    <Lock size={9} /> Hanya dapat diubah oleh Owner
+                  </p>
+                )}
               </div>
 
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => setResetTarget('inventory')}
-                  disabled={loading}
-                  className="w-full py-2.5 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-100 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-sm transition-all"
-                >
-                  Reset Data Inventory (Stok)
-                </button>
-                <p className="text-[10px] text-slate-500 text-center">Menghapus mutasi stok dan data pembelian.</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => setResetTarget('all')}
-                  disabled={loading}
-                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-rose-600/20"
-                >
-                  Reset Semua Data (Factory Reset)
-                </button>
-                <p className="text-[10px] text-slate-500 text-center">Menghapus Master Data, Inventory, Sales, dan Antrian Sinkronisasi lokal.</p>
-              </div>
-
-              <div className="h-px bg-slate-100 dark:bg-slate-800 my-2"></div>
-              
-              <div className="flex justify-between items-center">
-                <button
-                  onClick={() => setResetTarget('maintenance')}
-                  disabled={loading}
-                  className="text-xs font-bold text-slate-500 hover:text-brand flex items-center gap-1"
-                >
-                  <Database size={12} /> Optimize DB (VACUUM)
-                </button>
-                {successMsg && (
-                  <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-                    <CheckCircle2 size={12} /> {successMsg}
-                  </span>
+              {/* Branch Name — Admin + Owner */}
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-2">
+                  <MapPin size={11} /> Nama Cabang
+                  {!isAdmin && <Lock size={11} className="text-slate-400 ml-1" />}
+                </label>
+                <input
+                  type="text"
+                  value={branchName}
+                  onChange={e => setBranchName(e.target.value)}
+                  disabled={!isAdmin}
+                  placeholder="Cabang Utama"
+                  className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white outline-none transition-all ${
+                    isAdmin
+                      ? 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-brand'
+                      : 'border-slate-100 dark:border-slate-800 opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900/50'
+                  }`}
+                />
+                {!isAdmin && (
+                  <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
+                    <Lock size={9} /> Hanya dapat diubah oleh Admin atau Owner
+                  </p>
                 )}
               </div>
             </div>
-          </div>
-        )}
 
-        {/* General Config Card */}
-        <div className={`bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 ${isAdmin ? '' : 'md:col-span-2'}`}>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-xl">
-              <Save size={24} />
-            </div>
-            <div>
-              <h2 className="font-bold text-slate-900 dark:text-white">General Configurations</h2>
-              <p className="text-xs text-slate-500">Global system keys</p>
-            </div>
-            {saving && <Loader2 size={14} className="animate-spin text-slate-400 ml-auto" />}
-          </div>
-          
-          <div className="space-y-4">
-            {configs.map((c) => (
-              <SettingRow key={c.key} config={c} onSave={handleSaveConfig} />
-            ))}
-            {configs.length === 0 && (
-              <p className="text-sm text-slate-500 italic">No configurations found.</p>
+            {isAdmin && (
+              <button
+                onClick={handleSaveProfile}
+                disabled={profileSaving}
+                className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold shadow-md shadow-brand/20 transition-all disabled:opacity-50"
+              >
+                {profileSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                Simpan Profil
+              </button>
             )}
           </div>
-        </div>
+
+          {/* DB Reset Card — Admin Only */}
+          {isAdmin && (
+            <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-rose-200 dark:border-rose-900 shadow-sm p-6 flex flex-col h-full">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-xl">
+                  <Database size={24} />
+                </div>
+                <div>
+                  <h2 className="font-bold text-rose-600 dark:text-rose-500">Danger Zone</h2>
+                  <p className="text-xs text-slate-500">Admin only — Data Wipe & Maintenance</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4 mt-2 flex-1">
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => setResetTarget('sales')}
+                    disabled={loading}
+                    className="w-full py-2.5 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-100 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-sm transition-all"
+                  >
+                    Reset Data Penjualan (Sales)
+                  </button>
+                  <p className="text-[10px] text-slate-500 text-center">Menghapus transaksi POS, pembayaran, dan jurnal.</p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => setResetTarget('inventory')}
+                    disabled={loading}
+                    className="w-full py-2.5 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-100 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-sm transition-all"
+                  >
+                    Reset Data Inventory (Stok)
+                  </button>
+                  <p className="text-[10px] text-slate-500 text-center">Menghapus mutasi stok dan data pembelian.</p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => setResetTarget('all')}
+                    disabled={loading}
+                    className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-rose-600/20"
+                  >
+                    Reset Semua Data (Factory Reset)
+                  </button>
+                  <p className="text-[10px] text-slate-500 text-center">Menghapus Master Data, Inventory, Sales, dan Antrian Sinkronisasi lokal.</p>
+                </div>
+
+                <div className="h-px bg-slate-100 dark:bg-slate-800 my-2"></div>
+                
+                <div className="flex justify-between items-center">
+                  <button
+                    onClick={() => setResetTarget('maintenance')}
+                    disabled={loading}
+                    className="text-xs font-bold text-slate-500 hover:text-brand flex items-center gap-1"
+                  >
+                    <Database size={12} /> Optimize DB (VACUUM)
+                  </button>
+                  {successMsg && (
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                      <CheckCircle2 size={12} /> {successMsg}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* General Config Card */}
+          <div className={`bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 ${isAdmin ? '' : 'md:col-span-2'}`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-xl">
+                <Save size={24} />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-900 dark:text-white">General Configurations</h2>
+                <p className="text-xs text-slate-500">Global system keys</p>
+              </div>
+              {saving && <Loader2 size={14} className="animate-spin text-slate-400 ml-auto" />}
+            </div>
+            
+            <div className="space-y-4">
+              {generalConfigs.map((c) => (
+                <SettingRow key={c.key} config={c} onSave={handleSaveConfig} disabled={!isAdmin} />
+              ))}
+              {generalConfigs.length === 0 && (
+                <p className="text-sm text-slate-500 italic">No configurations found.</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Reset DB Warning Modal */}
+      {/* DB Reset Warning Modal */}
       {resetTarget !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-[#0B0F19] rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
@@ -462,11 +623,23 @@ export default function Settings() {
           </div>
         </div>
       )}
+
+      {/* Global Confirm Modal */}
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          variant={confirmModal.variant ?? 'danger'}
+          confirmLabel={confirmModal.confirmLabel ?? 'Ya, Lanjutkan'}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
     </div>
   );
 }
 
-function SettingRow({ config, onSave }: { config: { key: string; value: string; description?: string }, onSave: (k: string, v: string) => void }) {
+function SettingRow({ config, onSave, disabled }: { config: { key: string; value: string; description?: string }, onSave: (k: string, v: string) => void, disabled?: boolean }) {
   const [val, setVal] = useState(config.value);
   const options = SELECT_OPTIONS[config.key];
 
@@ -479,13 +652,11 @@ function SettingRow({ config, onSave }: { config: { key: string; value: string; 
   const handleChange = (newVal: string) => {
     setVal(newVal);
     if (options) {
-      // Select inputs save immediately on change
       onSave(config.key, newVal);
     }
   };
 
   const handleApplyHpp = async () => {
-    if (!confirm('This will retroactively recalculate stock consumption for all items using the new HPP method. Continue?')) return;
     setApplyingHpp(true);
     try {
       const { invoke } = await import('@tauri-apps/api/core');
@@ -508,7 +679,8 @@ function SettingRow({ config, onSave }: { config: { key: string; value: string; 
           <select
             value={val}
             onChange={(e) => handleChange(e.target.value)}
-            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand cursor-pointer"
+            disabled={disabled}
+            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {options.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -521,17 +693,18 @@ function SettingRow({ config, onSave }: { config: { key: string; value: string; 
             type="text"
             value={val}
             onChange={(e) => setVal(e.target.value)}
+            disabled={disabled}
             onBlur={() => {
               if (val !== config.value) onSave(config.key, val);
             }}
-            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed"
           />
         )}
         
         {(config.key === 'hpp_method' || config.key === 'hpp_method_default') && (
           <button 
             onClick={handleApplyHpp}
-            disabled={applyingHpp}
+            disabled={applyingHpp || disabled}
             className="px-4 py-2 bg-brand text-white font-bold text-sm rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 whitespace-nowrap"
           >
             {applyingHpp ? 'Applying...' : 'Apply HPP'}
@@ -732,4 +905,3 @@ function SysadminWorkspaceManagement() {
     </div>
   );
 }
-

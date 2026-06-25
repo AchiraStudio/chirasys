@@ -13,7 +13,8 @@ export interface SaleLine { id: string; sale_id: string; item_id: string; item_n
 export interface SalePayment { id: string; sale_id: string; amount: number; method: string; reference?: string; created_at: string; }
 export interface SaleDetail { sale: Sale; lines: SaleLine[]; payments: SalePayment[]; }
 export const getSaleDetail = async (id: string): Promise<SaleDetail> => invoke('get_sale_detail', { id });
-export const createSaleReturn = async (saleId: string, lines: SaleLineInput[], reason: string): Promise<void> => invoke('create_sale_return', { saleId, lines, reason });
+export interface SaleReturnLineInput { sale_line_id: string; item_id: string; unit_id: string; qty: number; price: number; hpp_value: number; }
+export const createSaleReturn = async (saleId: string, lines: SaleReturnLineInput[], reason: string): Promise<void> => invoke('create_sale_return', { saleId, lines, reason });
 
 // --- Promo Types ---
 export interface Promo { id: string; name: string; description?: string; discount_percent: number; min_qty: number; category_id?: string; item_id?: string; member_only: number; active: number; start_date?: string; end_date?: string; created_at: string; promo_type: string; discount_value?: number; applies_to: string; max_discount_amount?: number; stack_rule: string; priority: number; member_tier?: string; }

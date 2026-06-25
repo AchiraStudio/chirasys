@@ -65,6 +65,16 @@ pub struct SaleLineInput {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct SaleReturnLineInput {
+    pub sale_line_id: String,
+    pub item_id: String,
+    pub unit_id: String,
+    pub qty: f64,
+    pub price: f64,
+    pub hpp_value: f64,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct SalePaymentInput {
     pub amount: f64,
     pub method: String,

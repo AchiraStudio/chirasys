@@ -86,11 +86,28 @@ export default function App() {
     const setupRealtime = async () => {
       const { supabase } = await import('./lib/supabase');
       const { invoke } = await import('@tauri-apps/api/core');
+      const { getSyncStatus } = await import('./lib/api');
       const { setStatus, setLastSyncTime } = useSyncStore.getState();
 
       setStatus('connecting');
 
-      let channel = supabase.channel('chirasys-sync');
+      let workspaceId = '';
+      try {
+        const syncStatus = await getSyncStatus();
+        workspaceId = syncStatus.workspace_id;
+      } catch (err) {
+        console.error("Failed to load sync status:", err);
+      }
+
+      if (!workspaceId) {
+        console.log('⚠️ No active workspace connected. Realtime sync bypassed.');
+        setStatus('error');
+        return;
+      }
+
+      console.log('📡 Subscribing to Supabase Realtime for workspace:', workspaceId);
+
+      let channel = supabase.channel(`chirasys-sync-${workspaceId}`);
 
       const tablesToSync = [
         'sales', 'stock_ledger', 'categories', 'brands', 'items', 'item_units', 'item_prices'
@@ -99,7 +116,7 @@ export default function App() {
       tablesToSync.forEach(table => {
         channel = channel.on(
           'postgres_changes',
-          { event: '*', schema: 'public', table },
+          { event: '*', schema: 'public', table, filter: `workspace_id=eq.${workspaceId}` },
           (payload) => {
             console.log(`🔄 Cloud update received (${table}):`, payload);
             invoke('receive_cloud_sync', { tableName: table, payload: payload.new })
@@ -113,13 +130,13 @@ export default function App() {
       });
 
       channel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('✅ Connected to Supabase Realtime');
-            setStatus('connected');
-          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            setStatus('error');
-          }
-        });
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Connected to Supabase Realtime');
+          setStatus('connected');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setStatus('error');
+        }
+      });
 
       return () => {
         supabase.removeChannel(channel);

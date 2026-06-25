@@ -20,6 +20,32 @@ export default function CustomerPickerModal({ isOpen, onClose, onSelect, selecte
     const [search, setSearch] = useState('');
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(false);
+    const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+
+    // Arrow navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!isOpen) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setFocusedIndex(prev => Math.min(prev + 1, customers.length)); // customers.length is for walk-in (index 0) + customers
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setFocusedIndex(prev => Math.max(prev - 1, -1));
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (focusedIndex === -1) {
+                    // Do nothing or maybe select first if search is active
+                } else if (focusedIndex === 0) {
+                    onSelect(null); onClose();
+                } else if (focusedIndex > 0 && customers[focusedIndex - 1]) {
+                    onSelect(customers[focusedIndex - 1]); onClose();
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, customers, focusedIndex, onSelect, onClose]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -55,16 +81,15 @@ export default function CustomerPickerModal({ isOpen, onClose, onSelect, selecte
                             autoFocus
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            placeholder="Cari nama atau nomor HP..."
+                            placeholder="Cari nama atau nomor HP... (Panah Bawah untuk memilih)"
                             className="flex-1 bg-transparent outline-none text-sm text-slate-900 dark:text-white placeholder-slate-400"
                         />
                     </div>
                 </div>
 
-                {/* Walk-in option */}
                 <button
                     onClick={() => { onSelect(null); onClose(); }}
-                    className={`flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 ${!selectedId ? 'bg-brand/5' : ''}`}
+                    className={`flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 focus:outline-none focus:bg-brand/10 ${!selectedId ? 'bg-brand/5' : ''} ${focusedIndex === 0 ? 'ring-2 ring-inset ring-brand bg-brand/10' : ''}`}
                 >
                     <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                         <UserCheck size={16} className="text-slate-500" />
@@ -83,14 +108,15 @@ export default function CustomerPickerModal({ isOpen, onClose, onSelect, selecte
                     ) : customers.length === 0 ? (
                         <p className="text-center text-sm text-slate-500 py-8">{search ? 'Pelanggan tidak ditemukan' : 'Belum ada pelanggan'}</p>
                     ) : (
-                        customers.map(c => {
+                        customers.map((c, idx) => {
                             const tier = TIER_CONFIG[c.customer_tier as keyof typeof TIER_CONFIG] || TIER_CONFIG.regular;
                             const isSelected = c.id === selectedId;
+                            const isFocused = focusedIndex === idx + 1;
                             return (
                                 <button
                                     key={c.id}
                                     onClick={() => { onSelect(c); onClose(); }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800/60 last:border-0 ${isSelected ? 'bg-brand/5' : ''}`}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800/60 last:border-0 focus:outline-none focus:bg-brand/10 ${isSelected ? 'bg-brand/5' : ''} ${isFocused ? 'ring-2 ring-inset ring-brand bg-brand/10' : ''}`}
                                 >
                                     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand to-indigo-400 flex items-center justify-center text-white text-xs font-bold shrink-0">
                                         {c.name.charAt(0).toUpperCase()}

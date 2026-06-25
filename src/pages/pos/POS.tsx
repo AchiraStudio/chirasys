@@ -10,8 +10,10 @@ import ReceiptModal from './ReceiptModal';
 import CustomerPickerModal from './CustomerPickerModal';
 import SalesHistoryModal from './SalesHistoryModal';
 import TourGuide from '../../components/ui/TourGuide';
+import { useGlobalArrowNav } from '../../hooks/useGlobalArrowNav';
 
 export default function POS() {
+  useGlobalArrowNav();
 
   const [items, setItems] = useState<Item[]>([]);
   const [cart, setCart] = useState<PosLine[]>([]);
@@ -22,6 +24,9 @@ export default function POS() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [taxMode, setTaxMode] = useState<string>('none');
   const [taxRate, setTaxRate] = useState<number>(0);
+
+  // Arrow Key Navigation Refs
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Modals
   const [showPayment, setShowPayment] = useState(false);
@@ -252,6 +257,9 @@ export default function POS() {
         const exact = items.find(i => i.sku === search || i.barcode === search);
         if (exact) { addToCart(exact); setSearch(''); }
       }
+    } else if (e.key === 'ArrowDown' && items.length > 0) {
+      e.preventDefault();
+      itemRefs.current[0]?.focus();
     }
   };
 
@@ -267,6 +275,8 @@ export default function POS() {
       }];
     });
   };
+
+
 
   const updateQty = (itemId: string, delta: number) => {
     setCart(prev => prev.map(l => {
@@ -320,10 +330,10 @@ export default function POS() {
             />
           </div>
           <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
-            <button onClick={() => setPriceType('retail')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${priceType === 'retail' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Eceran</button>
-            <button onClick={() => setPriceType('wholesale')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${priceType === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Grosir</button>
+            <button onClick={() => setPriceType('retail')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-brand ${priceType === 'retail' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Eceran</button>
+            <button onClick={() => setPriceType('wholesale')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-brand ${priceType === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Grosir</button>
           </div>
-          <button onClick={() => setRunTour(true)} className="p-2.5 text-slate-500 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors" title="Bantuan & Panduan">
+          <button onClick={() => setRunTour(true)} className="p-2.5 text-slate-500 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brand" title="Bantuan & Panduan">
             <HelpCircle size={20} />
           </button>
         </div>
@@ -344,11 +354,12 @@ export default function POS() {
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {items.map(item => (
+              {items.map((item, idx) => (
                 <button
                   key={item.id}
+                  ref={el => itemRefs.current[idx] = el}
                   onClick={() => addToCart(item)}
-                  className="flex flex-col text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 hover:border-brand hover:ring-1 hover:ring-brand/50 transition-all active:scale-[0.97]"
+                  className="flex flex-col text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 hover:border-brand hover:ring-1 hover:ring-brand/50 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand transition-all active:scale-[0.97]"
                 >
                   <span className="font-bold text-sm text-slate-900 dark:text-white mb-1 line-clamp-2 leading-tight">{item.name}</span>
                   <span className="text-[11px] text-slate-500 font-mono mb-2">{item.sku}</span>
@@ -370,8 +381,8 @@ export default function POS() {
       {/* RIGHT: Cart */}
       <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden w-80 xl:w-96 shrink-0">
         {/* Customer Header */}
-        <div
-          className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors tour-pos-customer"
+        <button
+          className="w-full px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/40 focus:outline-none focus:bg-slate-100 dark:focus:bg-slate-800 focus:ring-inset focus:ring-2 focus:ring-brand transition-colors tour-pos-customer"
           onClick={() => setShowCustomerPicker(true)}
         >
           <div className="flex items-center gap-2">
@@ -386,7 +397,7 @@ export default function POS() {
             </div>
           </div>
           <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-1 rounded-lg">F3 Ubah</span>
-        </div>
+        </button>
 
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 tour-pos-cart">
@@ -415,14 +426,14 @@ export default function POS() {
                     <span className="font-bold text-xs text-brand">Rp {((l.qty * l.price) - l.discount_amount).toLocaleString('id-ID')}</span>
                     {!l.is_bogo_free && (
                       <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
-                        <button onClick={() => updateQty(l.item_id, -1)} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400"><Minus size={12}/></button>
+                        <button onClick={() => updateQty(l.item_id, -1)} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400 focus:outline-none focus:text-brand focus:bg-brand/10 rounded"><Minus size={12}/></button>
                         <span className="w-7 text-center text-xs font-bold text-slate-900 dark:text-white">{l.qty}</span>
-                        <button onClick={() => updateQty(l.item_id, 1)} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400"><Plus size={12}/></button>
+                        <button onClick={() => updateQty(l.item_id, 1)} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400 focus:outline-none focus:text-brand focus:bg-brand/10 rounded"><Plus size={12}/></button>
                       </div>
                     )}
                   </div>
                   {!l.is_bogo_free && (
-                    <button onClick={() => removeItem(l.item_id)} className="text-slate-400 hover:text-rose-500 p-0.5 self-start"><Trash2 size={14}/></button>
+                    <button onClick={() => removeItem(l.item_id)} className="text-slate-400 hover:text-rose-500 focus:outline-none focus:text-rose-500 focus:bg-rose-50 dark:focus:bg-rose-500/10 rounded p-0.5 self-start"><Trash2 size={14}/></button>
                   )}
                 </div>
               ))}
@@ -434,7 +445,7 @@ export default function POS() {
         {holds.length > 0 && (
           <div className="p-2 border-t border-slate-200 dark:border-slate-800 bg-amber-50/50 dark:bg-amber-900/10 flex gap-1.5 overflow-x-auto custom-scrollbar">
             {holds.map(h => (
-              <button key={h.id} onClick={() => handleResume(h)} className="flex items-center gap-1 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800/50 rounded-lg whitespace-nowrap text-[11px] font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-50 transition-colors">
+              <button key={h.id} onClick={() => handleResume(h)} className="flex items-center gap-1 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800/50 rounded-lg whitespace-nowrap text-[11px] font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors">
                 <PlayCircle size={12} /> {h.timestamp}
               </button>
             ))}
@@ -444,7 +455,7 @@ export default function POS() {
         {/* Cart Footer */}
         <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 shrink-0">
           <div className="flex justify-between items-center mb-2">
-            <button onClick={() => setShowHistory(true)} className="flex items-center px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <button onClick={() => setShowHistory(true)} className="flex items-center px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand transition-colors">
               <Clock size={14} className="mr-1.5" />
               <span className="text-xs font-semibold">Riwayat</span>
             </button>
@@ -471,14 +482,14 @@ export default function POS() {
             <button
               onClick={handleHold}
               disabled={cart.length === 0}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors"
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-40 transition-colors"
             >
               <PauseCircle size={15}/> Tahan (F4)
             </button>
             <button
               onClick={() => setShowPayment(true)}
               disabled={cart.length === 0}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-brand text-white hover:bg-blue-600 disabled:opacity-40 transition-colors shadow-sm tour-pos-payment"
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-brand text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand dark:focus:ring-offset-slate-900 disabled:opacity-40 transition-colors shadow-sm tour-pos-payment"
             >
               Bayar (F10)
             </button>

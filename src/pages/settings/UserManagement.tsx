@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Users, Loader2, User, Plus, X, Eye, EyeOff, Power, KeyRound } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 interface UserRow {
   id: string;
@@ -13,8 +14,7 @@ interface UserRow {
 }
 
 const ROLES = [
-  { value: 'kasir',  label: 'Kasir',          desc: 'Akses POS, pelanggan, dan stok' },
-  { value: 'gudang', label: 'Gudang',          desc: 'Akses inventaris, pembelian, katalog' },
+  { value: 'staff',  label: 'Staff',           desc: 'Akses POS, inventaris, gudang, dan pelanggan' },
   { value: 'admin',  label: 'Admin',           desc: 'Akses penuh kecuali pengaturan sistem' },
   { value: 'owner',  label: 'Owner / Pemilik', desc: 'Akses penuh termasuk pengaturan' },
 ];
@@ -23,6 +23,8 @@ function getRoleColor(role: string) {
   switch (role) {
     case 'owner': return 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400';
     case 'admin': return 'bg-brand/10 text-brand';
+    case 'staff': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400';
+    // legacy roles (pre-migration)
     case 'kasir': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400';
     case 'gudang': return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400';
     default: return 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400';
@@ -35,6 +37,13 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [resetModal, setResetModal] = useState<UserRow | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    variant?: 'danger' | 'warning' | 'primary' | 'logout';
+    confirmLabel?: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -48,12 +57,37 @@ export default function UserManagement() {
   };
 
   const handleToggleActive = async (u: UserRow) => {
-    if (u.id === currentUser?.id) { alert('Tidak bisa menonaktifkan akun sendiri.'); return; }
-    if (!confirm(`${u.is_active ? 'Nonaktifkan' : 'Aktifkan'} akun "${u.name}"?`)) return;
-    try {
-      await invoke('toggle_user_active', { id: u.id });
-      fetchUsers();
-    } catch (e: any) { alert(e.toString()); }
+    if (u.id === currentUser?.id) {
+      setConfirmModal({
+        title: 'Tidak Dapat Menonaktifkan',
+        message: 'Anda tidak bisa menonaktifkan akun yang sedang digunakan.',
+        variant: 'warning',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
+      return;
+    }
+    setConfirmModal({
+      title: `${u.is_active ? 'Nonaktifkan' : 'Aktifkan'} Akun?`,
+      message: `${u.is_active ? 'Nonaktifkan' : 'Aktifkan'} akun "${u.name}"? ${u.is_active ? 'Pengguna tidak akan bisa login.' : 'Pengguna akan bisa login kembali.'}`,
+      variant: u.is_active ? 'danger' : 'primary',
+      confirmLabel: u.is_active ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan',
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try {
+          await invoke('toggle_user_active', { id: u.id });
+          fetchUsers();
+        } catch (e: any) {
+          setConfirmModal({
+            title: 'Gagal',
+            message: e.toString(),
+            variant: 'warning',
+            confirmLabel: 'OK',
+            onConfirm: () => setConfirmModal(null),
+          });
+        }
+      },
+    });
   };
 
   return (
@@ -154,6 +188,16 @@ export default function UserManagement() {
 
       {showModal && <AddStaffModal onClose={() => setShowModal(false)} onSuccess={fetchUsers} />}
       {resetModal && <ResetPasswordModal user={resetModal} onClose={() => setResetModal(null)} />}
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          variant={confirmModal.variant ?? 'danger'}
+          confirmLabel={confirmModal.confirmLabel ?? 'Ya, Lanjutkan'}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -162,7 +206,7 @@ function AddStaffModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('kasir');
+  const [role, setRole] = useState('staff');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -266,13 +310,12 @@ function ResetPasswordModal({ user, onClose }: { user: UserRow; onClose: () => v
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword.length < 6) { alert('Password minimal 6 karakter.'); return; }
+    if (newPassword.length < 6) return;
     setLoading(true);
     try {
       await invoke('reset_user_password', { id: user.id, newPassword });
-      alert(`Password untuk "${user.name}" berhasil diubah.`);
       onClose();
-    } catch (e: any) { alert(e.toString()); }
+    } catch (e: any) { console.error(e); }
     finally { setLoading(false); }
   };
 

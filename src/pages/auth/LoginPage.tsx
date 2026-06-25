@@ -1,34 +1,32 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Lock, User, Globe, Link2, ArrowLeft, CheckCircle2, Wifi, WifiOff, ShieldCheck } from 'lucide-react';
-import { loginUser, joinWorkspace, sysadminLogin, WorkspaceInfo, getSyncStatus } from '../../lib/api';
+import { Loader2, Lock, User, Globe, ShieldCheck, CheckCircle2, ArrowLeft, X } from 'lucide-react';
+import { loginUser, joinWorkspace, sysadminLogin, getSyncStatus } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import { invoke } from '@tauri-apps/api/core';
 import SysadminDashboard from './SysadminDashboard';
 
-
-type Screen = 'login' | 'workspace_choice' | 'join_workspace' | 'sysadmin_login' | 'sysadmin_dashboard';
+type Screen = 'login' | 'sysadmin_login' | 'sysadmin_dashboard';
 
 export default function LoginPage() {
   const [screen, setScreen] = useState<Screen>('login');
 
+  // Login form
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [workspaceCode, setWorkspaceCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { setAuth } = useAuthStore();
+
+  // Workspace connected status
+  const [connectedWorkspace, setConnectedWorkspace] = useState<{ name: string; code: string } | null>(null);
+  const [workspaceChecked, setWorkspaceChecked] = useState(false);
 
   // Sysadmin auth state
   const [sysadminUser, setSysadminUser] = useState('admin');
   const [sysadminPass, setSysadminPass] = useState('');
 
-  // Workspace state
-  const [workspaceInput, setWorkspaceInput] = useState('');
-  const [currentWorkspace, setCurrentWorkspace] = useState<WorkspaceInfo | null>(null);
-  const [wsLoading, setWsLoading] = useState(false);
-  const [wsError, setWsError] = useState('');
-  const [isOnline, setIsOnline] = useState(true);
-
-  // On mount: check if we already have a workspace configured
+  // On mount: check if workspace already configured
   useEffect(() => {
     checkExistingWorkspace();
   }, []);
@@ -37,25 +35,35 @@ export default function LoginPage() {
     try {
       const status = await getSyncStatus();
       if (status.workspace_id && status.workspace_id.length > 0) {
-        setCurrentWorkspace({
-          id: status.workspace_id,
-          name: status.workspace_name,
-          code: status.workspace_code,
-        });
-        setIsOnline(true);
+        setConnectedWorkspace({ name: status.workspace_name, code: status.workspace_code });
+        setWorkspaceCode(status.workspace_code);
       }
     } catch {
       // No workspace / offline
+    } finally {
+      setWorkspaceChecked(true);
     }
   };
 
-  // ─── Login ───────────────────────────────────────────────────────────────
+  // ─── Main Login (with optional workspace join) ────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
     setLoading(true);
     setError('');
     try {
+      // If workspace code is provided and different from connected, join first
+      const codeToJoin = workspaceCode.trim();
+      if (codeToJoin && codeToJoin !== connectedWorkspace?.code) {
+        try {
+          await joinWorkspace(codeToJoin);
+        } catch (wsErr: any) {
+          setError(`Workspace: ${wsErr.message || String(wsErr)}`);
+          setLoading(false);
+          return;
+        }
+      }
+
       const res = await loginUser(username, password);
       setAuth(res.token, res.user);
     } catch (err: any) {
@@ -65,20 +73,14 @@ export default function LoginPage() {
     }
   };
 
-  // ─── Join Workspace ───────────────────────────────────────────────────────
-  const handleJoinWorkspace = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!workspaceInput.trim()) return;
-    setWsLoading(true);
-    setWsError('');
+  // ─── Disconnect Workspace ─────────────────────────────────────────────────
+  const handleDisconnectWorkspace = async () => {
     try {
-      const ws = await joinWorkspace(workspaceInput.trim());
-      setCurrentWorkspace(ws);
-      setScreen('login');
-    } catch (err: any) {
-      setWsError(err.message || String(err));
-    } finally {
-      setWsLoading(false);
+      await invoke('leave_workspace');
+      setConnectedWorkspace(null);
+      setWorkspaceCode('');
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -88,33 +90,22 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      // Hash password using Web Crypto API to avoid sending plaintext to Rust
       const encoder = new TextEncoder();
       const data = encoder.encode(sysadminPass);
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      
+
       const ok = await sysadminLogin(sysadminUser, hashHex);
       if (ok) {
         setScreen('sysadmin_dashboard');
       } else {
-        setError('Invalid System Admin credentials.');
+        setError('Kredensial System Admin tidak valid.');
       }
     } catch (err: any) {
       setError(err.message || String(err));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLeaveWorkspace = async () => {
-    if (!confirm('Are you sure you want to leave this workspace? You will be in offline/local mode.')) return;
-    try {
-      await invoke('leave_workspace');
-      setCurrentWorkspace(null);
-    } catch (e) {
-      console.error(e);
     }
   };
 
@@ -127,87 +118,6 @@ export default function LoginPage() {
     </>
   );
 
-  // ─── Workspace Choice Screen ──────────────────────────────────────────────
-  if (screen === 'workspace_choice') {
-    return (
-      <div className="min-h-screen w-full bg-slate-50 dark:bg-[#0B0F19] flex items-center justify-center p-4 relative overflow-hidden">
-        <Blobs />
-        <div className="w-full max-w-md relative z-10 space-y-4">
-          <button onClick={() => setScreen('login')} className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-brand transition-colors">
-            <ArrowLeft size={16} /> Back to Login
-          </button>
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-brand/10 border border-slate-200/50 dark:border-slate-800/50 overflow-hidden p-8">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Connect to Cloud Workspace</h2>
-            <p className="text-sm text-slate-500 mb-8">Sync data across all your installations in one workspace.</p>
-            <div className="grid grid-cols-1 gap-4">
-              <button
-                onClick={() => setScreen('join_workspace')}
-                className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-brand dark:hover:border-brand hover:bg-brand/5 transition-all group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-brand/10 flex items-center justify-center text-brand group-hover:scale-110 transition-transform">
-                  <Link2 size={22} />
-                </div>
-                <div className="text-center">
-                  <p className="font-bold text-sm text-slate-900 dark:text-white">Join Workspace</p>
-                  <p className="text-xs text-slate-500 mt-1">Enter a code or invite link from your Admin</p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Join Workspace Screen ─────────────────────────────────────────────────
-  if (screen === 'join_workspace') {
-    return (
-      <div className="min-h-screen w-full bg-slate-50 dark:bg-[#0B0F19] flex items-center justify-center p-4 relative overflow-hidden">
-        <Blobs />
-        <div className="w-full max-w-md relative z-10 space-y-4">
-          <button onClick={() => setScreen('workspace_choice')} className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-brand transition-colors">
-            <ArrowLeft size={16} /> Back
-          </button>
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-brand/10 border border-slate-200/50 dark:border-slate-800/50 overflow-hidden">
-            <div className="p-8 pb-6 border-b border-slate-100 dark:border-slate-800 bg-brand/5">
-              <div className="w-12 h-12 rounded-xl bg-brand/10 flex items-center justify-center text-brand mb-4">
-                <Link2 size={22} />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Join a Workspace</h2>
-              <p className="text-sm text-slate-500 mt-1">Enter your workspace code (e.g. <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-brand">APOTEK-01</code>) or paste an invite link token.</p>
-            </div>
-            <form onSubmit={handleJoinWorkspace} className="p-8 flex flex-col gap-4">
-              {wsError && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-sm dark:bg-rose-900/20 dark:border-rose-800/50 dark:text-rose-400">
-                  {wsError}
-                </div>
-              )}
-              <div>
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider ml-1 block mb-1.5">Workspace Code or Invite Token</label>
-                <input
-                  type="text"
-                  autoFocus
-                  value={workspaceInput}
-                  onChange={e => setWorkspaceInput(e.target.value)}
-                  placeholder="e.g. APOTEK-MAJU-01 or invite token..."
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all font-mono"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={wsLoading || !workspaceInput.trim()}
-                className="w-full bg-brand hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand/30 transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
-              >
-                {wsLoading ? <Loader2 size={20} className="animate-spin" /> : <Link2 size={18} />}
-                Join Workspace
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // ─── Sysadmin Screens ───────────────────────────────────────────────────────
   if (screen === 'sysadmin_dashboard') {
     return <SysadminDashboard onLogout={() => { setSysadminPass(''); setScreen('login'); }} />;
@@ -218,8 +128,8 @@ export default function LoginPage() {
       <div className="min-h-screen w-full bg-slate-50 dark:bg-[#0B0F19] flex items-center justify-center p-4 relative overflow-hidden">
         <Blobs />
         <div className="w-full max-w-md relative z-10 space-y-4">
-          <button onClick={() => setScreen('login')} className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-brand transition-colors">
-            <ArrowLeft size={16} /> Back to POS Login
+          <button onClick={() => { setError(''); setScreen('login'); }} className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-brand transition-colors">
+            <ArrowLeft size={16} /> Kembali ke Login
           </button>
           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-indigo-500/10 border border-slate-200/50 dark:border-slate-800/50 overflow-hidden">
             <div className="p-8 pb-6 border-b border-slate-100 dark:border-slate-800 bg-indigo-500/5">
@@ -227,7 +137,7 @@ export default function LoginPage() {
                 <ShieldCheck size={22} />
               </div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">System Admin</h2>
-              <p className="text-sm text-slate-500 mt-1">Manage all cloud workspaces.</p>
+              <p className="text-sm text-slate-500 mt-1">Kelola semua cloud workspace.</p>
             </div>
             <form onSubmit={handleSysadminLogin} className="p-8 flex flex-col gap-4">
               {error && (
@@ -237,22 +147,28 @@ export default function LoginPage() {
               )}
               <div>
                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider ml-1 block mb-1.5">Username</label>
-                <input
-                  type="text"
-                  value={sysadminUser}
-                  onChange={e => setSysadminUser(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-all"
-                />
+                <div className="relative flex items-center">
+                  <User size={18} className="absolute left-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={sysadminUser}
+                    onChange={e => setSysadminUser(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-all"
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider ml-1 block mb-1.5">Password</label>
-                <input
-                  type="password"
-                  autoFocus
-                  value={sysadminPass}
-                  onChange={e => setSysadminPass(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-all"
-                />
+                <div className="relative flex items-center">
+                  <Lock size={18} className="absolute left-4 text-slate-400" />
+                  <input
+                    type="password"
+                    autoFocus
+                    value={sysadminPass}
+                    onChange={e => setSysadminPass(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-all"
+                  />
+                </div>
               </div>
               <button
                 type="submit"
@@ -275,12 +191,12 @@ export default function LoginPage() {
       <Blobs />
 
       <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-brand/10 border border-slate-200/50 dark:border-slate-800/50 overflow-hidden relative z-10">
-        
+
         {/* Header */}
         <div className="p-8 pb-6 flex flex-col items-center justify-center border-b border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 relative">
           <button
-            onClick={() => setScreen('sysadmin_login')}
-            className="absolute top-6 right-6 p-2 text-slate-300 hover:text-indigo-500 transition-colors"
+            onClick={() => { setError(''); setScreen('sysadmin_login'); }}
+            className="absolute top-6 right-6 p-2 text-slate-300 hover:text-indigo-500 transition-colors rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
             title="System Admin"
           >
             <ShieldCheck size={18} />
@@ -294,52 +210,15 @@ export default function LoginPage() {
           <p className="text-sm text-slate-500 mt-2 text-center">Modern Inventory & Cashier System</p>
         </div>
 
-        {/* Workspace Status Banner */}
-        <div className="px-8 pt-5">
-          {currentWorkspace ? (
-            <div className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl">
-              <div className="flex-shrink-0">
-                <CheckCircle2 size={20} className="text-emerald-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Workspace Terhubung</p>
-                <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-300 truncate">{currentWorkspace.name}</p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-500 font-mono">{currentWorkspace.code}</p>
-              </div>
-              <button
-                onClick={handleLeaveWorkspace}
-                className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors whitespace-nowrap"
-              >
-                Leave
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setScreen('workspace_choice')}
-              className="w-full flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 hover:border-brand dark:hover:border-brand hover:bg-brand/5 rounded-xl transition-all group"
-            >
-              <div className="flex-shrink-0 p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm group-hover:bg-brand/10 transition-colors">
-                {isOnline ? <Globe size={18} className="text-slate-400 group-hover:text-brand transition-colors" /> : <WifiOff size={18} className="text-slate-400" />}
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-semibold text-slate-600 dark:text-slate-300 group-hover:text-brand transition-colors">
-                  Connect to Cloud Workspace
-                </p>
-                <p className="text-xs text-slate-400">Sync data across all your devices</p>
-              </div>
-              <Wifi size={14} className="text-slate-300 group-hover:text-brand transition-colors" />
-            </button>
-          )}
-        </div>
-
         {/* Login Form */}
         <form onSubmit={handleLogin} className="p-8 flex flex-col gap-5">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-sm text-center font-medium dark:bg-rose-900/20 dark:border-rose-800/50 dark:text-rose-400">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-sm text-center font-medium dark:bg-rose-900/20 dark:border-rose-800/50 dark:text-rose-400 animate-in fade-in duration-200">
               {error}
             </div>
           )}
 
+          {/* Username */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider ml-1">Username</label>
             <div className="relative flex items-center">
@@ -355,6 +234,7 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* Password */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider ml-1">Password</label>
             <div className="relative flex items-center">
@@ -369,15 +249,56 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* Workspace Code */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider ml-1 flex items-center gap-1.5">
+              <Globe size={12} />
+              Kode Workspace
+              <span className="font-normal text-slate-400 normal-case tracking-normal">(opsional)</span>
+            </label>
+
+            {connectedWorkspace && workspaceCode === connectedWorkspace.code ? (
+              /* Connected state */
+              <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl">
+                <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 truncate">{connectedWorkspace.name}</p>
+                  <p className="text-xs font-mono text-emerald-600 dark:text-emerald-500">{connectedWorkspace.code}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDisconnectWorkspace}
+                  className="p-1.5 text-emerald-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
+                  title="Putuskan workspace"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              /* Input state */
+              <div className="relative flex items-center">
+                <Globe size={18} className="absolute left-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={workspaceCode}
+                  onChange={(e) => setWorkspaceCode(e.target.value.toUpperCase())}
+                  placeholder="contoh: APOTEK-MAJU-01"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all font-mono uppercase"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading || !username || !password}
-            className="w-full mt-2 bg-brand hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand/30 transition-all active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none flex items-center justify-center gap-2"
+            className="w-full mt-1 bg-brand hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand/30 transition-all active:scale-[0.98] disabled:opacity-70 disabled:pointer-events-none flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 size={20} className="animate-spin" /> : 'Masuk'}
           </button>
 
-          <p className="text-xs text-center text-slate-500 mt-1">
+          <p className="text-xs text-center text-slate-500 -mt-1">
             Lupa password? Silakan hubungi admin sistem Anda.
           </p>
         </form>

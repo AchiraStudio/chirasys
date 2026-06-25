@@ -92,6 +92,11 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/026_workspace.sql"), 26),
         (include_str!("./migrations/027_deduplicate_masters.sql"), 27),
         (include_str!("./migrations/028_fix_sales_sync_payload.sql"), 28),
+        (include_str!("./migrations/029_staff_role_and_settings.sql"), 29),
+        (include_str!("./migrations/030_sync_queue_retry_count.sql"), 30),
+        (include_str!("./migrations/031_sync_queue_workspace_id.sql"), 31),
+        (include_str!("./migrations/032_workspace_settings_seed.sql"), 32),
+        (include_str!("./migrations/033_payments_sync_trigger.sql"), 33),
     ];
 
     for (sql, version) in migrations {

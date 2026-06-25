@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSaleDetail, createSaleReturn, SaleDetail, SaleLineInput } from '../../lib/api';
+import { getSaleDetail, createSaleReturn, SaleDetail, SaleReturnLineInput } from '../../lib/api';
 import { X, Loader2, AlertCircle } from 'lucide-react';
 
 interface Props {
@@ -29,18 +29,17 @@ export default function SaleReturnModal({ saleId, onClose }: Props) {
 
   const handleSubmit = async () => {
     if (!detail) return;
-    const linesToReturn: SaleLineInput[] = [];
+    const linesToReturn: SaleReturnLineInput[] = [];
     
     for (const line of detail.lines) {
       const rq = returnQty[line.id] || 0;
       if (rq > 0) {
         linesToReturn.push({
+          sale_line_id: line.id,
           item_id: line.item_id,
           unit_id: line.unit_id,
           qty: rq,
-          price_type: line.price_type,
-          price: line.price,
-          discount_amount: line.discount_amount > 0 ? (line.discount_amount / line.qty) * rq : 0,
+          price: line.price - (line.discount_amount > 0 ? (line.discount_amount / line.qty) : 0),
           hpp_value: line.hpp_value
         });
       }

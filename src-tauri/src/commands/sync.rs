@@ -230,8 +230,10 @@ pub async fn join_workspace(
 
     let trimmed = code_or_token.trim().to_uppercase();
 
-    // First try: treat as invite token (hex string, 32 chars)
-    if trimmed.len() == 32 || trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
+    // First try: treat as invite token (hex string, 32 chars, or 36-char UUID)
+    let is_uuid = trimmed.len() == 36 && trimmed.chars().all(|c| c.is_ascii_hexdigit() || c == '-');
+    let is_hex32 = trimmed.len() == 32 && trimmed.chars().all(|c| c.is_ascii_hexdigit());
+    if is_uuid || is_hex32 {
         let token_lower = code_or_token.trim().to_lowercase();
         let invite_url = format!(
             "{}/rest/v1/workspace_invites?token=eq.{}&select=id,workspace_id,role,used_at,expires_at",

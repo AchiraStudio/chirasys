@@ -176,7 +176,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                         <button
                                             key={method.key}
                                             onClick={() => setActiveMethod(method.key)}
-                                            className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center gap-2 border transition-all text-center group cursor-pointer ${
+                                            className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center gap-2 border transition-all text-center group cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand ${
                                                 isActive 
                                                     ? 'bg-brand/10 border-brand text-brand shadow-sm shadow-brand/10' 
                                                     : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
@@ -207,7 +207,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                 </span>
                                 <button
                                     onClick={handleClear}
-                                    className="text-xs font-bold text-rose-500 dark:text-rose-400 hover:underline"
+                                    className="text-xs font-bold text-rose-500 dark:text-rose-400 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-500 rounded px-1"
                                 >
                                     Clear
                                 </button>
@@ -249,19 +249,19 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                     <div className="grid grid-cols-3 gap-2">
                                         <button
                                             onClick={handleExact}
-                                            className="py-2.5 bg-brand/5 dark:bg-brand/10 hover:bg-brand/10 dark:hover:bg-brand/20 text-brand font-bold text-xs rounded-xl border border-brand/10 transition-colors"
+                                            className="py-2.5 bg-brand/5 dark:bg-brand/10 hover:bg-brand/10 dark:hover:bg-brand/20 text-brand font-bold text-xs rounded-xl border border-brand/10 transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
                                         >
                                             Uang Pas
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(50000, 'set')}
-                                            className="py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors"
+                                            className="py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
                                         >
                                             Rp 50.000
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(100000, 'set')}
-                                            className="py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors"
+                                            className="py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
                                         >
                                             Rp 100.000
                                         </button>
@@ -269,25 +269,25 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                     <div className="grid grid-cols-4 gap-2">
                                         <button
                                             onClick={() => handleQuickCash(10000, 'add')}
-                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors"
+                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
                                         >
                                             +10.000
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(20000, 'add')}
-                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors"
+                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
                                         >
                                             +20.000
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(50000, 'add')}
-                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors"
+                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
                                         >
                                             +50.000
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(100000, 'add')}
-                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors"
+                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
                                         >
                                             +100.000
                                         </button>
@@ -381,7 +381,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                             <button
                                 onClick={() => handlePay(true)}
                                 disabled={!isReady || loading}
-                                className="w-full py-4 bg-brand hover:bg-blue-600 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold shadow-lg shadow-brand/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                                className="w-full py-4 bg-brand hover:bg-blue-600 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold shadow-lg shadow-brand/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand dark:focus:ring-offset-[#0B0F19]"
                             >
                                 {loading ? <Loader2 size={18} className="animate-spin" /> : null}
                                 <span>{loading ? 'Memproses...' : 'Simpan & Cetak (Alt+F10)'}</span>
@@ -390,14 +390,14 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                             <button
                                 onClick={() => handlePay(false)}
                                 disabled={!isReady || loading}
-                                className="w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                                className="w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-800 dark:focus:ring-offset-[#0B0F19]"
                             >
                                 Simpan Transaksi (F10)
                             </button>
 
                             <button
                                 onClick={onClose}
-                                className="w-full py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer"
+                                className="w-full py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400"
                             >
                                 Batal (ESC)
                             </button>
