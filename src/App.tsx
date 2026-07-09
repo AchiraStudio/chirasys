@@ -23,7 +23,7 @@ import ContextMenu from './components/layout/ContextMenu';
 import { useAuthStore } from './store/AuthStore';
 import { getCurrentUser } from './lib/api';
 import { useSyncStore } from './store/SyncStore';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, Sparkles } from 'lucide-react';
 import { useZoomStore } from './store/ZoomStore';
 
 export default function App() {
@@ -210,6 +210,18 @@ export default function App() {
           )}
         </div>
         <ItemDrawer isOpen={isDrawerOpen} onClose={() => { setIsDrawerOpen(false); setEditItemId(null); }} onItemAdded={() => setRefreshTrigger(prev => prev + 1)} editItemId={editItemId} />
+        
+        {/* TAMBAHKAN TOMBOL MENGAMBANG INI */}
+        {!isAIChatOpen && (
+          <button
+            onClick={() => setIsAIChatOpen(true)}
+            className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 w-14 h-14 bg-gradient-to-tr from-brand to-indigo-600 rounded-full shadow-2xl shadow-brand/40 flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-all group animate-in zoom-in duration-300"
+            title="Tanya Achira"
+          >
+            <Sparkles size={24} className="group-hover:animate-pulse" />
+          </button>
+        )}
+        
         <AIChat isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} branchId={user.branch_id || 'branch_001'} />
       </main>
       </div>

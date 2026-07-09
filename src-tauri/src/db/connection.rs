@@ -97,6 +97,8 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/031_sync_queue_workspace_id.sql"), 31),
         (include_str!("./migrations/032_workspace_settings_seed.sql"), 32),
         (include_str!("./migrations/033_payments_sync_trigger.sql"), 33),
+        (include_str!("./migrations/034_promo_bundles.sql"), 34),
+        (include_str!("./migrations/035_fix_promo_check.sql"), 35),
     ];
 
     for (sql, version) in migrations {

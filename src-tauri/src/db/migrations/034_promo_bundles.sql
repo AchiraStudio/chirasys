@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS promo_bundle_items (
+    id TEXT PRIMARY KEY,
+    promo_id TEXT NOT NULL REFERENCES promos(id) ON DELETE CASCADE,
+    item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    qty REAL NOT NULL DEFAULT 1
+);

@@ -46,6 +46,14 @@ pub struct PromoTier {
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
+pub struct PromoBundleItem {
+    pub id: String,
+    pub promo_id: String,
+    pub item_id: String,
+    pub qty: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct SalePromoApplication {
     pub id: String,
     pub sale_id: String,
@@ -59,6 +67,7 @@ pub struct PromoDetail {
     pub promo: Promo,
     pub bogo_rules: Vec<PromoBogoRule>,
     pub tiers: Vec<PromoTier>,
+    pub bundle_items: Vec<PromoBundleItem>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -74,6 +83,12 @@ pub struct BogoRuleInput {
 pub struct PromoTierInput {
     pub min_qty: f64,
     pub discount_percent: f64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PromoBundleItemInput {
+    pub item_id: String,
+    pub qty: f64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -98,6 +113,7 @@ pub struct CreatePromoInput {
 
     pub bogo_rules: Vec<BogoRuleInput>,
     pub tiers: Vec<PromoTierInput>,
+    pub bundle_items: Option<Vec<PromoBundleItemInput>>,
 }
 
 // Structs for Discount Engine calculation

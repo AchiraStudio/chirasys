@@ -50,10 +50,18 @@ pub async fn get_promo_detail(
     .await
     .map_err(|e| e.to_string())?;
 
+    let bundle_items =
+        sqlx::query_as::<_, PromoBundleItem>("SELECT * FROM promo_bundle_items WHERE promo_id = ?")
+            .bind(&id)
+            .fetch_all(&state.db_pool)
+            .await
+            .unwrap_or_default(); // Graceful degradation if table missing
+
     Ok(PromoDetail {
         promo,
         bogo_rules,
         tiers,
+        bundle_items,
     })
 }
 
@@ -62,8 +70,90 @@ pub async fn create_promo(
     input: CreatePromoInput,
     state: State<'_, AppState>,
 ) -> Result<Promo, String> {
+    // ─── VALIDASI AWAL ─────────────────────────────────────────
+    if input.name.trim().is_empty() {
+        return Err("Nama promo wajib diisi.".to_string());
+    }
+    if input.promo_type.trim().is_empty() {
+        return Err("Tipe promo wajib diisi.".to_string());
+    }
+    if input.min_qty <= 0.0 {
+        return Err("Minimal kuantitas harus lebih dari 0.".to_string());
+    }
+
+    // Validasi khusus untuk bundle
+    if input.promo_type == "bundle" {
+        if input.bundle_items.is_none() || input.bundle_items.as_ref().unwrap().is_empty() {
+            return Err(
+                "Untuk promo bundle, Anda harus menentukan daftar item (bundle_items).".to_string(),
+            );
+        }
+        if input.applies_to != "item" {
+            return Err("Untuk bundle, applies_to harus 'item'.".to_string());
+        }
+        let has_discount =
+            input.discount_percent > 0.0 || input.discount_value.unwrap_or(0.0) > 0.0;
+        if !has_discount {
+            return Err(
+                "Anda harus menentukan diskon (persentase atau nilai tetap) untuk bundle."
+                    .to_string(),
+            );
+        }
+        // Cek apakah semua item_id valid
+        for bi in input.bundle_items.as_ref().unwrap() {
+            let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM items WHERE id = ?")
+                .bind(&bi.item_id)
+                .fetch_optional(&state.db_pool)
+                .await
+                .map_err(|e| e.to_string())?;
+            if exists.is_none() {
+                return Err(format!("Item dengan ID {} tidak ditemukan.", bi.item_id));
+            }
+        }
+    }
+
+    // ─── LANJUTKAN TRANSAKSI ──────────────────────────────────
     let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
 
+    // --- CEK ITEM_ID VALID (jika ada) ---
+    if let Some(ref item_id) = input.item_id {
+        let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM items WHERE id = ?")
+            .bind(item_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        if exists.is_none() {
+            return Err(format!("Item dengan ID {} tidak ditemukan.", item_id));
+        }
+    }
+
+    // --- CEK CATEGORY_ID VALID (jika ada) ---
+    if let Some(ref cat_id) = input.category_id {
+        let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM categories WHERE id = ?")
+            .bind(cat_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        if exists.is_none() {
+            return Err(format!("Kategori dengan ID {} tidak ditemukan.", cat_id));
+        }
+    }
+
+    // --- CEK SEMUA ITEM DI BUNDLE_ITEMS VALID ---
+    if let Some(ref bundle_items) = input.bundle_items {
+        for bi in bundle_items {
+            let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM items WHERE id = ?")
+                .bind(&bi.item_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            if exists.is_none() {
+                return Err(format!("Item dengan ID {} tidak ditemukan.", bi.item_id));
+            }
+        }
+    }
+
+    // --- INSERT PROMO ---
     let promo_id = Uuid::new_v4().to_string();
 
     sqlx::query(
@@ -80,6 +170,7 @@ pub async fn create_promo(
     .bind(input.priority).bind(&input.member_tier)
     .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
+    // --- INSERT BOGO RULES ---
     for bogo in input.bogo_rules {
         let bogo_id = Uuid::new_v4().to_string();
         sqlx::query(
@@ -90,6 +181,7 @@ pub async fn create_promo(
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
+    // --- INSERT TIERS ---
     for tier in input.tiers {
         let tier_id = Uuid::new_v4().to_string();
         sqlx::query(
@@ -104,8 +196,26 @@ pub async fn create_promo(
         .map_err(|e| e.to_string())?;
     }
 
+    // --- INSERT BUNDLE ITEMS ---
+    if let Some(bundle_items) = input.bundle_items {
+        for b_item in bundle_items {
+            let bundle_id = Uuid::new_v4().to_string();
+            sqlx::query(
+                "INSERT INTO promo_bundle_items (id, promo_id, item_id, qty) VALUES (?, ?, ?, ?)",
+            )
+            .bind(&bundle_id)
+            .bind(&promo_id)
+            .bind(&b_item.item_id)
+            .bind(b_item.qty)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
     tx.commit().await.map_err(|e| e.to_string())?;
 
+    // --- RETURN CREATED PROMO ---
     sqlx::query_as::<_, Promo>("SELECT * FROM promos WHERE id = ?")
         .bind(&promo_id)
         .fetch_one(&state.db_pool)
@@ -119,8 +229,88 @@ pub async fn update_promo(
     input: CreatePromoInput,
     state: State<'_, AppState>,
 ) -> Result<Promo, String> {
+    // --- VALIDASI AWAL ---
+    if input.name.trim().is_empty() {
+        return Err("Nama promo tidak boleh kosong.".to_string());
+    }
+    if !["percentage", "fixed_amount", "bogo", "tiered", "bundle"]
+        .contains(&input.promo_type.as_str())
+    {
+        return Err("Tipe promo tidak valid.".to_string());
+    }
+
+    if input.promo_type == "bundle" {
+        if input.bundle_items.is_none() || input.bundle_items.as_ref().unwrap().is_empty() {
+            return Err(
+                "Untuk promo bundle, Anda harus menentukan daftar item (bundle_items).".to_string(),
+            );
+        }
+        if input.applies_to != "item" {
+            return Err("Untuk bundle, applies_to harus 'item'.".to_string());
+        }
+        if input.discount_percent == 0.0 && input.discount_value == Some(0.0) {
+            return Err(
+                "Anda harus menentukan diskon (persentase atau nilai tetap) untuk bundle."
+                    .to_string(),
+            );
+        }
+    }
+
+    if input.applies_to == "item" && input.item_id.is_none() {
+        return Err(
+            "Untuk promo yang diterapkan ke item, Anda harus menentukan item_id.".to_string(),
+        );
+    }
+
     let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
 
+    // --- CEK APAKAH PROMO ADA ---
+    let existing: Option<Promo> = sqlx::query_as::<_, Promo>("SELECT * FROM promos WHERE id = ?")
+        .bind(&id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    if existing.is_none() {
+        return Err("Promo tidak ditemukan.".to_string());
+    }
+
+    // --- CEK ITEM_ID VALID ---
+    if let Some(ref item_id) = input.item_id {
+        let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM items WHERE id = ?")
+            .bind(item_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        if exists.is_none() {
+            return Err(format!("Item dengan ID {} tidak ditemukan.", item_id));
+        }
+    }
+
+    if let Some(ref cat_id) = input.category_id {
+        let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM categories WHERE id = ?")
+            .bind(cat_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        if exists.is_none() {
+            return Err(format!("Kategori dengan ID {} tidak ditemukan.", cat_id));
+        }
+    }
+
+    if let Some(ref bundle_items) = input.bundle_items {
+        for bi in bundle_items {
+            let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM items WHERE id = ?")
+                .bind(&bi.item_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            if exists.is_none() {
+                return Err(format!("Item dengan ID {} tidak ditemukan.", bi.item_id));
+            }
+        }
+    }
+
+    // --- UPDATE PROMO ---
     sqlx::query(
         r#"UPDATE promos SET 
             name=?, description=?, discount_percent=?, min_qty=?, category_id=?, item_id=?, member_only=?, 
@@ -135,7 +325,7 @@ pub async fn update_promo(
     .bind(&id)
     .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
-    // Replace bogo rules
+    // --- REPLACE BOGO RULES ---
     sqlx::query("DELETE FROM promo_bogo_rules WHERE promo_id = ?")
         .bind(&id)
         .execute(&mut *tx)
@@ -152,7 +342,7 @@ pub async fn update_promo(
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
-    // Replace tiers
+    // --- REPLACE TIERS ---
     sqlx::query("DELETE FROM promo_tiers WHERE promo_id = ?")
         .bind(&id)
         .execute(&mut *tx)
@@ -173,8 +363,32 @@ pub async fn update_promo(
         .map_err(|e| e.to_string())?;
     }
 
+    // --- REPLACE BUNDLE ITEMS ---
+    sqlx::query("DELETE FROM promo_bundle_items WHERE promo_id = ?")
+        .bind(&id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Some(bundle_items) = input.bundle_items {
+        for b_item in bundle_items {
+            let bundle_id = Uuid::new_v4().to_string();
+            sqlx::query(
+                "INSERT INTO promo_bundle_items (id, promo_id, item_id, qty) VALUES (?, ?, ?, ?)",
+            )
+            .bind(&bundle_id)
+            .bind(&id)
+            .bind(&b_item.item_id)
+            .bind(b_item.qty)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
     tx.commit().await.map_err(|e| e.to_string())?;
 
+    // --- RETURN UPDATED PROMO ---
     sqlx::query_as::<_, Promo>("SELECT * FROM promos WHERE id = ?")
         .bind(&id)
         .fetch_one(&state.db_pool)
@@ -207,6 +421,11 @@ pub async fn delete_promo(id: String, state: State<'_, AppState>) -> Result<(), 
             .await
             .map_err(|e| e.to_string())?;
         sqlx::query("DELETE FROM promo_tiers WHERE promo_id = ?")
+            .bind(&id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        sqlx::query("DELETE FROM promo_bundle_items WHERE promo_id = ?")
             .bind(&id)
             .execute(&mut *tx)
             .await
@@ -268,10 +487,6 @@ pub async fn calculate_discounts_internal(
         .await
         .map_err(|e| e.to_string())?;
 
-    // Fetch bogo and tier rules for these promos to avoid N+1 querying in the loop
-    // But for simplicity of implementation here, we'll fetch them on demand if needed,
-    // or we can fetch all of them. Let's fetch all active bogo/tiers to memory.
-
     let bogo_rules = sqlx::query_as::<_, PromoBogoRule>(
         "SELECT b.* FROM promo_bogo_rules b JOIN promos p ON p.id = b.promo_id WHERE p.active = 1",
     )
@@ -283,22 +498,21 @@ pub async fn calculate_discounts_internal(
         "SELECT t.* FROM promo_tiers t JOIN promos p ON p.id = t.promo_id WHERE p.active = 1 ORDER BY t.min_qty DESC"
     ).fetch_all(pool).await.unwrap_or(vec![]);
 
-    // We will track the discount applied per line index so we can handle stacking rules
+    let all_bundle_items = sqlx::query_as::<_, PromoBundleItem>(
+        "SELECT b.* FROM promo_bundle_items b JOIN promos p ON p.id = b.promo_id WHERE p.active = 1"
+    ).fetch_all(pool).await.unwrap_or(vec![]);
+
     let mut line_discounts_map: std::collections::HashMap<usize, Vec<AppliedDiscount>> =
         std::collections::HashMap::new();
 
     for promo in &active_promos {
-        // Filter by member tier
         if promo.member_tier.is_some() && promo.member_tier != customer_tier {
             continue;
         }
 
-        // Apply promo based on applies_to
         if promo.applies_to == "cart" {
-            // Cart-level discount logic
             let cart_total: f64 = lines.iter().map(|l| l.price * l.qty).sum();
             if cart_total >= promo.min_qty {
-                // using min_qty as min_amount for cart
                 let mut d = 0.0;
                 if promo.promo_type == "percentage" {
                     d = cart_total * promo.discount_value.unwrap_or(0.0) / 100.0;
@@ -310,14 +524,65 @@ pub async fn calculate_discounts_internal(
                         d = cap;
                     }
                 }
-                // Find the best cart discount if multiple apply (best_only logic simplified for cart)
                 if d > cart_discount {
                     cart_discount = d;
                     cart_discount_promo_id = Some(promo.id.clone());
                 }
             }
+        } else if promo.promo_type == "bundle" {
+            let bundle_reqs: Vec<&PromoBundleItem> = all_bundle_items
+                .iter()
+                .filter(|b| b.promo_id == promo.id)
+                .collect();
+            if !bundle_reqs.is_empty() {
+                let mut max_bundles_possible = f64::MAX;
+                let mut valid_bundle = true;
+
+                for req in &bundle_reqs {
+                    let qty_in_cart: f64 = lines
+                        .iter()
+                        .filter(|l| l.item_id == req.item_id)
+                        .map(|l| l.qty)
+                        .sum();
+                    if qty_in_cart < req.qty {
+                        valid_bundle = false;
+                        break;
+                    }
+                    let possible = (qty_in_cart / req.qty).floor();
+                    if possible < max_bundles_possible {
+                        max_bundles_possible = possible;
+                    }
+                }
+
+                if valid_bundle && max_bundles_possible > 0.0 {
+                    let mut bundle_price_per_set = 0.0;
+                    for req in &bundle_reqs {
+                        if let Some(line) = lines.iter().find(|l| l.item_id == req.item_id) {
+                            bundle_price_per_set += line.price * req.qty;
+                        }
+                    }
+
+                    let mut d = 0.0;
+                    if promo.discount_percent > 0.0 {
+                        d = bundle_price_per_set * max_bundles_possible * promo.discount_percent
+                            / 100.0;
+                    } else if let Some(dv) = promo.discount_value {
+                        d = dv * max_bundles_possible;
+                    }
+
+                    if let Some(cap) = promo.max_discount_amount {
+                        if d > cap {
+                            d = cap;
+                        }
+                    }
+
+                    if d > cart_discount {
+                        cart_discount = d;
+                        cart_discount_promo_id = Some(promo.id.clone());
+                    }
+                }
+            }
         } else {
-            // Item or Category level
             for line in &lines {
                 let matches_target = match promo.applies_to.as_str() {
                     "item" => {
@@ -347,7 +612,6 @@ pub async fn calculate_discounts_internal(
                             line_disc_val = promo.discount_value.unwrap_or(0.0);
                         }
                         "tiered" => {
-                            // find highest tier where min_qty <= line.qty
                             if let Some(tier) = tiers
                                 .iter()
                                 .find(|t| t.promo_id == promo.id && line.qty >= t.min_qty)
@@ -368,8 +632,6 @@ pub async fn calculate_discounts_internal(
                                         .free_item_unit_id
                                         .clone()
                                         .or(Some(line.unit_id.clone()));
-                                    // For BOGO we return a special applied discount instructing frontend to add a line,
-                                    // we don't discount the current line's price.
                                     line_disc_val = 0.0;
                                 }
                             }
@@ -383,7 +645,6 @@ pub async fn calculate_discounts_internal(
                         }
                     }
 
-                    // Round to 2 decimal places
                     line_disc_val = (line_disc_val * 100.0).round() / 100.0;
 
                     if line_disc_val > 0.0 || is_bogo {
@@ -408,20 +669,13 @@ pub async fn calculate_discounts_internal(
         }
     }
 
-    // Now resolve stacking per line
     for (line_idx, applied_list) in line_discounts_map {
         let line = lines.iter().find(|l| l.line_index == line_idx).unwrap();
         let max_line_total = line.price * line.qty;
 
         let mut final_list = Vec::new();
-
-        // We evaluate promos in order of priority (which they were inserted in)
         let mut current_total_discount = 0.0;
 
-        // Let's sort applied_list by discount amount descending for best_only comparison,
-        // but we also need to respect stacking rules.
-        // For simplicity: If ANY promo applies best_only, we take the absolute max discount among all promos for this line.
-        // If ALL promos are additive, we sum them.
         let has_best_only = applied_list.iter().any(|d| {
             active_promos
                 .iter()
@@ -431,7 +685,6 @@ pub async fn calculate_discounts_internal(
         });
 
         if has_best_only {
-            // Find the single best discount
             if let Some(best) = applied_list
                 .into_iter()
                 .max_by(|a, b| a.discount_amount.partial_cmp(&b.discount_amount).unwrap())
@@ -439,7 +692,6 @@ pub async fn calculate_discounts_internal(
                 final_list.push(best);
             }
         } else {
-            // Additive or none. Just sum them up, cap at max_line_total
             for mut d in applied_list {
                 let p_rule = active_promos
                     .iter()
@@ -448,7 +700,7 @@ pub async fn calculate_discounts_internal(
                     .unwrap_or("additive".to_string());
 
                 if p_rule == "none" && current_total_discount > 0.0 {
-                    continue; // skip if another discount already applied
+                    continue;
                 }
 
                 if current_total_discount + d.discount_amount > max_line_total {

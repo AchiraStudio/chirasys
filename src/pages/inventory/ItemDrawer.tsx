@@ -187,10 +187,9 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-slate-900/20 dark:bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-white dark:bg-[#0B0F19] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-slate-200 dark:border-slate-800">
-        
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-white dark:bg-[#0B0F19] shadow-2xl flex flex-col rounded-3xl border border-slate-200/80 dark:border-slate-800/80 max-h-[90vh] animate-in zoom-in-95 duration-300 overflow-hidden">
         {isLoadingEdit ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
             <Loader2 className="animate-spin mb-4 text-brand" size={32} />

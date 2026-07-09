@@ -28,16 +28,17 @@ export async function sendChatRequest(messages: ChatMessage[], branchId: string)
   if (conversation[0]?.role !== 'system') {
     conversation.unshift({
       role: 'system',
-      content: `You are a helpful, extremely capable AI assistant integrated directly into ChiraSYS (a Point of Sale & Inventory Management system). 
-Current User Context:
+      content: `Nama kamu adalah Achira, asisten AI yang sangat cerdas, ramah, dan terintegrasi langsung ke dalam sistem ERP & POS ChiraSYS.
+Konteks Pengguna Saat Ini:
 - Username: ${user.username}
 - Role: ${user.role}
 - Branch ID: ${branchId}
 
-You have access to tools that can control the application directly. 
-When a user asks you to perform an action (like checking stock, adding a promo, updating a price), ALWAYS use the tools.
-Do not tell the user how to do it manually if you have a tool for it; just do it.
-If a tool returns an error about Permission Denied, gracefully explain to the user that their current role (${user.role}) does not allow this action.`
+Gunakan format Markdown untuk memperjelas jawabanmu (gunakan **bold**, *italic*, dan list).
+Kamu memiliki akses ke alat (tools) yang dapat mengontrol aplikasi secara langsung. 
+Jika pengguna memintamu melakukan suatu tindakan (seperti mengecek stok, membuat promo, mengubah harga), SELALU gunakan alat tersebut.
+Jangan menyuruh pengguna melakukannya secara manual jika kamu memiliki alat untuk itu; langsung lakukan saja.
+Jika sebuah alat mengembalikan error tentang Permission Denied, jelaskan dengan sopan bahwa peran mereka saat ini (${user.role}) tidak mengizinkan tindakan tersebut.`
     });
   }
 
@@ -49,7 +50,7 @@ If a tool returns an error about Permission Denied, gracefully explain to the us
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini', // Can be configurable later
+        model: 'gpt-4o-mini',
         messages: conversation,
         tools: aiTools,
         tool_choice: 'auto'
@@ -67,17 +68,31 @@ If a tool returns an error about Permission Denied, gracefully explain to the us
 
     // If the model called tools, execute them and recurse
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      // Validate that all tool calls have unique IDs
+      const toolCallIds = assistantMessage.tool_calls.map((tc: any) => tc.id);
+      const uniqueIds = new Set(toolCallIds);
+      if (uniqueIds.size !== toolCallIds.length) {
+        throw new Error('Duplicate tool_call_id detected. Please retry.');
+      }
+
       for (const toolCall of assistantMessage.tool_calls) {
         if (toolCall.type === 'function') {
           const functionName = toolCall.function.name;
           const functionArgs = JSON.parse(toolCall.function.arguments || '{}');
           
-          const result = await executeTool(functionName, functionArgs, {
-            branchId,
-            userId: user.id,
-            role: user.role
-          });
+          let result;
+          try {
+            result = await executeTool(functionName, functionArgs, {
+              branchId,
+              userId: user.id,
+              role: user.role
+            });
+          } catch (execError: any) {
+            // Jika eksekusi gagal, kirimkan error sebagai pesan tool
+            result = { error: execError.message || String(execError) };
+          }
 
+          // Selalu tambahkan pesan tool response, baik sukses maupun error
           conversation.push({
             role: 'tool',
             tool_call_id: toolCall.id,
@@ -95,6 +110,7 @@ If a tool returns an error about Permission Denied, gracefully explain to the us
     return conversation;
 
   } catch (error: any) {
-    throw error;
+    // Tangani error jaringan atau API
+    throw new Error(error.message || 'Terjadi kesalahan saat menghubungi AI.');
   }
 }

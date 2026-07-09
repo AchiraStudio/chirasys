@@ -91,15 +91,15 @@ export default function AccountDrawer({ isOpen, onClose, onSaved, editAccountId 
   if (!isOpen) return null;
 
   return (
-    <>
-      <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-[400px] bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out border-l border-slate-200 dark:border-slate-800">
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-white dark:bg-[#0B0F19] shadow-2xl flex flex-col rounded-3xl border border-slate-200/80 dark:border-slate-800/80 max-h-[90vh] animate-in zoom-in-95 duration-300 overflow-hidden">
+        <div className="flex items-center justify-between p-5 sm:px-6 border-b border-slate-100 dark:border-slate-800/60 bg-white/80 dark:bg-[#0B0F19]/80 backdrop-blur-md z-10 shrink-0">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
             {editAccountId ? 'Edit Account' : 'New Account'}
           </h2>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-            <X size={20} />
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all">
+            <X size={18} />
           </button>
         </div>
 
@@ -178,6 +178,6 @@ export default function AccountDrawer({ isOpen, onClose, onSaved, editAccountId 
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
