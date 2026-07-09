@@ -453,3 +453,54 @@ pub async fn open_cash_drawer() -> Result<String, String> {
     println!("🔔 Cash drawer triggered via shortcut (F2)!");
     Ok("Drawer triggered".to_string())
 }
+
+#[tauri::command]
+pub async fn delete_sale(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+
+    // 1. Delete journal entries of any returns for this sale
+    sqlx::query(
+        "DELETE FROM journal_entries WHERE source_type = 'return' AND source_id IN (SELECT id FROM sale_returns WHERE sale_id = ?)"
+    )
+    .bind(&id)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // 2. Delete stock ledger entries of any returns for this sale
+    sqlx::query(
+        "DELETE FROM stock_ledger WHERE source_type = 'sale_return' AND source_id IN (SELECT id FROM sale_returns WHERE sale_id = ?)"
+    )
+    .bind(&id)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // 3. Delete journal entries for the sale itself
+    sqlx::query("DELETE FROM journal_entries WHERE source_type = 'sale' AND source_id = ?")
+        .bind(&id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // 4. Delete stock ledger entries for the sale itself
+    sqlx::query("DELETE FROM stock_ledger WHERE source_type = 'sale' AND source_id = ?")
+        .bind(&id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // 5. Delete the sale itself (Cascades to sale_lines, sale_payments, sale_returns, sale_promo_applications)
+    sqlx::query("DELETE FROM sales WHERE id = ?")
+        .bind(&id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+

@@ -1,6 +1,7 @@
+// Force HMR reload
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Users, Loader2, User, Plus, X, Eye, EyeOff, Power, KeyRound } from 'lucide-react';
+import { Users, Loader2, User, Plus, X, Eye, EyeOff, Power, KeyRound, Pencil } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
@@ -37,6 +38,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [resetModal, setResetModal] = useState<UserRow | null>(null);
+  const [editUsernameModal, setEditUsernameModal] = useState<UserRow | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
     title: string;
     message: string;
@@ -163,6 +165,13 @@ export default function UserManagement() {
                     <td className="py-3 px-6 text-right">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
+                          onClick={() => setEditUsernameModal(u)}
+                          title="Edit Username"
+                          className="p-2 rounded-lg text-slate-500 hover:text-brand hover:bg-brand/10 transition-colors"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
                           onClick={() => setResetModal(u)}
                           title="Reset Password"
                           className="p-2 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
@@ -188,6 +197,7 @@ export default function UserManagement() {
 
       {showModal && <AddStaffModal onClose={() => setShowModal(false)} onSuccess={fetchUsers} />}
       {resetModal && <ResetPasswordModal user={resetModal} onClose={() => setResetModal(null)} />}
+      {editUsernameModal && <EditUsernameModal user={editUsernameModal} onClose={() => setEditUsernameModal(null)} onSuccess={fetchUsers} />}
       {confirmModal && (
         <ConfirmModal
           title={confirmModal.title}
@@ -347,6 +357,70 @@ function ResetPasswordModal({ user, onClose }: { user: UserRow; onClose: () => v
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Batal</button>
             <button type="submit" disabled={loading} className="flex-[2] py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
               {loading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />} Simpan Password
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditUsernameModal({ user, onClose, onSuccess }: { user: UserRow; onClose: () => void; onSuccess: () => void }) {
+  const [newUsername, setNewUsername] = useState(user.username);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newUsername.trim().toLowerCase();
+    if (!trimmed || trimmed === user.username) { onClose(); return; }
+    if (trimmed.length < 3) { setError('Username minimal 3 karakter.'); return; }
+    setLoading(true); setError('');
+    try {
+      await invoke('update_user_username', { id: user.id, username: trimmed });
+      onSuccess();
+      onClose();
+    } catch (e: any) { setError(e.toString()); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Edit Username</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Untuk akun: <strong>{user.name}</strong></p>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-sm px-4 py-3 rounded-xl">
+              {error}
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Username Baru</label>
+            <div className="relative flex items-center">
+              <User size={16} className="absolute left-3 text-slate-400" />
+              <input
+                type="text"
+                value={newUsername}
+                onChange={e => setNewUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                autoFocus
+                required
+                placeholder="contoh: budi_kasir"
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+              Batal
+            </button>
+            <button type="submit" disabled={loading} className="flex-[2] py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading ? <><Loader2 size={16} className="animate-spin" /> Menyimpan...</> : <><Pencil size={16} /> Simpan Username</>}
             </button>
           </div>
         </form>

@@ -140,6 +140,7 @@ export const addItemUnit = async (itemId: string, unitName: string, conversion: 
 export const updateItemUnit = async (id: string, unitName: string, conversion: number, isBase: number, barcode?: string): Promise<ItemUnit> => invoke('update_item_unit', { id, unitName, conversion, isBase, barcode: barcode || null });
 export const deleteItemUnit = async (id: string): Promise<void> => invoke('delete_item_unit', { id });
 export const setItemPrice = async (itemId: string, unitId: string, customerTier: 'regular' | 'member' | 'vip', price: number): Promise<ItemPrice> => invoke('set_item_price', { itemId, unitId, customerTier, price });
+export const updateItemWholesalePrice = async (id: string, wholesalePrice: number): Promise<void> => invoke('update_item_wholesale_price', { id, wholesalePrice });
 
 export const getStockOverview = async (branchId: string): Promise<StockOverviewRow[]> => invoke('get_stock_overview', { branchId });
 export const getLowStockAlerts = async (branchId: string): Promise<LowStockAlert[]> => invoke('get_low_stock_alerts', { branchId });
@@ -276,8 +277,8 @@ export interface SyncStatus {
   failed_count: number;
   last_synced: string | null;
 }
-export const joinWorkspace = async (codeOrToken: string): Promise<WorkspaceInfo> =>
-  invoke('join_workspace', { codeOrToken });
+export const joinWorkspace = async (codeOrToken: string, password?: string): Promise<WorkspaceInfo> =>
+  invoke('join_workspace', { codeOrToken, password: password || null });
 export const createWorkspace = async (name: string, code: string): Promise<WorkspaceInfo> =>
   invoke('create_workspace', { name, code });
 export const createWorkspaceInvite = async (role: string, email?: string): Promise<string> =>
@@ -296,4 +297,6 @@ export const sysadminGetWorkspaces = async (): Promise<WorkspaceListInfo[]> =>
 export const sysadminCreateWorkspace = async (name: string, code: string): Promise<WorkspaceInfo> =>
   invoke('sysadmin_create_workspace', { name, code });
 export const sysadminCreateWorkspaceInvite = async (workspaceId: string, role: string): Promise<string> =>
-  invoke('sysadmin_create_workspace_invite', { workspaceId, role });
+  invoke('sysadmin_create_workspace_invite', { workspaceId, role });
+export const sysadminUpdateWorkspacePassword = async (workspaceId: string, password?: string): Promise<void> =>
+  invoke('sysadmin_update_workspace_password', { workspaceId, password: password || null });

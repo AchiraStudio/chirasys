@@ -232,3 +232,30 @@ pub async fn reset_user_password(
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+#[tauri::command]
+pub async fn update_user_username(
+    id: String,
+    username: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    // Check if username is already taken by another user
+    let existing: Option<(String,)> = sqlx::query_as("SELECT id FROM users WHERE username = ? AND id != ?")
+        .bind(&username)
+        .bind(&id)
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    if existing.is_some() {
+        return Err("Username sudah digunakan.".to_string());
+    }
+
+    sqlx::query("UPDATE users SET username = ? WHERE id = ?")
+        .bind(&username)
+        .bind(&id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+

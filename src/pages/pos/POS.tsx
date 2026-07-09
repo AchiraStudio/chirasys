@@ -1,6 +1,6 @@
 // src/pages/pos/POS.tsx — Full keyboard-driven POS with Indonesian UI
-import { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Search, Plus, Minus, Trash2, Clock, UserCheck, PauseCircle, PlayCircle, Loader2, HelpCircle } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { ShoppingCart, Search, Plus, Minus, Trash2, Clock, UserCheck, PauseCircle, PlayCircle, Loader2, HelpCircle, Edit2, Check, X as XIcon } from 'lucide-react';
 import { usePosStore, PosLine, PosHold } from './POSStore';
 import { getItemsFiltered, Item, Customer, getSettings } from '../../lib/api';
 import { applyDiscountsToCart } from '../../lib/discountEngine';
@@ -25,8 +25,15 @@ export default function POS() {
   const [taxMode, setTaxMode] = useState<string>('none');
   const [taxRate, setTaxRate] = useState<number>(0);
 
+  // Selected cart item index for keyboard navigation & price editing
+  const [selectedCartIdx, setSelectedCartIdx] = useState<number>(-1);
+  const [editingPriceIdx, setEditingPriceIdx] = useState<number>(-1);
+  const [editingPriceVal, setEditingPriceVal] = useState<string>('');
+
   // Arrow Key Navigation Refs
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const cartItemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const priceEditInputRef = useRef<HTMLInputElement>(null);
 
   // Modals
   const [showPayment, setShowPayment] = useState(false);
@@ -44,7 +51,7 @@ export default function POS() {
     },
     {
       target: '.tour-pos-cart',
-      content: 'Daftar barang belanjaan akan muncul di sini. Anda bisa mengubah jumlah atau memberikan diskon per item.',
+      content: 'Daftar barang belanjaan akan muncul di sini. Anda bisa mengubah jumlah atau harga per item. Tekan Alt+H untuk edit harga item yang dipilih.',
     },
     {
       target: '.tour-pos-customer',
@@ -52,7 +59,7 @@ export default function POS() {
     },
     {
       target: '.tour-pos-payment',
-      content: 'Klik Bayar (F10) untuk memproses pembayaran dan mencetak struk.',
+      content: 'Klik Bayar (F10 / End) untuk memproses pembayaran dan mencetak struk.',
     }
   ];
 
@@ -97,11 +104,54 @@ export default function POS() {
     }
   });
 
+  // Start price editing for current selected cart item
+  const startEditPrice = useCallback((idx: number) => {
+    if (idx < 0 || idx >= cart.length) return;
+    const line = cart[idx];
+    if (line.is_bogo_free) return;
+    setEditingPriceIdx(idx);
+    setEditingPriceVal(line.price.toString());
+    setSelectedCartIdx(idx);
+    setTimeout(() => priceEditInputRef.current?.focus(), 50);
+  }, [cart]);
+
+  const commitPriceEdit = useCallback(() => {
+    const newPrice = parseFloat(editingPriceVal);
+    if (!isNaN(newPrice) && newPrice >= 0 && editingPriceIdx >= 0) {
+      setCart(prev => prev.map((l, i) => i === editingPriceIdx ? { ...l, price: newPrice } : l));
+    }
+    setEditingPriceIdx(-1);
+    setEditingPriceVal('');
+  }, [editingPriceVal, editingPriceIdx]);
+
+  const cancelPriceEdit = useCallback(() => {
+    setEditingPriceIdx(-1);
+    setEditingPriceVal('');
+  }, []);
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in inputs (except our global ones)
-      // const isInInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      const isInModalInput = showPayment || showCustomerPicker || receiptSaleId || showHistory;
+      
+      // Price edit commits
+      if (editingPriceIdx >= 0) {
+        if (e.key === 'Enter') { e.preventDefault(); commitPriceEdit(); }
+        if (e.key === 'Escape') { e.preventDefault(); cancelPriceEdit(); }
+        return;
+      }
+
+      // Alt+H → edit price of selected cart item
+      if (e.altKey && e.key === 'h') {
+        e.preventDefault();
+        if (!isInModalInput && selectedCartIdx >= 0) {
+          startEditPrice(selectedCartIdx);
+        } else if (!isInModalInput && cart.length > 0) {
+          startEditPrice(cart.length - 1);
+          setSelectedCartIdx(cart.length - 1);
+        }
+        return;
+      }
 
       switch (e.key) {
         case 'F1':
@@ -110,9 +160,8 @@ export default function POS() {
           break;
         case 'F2':
           e.preventDefault();
-          import('@tauri-apps/api/core').then(({ invoke }) => {
-            invoke('open_cash_drawer').catch(console.warn);
-          });
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
           break;
         case 'F3':
           e.preventDefault();
@@ -131,11 +180,16 @@ export default function POS() {
           if (!showPayment && cart.length > 0 && confirm('Batalkan transaksi ini?')) {
             setCart([]);
             setCartDiscount(0);
+            setSelectedCartIdx(-1);
           }
           break;
         case 'F10':
           e.preventDefault();
           if (cart.length > 0 && !showPayment) setShowPayment(true);
+          break;
+        case 'End':
+          e.preventDefault();
+          if (cart.length > 0 && !showPayment && !isInModalInput) setShowPayment(true);
           break;
         case 'F11':
           e.preventDefault();
@@ -149,6 +203,7 @@ export default function POS() {
           e.preventDefault();
           if (cart.length > 0 && !showPayment) {
             setCart(prev => prev.slice(0, -1));
+            setSelectedCartIdx(prev => Math.max(-1, prev - 1));
           }
           break;
         case 'Escape':
@@ -156,12 +211,54 @@ export default function POS() {
           if (showCustomerPicker) setShowCustomerPicker(false);
           if (receiptSaleId) setReceiptSaleId(null);
           break;
+        // Arrow navigation in cart when search is empty
+        case 'ArrowDown':
+          if (search.length < 2 && cart.length > 0 && !isInModalInput) {
+            e.preventDefault();
+            const next = Math.min(selectedCartIdx + 1, cart.length - 1);
+            setSelectedCartIdx(next);
+            cartItemRefs.current[next]?.focus();
+          }
+          break;
+        case 'ArrowUp':
+          if (search.length < 2 && cart.length > 0 && !isInModalInput) {
+            e.preventDefault();
+            const prev = Math.max(selectedCartIdx - 1, 0);
+            setSelectedCartIdx(prev);
+            cartItemRefs.current[prev]?.focus();
+          }
+          break;
+        case '+':
+        case '=':
+          if (search.length < 2 && selectedCartIdx >= 0 && !isInModalInput) {
+            e.preventDefault();
+            const line = cart[selectedCartIdx];
+            if (line && !line.is_bogo_free) updateQty(line.item_id, 1);
+          }
+          break;
+        case '-':
+          if (search.length < 2 && selectedCartIdx >= 0 && !isInModalInput) {
+            e.preventDefault();
+            const line = cart[selectedCartIdx];
+            if (line && !line.is_bogo_free) updateQty(line.item_id, -1);
+          }
+          break;
+        case 'Delete':
+          if (search.length < 2 && selectedCartIdx >= 0 && !isInModalInput) {
+            e.preventDefault();
+            const line = cart[selectedCartIdx];
+            if (line && !line.is_bogo_free) {
+              removeItem(line.item_id);
+              setSelectedCartIdx(prev => Math.max(0, prev - 1));
+            }
+          }
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
-  }, [cart, holds, showPayment, showCustomerPicker, receiptSaleId]);
+  }, [cart, holds, showPayment, showCustomerPicker, receiptSaleId, showHistory, search, selectedCartIdx, editingPriceIdx, editingPriceVal, startEditPrice, commitPriceEdit, cancelPriceEdit]);
 
   // Auto-focus search on non-input clicks
   useEffect(() => {
@@ -274,9 +371,9 @@ export default function POS() {
         qty: 1, price_type: priceType, price, discount_amount: 0, hpp_value: item.avg_hpp || 0
       }];
     });
+    // Select the last item added
+    setSelectedCartIdx(cart.length); // will be updated after state settles
   };
-
-
 
   const updateQty = (itemId: string, delta: number) => {
     setCart(prev => prev.map(l => {
@@ -297,22 +394,24 @@ export default function POS() {
   const handleHold = () => {
     if (cart.length === 0) return;
     addHold({ id: Date.now().toString(), timestamp: new Date().toLocaleTimeString('id-ID'), lines: cart, price_type: priceType, total });
-    setCart([]); setCartDiscount(0);
+    setCart([]); setCartDiscount(0); setSelectedCartIdx(-1);
   };
 
   const handleResume = (hold: PosHold) => {
     setCart(hold.lines); setPriceType(hold.price_type); removeHold(hold.id);
+    setSelectedCartIdx(-1);
   };
 
   const handlePaymentSuccess = (saleId: string, print: boolean) => {
     setCart([]); setCartDiscount(0); setSearch(''); setShowPayment(false);
+    setSelectedCartIdx(-1);
     if (print) setReceiptSaleId(saleId);
   };
 
   const TIER_LABEL: Record<string, string> = { regular: 'Regular', member: 'Member', vip: 'VIP' };
 
   return (
-    <div className="flex h-full w-full bg-slate-100 dark:bg-[#0B0F19] p-4 gap-4 animate-in fade-in">
+    <div className="flex h-full w-full bg-slate-100 dark:bg-[#0B0F19] p-3 gap-3 animate-in fade-in">
       {/* LEFT: Item Search */}
       <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden min-w-0">
         <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/50 shrink-0">
@@ -324,7 +423,7 @@ export default function POS() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={handleBarcodeEnter}
-              placeholder="Scan barcode atau ketik nama obat... (F1)"
+              placeholder="Scan barcode atau ketik nama obat... (F1/F2)"
               className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none text-slate-900 dark:text-white placeholder-slate-400"
               autoFocus
             />
@@ -343,7 +442,12 @@ export default function POS() {
             <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 select-none">
               <ShoppingCart size={48} className="mb-3 opacity-20" />
               <p className="text-sm">Scan barcode atau ketik nama obat</p>
-              <p className="text-xs mt-1 text-slate-400">Tekan F1 untuk fokus pencarian</p>
+              <p className="text-xs mt-1 text-slate-400">Tekan F1/F2 untuk fokus pencarian</p>
+              {cart.length > 0 && (
+                <p className="text-xs mt-3 text-brand/70 bg-brand/5 px-3 py-1.5 rounded-lg border border-brand/10">
+                  ↑↓ Navigasi keranjang · ±/- Ubah qty · Alt+H Edit harga · Del Hapus
+                </p>
+              )}
             </div>
           ) : loading ? (
             <div className="h-full flex justify-center items-center"><Loader2 className="animate-spin text-brand" size={28} /></div>
@@ -357,7 +461,7 @@ export default function POS() {
               {items.map((item, idx) => (
                 <button
                   key={item.id}
-                  ref={el => itemRefs.current[idx] = el}
+                  ref={el => { itemRefs.current[idx] = el; }}
                   onClick={() => addToCart(item)}
                   className="flex flex-col text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 hover:border-brand hover:ring-1 hover:ring-brand/50 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand transition-all active:scale-[0.97]"
                 >
@@ -371,9 +475,9 @@ export default function POS() {
         </div>
 
         {/* Keyboard Shortcut Hint Bar */}
-        <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500 font-medium shrink-0">
-          {[['F1','Cari'],['F3','Pelanggan'],['F4','Tahan'],['F5','Lanjut'],['F9','Baru'],['F10','Bayar'],['F11','Layar Penuh'],['F12','Hapus Baris']].map(([k, v]) => (
-            <span key={k} className="flex items-center gap-2"><kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-2 py-0.5 rounded text-[11px] font-bold text-slate-700 dark:text-slate-300">{k}</kbd> {v}</span>
+        <div className="p-2.5 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-slate-500 font-medium shrink-0">
+          {[['F1/F2','Cari'],['F3','Pelanggan'],['F4','Tahan'],['F5','Lanjut'],['F9','Baru'],['F10/End','Bayar'],['Alt+H','Edit Harga'],['F11','Layar Penuh'],['F12','Hapus Baris']].map(([k, v]) => (
+            <span key={k} className="flex items-center gap-1.5"><kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300">{k}</kbd> {v}</span>
           ))}
         </div>
       </div>
@@ -408,35 +512,91 @@ export default function POS() {
             </div>
           ) : (
             <div className="space-y-1.5">
-              {cart.map((l, idx) => (
-                <div key={`${l.item_id}-${idx}`} className={`p-3 rounded-xl border flex gap-2 ${l.is_bogo_free ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/50' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800'}`}>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-1">
-                      {l.is_bogo_free && <span className="text-emerald-600 mr-1">FREE</span>}
-                      {l.item_name}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Rp {l.price.toLocaleString('id-ID')} / {l.unit_name}</p>
-                    {l.discount_amount > 0 && (
-                      <span className="text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded mt-1 inline-block">
-                        -Rp {l.discount_amount.toLocaleString('id-ID')}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end justify-between gap-1">
-                    <span className="font-bold text-xs text-brand">Rp {((l.qty * l.price) - l.discount_amount).toLocaleString('id-ID')}</span>
+              {cart.map((l, idx) => {
+                const isSelected = selectedCartIdx === idx;
+                const isEditingPrice = editingPriceIdx === idx;
+                return (
+                  <div
+                    key={`${l.item_id}-${idx}`}
+                    ref={el => { cartItemRefs.current[idx] = el; }}
+                    tabIndex={0}
+                    onFocus={() => setSelectedCartIdx(idx)}
+                    onClick={() => setSelectedCartIdx(idx)}
+                    onKeyDown={e => {
+                      if (e.key === 'ArrowDown') { e.preventDefault(); const next = Math.min(idx + 1, cart.length - 1); setSelectedCartIdx(next); cartItemRefs.current[next]?.focus(); }
+                      if (e.key === 'ArrowUp') { e.preventDefault(); const prev = Math.max(idx - 1, 0); setSelectedCartIdx(prev); cartItemRefs.current[prev]?.focus(); }
+                      if ((e.key === '+' || e.key === '=') && !l.is_bogo_free) updateQty(l.item_id, 1);
+                      if (e.key === '-' && !l.is_bogo_free) updateQty(l.item_id, -1);
+                      if (e.key === 'Delete' && !l.is_bogo_free) { removeItem(l.item_id); setSelectedCartIdx(Math.max(0, idx - 1)); }
+                      if ((e.altKey && e.key === 'h') && !l.is_bogo_free) startEditPrice(idx);
+                    }}
+                    className={`p-3 rounded-xl border flex gap-2 transition-all outline-none cursor-pointer ${
+                      isSelected
+                        ? 'ring-2 ring-brand border-brand bg-brand/5 dark:bg-brand/10'
+                        : l.is_bogo_free
+                          ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/50'
+                          : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-1">
+                        {l.is_bogo_free && <span className="text-emerald-600 mr-1">FREE</span>}
+                        {l.item_name}
+                      </h4>
+                      {/* Price display / edit */}
+                      {isEditingPrice ? (
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-[10px] text-slate-500">Rp</span>
+                          <input
+                            ref={priceEditInputRef}
+                            type="number"
+                            value={editingPriceVal}
+                            onChange={e => setEditingPriceVal(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') { e.preventDefault(); commitPriceEdit(); }
+                              if (e.key === 'Escape') { e.preventDefault(); cancelPriceEdit(); }
+                            }}
+                            className="w-24 text-[11px] font-bold px-1.5 py-0.5 border border-brand rounded bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-brand"
+                          />
+                          <button onClick={e => { e.stopPropagation(); commitPriceEdit(); }} className="text-emerald-500 hover:text-emerald-600"><Check size={12}/></button>
+                          <button onClick={e => { e.stopPropagation(); cancelPriceEdit(); }} className="text-slate-400 hover:text-rose-500"><XIcon size={12}/></button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <p className="text-[11px] text-slate-500">Rp {l.price.toLocaleString('id-ID')} / {l.unit_name}</p>
+                          {!l.is_bogo_free && isSelected && (
+                            <button
+                              onClick={e => { e.stopPropagation(); startEditPrice(idx); }}
+                              className="text-slate-400 hover:text-brand transition-colors"
+                              title="Edit harga (Alt+H)"
+                            >
+                              <Edit2 size={10}/>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {l.discount_amount > 0 && (
+                        <span className="text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded mt-1 inline-block">
+                          -Rp {l.discount_amount.toLocaleString('id-ID')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end justify-between gap-1">
+                      <span className="font-bold text-xs text-brand">Rp {((l.qty * l.price) - l.discount_amount).toLocaleString('id-ID')}</span>
+                      {!l.is_bogo_free && (
+                        <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                          <button onClick={e => { e.stopPropagation(); updateQty(l.item_id, -1); }} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400 focus:outline-none focus:text-brand focus:bg-brand/10 rounded"><Minus size={12}/></button>
+                          <span className="w-7 text-center text-xs font-bold text-slate-900 dark:text-white">{l.qty}</span>
+                          <button onClick={e => { e.stopPropagation(); updateQty(l.item_id, 1); }} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400 focus:outline-none focus:text-brand focus:bg-brand/10 rounded"><Plus size={12}/></button>
+                        </div>
+                      )}
+                    </div>
                     {!l.is_bogo_free && (
-                      <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
-                        <button onClick={() => updateQty(l.item_id, -1)} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400 focus:outline-none focus:text-brand focus:bg-brand/10 rounded"><Minus size={12}/></button>
-                        <span className="w-7 text-center text-xs font-bold text-slate-900 dark:text-white">{l.qty}</span>
-                        <button onClick={() => updateQty(l.item_id, 1)} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400 focus:outline-none focus:text-brand focus:bg-brand/10 rounded"><Plus size={12}/></button>
-                      </div>
+                      <button onClick={e => { e.stopPropagation(); removeItem(l.item_id); }} className="text-slate-400 hover:text-rose-500 focus:outline-none focus:text-rose-500 focus:bg-rose-50 dark:focus:bg-rose-500/10 rounded p-0.5 self-start"><Trash2 size={14}/></button>
                     )}
                   </div>
-                  {!l.is_bogo_free && (
-                    <button onClick={() => removeItem(l.item_id)} className="text-slate-400 hover:text-rose-500 focus:outline-none focus:text-rose-500 focus:bg-rose-50 dark:focus:bg-rose-500/10 rounded p-0.5 self-start"><Trash2 size={14}/></button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

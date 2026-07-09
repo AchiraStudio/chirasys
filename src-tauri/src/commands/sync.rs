@@ -217,6 +217,7 @@ pub struct SyncStatus {
 #[tauri::command]
 pub async fn join_workspace(
     code_or_token: String,
+    password: Option<String>,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<WorkspaceInfo, String> {
     let _ = dotenvy::dotenv();
@@ -254,7 +255,34 @@ pub async fn join_workspace(
                     return Err("This invite link has already been used.".to_string());
                 }
                 let workspace_id = invite["workspace_id"].as_str().unwrap_or_default().to_string();
-                // Fetch workspace details
+                
+                // Fetch workspace to verify password if set
+                let ws_url = format!("{}/rest/v1/workspaces?id=eq.{}&select=id,name,code,password_hash", supabase_url, workspace_id);
+                let ws_resp = client
+                    .get(&ws_url)
+                    .header("apikey", &supabase_key)
+                    .header("Authorization", format!("Bearer {}", &supabase_key))
+                    .send()
+                    .await
+                    .map_err(|e| format!("Network error: {}", e))?;
+                
+                let workspaces: Vec<serde_json::Value> = ws_resp.json().await.unwrap_or_default();
+                if let Some(ws) = workspaces.first() {
+                    if let Some(hash) = ws.get("password_hash").and_then(|v| v.as_str()) {
+                        if !hash.is_empty() {
+                            let pw = password.as_deref().unwrap_or("");
+                            if pw.is_empty() {
+                                return Err("Workspace ini memerlukan password untuk bergabung.".to_string());
+                            }
+                            let matches = bcrypt::verify(pw, hash).map_err(|e| e.to_string())?;
+                            if !matches {
+                                return Err("Password workspace salah.".to_string());
+                            }
+                        }
+                    }
+                }
+
+                // Fetch workspace details and save
                 return fetch_and_save_workspace(&client, &supabase_url, &supabase_key, &workspace_id, &state.db_pool).await;
             }
         }
@@ -262,7 +290,7 @@ pub async fn join_workspace(
 
     // Second try: treat as workspace code
     let code_url = format!(
-        "{}/rest/v1/workspaces?code=eq.{}&select=id,name,code",
+        "{}/rest/v1/workspaces?code=eq.{}&select=id,name,code,password_hash",
         supabase_url, trimmed
     );
     let resp = client
@@ -283,6 +311,19 @@ pub async fn join_workspace(
     }
 
     let ws = &workspaces[0];
+    if let Some(hash) = ws.get("password_hash").and_then(|v| v.as_str()) {
+        if !hash.is_empty() {
+            let pw = password.as_deref().unwrap_or("");
+            if pw.is_empty() {
+                return Err("Workspace ini memerlukan password untuk bergabung.".to_string());
+            }
+            let matches = bcrypt::verify(pw, hash).map_err(|e| e.to_string())?;
+            if !matches {
+                return Err("Password workspace salah.".to_string());
+            }
+        }
+    }
+
     let workspace_id = ws["id"].as_str().unwrap_or_default().to_string();
     fetch_and_save_workspace(&client, &supabase_url, &supabase_key, &workspace_id, &state.db_pool).await
 }
@@ -769,3 +810,49 @@ pub async fn sysadmin_create_workspace_invite(workspace_id: String, role: String
 
     Ok(token)
 }
+
+#[tauri::command]
+pub async fn sysadmin_update_workspace_password(
+    workspace_id: String,
+    password: Option<String>,
+) -> Result<(), String> {
+    let _ = dotenvy::dotenv();
+    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
+    let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+
+    let client = Client::builder().build().map_err(|e| e.to_string())?;
+
+    // Hash password if provided
+    let password_hash = if let Some(ref pw) = password {
+        if pw.trim().is_empty() {
+            serde_json::Value::Null
+        } else {
+            let hashed = bcrypt::hash(pw, bcrypt::DEFAULT_COST).map_err(|e| e.to_string())?;
+            serde_json::Value::String(hashed)
+        }
+    } else {
+        serde_json::Value::Null
+    };
+
+    let payload = serde_json::json!({
+        "password_hash": password_hash
+    });
+
+    let resp = client
+        .patch(format!("{}/rest/v1/workspaces?id=eq.{}", supabase_url, workspace_id))
+        .header("apikey", &supabase_key)
+        .header("Authorization", format!("Bearer {}", &supabase_key))
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+
+    if !resp.status().is_success() {
+        let err = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to update workspace password: {}", err));
+    }
+
+    Ok(())
+}
+

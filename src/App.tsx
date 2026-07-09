@@ -3,6 +3,7 @@ import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import Dashboard from './components/Dashboard';
 import TitleBar from './components/TitleBar';
+import AIChat from './components/ai/AIChat';
 import MasterData from './pages/inventory/MasterData'; 
 import StockOverview from './pages/inventory/StockOverview'; 
 import StockOpname from './pages/inventory/StockOpname';
@@ -29,6 +30,7 @@ export default function App() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [editItemId, setEditItemId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0); 
 
@@ -173,7 +175,7 @@ export default function App() {
       <ContextMenu />
       <TitleBar />
       <div className="flex flex-1 overflow-hidden pt-10">
-        <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
+        <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
         <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50 dark:bg-[#0B0F19]">
         <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
         <div className={`flex-1 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-6 md:p-8'}`}>
@@ -208,6 +210,7 @@ export default function App() {
           )}
         </div>
         <ItemDrawer isOpen={isDrawerOpen} onClose={() => { setIsDrawerOpen(false); setEditItemId(null); }} onItemAdded={() => setRefreshTrigger(prev => prev + 1)} editItemId={editItemId} />
+        <AIChat isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} branchId={user.branch_id || 'branch_001'} />
       </main>
       </div>
     </div>

@@ -38,7 +38,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
     },
     {
       target: '.tour-inv-table',
-      content: 'Tabel ini menampilkan seluruh katalog Anda. Klik icon mata untuk melihat detail pergerakan stok.',
+      content: 'Tabel ini menampilkan seluruh katalog Anda. Klik icon mata untuk melihat detail pergerakan stok. Anda dapat mengubah harga eceran dan grosir secara langsung di dalam baris tabel ini.',
     }
   ];
 
@@ -163,13 +163,15 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
               <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800">
                 <th className="py-4 px-6">Nama Item</th>
                 <th className="py-4 px-6">SKU</th>
-                <th className="py-4 px-6 text-center">Status</th>
-                <th className="py-4 px-6 text-right">Aksi</th>
+                <th className="py-4 px-6 text-right w-44">Harga Eceran (Retail)</th>
+                <th className="py-4 px-6 text-right w-44">Harga Grosir (Wholesale)</th>
+                <th className="py-4 px-6 text-center w-28">Status</th>
+                <th className="py-4 px-6 text-right w-36">Aksi</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100 dark:divide-slate-800/60">
               {loading ? (
-                <tr><td colSpan={4} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-brand" /></td></tr>
+                <tr><td colSpan={6} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-brand" /></td></tr>
               ) : items.map((item) => (
                 <tr key={item.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group ${item.is_active === 0 ? 'opacity-50' : ''}`}>
                   <td className="py-4 px-6">
@@ -177,6 +179,61 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                     {item.generic_name && <p className="text-xs text-slate-600 mt-0.5">{item.generic_name}</p>}
                   </td>
                   <td className="py-4 px-6 font-mono text-xs text-slate-600">{item.sku}</td>
+                  
+                  {/* Inline Retail Price Input */}
+                  <td className="py-3 px-6 text-right">
+                    <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-brand/30">
+                      <span className="text-xs text-slate-400 font-bold mr-1">Rp</span>
+                      <input
+                        type="number"
+                        defaultValue={item.price || 0}
+                        onBlur={async (e) => {
+                          const val = parseFloat(e.target.value);
+                          if (isNaN(val) || val === item.price) return;
+                          try {
+                            const { setItemPrice } = await import('../../lib/api');
+                            await setItemPrice(item.id, item.base_unit_id || 'base', 'regular', val);
+                          } catch (err) {
+                            alert('Gagal update harga retail: ' + err);
+                          }
+                        }}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter') {
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white focus:ring-0 p-0 text-right font-mono"
+                      />
+                    </div>
+                  </td>
+
+                  {/* Inline Wholesale Price Input */}
+                  <td className="py-3 px-6 text-right">
+                    <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-brand/30">
+                      <span className="text-xs text-slate-400 font-bold mr-1">Rp</span>
+                      <input
+                        type="number"
+                        defaultValue={item.wholesale_price || 0}
+                        onBlur={async (e) => {
+                          const val = parseFloat(e.target.value);
+                          if (isNaN(val) || val === item.wholesale_price) return;
+                          try {
+                            const { updateItemWholesalePrice } = await import('../../lib/api');
+                            await updateItemWholesalePrice(item.id, val);
+                          } catch (err) {
+                            alert('Gagal update harga grosir: ' + err);
+                          }
+                        }}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter') {
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white focus:ring-0 p-0 text-right font-mono"
+                      />
+                    </div>
+                  </td>
+
                   <td className="py-4 px-6 text-center">
                     <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-bold uppercase ${item.is_active ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-slate-100 text-slate-600 ring-slate-400/20'} ring-1 ring-inset`}>
                       {item.is_active ? 'Aktif' : 'Nonaktif'}

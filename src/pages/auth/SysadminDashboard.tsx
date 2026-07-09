@@ -1,6 +1,7 @@
+// Force HMR reload
 import { useState, useEffect } from 'react';
-import { Loader2, Plus, Link2, Copy, ShieldCheck, ArrowLeft, Building2 } from 'lucide-react';
-import { sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo } from '../../lib/api';
+import { Loader2, Plus, Link2, Copy, ShieldCheck, ArrowLeft, Building2, KeyRound, X } from 'lucide-react';
+import { sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, sysadminUpdateWorkspacePassword, WorkspaceListInfo } from '../../lib/api';
 
 export default function SysadminDashboard({ onLogout }: { onLogout: () => void }) {
   const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
@@ -16,6 +17,7 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
   const [inviteRole, setInviteRole] = useState<'admin' | 'worker'>('admin');
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [editingPasswordWs, setEditingPasswordWs] = useState<WorkspaceListInfo | null>(null);
 
   useEffect(() => {
     loadWorkspaces();
@@ -23,11 +25,18 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
 
   const loadWorkspaces = async () => {
     setLoading(true);
+    setError('');
     try {
       const data = await sysadminGetWorkspaces();
       setWorkspaces(data);
     } catch (e: any) {
-      setError(e.message || String(e));
+      const msg = e.message || String(e);
+      const lowerMsg = msg.toLowerCase();
+      if (lowerMsg.includes('network') || lowerMsg.includes('request') || lowerMsg.includes('url') || lowerMsg.includes('connect')) {
+        setError('Tidak dapat terhubung ke server cloud. Periksa koneksi internet Anda dan coba lagi.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -85,8 +94,14 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl dark:bg-rose-900/20 dark:border-rose-800/50 dark:text-rose-400">
-            {error}
+          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl dark:bg-rose-900/20 dark:border-rose-800/50 dark:text-rose-400 flex items-center justify-between gap-4">
+            <span className="text-sm">{error}</span>
+            <button
+              onClick={loadWorkspaces}
+              className="shrink-0 px-3 py-1.5 bg-rose-100 dark:bg-rose-800/30 hover:bg-rose-200 dark:hover:bg-rose-700/30 text-rose-700 dark:text-rose-300 rounded-lg text-xs font-bold transition-colors"
+            >
+              Coba Lagi
+            </button>
           </div>
         )}
 
@@ -160,34 +175,42 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
                       <span className="text-xs text-slate-400">Created: {new Date(ws.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
-                  
-                  {inviteWsId === ws.id ? (
-                    <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
-                      <select 
-                        value={inviteRole}
-                        onChange={e => setInviteRole(e.target.value as any)}
-                        className="text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="worker">Worker</option>
-                      </select>
-                      <button 
-                        onClick={() => handleGenerateInvite(ws.id)}
-                        disabled={inviteLoading}
-                        className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold rounded-md flex items-center gap-1 transition-colors"
-                      >
-                        {inviteLoading ? <Loader2 size={12} className="animate-spin" /> : 'Generate'}
-                      </button>
-                      <button onClick={() => {setInviteWsId(null); setInviteToken(null);}} className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"><ArrowLeft size={14} /></button>
-                    </div>
-                  ) : (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => { setInviteWsId(ws.id); setInviteToken(null); }}
-                      className="opacity-0 group-hover:opacity-100 flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
+                      onClick={() => setEditingPasswordWs(ws)}
+                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all"
+                      title="Set/Edit Password"
                     >
-                      <Link2 size={14} /> Add User
+                      <KeyRound size={15} />
                     </button>
-                  )}
+                    {inviteWsId === ws.id ? (
+                      <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
+                        <select 
+                          value={inviteRole}
+                          onChange={e => setInviteRole(e.target.value as any)}
+                          className="text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300"
+                        >
+                          <option value="admin">Admin</option>
+                          <option value="worker">Worker</option>
+                        </select>
+                        <button 
+                          onClick={() => handleGenerateInvite(ws.id)}
+                          disabled={inviteLoading}
+                          className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold rounded-md flex items-center gap-1 transition-colors"
+                        >
+                          {inviteLoading ? <Loader2 size={12} className="animate-spin" /> : 'Generate'}
+                        </button>
+                        <button onClick={() => {setInviteWsId(null); setInviteToken(null);}} className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"><ArrowLeft size={14} /></button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setInviteWsId(ws.id); setInviteToken(null); }}
+                        className="opacity-0 group-hover:opacity-100 flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
+                      >
+                        <Link2 size={14} /> Add User
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -213,6 +236,80 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
             </div>
           )}
         </div>
+      </div>
+      {editingPasswordWs && (
+        <EditWorkspacePasswordModal ws={editingPasswordWs} onClose={() => setEditingPasswordWs(null)} />
+      )}
+    </div>
+  );
+}
+
+function EditWorkspacePasswordModal({ ws, onClose }: { ws: WorkspaceListInfo; onClose: () => void }) {
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess(false);
+    try {
+      await sysadminUpdateWorkspacePassword(ws.id, password);
+      setSuccess(true);
+      setTimeout(() => onClose(), 1000);
+    } catch (err: any) {
+      setError(err.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Workspace Password</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Workspace: <strong>{ws.name}</strong></p>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs px-4 py-3 rounded-xl">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs px-4 py-3 rounded-xl">
+              Password berhasil disimpan!
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Password Baru</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Kosongkan untuk menghapus password"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+              autoFocus
+            />
+            <p className="text-[10px] text-slate-400 mt-1.5">
+              Kosongkan dan simpan jika ingin workspace ini dapat diakses tanpa password.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+              Batal
+            </button>
+            <button type="submit" disabled={loading || success} className="flex-[2] py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading ? 'Menyimpan...' : 'Simpan Password'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

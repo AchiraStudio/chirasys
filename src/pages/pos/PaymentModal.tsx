@@ -32,20 +32,77 @@ const PAYMENT_METHODS = [
 type MethodKey = typeof PAYMENT_METHODS[number]['key'];
 
 export default function PaymentModal({ branchId, cart, total, priceType, customerId, taxAmount, discountAmount, onClose, onSuccess }: PaymentModalProps) {
+    const [adjustedTotalStr, setAdjustedTotalStr] = useState(total.toString());
+    const lastResolvedTotal = useRef<number>(total);
+
     const [amounts, setAmounts] = useState<Record<MethodKey, string>>({
         cash: total.toString(), transfer: '', debit: '', credit: '', qris: ''
     });
+    const lastResolvedAmounts = useRef<Record<MethodKey, number>>({
+        cash: total, transfer: 0, debit: 0, credit: 0, qris: 0
+    });
+
     const [activeMethod, setActiveMethod] = useState<MethodKey>('cash');
     const [bankIds, setBankIds] = useState<Record<string, string>>({ debit: '', credit: '', transfer: '' });
     const [banks, setBanks] = useState<Bank[]>([]);
     const [voucher, setVoucher] = useState('');
+    const [manualDiscountStr, setManualDiscountStr] = useState('');
     const [loading, setLoading] = useState(false);
     const amountInputRef = useRef<HTMLInputElement>(null);
     const { user } = useAuthStore();
 
-    const totalBayar = PAYMENT_METHODS.reduce((sum, m) => sum + (parseFloat(amounts[m.key]) || 0), 0);
-    const kembali = totalBayar - total;
-    const isReady = totalBayar >= total;
+    // Parse manual discount: supports "5000" (fixed Rp) or "10%" (percent of total)
+    const parseManualDiscount = (str: string, baseTotal: number): number => {
+        const trimmed = str.trim();
+        if (!trimmed) return 0;
+        if (trimmed.endsWith('%')) {
+            const pct = parseFloat(trimmed);
+            return isNaN(pct) ? 0 : Math.round(baseTotal * Math.min(pct, 100) / 100);
+        }
+        const val = parseFloat(trimmed);
+        return isNaN(val) ? 0 : Math.max(0, val);
+    };
+
+    const evaluateValue = (str: string, base: number): number => {
+        const trimmed = str.trim();
+        if (!trimmed) return 0;
+        if (trimmed.startsWith('+') || trimmed.startsWith('-')) {
+            const val = parseFloat(trimmed);
+            return isNaN(val) ? base : Math.max(0, base + val);
+        }
+        if (/[+-]/.test(trimmed)) {
+            try {
+                const tokens = trimmed.match(/([+-]?\d+(\.\d+)?)/g);
+                if (tokens) {
+                    return Math.max(0, tokens.reduce((sum, t) => sum + (parseFloat(t) || 0), 0));
+                }
+            } catch {}
+        }
+        const val = parseFloat(trimmed);
+        return isNaN(val) ? 0 : val;
+    };
+
+    const totalBayar = PAYMENT_METHODS.reduce((sum, m) => sum + evaluateValue(amounts[m.key], lastResolvedAmounts.current[m.key]), 0);
+    const resolvedTotal = evaluateValue(adjustedTotalStr, total);
+    const manualDiscountAmt = parseManualDiscount(manualDiscountStr, resolvedTotal);
+    // Combined discount = promo discounts (passed in as discountAmount) + manual input discount
+    const totalDiscountAmt = discountAmount + manualDiscountAmt;
+    // Net total after all discounts
+    const netTotal = Math.max(0, resolvedTotal - manualDiscountAmt);
+    const kembali = totalBayar - netTotal;
+    const isReady = totalBayar >= netTotal;
+
+    const evaluateMethodAmount = (method: MethodKey) => {
+        const resolved = evaluateValue(amounts[method], lastResolvedAmounts.current[method]);
+        lastResolvedAmounts.current[method] = resolved;
+        setAmounts(prev => ({ ...prev, [method]: resolved === 0 ? '' : resolved.toString() }));
+    };
+
+    const evaluateTotal = () => {
+        const resolved = evaluateValue(adjustedTotalStr, total);
+        lastResolvedTotal.current = resolved;
+        setAdjustedTotalStr(resolved.toString());
+    };
 
     useEffect(() => {
         // Load banks from DB
@@ -70,7 +127,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [isReady, loading, amounts, bankIds, voucher]);
+    }, [isReady, loading, amounts, bankIds, voucher, resolvedTotal]);
 
     const setAmount = (method: MethodKey, val: string) => {
         setAmounts(prev => ({ ...prev, [method]: val }));
@@ -79,21 +136,21 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
     const handleExact = () => {
         const nonActive = PAYMENT_METHODS
             .filter(m => m.key !== activeMethod)
-            .reduce((sum, m) => sum + (parseFloat(amounts[m.key]) || 0), 0);
-        const remaining = Math.max(0, total - nonActive);
+            .reduce((sum, m) => sum + evaluateValue(amounts[m.key], lastResolvedAmounts.current[m.key]), 0);
+        const remaining = Math.max(0, resolvedTotal - nonActive);
+        lastResolvedAmounts.current[activeMethod] = remaining;
         setAmount(activeMethod, remaining > 0 ? remaining.toString() : '');
     };
 
     const handleQuickCash = (value: number, type: 'add' | 'set') => {
-        const currentVal = parseFloat(amounts[activeMethod]) || 0;
-        if (type === 'add') {
-            setAmount(activeMethod, (currentVal + value).toString());
-        } else {
-            setAmount(activeMethod, value.toString());
-        }
+        const currentVal = lastResolvedAmounts.current[activeMethod];
+        const resolved = type === 'add' ? currentVal + value : value;
+        lastResolvedAmounts.current[activeMethod] = resolved;
+        setAmount(activeMethod, resolved.toString());
     };
 
     const handleClear = () => {
+        lastResolvedAmounts.current[activeMethod] = 0;
         setAmount(activeMethod, '');
     };
 
@@ -102,9 +159,9 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
         setLoading(true);
 
         const payments = PAYMENT_METHODS
-            .filter(m => parseFloat(amounts[m.key]) > 0)
+            .filter(m => evaluateValue(amounts[m.key], lastResolvedAmounts.current[m.key]) > 0)
             .map(m => ({
-                amount: parseFloat(amounts[m.key]),
+                amount: evaluateValue(amounts[m.key], lastResolvedAmounts.current[m.key]),
                 method: m.key,
                 reference: bankIds[m.key] || undefined,
             }));
@@ -116,9 +173,9 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
             customer_id: customerId,
             user_id: user?.id,
             total_amount: totalAmount,
-            discount_amount: discountAmount,
+            discount_amount: totalDiscountAmt,
             tax_amount: taxAmount,
-            grand_total: total,
+            grand_total: netTotal,
             price_type: priceType,
             lines: cart.map(l => ({
                 item_id: l.item_id,
@@ -217,11 +274,18 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-lg font-bold">Rp</span>
                                 <input
                                     ref={amountInputRef}
-                                    type="number"
+                                    type="text"
                                     value={amounts[activeMethod]}
                                     onChange={e => setAmount(activeMethod, e.target.value)}
+                                    onBlur={() => evaluateMethodAmount(activeMethod)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            evaluateMethodAmount(activeMethod);
+                                        }
+                                    }}
                                     placeholder="0"
-                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl text-xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-brand focus:border-brand outline-none text-right shadow-inner"
+                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl text-xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-brand focus:border-brand outline-none text-right shadow-inner font-mono"
                                 />
                             </div>
 
@@ -323,14 +387,37 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                 <Ticket size={18} />
                             </div>
                             <div className="flex-1">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Kode Voucher / Promo</p>
                                 <input
                                     type="text"
                                     value={voucher}
                                     onChange={e => setVoucher(e.target.value.toUpperCase())}
-                                    placeholder="Masukkan kode voucher/promo..."
+                                    placeholder="Masukkan kode voucher..."
                                     className="w-full bg-transparent border-none outline-none text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-0 p-0"
                                 />
                             </div>
+                        </div>
+
+                        {/* Manual Discount Input */}
+                        <div className="bg-rose-50/40 dark:bg-rose-900/10 border border-dashed border-rose-200 dark:border-rose-800/50 rounded-2xl p-4 flex items-center gap-3">
+                            <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-500 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="9" cy="9" r="2"/><circle cx="15" cy="15" r="2"/></svg>
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-0.5">Diskon Manual</p>
+                                <input
+                                    type="text"
+                                    value={manualDiscountStr}
+                                    onChange={e => setManualDiscountStr(e.target.value)}
+                                    placeholder="Rp nominal atau 10% (persen)..."
+                                    className="w-full bg-transparent border-none outline-none text-sm font-semibold text-rose-700 dark:text-rose-300 placeholder-rose-300 dark:placeholder-rose-700 focus:ring-0 p-0"
+                                />
+                            </div>
+                            {manualDiscountAmt > 0 && (
+                                <span className="text-xs font-extrabold text-rose-500 bg-rose-100 dark:bg-rose-900/40 px-2 py-1 rounded-lg whitespace-nowrap">
+                                    - Rp {manualDiscountAmt.toLocaleString('id-ID')}
+                                </span>
+                            )}
                         </div>
 
                     </div>
@@ -339,18 +426,55 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                     <div className="md:col-span-5 flex flex-col justify-between space-y-6">
                         
                         {/* Summary Sticky/Visual Card */}
-                        <div className="bg-slate-900 text-white rounded-3xl p-6 space-y-6 shadow-xl relative overflow-hidden dark:bg-slate-900/80 dark:border dark:border-slate-800">
+                        <div className="bg-gradient-to-br from-slate-800 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 space-y-6 shadow-xl shadow-indigo-900/30 relative overflow-hidden border border-indigo-800/30 dark:border-slate-700/50">
                             
                             {/* Abstract gradient backdrop */}
                             <div className="absolute top-0 right-0 w-48 h-48 bg-brand opacity-25 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                             
                             <div className="space-y-4 relative z-10">
                                 <div>
-                                    <p className="text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">Total Tagihan</p>
-                                    <h3 className="text-3xl font-black text-white mt-1">Rp {total.toLocaleString('id-ID')}</h3>
+                                    <p className="text-[10px] font-extrabold tracking-widest text-slate-300 uppercase mb-1.5">Total Tagihan</p>
+                                    <div className="relative flex items-center bg-white/10 rounded-2xl border border-white/15 px-3 py-1.5 focus-within:ring-2 focus-within:ring-white/30 focus-within:border-white/30 transition-all">
+                                        <span className="text-sm font-bold text-slate-300 mr-2">Rp</span>
+                                        <input
+                                            type="text"
+                                            value={adjustedTotalStr}
+                                            onChange={e => setAdjustedTotalStr(e.target.value)}
+                                            onBlur={evaluateTotal}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    evaluateTotal();
+                                                }
+                                            }}
+                                            className="w-full bg-transparent border-none outline-none text-xl font-black text-white focus:ring-0 p-0 text-right font-mono"
+                                        />
+                                    </div>
                                 </div>
                                 
                                 <div className="h-px bg-slate-800"></div>
+
+                                {/* Discount Breakdown */}
+                                {(discountAmount > 0 || manualDiscountAmt > 0) && (
+                                    <div className="space-y-1.5">
+                                        {discountAmount > 0 && (
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs text-slate-400">Diskon Promo{voucher ? ` (${voucher})` : ''}</span>
+                                                <span className="text-xs font-bold text-rose-400">- Rp {discountAmount.toLocaleString('id-ID')}</span>
+                                            </div>
+                                        )}
+                                        {manualDiscountAmt > 0 && (
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs text-slate-400">Diskon Manual</span>
+                                                <span className="text-xs font-bold text-rose-400">- Rp {manualDiscountAmt.toLocaleString('id-ID')}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center border-t border-white/10 pt-1.5">
+                                            <span className="text-xs font-bold text-white">Total Setelah Diskon</span>
+                                            <span className="text-base font-extrabold text-white">Rp {netTotal.toLocaleString('id-ID')}</span>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-semibold text-slate-400">Total Pembayaran</span>
@@ -362,10 +486,10 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                         <span className="text-xs font-bold text-emerald-400">Uang Kembalian</span>
                                         <span className="text-xl font-extrabold text-emerald-400">Rp {kembali.toLocaleString('id-ID')}</span>
                                     </div>
-                                ) : totalBayar > 0 && totalBayar < total ? (
+                                ) : totalBayar > 0 && totalBayar < netTotal ? (
                                     <div className="flex justify-between items-center pt-2">
                                         <span className="text-xs font-bold text-rose-400">Kekurangan</span>
-                                        <span className="text-xl font-extrabold text-rose-400">Rp {(total - totalBayar).toLocaleString('id-ID')}</span>
+                                        <span className="text-xl font-extrabold text-rose-400">Rp {(netTotal - totalBayar).toLocaleString('id-ID')}</span>
                                     </div>
                                 ) : (
                                     <div className="flex justify-between items-center pt-2">

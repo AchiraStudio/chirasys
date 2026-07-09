@@ -356,3 +356,19 @@ async fn get_item_by_id(id: &str, state: &State<'_, AppState>) -> Result<Item, S
         .await
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn update_item_wholesale_price(
+    id: String,
+    wholesale_price: f64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    sqlx::query("UPDATE items SET wholesale_price = ?, updated_at = datetime('now') WHERE id = ?")
+        .bind(wholesale_price)
+        .bind(&id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+

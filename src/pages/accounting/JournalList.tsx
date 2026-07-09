@@ -1,8 +1,10 @@
+// Force HMR reload
 import { useEffect, useState } from 'react';
 import { getJournalEntries, JournalEntry } from '../../lib/api';
-import { FileText, Plus, Search } from 'lucide-react';
+import { FileText, Plus, Search, Trash2 } from 'lucide-react';
 import JournalVoucher from './JournalVoucher';
 import ManualJournalModal from './ManualJournalModal';
+import { invoke } from '@tauri-apps/api/core';
 
 export default function JournalList() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -17,6 +19,22 @@ export default function JournalList() {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [isVoucherOpen, setIsVoucherOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [deleteConfirmEntry, setDeleteConfirmEntry] = useState<JournalEntry | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteSale = async (entry: JournalEntry) => {
+    setDeleting(true);
+    try {
+      // Delete the underlying sale — this will also cascade-delete the journal entry
+      await invoke('delete_sale', { id: entry.source_id });
+      setDeleteConfirmEntry(null);
+      fetchEntries();
+    } catch (e: any) {
+      alert('Gagal menghapus: ' + (e?.message || String(e)));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const fetchEntries = async () => {
     setLoading(true);
@@ -119,12 +137,23 @@ export default function JournalList() {
                     <td className="px-6 py-3 capitalize text-slate-600 dark:text-slate-400">{entry.source_type.replace('_', ' ')}</td>
                     <td className="px-6 py-3 text-slate-600 dark:text-slate-400 truncate max-w-xs">{entry.description || '-'}</td>
                     <td className="px-6 py-3 text-right">
-                      <button 
-                        onClick={() => { setSelectedEntryId(entry.id); setIsVoucherOpen(true); }} 
-                        className="p-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-medium"
-                      >
-                        <FileText size={14} /> View
-                      </button>
+                      <div className="flex justify-end gap-1">
+                        <button 
+                          onClick={() => { setSelectedEntryId(entry.id); setIsVoucherOpen(true); }} 
+                          className="p-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-medium"
+                        >
+                          <FileText size={14} /> View
+                        </button>
+                        {entry.source_type === 'sale' && (
+                          <button
+                            onClick={() => setDeleteConfirmEntry(entry)}
+                            title="Hapus transaksi penjualan ini"
+                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -168,6 +197,40 @@ export default function JournalList() {
          onClose={() => setIsManualModalOpen(false)}
          onSaved={fetchEntries}
       />
+
+      {/* Delete Sale Confirmation */}
+      {deleteConfirmEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmEntry(null)} />
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
+            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Hapus Transaksi Penjualan?</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
+              Journal: <span className="font-mono font-bold">{deleteConfirmEntry.entry_no}</span>
+            </p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
+              Penjualan: <span className="font-mono font-bold">{deleteConfirmEntry.description}</span>
+            </p>
+            <p className="text-xs text-rose-500 bg-rose-50 dark:bg-rose-900/20 p-2.5 rounded-lg mb-4">
+              ⚠ Tindakan ini akan menghapus transaksi penjualan beserta jurnal terkait. Tidak dapat dibatalkan.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmEntry(null)}
+                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleDeleteSale(deleteConfirmEntry)}
+                disabled={deleting}
+                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+              >
+                {deleting ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

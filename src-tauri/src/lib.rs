@@ -55,6 +55,7 @@ pub fn run() {
             commands::items::update_item_unit,
             commands::items::delete_item_unit,
             commands::items::set_item_price,
+            commands::items::update_item_wholesale_price,
             commands::inventory::get_stock_overview,
             commands::inventory::get_low_stock_alerts,
             commands::inventory::get_stock_movements,
@@ -90,6 +91,7 @@ pub fn run() {
             commands::sales::create_sale_return,
             commands::sales::get_next_transaction_no,
             commands::sales::open_cash_drawer,
+            commands::sales::delete_sale,
             // Phase 6
             commands::promos::get_promos,
             commands::promos::get_promo_detail,
@@ -133,6 +135,7 @@ pub fn run() {
             commands::auth::create_user,
             commands::auth::toggle_user_active,
             commands::auth::reset_user_password,
+            commands::auth::update_user_username,
             
             // Phase 9 - Sync
             commands::sync::receive_cloud_sync,
@@ -145,6 +148,7 @@ pub fn run() {
             commands::sync::sysadmin_get_workspaces,
             commands::sync::sysadmin_create_workspace,
             commands::sync::sysadmin_create_workspace_invite,
+            commands::sync::sysadmin_update_workspace_password,
 
             // Phase 10 - Maintenance
             commands::maintenance::optimize_database,
