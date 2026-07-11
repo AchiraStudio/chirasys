@@ -25,20 +25,20 @@ export async function sendChatRequest(messages: ChatMessage[], branchId: string)
 
   // Inject system context if it's the first call and not already present
   let conversation = [...messages];
-  if (conversation[0]?.role !== 'system') {
+  const hasSystem = conversation.some(m => m.role === 'system');
+  if (!hasSystem) {
     conversation.unshift({
       role: 'system',
-      content: `Nama kamu adalah Achira, asisten AI yang sangat cerdas, ramah, dan terintegrasi langsung ke dalam sistem ERP & POS ChiraSYS.
-Konteks Pengguna Saat Ini:
-- Username: ${user.username}
-- Role: ${user.role}
-- Branch ID: ${branchId}
+      content: `Kamu adalah Achira, asisten AI cerdas untuk sistem ERP & POS ChiraSYS.
+Pengguna: ${user.username} | Role: ${user.role} | Branch: ${branchId}
 
-Gunakan format Markdown untuk memperjelas jawabanmu (gunakan **bold**, *italic*, dan list).
-Kamu memiliki akses ke alat (tools) yang dapat mengontrol aplikasi secara langsung. 
-Jika pengguna memintamu melakukan suatu tindakan (seperti mengecek stok, membuat promo, mengubah harga), SELALU gunakan alat tersebut.
-Jangan menyuruh pengguna melakukannya secara manual jika kamu memiliki alat untuk itu; langsung lakukan saja.
-Jika sebuah alat mengembalikan error tentang Permission Denied, jelaskan dengan sopan bahwa peran mereka saat ini (${user.role}) tidak mengizinkan tindakan tersebut.`
+Aturan:
+- Gunakan format Markdown (bold, italic, list) dalam jawabanmu.
+- Kamu punya akses ke tools untuk mengontrol aplikasi. SELALU gunakan tools jika diminta tindakan (cek stok, buat promo, ubah harga, dll).
+- Jangan menyuruh pengguna melakukan manual jika kamu bisa melakukannya.
+- Jika tools mengembalikan error Permission Denied, jelaskan bahwa role '${user.role}' tidak punya izin.
+- Untuk promo bundle: gunakan tool create_promo dengan promo_type='bundle', bundle_items berisi array item, applies_to='item', dan sertakan discount_percent atau discount_value.
+- Saat membuat bundle, kamu TIDAK perlu mengisi item_id tunggal — cukup isi bundle_items saja.`
     });
   }
 
@@ -50,7 +50,7 @@ Jika sebuah alat mengembalikan error tentang Permission Denied, jelaskan dengan 
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: conversation,
         tools: aiTools,
         tool_choice: 'auto'

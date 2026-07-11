@@ -1,6 +1,10 @@
+-- 036_fix_promos_category_fk.sql
+-- Fix: migration 035 used wrong FK name (item_categories vs categories).
+-- Re-create the promos table with the correct FK reference.
+
 PRAGMA foreign_keys=OFF;
 
-CREATE TABLE promos_new (
+CREATE TABLE IF NOT EXISTS promos_new (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
@@ -22,13 +26,14 @@ CREATE TABLE promos_new (
     member_tier TEXT
 );
 
-INSERT INTO promos_new (
-    id, name, description, discount_percent, min_qty, category_id, item_id, 
-    member_only, active, start_date, end_date, created_at, promo_type, 
+INSERT OR IGNORE INTO promos_new (
+    id, name, description, discount_percent, min_qty, category_id, item_id,
+    member_only, active, start_date, end_date, created_at, promo_type,
     discount_value, applies_to, max_discount_amount, stack_rule, priority, member_tier
-) SELECT 
-    id, name, description, discount_percent, min_qty, category_id, item_id, 
-    member_only, active, start_date, end_date, created_at, promo_type, 
+)
+SELECT
+    id, name, description, discount_percent, min_qty, category_id, item_id,
+    member_only, active, start_date, end_date, created_at, promo_type,
     discount_value, applies_to, max_discount_amount, stack_rule, priority, member_tier
 FROM promos;
 

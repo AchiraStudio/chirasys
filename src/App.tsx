@@ -4,8 +4,8 @@ import Topbar from './components/layout/Topbar';
 import Dashboard from './components/Dashboard';
 import TitleBar from './components/TitleBar';
 import AIChat from './components/ai/AIChat';
-import MasterData from './pages/inventory/MasterData'; 
-import StockOverview from './pages/inventory/StockOverview'; 
+import MasterData from './pages/inventory/MasterData';
+import StockOverview from './pages/inventory/StockOverview';
 import StockOpname from './pages/inventory/StockOpname';
 import ItemList from './pages/inventory/ItemList';
 import ItemDetail from './pages/inventory/ItemDetail';
@@ -23,7 +23,7 @@ import ContextMenu from './components/layout/ContextMenu';
 import { useAuthStore } from './store/AuthStore';
 import { getCurrentUser } from './lib/api';
 import { useSyncStore } from './store/SyncStore';
-import { Package, Loader2, Sparkles } from 'lucide-react';
+import { Package, Loader2 } from 'lucide-react';
 import { useZoomStore } from './store/ZoomStore';
 
 export default function App() {
@@ -32,7 +32,7 @@ export default function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [editItemId, setEditItemId] = useState<string | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0); 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const { token, user, setAuth, clearAuth } = useAuthStore();
   const [isVerifying, setIsVerifying] = useState(true);
@@ -177,53 +177,44 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden pt-10">
         <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
         <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50 dark:bg-[#0B0F19]">
-        <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
-        <div className={`flex-1 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-6 md:p-8'}`}>
-          {activeMenu === 'dashboard' ? <Dashboard setActiveMenu={setActiveMenu} /> :
-           activeMenu === 'master-data' ? <MasterData /> :
-           activeMenu === 'inventory' ? (
-            <StockOverview 
-              refreshTrigger={refreshTrigger} 
-              onEditItem={(itemId) => { 
-                setEditItemId(itemId); 
-                setIsDrawerOpen(true); 
-              }} 
-            />
-          ) :
-           activeMenu === 'stock-opname' ? <StockOpname /> :
-           activeMenu === 'catalog' ? <ItemList refreshTrigger={refreshTrigger} onViewItem={(id) => { setActiveItemId(id); setActiveMenu('item-detail'); }} onEditItem={(id) => { setEditItemId(id); setIsDrawerOpen(true); }} onAddItem={() => { setEditItemId(null); setIsDrawerOpen(true); }} /> :
-           activeMenu === 'item-detail' && activeItemId ? <ItemDetail itemId={activeItemId} refreshTrigger={refreshTrigger} onBack={() => setActiveMenu('catalog')} onEditItem={() => { setEditItemId(activeItemId); setIsDrawerOpen(true); }} /> :
-           activeMenu === 'suppliers' ? <SupplierList /> :
-           activeMenu === 'customers' ? <CustomerList /> :
-           activeMenu === 'promos' ? <Promos /> :
-           activeMenu === 'accounting' ? <Accounting /> :
-           activeMenu === 'purchasing' ? <PurchasingDashboard /> :
-           activeMenu === 'reports' ? <Reports /> :
-           activeMenu === 'settings' ? <Settings /> :
-           activeMenu === 'pos' ? <POS /> :
-           (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 p-16 text-center h-full flex flex-col items-center justify-center shadow-sm">
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-full mb-6"><Package size={48} className="text-slate-500" /></div>
-              <h3 className="text-2xl font-bold tracking-tight">{activeMenu.charAt(0).toUpperCase() + activeMenu.slice(1)} Module</h3>
-              <p className="text-slate-600">Sedang dalam pengembangan.</p>
-            </div>
-          )}
-        </div>
-        <ItemDrawer isOpen={isDrawerOpen} onClose={() => { setIsDrawerOpen(false); setEditItemId(null); }} onItemAdded={() => setRefreshTrigger(prev => prev + 1)} editItemId={editItemId} />
-        
-        {/* TAMBAHKAN TOMBOL MENGAMBANG INI */}
-        {!isAIChatOpen && (
-          <button
-            onClick={() => setIsAIChatOpen(true)}
-            className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 w-14 h-14 bg-gradient-to-tr from-brand to-indigo-600 rounded-full shadow-2xl shadow-brand/40 flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-all group animate-in zoom-in duration-300"
-            title="Tanya Achira"
-          >
-            <Sparkles size={24} className="group-hover:animate-pulse" />
-          </button>
-        )}
-        
-        <AIChat isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} branchId={user.branch_id || 'branch_001'} />
-      </main>
+          <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
+          <div className={`flex-1 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-6 md:p-8'}`}>
+            {activeMenu === 'dashboard' ? <Dashboard setActiveMenu={setActiveMenu} /> :
+              activeMenu === 'master-data' ? <MasterData /> :
+                activeMenu === 'inventory' ? (
+                  <StockOverview
+                    refreshTrigger={refreshTrigger}
+                    onEditItem={(itemId) => {
+                      setEditItemId(itemId);
+                      setIsDrawerOpen(true);
+                    }}
+                  />
+                ) :
+                  activeMenu === 'stock-opname' ? <StockOpname /> :
+                    activeMenu === 'catalog' ? <ItemList refreshTrigger={refreshTrigger} onViewItem={(id) => { setActiveItemId(id); setActiveMenu('item-detail'); }} onEditItem={(id) => { setEditItemId(id); setIsDrawerOpen(true); }} onAddItem={() => { setEditItemId(null); setIsDrawerOpen(true); }} /> :
+                      activeMenu === 'item-detail' && activeItemId ? <ItemDetail itemId={activeItemId} refreshTrigger={refreshTrigger} onBack={() => setActiveMenu('catalog')} onEditItem={() => { setEditItemId(activeItemId); setIsDrawerOpen(true); }} /> :
+                        activeMenu === 'suppliers' ? <SupplierList /> :
+                          activeMenu === 'customers' ? <CustomerList /> :
+                            activeMenu === 'promos' ? <Promos /> :
+                              activeMenu === 'accounting' ? <Accounting /> :
+                                activeMenu === 'purchasing' ? <PurchasingDashboard /> :
+                                  activeMenu === 'reports' ? <Reports /> :
+                                    activeMenu === 'settings' ? <Settings /> :
+                                      activeMenu === 'pos' ? <POS /> :
+                                        (
+                                          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 p-16 text-center h-full flex flex-col items-center justify-center shadow-sm">
+                                            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-full mb-6"><Package size={48} className="text-slate-500" /></div>
+                                            <h3 className="text-2xl font-bold tracking-tight">{activeMenu.charAt(0).toUpperCase() + activeMenu.slice(1)} Module</h3>
+                                            <p className="text-slate-600">Sedang dalam pengembangan.</p>
+                                          </div>
+                                        )}
+          </div>
+          <ItemDrawer isOpen={isDrawerOpen} onClose={() => { setIsDrawerOpen(false); setEditItemId(null); }} onItemAdded={() => setRefreshTrigger(prev => prev + 1)} editItemId={editItemId} />
+
+
+
+          <AIChat isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} branchId={user.branch_id || 'branch_001'} />
+        </main>
       </div>
     </div>
   );

@@ -95,17 +95,17 @@ export const aiTools = [
     type: 'function',
     function: {
       name: 'create_promo',
-      description: 'Create a new discount promotion. Can be percentage, fixed_amount, bogo, tiered, or bundle.',
+      description: 'Create a new discount promotion. Types: percentage, fixed_amount, bogo, tiered, bundle. For BUNDLE: set promo_type=bundle, applies_to=item, provide bundle_items array with item_id+qty pairs, and set discount_percent or discount_value. Do NOT set item_id for bundles.',
       parameters: {
         type: 'object',
         properties: {
           name: { type: 'string', description: 'Name of the promo' },
           promo_type: { type: 'string', enum: ['percentage', 'fixed_amount', 'bogo', 'tiered', 'bundle'] },
-          min_qty: { type: 'number', description: 'Minimum quantity to trigger the promo' },
-          discount_percent: { type: 'number', description: 'Percent discount (0-100) if percentage or bundle (percentage mode)' },
-          discount_value: { type: 'number', description: 'Exact Rp amount to discount if fixed_amount or bundle (fixed mode)' },
-          item_id: { type: 'string', description: 'Target item ID (if applies_to is item)' },
-          applies_to: { type: 'string', enum: ['item', 'cart'], description: 'Apply to specific item or entire cart' },
+          min_qty: { type: 'number', description: 'Minimum quantity to trigger the promo (default 1)' },
+          discount_percent: { type: 'number', description: 'Percent discount (0-100). Use for percentage promos or bundle with percent discount.' },
+          discount_value: { type: 'number', description: 'Fixed Rp amount to discount. Use for fixed_amount or bundle with fixed discount.' },
+          item_id: { type: 'string', description: 'Target item ID for single-item promos. DO NOT set for bundle promos.' },
+          applies_to: { type: 'string', enum: ['item', 'cart'], description: 'Apply to specific item or entire cart. Use item for bundle.' },
           bogo_rules: {
             type: 'array',
             description: 'BOGO rules if promo_type is bogo',
@@ -132,12 +132,12 @@ export const aiTools = [
           },
           bundle_items: {
             type: 'array',
-            description: 'Bundle items if promo_type is bundle',
+            description: 'Required for bundle type. List of items in the bundle, each with item_id and qty.',
             items: {
               type: 'object',
               properties: {
-                item_id: { type: 'string' },
-                qty: { type: 'number' }
+                item_id: { type: 'string', description: 'The item ID to include in bundle' },
+                qty: { type: 'number', description: 'Required quantity of this item in bundle' }
               },
               required: ['item_id', 'qty']
             }
@@ -162,6 +162,75 @@ export const aiTools = [
         required: ['name', 'customer_tier']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_promos',
+      description: 'List all promotions (promos). Use this to show active or all promos to the user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          active_only: { type: 'boolean', description: 'If true, return only active promos. Default false = return all.' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_promo',
+      description: 'Delete a promotion.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Promo ID to delete' }
+        },
+        required: ['id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'toggle_promo_active',
+      description: 'Activate or deactivate a promotion.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Promo ID to toggle' }
+        },
+        required: ['id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_item',
+      description: 'Delete an item from inventory.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Item ID to delete' }
+        },
+        required: ['id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_customer',
+      description: 'Delete or deactivate a customer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Customer ID' }
+        },
+        required: ['id']
+      }
+    }
   }
 ];
 
@@ -173,7 +242,12 @@ export const TOOL_ROLE_REQUIREMENTS: Record<string, string[]> = {
   update_item_wholesale_price: ['owner', 'admin', 'staff'],
   get_sales_summary: ['owner', 'admin', 'staff'],
   create_promo: ['owner', 'admin', 'staff'],
-  add_customer: ['owner', 'admin', 'staff']
+  delete_promo: ['owner', 'admin'],
+  toggle_promo_active: ['owner', 'admin'],
+  delete_item: ['owner', 'admin'],
+  add_customer: ['owner', 'admin', 'staff'],
+  delete_customer: ['owner', 'admin'],
+  list_promos: ['owner', 'admin', 'staff'],
 };
 
 export async function executeTool(name: string, args: any, context: { branchId: string; userId: string; role: string }) {
@@ -199,23 +273,23 @@ export async function executeTool(name: string, args: any, context: { branchId: 
         return await api.getSalesSummary(context.branchId, args.date_from, args.date_to);
       
       case 'create_promo': {
-        // Validasi dasar
         if (!args.name) throw new Error('Nama promo wajib diisi.');
         if (!args.promo_type) throw new Error('Tipe promo wajib diisi.');
-        
-        // For bundle type, ensure we have bundle_items and a discount
+
+        // For bundle: validate bundle_items and discount
         if (args.promo_type === 'bundle') {
           if (!args.bundle_items || args.bundle_items.length === 0) {
             throw new Error('Untuk promo bundle, Anda harus menentukan daftar item (bundle_items).');
           }
-          if (args.applies_to !== 'item') {
-            throw new Error('Untuk bundle, applies_to harus "item".');
-          }
           if ((!args.discount_percent || args.discount_percent === 0) && (!args.discount_value || args.discount_value === 0)) {
             throw new Error('Anda harus menentukan diskon (persentase atau nilai tetap) untuk bundle.');
           }
+          // Bundle always applies_to='item', clear any single item_id
+          args.applies_to = 'item';
+          // For bundle, item_id should NOT be set (the items are in bundle_items)
+          args.item_id = undefined;
         }
-        
+
         // Default values
         if (!args.min_qty) args.min_qty = 1;
         if (!args.applies_to) args.applies_to = 'item';
@@ -224,7 +298,7 @@ export async function executeTool(name: string, args: any, context: { branchId: 
         if (!args.bogo_rules) args.bogo_rules = [];
         if (!args.tiers) args.tiers = [];
         if (!args.bundle_items) args.bundle_items = [];
-        
+
         return await api.createPromo({
           name: args.name,
           promo_type: args.promo_type,
@@ -244,6 +318,16 @@ export async function executeTool(name: string, args: any, context: { branchId: 
 
       case 'add_customer':
         return await api.addCustomer(args.name, args.phone, undefined, undefined, undefined, args.customer_tier);
+      case 'list_promos':
+        return await api.getPromos(args.active_only ?? false);
+      case 'delete_promo':
+        return await api.deletePromo(args.id);
+      case 'toggle_promo_active':
+        return await api.togglePromoActive(args.id);
+      case 'delete_item':
+        return await api.deleteItem(args.id);
+      case 'delete_customer':
+        return await api.toggleCustomerActive(args.id); // Typically soft-deleted
       default:
         return { error: `Tool ${name} not implemented.` };
     }

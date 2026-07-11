@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getPromos, togglePromoActive, Promo } from '../../lib/api';
+import { getPromos, deletePromo, Promo } from '../../lib/api';
 import { Plus, Edit2, Trash2, Tag, Check, X } from 'lucide-react';
 import PromoDrawer from './PromoDrawer';
 
@@ -26,8 +26,8 @@ export default function PromoList() {
   }, [activeOnly]);
 
   const handleDelete = async (id: string) => {
-    if (confirm('Toggle active status for this promo?')) {
-      await togglePromoActive(id);
+    if (confirm('Are you sure you want to permanently delete this promo?')) {
+      await deletePromo(id);
       fetchPromos();
     }
   };
