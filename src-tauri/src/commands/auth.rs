@@ -4,7 +4,43 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use tauri::State;
 use uuid::Uuid;
-use chrono::{Utc, Duration};
+use chrono::Utc;
+use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
+
+#[derive(Debug, Serialize)]
+struct AppMetadata {
+    workspace_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct Claims {
+    sub: String,
+    role: String,
+    app_metadata: AppMetadata,
+    exp: usize,
+}
+
+fn mint_supabase_jwt(user_id: &str, role: &str, workspace_id: Option<String>) -> Option<String> {
+    let secret = std::env::var("VITE_SUPABASE_JWT_SECRET").unwrap_or_default();
+    if secret.is_empty() {
+        return None;
+    }
+    
+    // Map chirasys role to supabase role if necessary (e.g. sysadmin -> authenticated, or custom role)
+    // Supabase standard authenticated role is usually 'authenticated'. 
+    // If we use RLS, we can rely on role='authenticated' and use app_metadata for specific authorization.
+    let jwt_role = if role == "sysadmin" { "sysadmin" } else { "authenticated" };
+
+    let exp = (Utc::now() + chrono::Duration::try_hours(12).unwrap_or(chrono::Duration::hours(12))).timestamp() as usize;
+    let claims = Claims {
+        sub: user_id.to_string(),
+        role: jwt_role.to_string(),
+        app_metadata: AppMetadata { workspace_id },
+        exp,
+    };
+
+    encode(&Header::new(Algorithm::HS256), &claims, &EncodingKey::from_secret(secret.as_bytes())).ok()
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserInfo {
@@ -15,11 +51,13 @@ pub struct UserInfo {
     pub permissions: String,
     pub branch_id: Option<String>,
     pub avatar_color: Option<String>,
+    pub workspace_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct LoginResponse {
     pub token: String,
+    pub supabase_token: Option<String>,
     pub user: UserInfo,
 }
 
@@ -27,7 +65,7 @@ pub struct LoginResponse {
 #[tauri::command]
 pub async fn login(username: String, password_guess: String, state: State<'_, AppState>) -> Result<LoginResponse, String> {
     // Note: We avoid sqlx::query! to bypass compile-time DB checks without URL.
-    let user_res = sqlx::query("SELECT id, name, username, password_hash, role, permissions, branch_id, avatar_color, active FROM users WHERE username = ?")
+    let user_res = sqlx::query("SELECT id, name, username, password_hash, role, permissions, branch_id, avatar_color, active, workspace_id FROM users WHERE username = ?")
         .bind(&username)
         .fetch_optional(&state.db_pool)
         .await
@@ -61,7 +99,7 @@ pub async fn login(username: String, password_guess: String, state: State<'_, Ap
             }
 
             let token = Uuid::new_v4().to_string();
-            let expires_at = (Utc::now() + Duration::hours(12)).to_rfc3339();
+            let expires_at = (Utc::now() + chrono::Duration::try_hours(12).unwrap_or(chrono::Duration::hours(12))).to_rfc3339();
             let user_id = row.get::<String, _>("id");
 
             let _ = sqlx::query("INSERT INTO local_sessions (token, user_id, expires_at) VALUES (?, ?, ?)")
@@ -77,17 +115,27 @@ pub async fn login(username: String, password_guess: String, state: State<'_, Ap
                 .execute(&state.db_pool)
                 .await;
 
+            let user_info = UserInfo {
+                id: user_id,
+                name: row.get("name"),
+                username: row.get("username"),
+                role: row.get("role"),
+                permissions: row.get("permissions"),
+                branch_id: row.get("branch_id"),
+                avatar_color: row.get("avatar_color"),
+                workspace_id: row.get("workspace_id"),
+            };
+            
+            let supabase_token = mint_supabase_jwt(
+                &user_info.id,
+                &user_info.role,
+                user_info.workspace_id.clone()
+            );
+
             Ok(LoginResponse {
                 token,
-                user: UserInfo {
-                    id: user_id,
-                    name: row.get("name"),
-                    username: row.get("username"),
-                    role: row.get("role"),
-                    permissions: row.get("permissions"),
-                    branch_id: row.get("branch_id"),
-                    avatar_color: row.get("avatar_color"),
-                }
+                supabase_token,
+                user: user_info
             })
         } else {
             Err("Password salah.".to_string())
@@ -101,7 +149,7 @@ pub async fn login(username: String, password_guess: String, state: State<'_, Ap
 #[tauri::command]
 pub async fn get_current_user(token: String, state: State<'_, AppState>) -> Result<UserInfo, String> {
     let query = "
-        SELECT u.id, u.name, u.username, u.role, u.permissions, u.branch_id, u.avatar_color
+        SELECT u.id, u.name, u.username, u.role, u.permissions, u.branch_id, u.avatar_color, u.workspace_id
         FROM users u
         JOIN local_sessions s ON s.user_id = u.id
         WHERE s.token = ? AND s.expires_at > datetime('now')
@@ -122,6 +170,7 @@ pub async fn get_current_user(token: String, state: State<'_, AppState>) -> Resu
             permissions: r.get("permissions"),
             branch_id: r.get("branch_id"),
             avatar_color: r.get("avatar_color"),
+            workspace_id: r.get("workspace_id"),
         })
     } else {
         Err("Sesi tidak valid atau telah berakhir.".to_string())
@@ -147,12 +196,13 @@ pub struct UserRow {
     pub role: String,
     pub is_active: bool,
     pub created_at: String,
+    pub workspace_id: Option<String>,
 }
 
 #[tauri::command]
 pub async fn get_users(state: State<'_, AppState>) -> Result<Vec<UserRow>, String> {
     sqlx::query_as::<_, UserRow>(
-        r#"SELECT id, username, name, role, active AS is_active, created_at FROM users ORDER BY name ASC"#
+        r#"SELECT id, username, name, role, active AS is_active, created_at, workspace_id FROM users ORDER BY name ASC"#
     )
     .fetch_all(&state.db_pool)
     .await
@@ -165,6 +215,7 @@ pub async fn create_user(
     username: String,
     password: String,
     role: String,
+    workspace_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<UserRow, String> {
     let existing: Option<(String,)> = sqlx::query_as("SELECT id FROM users WHERE username = ?")
@@ -181,8 +232,10 @@ pub async fn create_user(
     let colors = ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#EC4899"];
     let avatar_color = colors[id.len() % colors.len()];
 
+    let created_at_ts = Utc::now().to_rfc3339();
+
     sqlx::query(
-        "INSERT INTO users (id, username, password_hash, name, role, permissions, avatar_color, active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)"
+        "INSERT INTO users (id, username, password_hash, name, role, permissions, avatar_color, active, workspace_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)"
     )
     .bind(&id)
     .bind(&username)
@@ -191,6 +244,8 @@ pub async fn create_user(
     .bind(&role)
     .bind("default")
     .bind(avatar_color)
+    .bind(&workspace_id)
+    .bind(&created_at_ts)
     .execute(&state.db_pool)
     .await
     .map_err(|e| format!("Gagal membuat pengguna: {}", e))?;
@@ -201,7 +256,7 @@ pub async fn create_user(
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(UserRow { id, username, name, role, is_active: true, created_at: created_at.0 })
+    Ok(UserRow { id, username, name, role, is_active: true, created_at: created_at.0, workspace_id })
 }
 
 #[tauri::command]
@@ -234,12 +289,14 @@ pub async fn reset_user_password(
 }
 
 #[tauri::command]
-pub async fn update_user_username(
+pub async fn update_user(
     id: String,
+    name: String,
     username: String,
+    role: String,
+    workspace_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    // Check if username is already taken by another user
     let existing: Option<(String,)> = sqlx::query_as("SELECT id FROM users WHERE username = ? AND id != ?")
         .bind(&username)
         .bind(&id)
@@ -250,8 +307,11 @@ pub async fn update_user_username(
         return Err("Username sudah digunakan.".to_string());
     }
 
-    sqlx::query("UPDATE users SET username = ? WHERE id = ?")
+    sqlx::query("UPDATE users SET name = ?, username = ?, role = ?, workspace_id = ? WHERE id = ?")
+        .bind(&name)
         .bind(&username)
+        .bind(&role)
+        .bind(&workspace_id)
         .bind(&id)
         .execute(&state.db_pool)
         .await
@@ -259,3 +319,34 @@ pub async fn update_user_username(
     Ok(())
 }
 
+#[tauri::command]
+pub async fn delete_user(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    sqlx::query("DELETE FROM users WHERE id = ?")
+        .bind(&id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| {
+            if e.to_string().contains("FOREIGN KEY") {
+                "User tidak dapat dihapus karena sudah memiliki data transaksi. Silakan nonaktifkan user ini sebagai gantinya.".to_string()
+            } else {
+                e.to_string()
+            }
+        })?;
+    Ok(())
+}
+
+
+#[tauri::command]
+pub async fn assign_user_workspace(
+    user_id: String,
+    workspace_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    sqlx::query("UPDATE users SET workspace_id = ? WHERE id = ?")
+        .bind(&workspace_id)
+        .bind(&user_id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}

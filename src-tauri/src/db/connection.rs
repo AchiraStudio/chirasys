@@ -100,6 +100,8 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/034_promo_bundles.sql"), 34),
         (include_str!("./migrations/035_fix_promo_check.sql"), 35),
         (include_str!("./migrations/036_fix_promos_category_fk.sql"), 36),
+        (include_str!("./migrations/037_user_workspace_assign.sql"), 37),
+        (include_str!("./migrations/038_member_expiry_and_tier_discount.sql"), 38),
     ];
 
     for (sql, version) in migrations {

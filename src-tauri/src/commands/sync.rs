@@ -679,8 +679,37 @@ pub async fn receive_cloud_sync(table_name: String, payload: serde_json::Value, 
 // System Admin commands
 // ─────────────────────────────────────────────────────────────────────────────
 
+use chrono::Utc;
+use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
+
+#[derive(Debug, Serialize)]
+struct Claims {
+    sub: String,
+    role: String,
+    exp: usize,
+}
+
+fn mint_sysadmin_jwt(username: &str) -> Option<String> {
+    let secret = std::env::var("VITE_SUPABASE_JWT_SECRET").unwrap_or_default();
+    if secret.is_empty() { return None; }
+    
+    let exp = (Utc::now() + chrono::Duration::try_hours(12).unwrap_or(chrono::Duration::hours(12))).timestamp() as usize;
+    let claims = Claims {
+        sub: username.to_string(),
+        role: "sysadmin".to_string(), // Ensure your Supabase RLS policies allow the 'sysadmin' role
+        exp,
+    };
+    encode(&Header::new(Algorithm::HS256), &claims, &EncodingKey::from_secret(secret.as_bytes())).ok()
+}
+
+#[derive(Debug, Serialize)]
+pub struct SysadminLoginResponse {
+    pub success: bool,
+    pub supabase_token: Option<String>,
+}
+
 #[tauri::command]
-pub async fn sysadmin_login(username: String, password_hash: String) -> Result<bool, String> {
+pub async fn sysadmin_login(username: String, password_hash: String) -> Result<SysadminLoginResponse, String> {
     let _ = dotenvy::dotenv();
     let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
     let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
@@ -701,7 +730,14 @@ pub async fn sysadmin_login(username: String, password_hash: String) -> Result<b
     }
 
     let users: Vec<serde_json::Value> = resp.json().await.unwrap_or_default();
-    Ok(!users.is_empty())
+    let success = !users.is_empty();
+    
+    let mut supabase_token = None;
+    if success {
+        supabase_token = mint_sysadmin_jwt(&username);
+    }
+    
+    Ok(SysadminLoginResponse { success, supabase_token })
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -31,6 +31,7 @@ pub struct Customer {
     pub is_active: i32,
     pub created_at: String,
     pub updated_at: String,
+    pub membership_expiry: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Bot, User, Loader2, Sparkles, Minimize2, Trash2 } from 'lucide-react';
 import { ChatMessage, sendChatRequest } from '../../lib/aiClient';
+import * as api from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 
 const CHAT_HISTORY_KEY = 'achira_chat_history';
@@ -15,11 +16,11 @@ const formatMessageContent = (text: string) => {
     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white">$1</strong>')
     .replace(/\*(.*?)\*/g, '<em class="italic text-slate-700 dark:text-slate-300">$1</em>')
     .replace(/`([^`]+)`/g, '<code class="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono text-brand">$1</code>')
-    .replace(/^\s*\-\s+(.*$)/gim, '<li class="ml-5 list-disc my-1">$1</li>')
-    .replace(/^\s*[0-9]+\.\s+(.*$)/gim, '<li class="ml-5 list-decimal my-1">$1</li>');
+    .replace(/^\s*\-\s+(.*$)/gim, '<li class="list-disc-item">$1</li>')
+    .replace(/^\s*[0-9]+\.\s+(.*$)/gim, '<li class="list-decimal-item">$1</li>');
 
-  html = html.replace(/(<li class="[^"]*list-disc[^"]*">.*?<\/li>(?:\n|$))+/g, match => `<ul class="mb-3 mt-1">${match}</ul>`);
-  html = html.replace(/(<li class="[^"]*list-decimal[^"]*">.*?<\/li>(?:\n|$))+/g, match => `<ol class="mb-3 mt-1">${match}</ol>`);
+  html = html.replace(/(<li class="list-disc-item">.*?<\/li>(?:\n|$))+/g, match => `<ul class="mb-3 mt-1 list-disc pl-5">${match.replace(/list-disc-item/g, 'my-1')}</ul>`);
+  html = html.replace(/(<li class="list-decimal-item">.*?<\/li>(?:\n|$))+/g, match => `<ol class="mb-3 mt-1 list-decimal pl-5">${match.replace(/list-decimal-item/g, 'my-1')}</ol>`);
 
   html = html.split('\n').map(line => line.trim() === '' ? '<div class="h-2"></div>' : line).join('\n');
   html = html.replace(/\n/g, '<br />');
@@ -87,6 +88,7 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingPreview, setPendingPreview] = useState<{items: any[]}|null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const animatedIndices = useRef<Set<number>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -132,15 +134,16 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit();
+      handleSubmit(e);
     }
     // Shift+Enter: allow default (inserts newline)
   };
 
-  const handleSubmit = async () => {
-    if (!input.trim() || loading) return;
+  const handleSubmit = async (e?: React.MouseEvent | React.KeyboardEvent | null, overrideInput?: string) => {
+    const textToSubmit = overrideInput !== undefined ? overrideInput : input;
+    if (!textToSubmit.trim() || loading) return;
 
-    const userMessage: ChatMessage = { role: 'user', content: input.trim() };
+    const userMessage: ChatMessage = { role: 'user', content: textToSubmit.trim() };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
@@ -152,6 +155,22 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
 
     try {
       const finalConversation = await sendChatRequest(newMessages, branchId);
+
+      // Look for pending approvals in tool messages
+      let foundPreview = null;
+      for (const m of finalConversation) {
+        if (m.role === 'tool' && m.content) {
+          try {
+            const data = JSON.parse(m.content);
+            if (data.requires_user_approval && data.action === 'preview_bulk_opname') {
+              foundPreview = { items: data.items };
+            }
+          } catch {}
+        }
+      }
+      if (foundPreview) {
+        setPendingPreview(foundPreview);
+      }
 
       // Only keep user and assistant messages with actual text content
       // Filter out: system, tool, and assistant messages that only have tool_calls (no text content)
@@ -193,6 +212,35 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
       animatedIndices.current.clear();
       try { localStorage.removeItem(storageKey); } catch {}
     }
+  };
+
+  const handleApprovePreview = async () => {
+    if (!pendingPreview || !pendingPreview.items) return;
+    setLoading(true);
+    try {
+      const sessionId = await api.createOpnameSession(branchId, user?.id || 'guest', 'AI Bulk Adjustment');
+      await api.submitOpnameLines(sessionId, pendingPreview.items);
+      await api.finalizeOpname(sessionId);
+      
+      setMessages(prev => [
+        ...prev,
+        { role: 'user', content: 'Saya telah menyetujui preview penyesuaian stok. Lanjutkan!' }
+      ]);
+      setPendingPreview(null);
+      // Let AI know it succeeded (mocking the submit)
+      handleSubmit(null, 'Saya telah menyetujui dan menerapkan perubahan stok. Selesai.');
+    } catch (e: any) {
+      alert(`Gagal menerapkan penyesuaian stok: ${e.message || e}`);
+      setLoading(false);
+    }
+  };
+
+  const handleRejectPreview = () => {
+    setPendingPreview(null);
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: 'Saya telah menolak preview penyesuaian stok. Batalkan aksi.' }
+    ]);
   };
 
   // Only render visible messages (user and assistant with text)
@@ -320,6 +368,30 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
           <div ref={messagesEndRef} />
         </div>
 
+        {pendingPreview && (
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-100 dark:border-blue-900/40 z-10 shrink-0">
+            <h4 className="font-bold text-sm text-blue-900 dark:text-blue-100 mb-2">Persetujuan Penyesuaian Stok (AI)</h4>
+            <div className="max-h-32 overflow-y-auto custom-scrollbar mb-3 bg-white dark:bg-slate-900 rounded-lg p-2 border border-blue-200 dark:border-blue-800">
+              <table className="w-full text-xs text-left">
+                <thead><tr className="border-b text-slate-500"><th className="pb-1">Item ID</th><th className="pb-1">Qty</th><th className="pb-1">Batch</th></tr></thead>
+                <tbody>
+                  {pendingPreview.items.map((it, idx) => (
+                    <tr key={idx} className="border-b border-slate-50 dark:border-slate-800">
+                      <td className="py-1 font-mono">{it.item_id.substring(0,8)}...</td>
+                      <td className="py-1">{it.actual_qty}</td>
+                      <td className="py-1">{it.batch_no || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={handleRejectPreview} className="px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700">Tolak & Batal</button>
+              <button onClick={handleApprovePreview} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">Setujui & Terapkan</button>
+            </div>
+          </div>
+        )}
+
         {/* Input */}
         <div className="p-4 bg-white dark:bg-[#0B0F19] border-t border-slate-100 dark:border-slate-800/60 z-10 shrink-0">
           <div className="relative flex items-end gap-2">
@@ -336,7 +408,7 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
               style={{ minHeight: '46px', maxHeight: '120px' }}
             />
             <button
-              onClick={handleSubmit}
+              onClick={(e) => handleSubmit(e)}
               disabled={!input.trim() || loading}
               className="flex-shrink-0 p-3 bg-brand text-white rounded-2xl hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-brand transition-all shadow-md shadow-brand/20 flex items-center justify-center active:scale-95"
             >

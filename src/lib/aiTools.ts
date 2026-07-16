@@ -38,9 +38,41 @@ export const aiTools = [
           unit_id: { type: 'string', description: 'The unit ID for the item. Use the base_unit_id from search_items if unsure.' },
           qty: { type: 'number', description: 'The amount to adjust (must be positive)' },
           direction: { type: 'string', enum: ['in', 'out'], description: 'Whether stock is coming in (added) or out (removed)' },
-          notes: { type: 'string', description: 'Reason for adjustment' }
+          notes: { type: 'string', description: 'Reason for adjustment' },
+          batch_no: { type: 'string', description: 'Batch number, if provided by user' },
+          expiry_date: { type: 'string', description: 'Expiration date YYYY-MM-DD, if provided by user' }
         },
         required: ['item_id', 'unit_id', 'qty', 'direction']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'bulk_stock_opname',
+      description: 'Perform a bulk stock adjustment (stock opname) for multiple items at once. Best used when user gives a list of items to adjust.',
+      parameters: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            description: 'List of items to adjust',
+            items: {
+              type: 'object',
+              properties: {
+                item_id: { type: 'string' },
+                unit_id: { type: 'string' },
+                actual_qty: { type: 'number', description: 'The actual physical quantity counted' },
+                hpp_value: { type: 'number', description: 'Optional new cost (HPP)' },
+                batch_no: { type: 'string', description: 'Optional batch number' },
+                expiry_date: { type: 'string', description: 'Optional expiry date (YYYY-MM-DD)' },
+                notes: { type: 'string', description: 'Optional reasoning' }
+              },
+              required: ['item_id', 'unit_id', 'actual_qty']
+            }
+          }
+        },
+        required: ['items']
       }
     }
   },
@@ -238,6 +270,7 @@ export const TOOL_ROLE_REQUIREMENTS: Record<string, string[]> = {
   search_items: ['owner', 'admin', 'staff'],
   get_stock_overview: ['owner', 'admin', 'staff'],
   adjust_stock: ['owner', 'admin', 'staff'],
+  bulk_stock_opname: ['owner', 'admin', 'staff'],
   update_item_retail_price: ['owner', 'admin', 'staff'],
   update_item_wholesale_price: ['owner', 'admin', 'staff'],
   get_sales_summary: ['owner', 'admin', 'staff'],
@@ -265,6 +298,15 @@ export async function executeTool(name: string, args: any, context: { branchId: 
         return await api.getStockOverview(context.branchId);
       case 'adjust_stock':
         return await api.adjustStock(args.item_id, args.unit_id, context.branchId, args.qty, args.direction, args.notes, context.userId);
+      case 'bulk_stock_opname':
+        if (!args.items || args.items.length === 0) return { error: 'No items provided' };
+        // DO NOT COMMIT DIRECTLY. Return payload to trigger UI Preview.
+        return { 
+          requires_user_approval: true, 
+          action: 'preview_bulk_opname', 
+          items: args.items,
+          message: "Preview generated. Waiting for user to review and approve."
+        };
       case 'update_item_retail_price':
         return await api.setItemPrice(args.item_id, args.unit_id, args.customer_tier, args.price);
       case 'update_item_wholesale_price':

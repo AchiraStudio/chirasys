@@ -1,8 +1,10 @@
 // src/pages/reports/LaporanStok.tsx
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Loader2, Package, RefreshCw } from 'lucide-react';
-import { getStockValuation, StockValuationRow } from '../../lib/api';
+import { getStockValuation, StockValuationRow, exportStockExcel } from '../../lib/api';
 import { downloadCsv } from '../../lib/exportCsv';
+import { save } from '@tauri-apps/plugin-dialog';
+import { FileSpreadsheet } from 'lucide-react';
 
 interface Props { onBack: () => void; }
 
@@ -19,6 +21,25 @@ export default function LaporanStok({ onBack }: Props) {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  const handleExportExcel = async () => {
+    try {
+      const filePath = await save({
+        filters: [{ name: 'Excel Files', extensions: ['xlsx'] }],
+        defaultPath: 'Laporan_Stok.xlsx',
+      });
+      if (filePath) {
+        setLoading(true);
+        await exportStockExcel(filePath);
+        alert('Data stok berhasil diekspor ke Excel!');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Gagal mengekspor data: ' + e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = data.filter(r =>
     r.item_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -52,9 +73,16 @@ export default function LaporanStok({ onBack }: Props) {
               const rows = filtered.map(r => [r.item_name, r.sku, r.category_name, r.unit_name, r.current_qty, r.avg_hpp, r.total_value]);
               downloadCsv('Laporan_Stok.csv', headers, rows);
             }}
-            className="px-4 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors border border-emerald-200"
+            className="px-4 py-2 bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-100 rounded-xl text-sm font-bold transition-colors border border-slate-200 dark:border-slate-700"
           >
             Export CSV
+          </button>
+          <button 
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors border border-emerald-200"
+          >
+            <FileSpreadsheet size={16} />
+            Export Excel
           </button>
         </div>
       </div>

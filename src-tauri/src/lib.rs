@@ -125,6 +125,7 @@ pub fn run() {
             // Phase 9 - Excel Import/Export
             commands::excel::import_items_excel,
             commands::excel::export_items_excel,
+            commands::excel::export_stock_excel,
             commands::excel::export_sales_excel,
 
             // Phase 9 - Auth
@@ -135,7 +136,9 @@ pub fn run() {
             commands::auth::create_user,
             commands::auth::toggle_user_active,
             commands::auth::reset_user_password,
-            commands::auth::update_user_username,
+            commands::auth::update_user,
+            commands::auth::delete_user,
+            commands::auth::assign_user_workspace,
             
             // Phase 9 - Sync
             commands::sync::receive_cloud_sync,

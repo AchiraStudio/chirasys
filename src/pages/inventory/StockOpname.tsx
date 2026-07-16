@@ -15,6 +15,10 @@ export default function StockOpname() {
   const [actualQty, setActualQty] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  
+  // Bulk actions
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [bulkQtyInput, setBulkQtyInput] = useState('');
 
   // Tour State
   const [runTour, setRunTour] = useState(false);
@@ -65,6 +69,36 @@ export default function StockOpname() {
     i.item_name.toLowerCase().includes(search.toLowerCase()) || 
     (i.sku && i.sku.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const toggleSelectAll = () => {
+    if (selectedItems.size === filteredItems.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(filteredItems.map(i => i.item_id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedItems);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedItems(next);
+  };
+
+  const applyBulkQty = () => {
+    if (selectedItems.size === 0) return alert("Pilih minimal satu item.");
+    const val = parseFloat(bulkQtyInput);
+    if (isNaN(val)) return alert("Masukkan angka yang valid.");
+    
+    setActualQty(prev => {
+      const next = { ...prev };
+      selectedItems.forEach(id => {
+        next[id] = val;
+      });
+      return next;
+    });
+    setBulkQtyInput('');
+  };
 
   const handleSubmit = async () => {
     // Only include items where user explicitly entered a physical count
@@ -153,12 +187,37 @@ export default function StockOpname() {
               className="bg-transparent border-none outline-none w-full text-sm font-medium text-slate-900 dark:text-white"
             />
           </div>
+          
+          <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-4">
+            <span className="text-sm font-semibold text-slate-500 whitespace-nowrap">{selectedItems.size} terpilih</span>
+            <input
+              type="number"
+              placeholder="Set qty..."
+              value={bulkQtyInput}
+              onChange={e => setBulkQtyInput(e.target.value)}
+              className="w-24 text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-brand/20"
+            />
+            <button
+              onClick={applyBulkQty}
+              className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition-colors whitespace-nowrap"
+            >
+              Set Nilai
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar relative tour-so-table">
           <table className="w-full text-left text-sm border-collapse">
             <thead className="bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold sticky top-0 z-10">
               <tr>
+                <th className="py-4 px-6 w-12 text-center">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedItems.size === filteredItems.length && filteredItems.length > 0} 
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand"
+                  />
+                </th>
                 <th className="py-4 px-6">Item</th>
                 <th className="py-4 px-6 text-center">Stok Sistem</th>
                 <th className="py-4 px-6 text-center tour-so-physical">Stok Fisik</th>
@@ -172,6 +231,14 @@ export default function StockOpname() {
                 const diff = aq - item.current_qty;
                 return (
                   <tr key={item.item_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="py-3 px-6 text-center">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedItems.has(item.item_id)} 
+                        onChange={() => toggleSelect(item.item_id)}
+                        className="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand"
+                      />
+                    </td>
                     <td className="py-3 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">

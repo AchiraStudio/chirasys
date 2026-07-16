@@ -9,6 +9,7 @@ export interface UserInfo {
   permissions: string;
   branch_id?: string;
   avatar_color?: string;
+  workspace_id?: string;
 }
 
 interface AuthState {

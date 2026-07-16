@@ -1,6 +1,6 @@
 // src/pages/pos/POS.tsx — Full keyboard-driven POS with Indonesian UI
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ShoppingCart, Search, Plus, Minus, Trash2, Clock, UserCheck, PauseCircle, PlayCircle, Loader2, HelpCircle, Edit2, Check, X as XIcon } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Minus, Trash2, Clock, UserCheck, PauseCircle, PlayCircle, Loader2, HelpCircle, Edit2, Check, X as XIcon, Crown } from 'lucide-react';
 import { usePosStore, PosLine, PosHold } from './POSStore';
 import { getItemsFiltered, Item, Customer, getSettings } from '../../lib/api';
 import { applyDiscountsToCart } from '../../lib/discountEngine';
@@ -24,6 +24,8 @@ export default function POS() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [taxMode, setTaxMode] = useState<string>('none');
   const [taxRate, setTaxRate] = useState<number>(0);
+  const [tierMemberDiscount, setTierMemberDiscount] = useState<number>(0);
+  const [tierVipDiscount, setTierVipDiscount] = useState<number>(0);
 
   // Selected cart item index for keyboard navigation & price editing
   const [selectedCartIdx, setSelectedCartIdx] = useState<number>(-1);
@@ -72,8 +74,12 @@ export default function POS() {
     getSettings().then(settings => {
       const mode = settings.find(s => s.key === 'tax_mode')?.value || 'none';
       const rate = parseFloat(settings.find(s => s.key === 'tax_rate')?.value || '0');
+      const memberDisc = parseFloat(settings.find(s => s.key === 'tier_member_discount')?.value || '0');
+      const vipDisc = parseFloat(settings.find(s => s.key === 'tier_vip_discount')?.value || '0');
       setTaxMode(mode);
       setTaxRate(rate);
+      setTierMemberDiscount(memberDisc);
+      setTierVipDiscount(vipDisc);
     }).catch(console.error);
   }, []);
 
@@ -387,7 +393,16 @@ export default function POS() {
 
   const removeItem = (itemId: string) => setCart(prev => prev.filter(l => !(l.item_id === itemId && !l.is_bogo_free)));
 
-  const subtotal = cart.reduce((sum, l) => sum + (l.qty * l.price) - l.discount_amount, 0) - cartDiscount;
+  const rawSubtotal = cart.reduce((sum, l) => sum + (l.qty * l.price) - l.discount_amount, 0) - cartDiscount;
+  
+  // Calculate tier discount
+  let currentTierDiscountPercent = 0;
+  if (selectedCustomer?.customer_tier === 'member') currentTierDiscountPercent = tierMemberDiscount;
+  if (selectedCustomer?.customer_tier === 'vip') currentTierDiscountPercent = tierVipDiscount;
+  
+  const tierDiscountAmount = rawSubtotal * (currentTierDiscountPercent / 100);
+  const subtotal = rawSubtotal - tierDiscountAmount;
+  
   const taxAmount = taxMode === 'exclude' ? subtotal * (taxRate / 100) : (taxMode === 'include' ? subtotal * (1 - 1 / (1 + taxRate / 100)) : 0);
   const total = taxMode === 'exclude' ? subtotal + taxAmount : subtotal;
 
@@ -626,17 +641,29 @@ export default function POS() {
                   <span className="font-bold text-green-600">-Rp {cartDiscount.toLocaleString('id-ID')}</span>
                 </div>
               )}
-              {taxMode !== 'none' && taxRate > 0 && (
-                <div className="flex justify-end gap-2 text-xs mt-0.5">
-                  <span className="text-slate-500">Pajak ({taxRate}%{taxMode === 'include' ? ' Termasuk' : ''}):</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Rp {taxAmount.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+              {currentTierDiscountPercent > 0 && (
+                <div className="flex justify-between items-center text-indigo-600 dark:text-indigo-400 font-medium pb-2 border-b border-indigo-100 dark:border-indigo-900/50">
+                  <span className="flex items-center gap-1.5"><Crown size={14} /> Tier Discount ({currentTierDiscountPercent}%)</span>
+                  <span>-Rp {tierDiscountAmount.toLocaleString('id-ID')}</span>
                 </div>
               )}
+              {taxMode === 'exclude' && taxRate > 0 && (
+                <div className="flex justify-between items-center text-slate-500 font-medium">
+                  <span>Pajak ({taxRate}%)</span>
+                  <span>+Rp {taxAmount.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                </div>
+              )}
+              {taxMode === 'include' && taxRate > 0 && (
+                <div className="flex justify-between items-center text-slate-500 font-medium">
+                  <span>Termasuk Pajak ({taxRate}%)</span>
+                  <span>Rp {taxAmount.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center font-black text-2xl text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-800">
+                <span>Total</span>
+                <span>Rp {Math.round(total).toLocaleString('id-ID')}</span>
+              </div>
             </div>
-          </div>
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">Total</span>
-            <span className="text-2xl font-extrabold text-brand">Rp {total.toLocaleString('id-ID')}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -666,7 +693,7 @@ export default function POS() {
           priceType={priceType}
           customerId={selectedCustomer?.id}
           taxAmount={taxAmount}
-          discountAmount={cart.reduce((s, l) => s + (l.discount_amount || 0), 0) + cartDiscount}
+          discountAmount={cart.reduce((s, l) => s + (l.discount_amount || 0), 0) + cartDiscount + tierDiscountAmount}
           onClose={() => setShowPayment(false)}
           onSuccess={handlePaymentSuccess}
         />
