@@ -70,3 +70,15 @@
 .glass-card {
   @apply bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all duration-300;
 }
+
+/* Print styles for thermal receipt printers (58mm / 80mm) */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}

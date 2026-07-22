@@ -163,7 +163,7 @@ export default function App() {
     return (
       <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-[#09090b]">
         <TitleBar />
-        <div className="flex-1 overflow-hidden pt-10">
+        <div className="flex-1 overflow-y-auto">
           <LoginPage />
         </div>
       </div>

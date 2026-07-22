@@ -153,6 +153,8 @@ pub fn run() {
             // Phase 10 - Maintenance
             commands::maintenance::optimize_database,
             commands::maintenance::open_devtools,
+            commands::maintenance::list_printers,
+            commands::maintenance::kick_cash_drawer,
             commands::admin::reset_db_specific,
         ])
         .run(tauri::generate_context!())

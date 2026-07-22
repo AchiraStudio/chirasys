@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { PosLine } from './POSStore';
 import { createSale, CreateSaleInput } from '../../lib/api';
-import { X, Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2, CheckCircle2, Ticket } from 'lucide-react';
+import { X, Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2, CheckCircle2, Ticket, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -202,7 +202,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-[#0B0F19] rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-200/80 dark:border-slate-800/85 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="bg-white dark:bg-[#0B0F19] rounded-[2rem] shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-200/80 dark:border-slate-800/85 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
                 
                 {/* Header */}
                 <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 dark:border-slate-800/60">
@@ -422,20 +422,20 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
 
                     </div>
 
-                    {/* Right Column: Billing Summary & Actions (5 cols) */}
-                    <div className="md:col-span-5 flex flex-col justify-between space-y-6">
+                    {/* Right Column: Billing Summary, Item Details & Actions (5 cols) */}
+                    <div className="md:col-span-5 flex flex-col space-y-5">
                         
                         {/* Summary Sticky/Visual Card */}
-                        <div className="bg-gradient-to-br from-slate-800 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 space-y-6 shadow-xl shadow-indigo-900/30 relative overflow-hidden border border-indigo-800/30 dark:border-slate-700/50">
+                        <div className="bg-gradient-to-br from-slate-800 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 space-y-5 shadow-xl shadow-indigo-900/30 relative overflow-hidden border border-indigo-800/30 dark:border-slate-700/50">
                             
                             {/* Abstract gradient backdrop */}
                             <div className="absolute top-0 right-0 w-48 h-48 bg-brand opacity-25 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                             
                             <div className="space-y-4 relative z-10">
                                 <div>
-                                    <p className="text-[10px] font-extrabold tracking-widest text-slate-300 uppercase mb-1.5">Total Tagihan</p>
-                                    <div className="relative flex items-center bg-white/10 rounded-2xl border border-white/15 px-3 py-1.5 focus-within:ring-2 focus-within:ring-white/30 focus-within:border-white/30 transition-all">
-                                        <span className="text-sm font-bold text-slate-300 mr-2">Rp</span>
+                                    <p className="text-xs font-extrabold tracking-widest text-indigo-200 uppercase mb-2">Total Tagihan</p>
+                                    <div className="relative flex items-center bg-white/15 rounded-2xl border border-white/20 px-4 py-3 focus-within:ring-2 focus-within:ring-white/40 focus-within:border-white/40 shadow-inner transition-all">
+                                        <span className="text-xl font-extrabold text-indigo-200 mr-2">Rp</span>
                                         <input
                                             type="text"
                                             value={adjustedTotalStr}
@@ -447,65 +447,111 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                                     evaluateTotal();
                                                 }
                                             }}
-                                            className="w-full bg-transparent border-none outline-none text-xl font-black text-white focus:ring-0 p-0 text-right font-mono"
+                                            className="w-full bg-transparent border-none outline-none text-3xl sm:text-4xl font-black text-white focus:ring-0 p-0 text-right font-mono tracking-tight"
                                         />
                                     </div>
                                 </div>
                                 
-                                <div className="h-px bg-slate-800"></div>
+                                <div className="h-px bg-slate-800/80"></div>
 
                                 {/* Discount Breakdown */}
                                 {(discountAmount > 0 || manualDiscountAmt > 0) && (
                                     <div className="space-y-1.5">
                                         {discountAmount > 0 && (
                                             <div className="flex justify-between items-center">
-                                                <span className="text-xs text-slate-400">Diskon Promo{voucher ? ` (${voucher})` : ''}</span>
+                                                <span className="text-xs text-slate-300">Diskon Promo{voucher ? ` (${voucher})` : ''}</span>
                                                 <span className="text-xs font-bold text-rose-400">- Rp {discountAmount.toLocaleString('id-ID')}</span>
                                             </div>
                                         )}
                                         {manualDiscountAmt > 0 && (
                                             <div className="flex justify-between items-center">
-                                                <span className="text-xs text-slate-400">Diskon Manual</span>
+                                                <span className="text-xs text-slate-300">Diskon Manual</span>
                                                 <span className="text-xs font-bold text-rose-400">- Rp {manualDiscountAmt.toLocaleString('id-ID')}</span>
                                             </div>
                                         )}
                                         <div className="flex justify-between items-center border-t border-white/10 pt-1.5">
                                             <span className="text-xs font-bold text-white">Total Setelah Diskon</span>
-                                            <span className="text-base font-extrabold text-white">Rp {netTotal.toLocaleString('id-ID')}</span>
+                                            <span className="text-base font-extrabold text-white font-mono">Rp {netTotal.toLocaleString('id-ID')}</span>
                                         </div>
                                     </div>
                                 )}
 
                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs font-semibold text-slate-400">Total Pembayaran</span>
-                                    <span className="text-base font-bold text-slate-200">Rp {totalBayar.toLocaleString('id-ID')}</span>
+                                    <span className="text-xs font-semibold text-slate-300">Total Pembayaran</span>
+                                    <span className="text-base font-bold text-slate-100 font-mono">Rp {totalBayar.toLocaleString('id-ID')}</span>
                                 </div>
 
                                 {kembali > 0 ? (
                                     <div className="flex justify-between items-center pt-2">
                                         <span className="text-xs font-bold text-emerald-400">Uang Kembalian</span>
-                                        <span className="text-xl font-extrabold text-emerald-400">Rp {kembali.toLocaleString('id-ID')}</span>
+                                        <span className="text-2xl font-extrabold text-emerald-400 font-mono">Rp {kembali.toLocaleString('id-ID')}</span>
                                     </div>
                                 ) : totalBayar > 0 && totalBayar < netTotal ? (
                                     <div className="flex justify-between items-center pt-2">
                                         <span className="text-xs font-bold text-rose-400">Kekurangan</span>
-                                        <span className="text-xl font-extrabold text-rose-400">Rp {(netTotal - totalBayar).toLocaleString('id-ID')}</span>
+                                        <span className="text-2xl font-extrabold text-rose-400 font-mono">Rp {(netTotal - totalBayar).toLocaleString('id-ID')}</span>
                                     </div>
                                 ) : (
                                     <div className="flex justify-between items-center pt-2">
                                         <span className="text-xs font-bold text-amber-400">Status</span>
-                                        <span className="text-xs font-bold bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full border border-amber-500/10">Belum Lunas</span>
+                                        <span className="text-xs font-bold bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full border border-amber-500/20">Belum Lunas</span>
                                     </div>
                                 )}
                             </div>
                         </div>
 
+                        {/* Rincian Item Dibeli Container */}
+                        <div className="bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-4 space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-2.5">
+                                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-xs uppercase tracking-wider">
+                                    <ShoppingBag size={15} className="text-brand" />
+                                    <span>Item Dibeli ({cart.reduce((s, i) => s + i.qty, 0)})</span>
+                                </div>
+                                <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                                    {cart.length} Jenis Produk
+                                </span>
+                            </div>
+
+                            <div className="max-h-44 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                                {cart.map((item, idx) => {
+                                    const lineSubtotal = item.qty * item.price - (item.discount_amount || 0);
+                                    return (
+                                        <div key={idx} className="flex items-center justify-between text-xs py-2 px-3 rounded-2xl bg-white/70 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/60 hover:border-slate-200 dark:hover:border-slate-700/60 transition-colors">
+                                            <div className="min-w-0 flex-1 pr-3">
+                                                <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                                    {item.item_name}
+                                                    {item.is_bogo_free && (
+                                                        <span className="ml-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 font-bold px-1.5 py-0.5 rounded">
+                                                            FREE
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
+                                                    {item.qty} {item.unit_name} × Rp {item.price.toLocaleString('id-ID')}
+                                                </p>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <span className="font-bold text-slate-900 dark:text-white font-mono text-xs">
+                                                    Rp {lineSubtotal.toLocaleString('id-ID')}
+                                                </span>
+                                                {item.discount_amount > 0 && (
+                                                    <p className="text-[10px] text-rose-500 font-mono">
+                                                        -Rp {item.discount_amount.toLocaleString('id-ID')}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                         {/* Action Buttons */}
-                        <div className="space-y-3">
+                        <div className="space-y-2.5 pt-1">
                             <button
                                 onClick={() => handlePay(true)}
                                 disabled={!isReady || loading}
-                                className="w-full py-4 bg-brand hover:bg-blue-600 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold shadow-lg shadow-brand/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand dark:focus:ring-offset-[#0B0F19]"
+                                className="w-full py-3.5 bg-brand hover:bg-blue-600 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold shadow-lg shadow-brand/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand dark:focus:ring-offset-[#0B0F19]"
                             >
                                 {loading ? <Loader2 size={18} className="animate-spin" /> : null}
                                 <span>{loading ? 'Memproses...' : 'Simpan & Cetak (Alt+F10)'}</span>
@@ -514,14 +560,14 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                             <button
                                 onClick={() => handlePay(false)}
                                 disabled={!isReady || loading}
-                                className="w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-800 dark:focus:ring-offset-[#0B0F19]"
+                                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-800 dark:focus:ring-offset-[#0B0F19]"
                             >
                                 Simpan Transaksi (F10)
                             </button>
 
                             <button
                                 onClick={onClose}
-                                className="w-full py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                className="w-full py-2.5 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400"
                             >
                                 Batal (ESC)
                             </button>

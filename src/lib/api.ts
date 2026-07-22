@@ -227,6 +227,18 @@ export const exportSalesExcel = async (filePath: string): Promise<string> => inv
 export const optimizeDatabase = async (): Promise<string> => invoke('optimize_database');
 export const resetDbSpecific = async (target: string): Promise<string> => invoke('reset_db_specific', { target });
 
+// --- Hardware / Printer Commands ---
+export interface DetectedPrinterInfo {
+  Name: string;
+  DriverName: string;
+  PortName: string;
+  PrinterStatus: number; // 0=Idle/Ready, 1=Printing, 3=Error/Offline, etc
+  Default: boolean;
+}
+export const listPrinters = async (): Promise<DetectedPrinterInfo[]> => invoke('list_printers');
+export const kickCashDrawer = async (printerPort: string): Promise<string> => invoke('kick_cash_drawer', { printerPort });
+export const openCashDrawerLegacy = async (): Promise<string> => invoke('open_cash_drawer');
+
 // --- Phase 8 Report Types ---
 export interface SalesSummaryRow { period_label: string; transaction_count: number; total_revenue: number; total_discount: number; total_cogs: number; gross_profit: number; }
 export interface TopItemRow { item_name: string; sku: string; category_name?: string; qty_sold: number; total_revenue: number; total_cogs: number; gross_margin: number; }

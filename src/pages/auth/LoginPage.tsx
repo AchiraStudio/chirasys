@@ -161,9 +161,9 @@ export default function LoginPage() {
   // ─── Step 2: Workspace Connect Screen ─────────────────────────────────────
   if (screen === 'workspace_connect') {
     return (
-      <div className="min-h-screen w-full bg-slate-50 dark:bg-[#0B0F19] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] flex flex-col items-center justify-center p-4 py-8 relative overflow-y-auto">
         <Blobs />
-        <div className="w-full max-w-md relative z-10 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="w-full max-w-md relative z-10 space-y-4 my-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
           <button
             onClick={() => { setScreen('login'); setPendingToken(null); setPendingUser(null); setWsError(''); }}
             className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-brand transition-colors"
@@ -276,9 +276,9 @@ export default function LoginPage() {
   // ─── Sysadmin Login Screen ────────────────────────────────────────────────
   if (screen === 'sysadmin_login') {
     return (
-      <div className="min-h-screen w-full bg-slate-50 dark:bg-[#0B0F19] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] flex flex-col items-center justify-center p-4 py-8 relative overflow-y-auto">
         <Blobs />
-        <div className="w-full max-w-md relative z-10 space-y-4">
+        <div className="w-full max-w-md relative z-10 space-y-4 my-auto">
           <button onClick={() => { setError(''); setScreen('login'); }} className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-brand transition-colors">
             <ArrowLeft size={16} /> Kembali ke Login
           </button>
@@ -338,10 +338,10 @@ export default function LoginPage() {
 
   // ─── Main Login Screen (Step 1) ───────────────────────────────────────────
   return (
-    <div className="min-h-screen w-full bg-slate-50 dark:bg-[#0B0F19] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] flex flex-col items-center justify-center p-4 py-8 relative overflow-y-auto">
       <Blobs />
 
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-brand/10 border border-slate-200/50 dark:border-slate-800/50 overflow-hidden relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-brand/10 border border-slate-200/50 dark:border-slate-800/50 overflow-hidden relative z-10 my-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
 
         {/* Header */}
         <div className="p-8 pb-6 flex flex-col items-center justify-center border-b border-slate-100 dark:border-slate-800/50 bg-gradient-to-br from-slate-50/50 to-brand/5 dark:from-slate-900/50 dark:to-brand/5 relative">

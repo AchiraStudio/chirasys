@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock } from 'lucide-react';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck } from 'lucide-react';
 import { optimizeDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import UserManagement from './UserManagement';
+import HardwareSettings from './HardwareSettings';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
 // Keys that should render as a <select> instead of a text input
@@ -49,7 +50,7 @@ export default function Settings() {
   const [successMsg, setSuccessMsg] = useState('');
   const [configs, setConfigs] = useState<{key: string, value: string, description?: string}[]>([]);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'system' | 'users' | 'sync'>('system');
+  const [activeTab, setActiveTab] = useState<'system' | 'users' | 'sync' | 'hardware'>('system');
 
   // Profile settings
   const [companyName, setCompanyName] = useState('');
@@ -207,204 +208,254 @@ export default function Settings() {
     });
   };
 
-  // General configs minus the profile keys
   const generalConfigs = configs.filter(c => !PROFILE_KEYS.includes(c.key));
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6 flex flex-col gap-6 animate-in fade-in duration-300 max-w-4xl mx-auto w-full">
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <SettingsIcon className="text-brand" /> Pengaturan Sistem
-          </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Konfigurasi preferensi aplikasi dan manajemen pengguna.</p>
+    <div className="flex-1 overflow-y-auto custom-scrollbar pb-8 flex flex-col gap-6 animate-in fade-in duration-300 w-full">
+      
+      {/* Top Header Banner (Subtle & Theme Adaptive) */}
+      <div className="shrink-0 bg-white dark:bg-[#0B0F19] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-brand/10 text-brand border border-brand/20 flex items-center gap-1.5">
+              <SettingsIcon size={13} /> Control Panel
+            </span>
+            {syncStatus?.workspace_name && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                <Globe size={13} /> {syncStatus.workspace_name}
+              </span>
+            )}
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+              Pengaturan System & Hardware POS
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed mt-0.5">
+              Kelola preferensi bisnis, profil cabang, integrasi printer thermal, manajemen pengguna, dan sinkronisasi cloud secara terpusat.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+          <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-extrabold text-xs">
+            {user?.role?.substring(0, 2).toUpperCase() || 'US'}
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{user?.name || 'Operator'}</p>
+            <p className="text-[10px] font-mono text-slate-500 capitalize">{user?.role || 'Staff'}</p>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-4 border-b border-slate-200 dark:border-slate-800">
+      {/* Tab Navigation (Shrink-0 & Robust Styling) */}
+      <div className="shrink-0 flex items-center gap-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-3 overflow-x-auto custom-scrollbar">
         <button
           onClick={() => setActiveTab('system')}
-          className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
-            activeTab === 'system' 
-              ? 'border-brand text-brand' 
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'system'
+              ? 'bg-brand text-white shadow-md shadow-brand/20'
+              : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
           }`}
         >
-          Konfigurasi Umum
+          <Sliders size={15} /> Konfigurasi Umum
         </button>
+
+        <button
+          onClick={() => setActiveTab('hardware')}
+          className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'hardware'
+              ? 'bg-brand text-white shadow-md shadow-brand/20'
+              : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+          }`}
+        >
+          <Printer size={15} /> Printer & Hardware POS
+        </button>
+
         <button
           onClick={() => { setActiveTab('sync'); loadSyncStatus(); }}
-          className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'sync' 
-              ? 'border-brand text-brand' 
-              : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'sync'
+              ? 'bg-brand text-white shadow-md shadow-brand/20'
+              : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
           }`}
         >
-          <Globe size={14} /> Cloud & Sync
+          <Globe size={15} /> Cloud & Workspace
           {syncStatus?.pending_count ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{syncStatus.pending_count}</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">{syncStatus.pending_count}</span>
           ) : null}
         </button>
+
         {isAdmin && (
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
-              activeTab === 'users' 
-                ? 'border-brand text-brand' 
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'users'
+                ? 'bg-brand text-white shadow-md shadow-brand/20'
+                : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
-            Manajemen Pengguna
+            <UserCheck size={15} /> Manajemen Pengguna
           </button>
         )}
       </div>
 
-      {activeTab === 'users' ? (
+      {/* Main Content Areas */}
+      {activeTab === 'hardware' ? (
+        <HardwareSettings />
+      ) : activeTab === 'users' ? (
         <UserManagement />
       ) : activeTab === 'sync' ? (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Workspace Status */}
-          <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col gap-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-brand/10 text-brand rounded-xl"><Globe size={20} /></div>
-                <div>
-                  <h2 className="font-bold text-slate-900 dark:text-white">Workspace</h2>
-                  <p className="text-xs text-slate-500">Cloud sync status</p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
+          {/* Workspace Status (6 cols) */}
+          <div className="lg:col-span-6 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between space-y-6">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-brand/10 text-brand rounded-2xl"><Globe size={22} /></div>
+                  <div>
+                    <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Koneksi Workspace Cloud</h2>
+                    <p className="text-xs text-slate-500">Status sinkronisasi data antar cabang</p>
+                  </div>
                 </div>
+                <button onClick={loadSyncStatus} className="p-2.5 text-slate-400 hover:text-brand rounded-xl hover:bg-brand/10 transition-all" title="Refresh Sync Status">
+                  <RefreshCw size={18} />
+                </button>
               </div>
-              <button onClick={loadSyncStatus} className="p-2 text-slate-400 hover:text-brand rounded-lg hover:bg-brand/10 transition-colors">
-                <RefreshCw size={16} />
-              </button>
+
+              {syncStatus?.workspace_id ? (
+                <>
+                  <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl">
+                    <CheckCircle2 size={24} className="text-emerald-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-extrabold text-emerald-800 dark:text-emerald-300 truncate">{syncStatus.workspace_name}</p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-500 font-mono mt-0.5">KODE: {syncStatus.workspace_code}</p>
+                    </div>
+                    <Wifi size={20} className="text-emerald-500 shrink-0 animate-pulse" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                      <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Antrian Pending</p>
+                      <p className={`text-3xl font-black mt-1 font-mono ${syncStatus.pending_count > 0 ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.pending_count}</p>
+                    </div>
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                      <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Gagal Sync</p>
+                      <p className={`text-3xl font-black mt-1 font-mono ${syncStatus.failed_count > 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.failed_count}</p>
+                    </div>
+                  </div>
+
+                  {syncStatus.last_synced && (
+                    <p className="text-xs text-slate-400 font-mono">Terakhir Sinkron: {new Date(syncStatus.last_synced).toLocaleString('id-ID')}</p>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-12 text-center">
+                  <WifiOff size={40} className="text-slate-300 dark:text-slate-600" />
+                  <p className="text-sm font-bold text-slate-600 dark:text-slate-400">Belum terhubung ke Workspace Cloud.</p>
+                  <p className="text-xs text-slate-400 max-w-sm">Gunakan kode workspace pada layar login untuk menghubungkan toko Anda ke cloud.</p>
+                </div>
+              )}
             </div>
 
-            {syncStatus?.workspace_id ? (
-              <>
-                <div className="flex items-center gap-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl">
-                  <CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">{syncStatus.workspace_name}</p>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-500 font-mono">{syncStatus.workspace_code}</p>
-                  </div>
-                  <Wifi size={16} className="text-emerald-500" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending</p>
-                    <p className={`text-2xl font-black mt-1 ${syncStatus.pending_count > 0 ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.pending_count}</p>
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Failed</p>
-                    <p className={`text-2xl font-black mt-1 ${syncStatus.failed_count > 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.failed_count}</p>
-                  </div>
-                </div>
-                {syncStatus.last_synced && (
-                  <p className="text-xs text-slate-400">Last synced: {new Date(syncStatus.last_synced).toLocaleString()}</p>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={handleLeaveWorkspace}
-                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-rose-200 dark:border-rose-800/50 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-sm font-semibold transition-colors"
-                  >
-                    <LogOut size={16} /> Leave Workspace
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <WifiOff size={32} className="text-slate-300 dark:text-slate-600" />
-                <p className="text-sm font-medium text-slate-500">Not connected to a workspace.</p>
-                <p className="text-xs text-slate-400">Use the workspace code field on the login screen to connect.</p>
-              </div>
+            {isAdmin && syncStatus?.workspace_id && (
+              <button
+                onClick={handleLeaveWorkspace}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-rose-200 dark:border-rose-900/50 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs font-extrabold transition-all cursor-pointer"
+              >
+                <LogOut size={16} /> Putuskan Koneksi Workspace
+              </button>
             )}
           </div>
 
-          {/* Invite Generator (admin only) */}
+          {/* Invite Generator (6 cols) */}
           {isAdmin && syncStatus?.workspace_id && (
-            <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col gap-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 rounded-xl"><Link2 size={20} /></div>
-                <div>
-                  <h2 className="font-bold text-slate-900 dark:text-white">Generate Invite</h2>
-                  <p className="text-xs text-slate-500">Share a code so others can join your workspace</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Role for new member</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['admin', 'worker'] as const).map(r => (
-                    <label key={r} className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
-                      inviteRole === r ? 'bg-brand/5 border-brand' : 'border-slate-200 dark:border-slate-700 hover:border-brand/50'
-                    }`}>
-                      <input type="radio" name="role" value={r} checked={inviteRole === r} onChange={() => setInviteRole(r)} className="text-brand" />
-                      <span className="text-sm font-semibold capitalize text-slate-700 dark:text-slate-300">{r}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={handleGenerateInvite}
-                disabled={inviteLoading}
-                className="flex items-center justify-center gap-2 w-full bg-brand hover:bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm transition-all shadow-md shadow-brand/20 disabled:opacity-50"
-              >
-                {inviteLoading ? <Loader2 size={18} className="animate-spin" /> : <Link2 size={18} />}
-                Generate Invite Token
-              </button>
-
-              {inviteToken && (
-                <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Invite Token (valid 7 days)</p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 text-xs font-mono text-brand break-all">{inviteToken}</code>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(inviteToken); }}
-                      className="flex-shrink-0 p-2 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
-                      title="Copy"
-                    >
-                      <Copy size={14} />
-                    </button>
+            <div className="lg:col-span-6 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between space-y-6">
+              <div className="space-y-5">
+                <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl"><Link2 size={22} /></div>
+                  <div>
+                    <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Undang Anggota / Kasir Baru</h2>
+                    <p className="text-xs text-slate-500">Buat kode akses untuk menghubungkan perangkat cabang baru</p>
                   </div>
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Role untuk Anggota Baru</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(['admin', 'worker'] as const).map(r => (
+                      <label key={r} className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                        inviteRole === r ? 'bg-brand/10 border-brand text-brand font-bold' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-700 dark:text-slate-300'
+                      }`}>
+                        <input type="radio" name="role" value={r} checked={inviteRole === r} onChange={() => setInviteRole(r)} className="text-brand focus:ring-brand" />
+                        <span className="text-xs capitalize font-bold">{r === 'admin' ? 'Admin Cabang' : 'Staf / Kasir'}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleGenerateInvite}
+                  disabled={inviteLoading}
+                  className="flex items-center justify-center gap-2 w-full bg-brand hover:bg-blue-600 text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-md shadow-brand/20 disabled:opacity-50 cursor-pointer"
+                >
+                  {inviteLoading ? <Loader2 size={18} className="animate-spin" /> : <Link2 size={18} />}
+                  Buat Kode Token Undangan
+                </button>
+
+                {inviteToken && (
+                  <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 animate-in zoom-in-95">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kode Undangan (Berlaku 7 Hari)</p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-xs font-mono text-brand font-bold break-all p-2.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 select-all">{inviteToken}</code>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(inviteToken); }}
+                        className="p-2.5 bg-brand/10 text-brand hover:bg-brand hover:text-white rounded-xl transition-all"
+                        title="Copy Kode"
+                      >
+                        <Copy size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {/* Sysadmin Only: Global Workspace Management */}
           {user?.username === 'admin' && (
-            <div className="md:col-span-2">
+            <div className="lg:col-span-12">
               <SysadminWorkspaceManagement />
             </div>
           )}
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
+        /* TAB 1: KONFIGURASI UMUM (FULL WIDTH 12-COLUMN GRID) */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
 
-          {/* ── Profil Perusahaan & Cabang Card ── */}
-          <div className="md:col-span-2 bg-white dark:bg-[#0B0F19] rounded-2xl border border-brand/20 dark:border-brand/20 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-brand/10 text-brand rounded-xl">
-                <Building2 size={22} />
-              </div>
-              <div className="flex-1">
-                <h2 className="font-bold text-slate-900 dark:text-white">Profil Perusahaan & Cabang</h2>
-                <p className="text-xs text-slate-500">Ditampilkan di sidebar aplikasi</p>
+          {/* ── Profil Perusahaan & Cabang (8 Cols) ── */}
+          <div className="lg:col-span-8 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-brand/10 text-brand rounded-2xl">
+                  <Building2 size={22} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Profil Perusahaan & Cabang</h2>
+                  <p className="text-xs text-slate-500">Identitas utama bisnis yang ditampilkan pada sidebar & nota transaksi</p>
+                </div>
               </div>
               {profileSuccess && (
-                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 animate-in fade-in duration-200">
-                  <CheckCircle2 size={13} /> {profileSuccess}
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-full border border-emerald-200 animate-in fade-in duration-200">
+                  <CheckCircle2 size={14} /> {profileSuccess}
                 </span>
               )}
-              {profileSaving && <Loader2 size={14} className="animate-spin text-slate-400" />}
             </div>
 
-            <div className="grid md:grid-cols-2 gap-5">
-              {/* Company Name — Owner only */}
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-2">
-                  <Building2 size={11} /> Nama Perusahaan
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Company Name */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  <Building2 size={13} className="text-brand" /> Nama Perusahaan / Toko
                   {!isOwner && <Lock size={11} className="text-slate-400 ml-1" />}
                 </label>
                 <input
@@ -412,24 +463,19 @@ export default function Settings() {
                   value={companyName}
                   onChange={e => setCompanyName(e.target.value)}
                   disabled={!isOwner}
-                  placeholder="ChiraSys HQ"
-                  className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white outline-none transition-all ${
+                  placeholder="Contoh: Apotek Terang"
+                  className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white font-bold outline-none transition-all ${
                     isOwner
-                      ? 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-brand'
-                      : 'border-slate-100 dark:border-slate-800 opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900/50'
+                      ? 'border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-brand'
+                      : 'border-slate-100 dark:border-slate-900 opacity-60 cursor-not-allowed'
                   }`}
                 />
-                {!isOwner && (
-                  <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
-                    <Lock size={9} /> Hanya dapat diubah oleh Owner
-                  </p>
-                )}
               </div>
 
-              {/* Branch Name — Admin + Owner */}
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-2">
-                  <MapPin size={11} /> Nama Cabang
+              {/* Branch Name */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  <MapPin size={13} className="text-brand" /> Nama Cabang POS
                   {!isAdmin && <Lock size={11} className="text-slate-400 ml-1" />}
                 </label>
                 <input
@@ -437,184 +483,206 @@ export default function Settings() {
                   value={branchName}
                   onChange={e => setBranchName(e.target.value)}
                   disabled={!isAdmin}
-                  placeholder="Cabang Utama"
-                  className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white outline-none transition-all ${
+                  placeholder="Contoh: Cabang Utama"
+                  className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white font-bold outline-none transition-all ${
                     isAdmin
-                      ? 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-brand'
-                      : 'border-slate-100 dark:border-slate-800 opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-900/50'
+                      ? 'border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-brand'
+                      : 'border-slate-100 dark:border-slate-900 opacity-60 cursor-not-allowed'
                   }`}
                 />
-                {!isAdmin && (
-                  <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
-                    <Lock size={9} /> Hanya dapat diubah oleh Admin atau Owner
-                  </p>
-                )}
               </div>
             </div>
 
             {isAdmin && (
-              <button
-                onClick={handleSaveProfile}
-                disabled={profileSaving}
-                className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold shadow-md shadow-brand/20 transition-all disabled:opacity-50"
-              >
-                {profileSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                Simpan Profil
-              </button>
+              <div className="pt-2 flex justify-end">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={profileSaving}
+                  className="py-3 px-6 bg-brand hover:bg-blue-600 text-white font-bold text-xs rounded-2xl shadow-md shadow-brand/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {profileSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Simpan Profil Bisnis
+                </button>
+              </div>
             )}
           </div>
 
-          {/* DB Reset Card — Admin Only */}
-          {isAdmin && (
-            <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-rose-200 dark:border-rose-900 shadow-sm p-6 flex flex-col h-full">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-xl">
-                  <Database size={24} />
+          {/* ── Quick Database Health & Maintenance (4 Cols) ── */}
+          <div className="lg:col-span-4 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 flex flex-col justify-between space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-2xl">
+                  <Database size={22} />
                 </div>
                 <div>
-                  <h2 className="font-bold text-rose-600 dark:text-rose-500">Danger Zone</h2>
-                  <p className="text-xs text-slate-500">Admin only — Data Wipe & Maintenance</p>
+                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Kesehatan Database</h2>
+                  <p className="text-xs text-slate-500">SQLite Engine Optimizations</p>
                 </div>
               </div>
-              
-              <div className="space-y-4 mt-2 flex-1">
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => setResetTarget('sales')}
-                    disabled={loading}
-                    className="w-full py-2.5 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-100 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-sm transition-all"
-                  >
-                    Reset Data Penjualan (Sales)
-                  </button>
-                  <p className="text-[10px] text-slate-500 text-center">Menghapus transaksi POS, pembayaran, dan jurnal.</p>
+
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Jalankan pembersihan rutin VACUUM untuk mengompresi ukuran file database dan mempercepat kueri transaksi kasir.
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={() => setResetTarget('maintenance')}
+                disabled={loading}
+                className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-brand hover:text-white dark:hover:bg-brand text-slate-800 dark:text-slate-200 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Database size={15} /> Optimize DB (VACUUM)
+              </button>
+
+              {successMsg && (
+                <p className="text-xs text-center font-bold text-emerald-600 animate-in fade-in">
+                  ✓ {successMsg}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* ── System Preferences & Accounting Config (7 Cols) ── */}
+          <div className="lg:col-span-7 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 space-y-5">
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl">
+                <Sliders size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Konfigurasi Sistem & Keuangan</h2>
+                <p className="text-xs text-slate-500">Metode HPP, mode pajak, dan reset siklus nomor nota</p>
+              </div>
+              {saving && <Loader2 size={16} className="animate-spin text-brand ml-auto" />}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {generalConfigs.map((c) => (
+                <SettingRow key={c.key} config={c} onSave={handleSaveConfig} disabled={!isAdmin} />
+              ))}
+              {generalConfigs.length === 0 && (
+                <p className="text-xs text-slate-400 italic py-4 text-center">Tidak ada variabel sistem tambahan.</p>
+              )}
+            </div>
+          </div>
+
+          {/* ── Danger Zone / Reset Options (5 Cols) ── */}
+          {isAdmin && (
+            <div className="lg:col-span-5 bg-white dark:bg-[#0B0F19] rounded-3xl border border-rose-200/80 dark:border-rose-900/60 shadow-sm p-6 sm:p-7 flex flex-col justify-between space-y-5">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 border-b border-rose-100 dark:border-rose-900/50 pb-4">
+                  <div className="p-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 rounded-2xl">
+                    <AlertTriangle size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-rose-600 dark:text-rose-400">Danger Zone (Reset Data)</h2>
+                    <p className="text-xs text-slate-500">Hanya untuk Admin — Pembersihan Data</p>
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => setResetTarget('inventory')}
-                    disabled={loading}
-                    className="w-full py-2.5 bg-rose-50 dark:bg-rose-900/10 hover:bg-rose-100 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-sm transition-all"
-                  >
-                    Reset Data Inventory (Stok)
-                  </button>
-                  <p className="text-[10px] text-slate-500 text-center">Menghapus mutasi stok dan data pembelian.</p>
-                </div>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => setResetTarget('sales')}
+                      disabled={loading}
+                      className="w-full py-3 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 rounded-2xl font-bold text-xs transition-all cursor-pointer"
+                    >
+                      Reset Data Penjualan (Sales)
+                    </button>
+                    <p className="text-[10px] text-slate-400 text-center">Menghapus riwayat transaksi POS & jurnal kasir.</p>
+                  </div>
 
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => setResetTarget('all')}
-                    disabled={loading}
-                    className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-rose-600/20"
-                  >
-                    Reset Semua Data (Factory Reset)
-                  </button>
-                  <p className="text-[10px] text-slate-500 text-center">Menghapus Master Data, Inventory, Sales, dan Antrian Sinkronisasi lokal.</p>
-                </div>
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => setResetTarget('inventory')}
+                      disabled={loading}
+                      className="w-full py-3 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 rounded-2xl font-bold text-xs transition-all cursor-pointer"
+                    >
+                      Reset Data Stok & Pembelian
+                    </button>
+                    <p className="text-[10px] text-slate-400 text-center">Menghapus mutasi stok dan kartu stok.</p>
+                  </div>
 
-                <div className="h-px bg-slate-100 dark:bg-slate-800 my-2"></div>
-                
-                <div className="flex justify-between items-center">
-                  <button
-                    onClick={() => setResetTarget('maintenance')}
-                    disabled={loading}
-                    className="text-xs font-bold text-slate-500 hover:text-brand flex items-center gap-1"
-                  >
-                    <Database size={12} /> Optimize DB (VACUUM)
-                  </button>
-                  {successMsg && (
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-                      <CheckCircle2 size={12} /> {successMsg}
-                    </span>
-                  )}
+                  <div className="space-y-1 pt-1">
+                    <button
+                      onClick={() => setResetTarget('all')}
+                      disabled={loading}
+                      className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-md shadow-rose-600/20 cursor-pointer"
+                    >
+                      Reset Semua Data (Factory Reset)
+                    </button>
+                    <p className="text-[10px] text-slate-400 text-center">Menghapus seluruh Master Data & Transaksi.</p>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* General Config Card */}
-          <div className={`bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 ${isAdmin ? '' : 'md:col-span-2'}`}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-xl">
-                <Save size={24} />
-              </div>
-              <div>
-                <h2 className="font-bold text-slate-900 dark:text-white">General Configurations</h2>
-                <p className="text-xs text-slate-500">Global system keys</p>
-              </div>
-              {saving && <Loader2 size={14} className="animate-spin text-slate-400 ml-auto" />}
-            </div>
-            
-            <div className="space-y-4">
-              {generalConfigs.map((c) => (
-                <SettingRow key={c.key} config={c} onSave={handleSaveConfig} disabled={!isAdmin} />
-              ))}
-              {generalConfigs.length === 0 && (
-                <p className="text-sm text-slate-500 italic">No configurations found.</p>
-              )}
-            </div>
-          </div>
         </div>
       )}
 
       {/* DB Reset Warning Modal */}
       {resetTarget !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-[#0B0F19] rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
+          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl">
+                <div className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl">
                   <AlertTriangle size={20} />
                 </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-lg">
-                  {resetTarget === 'maintenance' ? 'Optimize Database?' : 'Wipe Database?'}
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  {resetTarget === 'maintenance' ? 'Optimize Database?' : 'Konfirmasi Wipe Database'}
                 </h3>
               </div>
-              <button onClick={() => setResetTarget(null)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+              <button onClick={() => setResetTarget(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full">
                 <X size={18} />
               </button>
             </div>
-            <div className="p-6">
+
+            <div className="p-6 space-y-4">
               {resetTarget === 'maintenance' ? (
                 <>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                    This will run <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">VACUUM</code> and <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">ANALYZE</code> on the local database.
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Menjalankan <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">VACUUM</code> dan <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">ANALYZE</code> untuk mengompresi database SQLite.
                   </p>
-                  <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
-                    The application may freeze briefly. No data will be deleted.
+                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    Aplikasi mungkin jeda sejenak. Tidak ada data yang dihapus.
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 font-semibold text-rose-600 dark:text-rose-400">
-                    ⚠ PERINGATAN: Operasi ini bersifat PERMANEN dan tidak dapat dibatalkan.
-                    {resetTarget === 'sales' && ' Data Transaksi Penjualan dan Jurnal akan dihapus sepenuhnya.'}
-                    {resetTarget === 'inventory' && ' Data Pembelian, Mutasi Stok, dan Ledger akan dihapus sepenuhnya.'}
-                    {resetTarget === 'all' && ' SEMUA DATA (Master Data, Stok, Penjualan) akan dihapus sepenuhnya dan sistem kembali ke pengaturan awal (kosong).'}
-                  </p>
-                  <p className="text-xs text-slate-500 mb-2">
-                    Ketik <strong>DELETE</strong> di bawah ini untuk mengonfirmasi.
+                  <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/50 rounded-2xl space-y-2">
+                    <p className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">⚠ Tindakan Permanen</p>
+                    <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+                      {resetTarget === 'sales' && 'Seluruh transaksi kasir, pembayaran, dan laporan penjualan akan dihapus permanen.'}
+                      {resetTarget === 'inventory' && 'Seluruh kartu stok, mutasi barang, dan PO pembelian akan dihapus.'}
+                      {resetTarget === 'all' && 'SELURUH DATA (Master Data, Stok, Sales) akan dihapus total dan aplikasi kembali ke kondisi awal.'}
+                    </p>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Ketik <strong>DELETE</strong> untuk mengonfirmasi:
                   </p>
                   <input
                     type="text"
                     value={confirmText}
                     onChange={e => setConfirmText(e.target.value)}
                     placeholder="DELETE"
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-rose-200 dark:border-rose-800 rounded-xl px-4 py-2.5 text-sm font-bold text-rose-600 focus:ring-2 focus:ring-rose-500 outline-none uppercase"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-rose-200 dark:border-rose-800/80 rounded-2xl px-4 py-3 text-sm font-bold text-rose-600 outline-none uppercase font-mono"
                   />
                 </>
               )}
             </div>
-            <div className="px-6 pb-6 flex gap-3">
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex gap-3">
               <button
                 onClick={() => setResetTarget(null)}
-                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors"
               >
                 Batal
               </button>
               <button
                 onClick={handleResetDB}
                 disabled={resetTarget !== 'maintenance' && confirmText !== 'DELETE'}
-                className="flex-[2] py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-[1.5] py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-rose-600/20"
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
                 {loading ? 'Memproses...' : 'Ya, Eksekusi'}
@@ -670,8 +738,8 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
   };
 
   return (
-    <div>
-      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
+    <div className="p-4 bg-slate-50/70 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800/80 space-y-2">
+      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
         {config.key.replace(/_/g, ' ')}
       </label>
       <div className="flex gap-2 items-center">
@@ -680,7 +748,7 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
             value={val}
             onChange={(e) => handleChange(e.target.value)}
             disabled={disabled}
-            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
           >
             {options.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -697,7 +765,7 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
             onBlur={() => {
               if (val !== config.value) onSave(config.key, val);
             }}
-            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
           />
         )}
         
@@ -705,13 +773,13 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
           <button 
             onClick={handleApplyHpp}
             disabled={applyingHpp || disabled}
-            className="px-4 py-2 bg-brand text-white font-bold text-sm rounded-xl hover:bg-blue-600 transition-colors disabled:opacity-50 whitespace-nowrap"
+            className="px-4 py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:bg-blue-600 transition-all shadow-xs disabled:opacity-50 whitespace-nowrap cursor-pointer"
           >
             {applyingHpp ? 'Applying...' : 'Apply HPP'}
           </button>
         )}
       </div>
-      {config.description && <p className="text-[10px] text-slate-500 mt-1">{config.description}</p>}
+      {config.description && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{config.description}</p>}
     </div>
   );
 }
@@ -778,63 +846,63 @@ function SysadminWorkspaceManagement() {
   };
 
   return (
-    <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-indigo-200 dark:border-indigo-900 shadow-sm p-6 flex flex-col gap-5 mt-4">
-      <div className="flex justify-between items-center mb-2">
+    <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-indigo-200/80 dark:border-indigo-900/60 shadow-sm p-6 sm:p-7 space-y-5 mt-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 rounded-xl">
-            <Globe size={20} />
+          <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl">
+            <Globe size={22} />
           </div>
           <div>
-            <h2 className="font-bold text-slate-900 dark:text-white">System Admin Workspaces</h2>
-            <p className="text-xs text-slate-500">Manage all client workspaces</p>
+            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">System Admin Workspaces</h2>
+            <p className="text-xs text-slate-500">Kelola seluruh workspace cloud klien secara global</p>
           </div>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-semibold transition-all"
+          className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer"
         >
-          New Workspace
+          Workspace Baru
         </button>
       </div>
 
       {error && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-sm">
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs">
           {error}
         </div>
       )}
 
       {showCreate && (
-        <form onSubmit={handleCreate} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
-          <div className="grid grid-cols-2 gap-4 mb-4">
+        <form onSubmit={handleCreate} className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-indigo-200 dark:border-indigo-900/40 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Workspace Name</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Nama Workspace</label>
               <input
                 type="text"
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                placeholder="e.g. Apotek Maju Pusat"
-                className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-indigo-500 text-sm text-slate-900 dark:text-white"
+                placeholder="e.g. Apotek Terang Pusat"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-xs font-semibold text-slate-900 dark:text-white"
                 required
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Unique Code</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Kode Unik</label>
               <input
                 type="text"
                 value={newCode}
                 onChange={e => setNewCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
-                placeholder="e.g. MAJU-01"
-                className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-indigo-500 uppercase font-mono text-sm text-slate-900 dark:text-white"
+                placeholder="e.g. TERANG-01"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 uppercase font-mono text-xs font-bold text-slate-900 dark:text-white"
                 maxLength={32}
                 required
               />
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
-            <button type="submit" disabled={creating} className="px-4 py-2 text-sm font-semibold bg-indigo-500 text-white hover:bg-indigo-600 rounded-lg flex items-center gap-2">
+            <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl">Batal</button>
+            <button type="submit" disabled={creating} className="px-4 py-2 text-xs font-bold bg-indigo-500 text-white hover:bg-indigo-600 rounded-xl flex items-center gap-2">
               {creating && <Loader2 size={14} className="animate-spin" />}
-              Create
+              Buat Workspace
             </button>
           </div>
         </form>
@@ -843,24 +911,22 @@ function SysadminWorkspaceManagement() {
       {loading ? (
         <div className="flex justify-center p-8"><Loader2 size={24} className="animate-spin text-indigo-500" /></div>
       ) : workspaces.length === 0 ? (
-        <div className="text-center p-8 text-slate-500 text-sm">No workspaces found.</div>
+        <div className="text-center p-8 text-slate-500 text-xs">Tidak ada workspace cloud.</div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {workspaces.map(ws => (
-            <div key={ws.id} className="p-3 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between group hover:border-indigo-300 transition-colors">
-              <div>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">{ws.name}</h3>
-                <div className="flex items-center gap-3 mt-1">
-                  <code className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">{ws.code}</code>
-                </div>
+            <div key={ws.id} className="p-3.5 border border-slate-200/80 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between group hover:border-indigo-400 transition-all">
+              <div className="min-w-0 flex-1 pr-2">
+                <h3 className="font-bold text-xs text-slate-900 dark:text-white truncate">{ws.name}</h3>
+                <code className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md mt-1 inline-block">{ws.code}</code>
               </div>
               
               {inviteWsId === ws.id ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <select 
                     value={inviteRole}
                     onChange={e => setInviteRole(e.target.value as any)}
-                    className="text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none"
+                    className="text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none"
                   >
                     <option value="admin">Admin</option>
                     <option value="worker">Worker</option>
@@ -868,18 +934,18 @@ function SysadminWorkspaceManagement() {
                   <button 
                     onClick={() => handleGenerateInvite(ws.id)}
                     disabled={inviteLoading}
-                    className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold rounded-md flex items-center gap-1"
+                    className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-lg flex items-center gap-1"
                   >
-                    {inviteLoading ? <Loader2 size={12} className="animate-spin" /> : 'Generate Invite'}
+                    {inviteLoading ? <Loader2 size={12} className="animate-spin" /> : 'Invite'}
                   </button>
-                  <button onClick={() => {setInviteWsId(null); setInviteToken(null);}} className="p-1.5 text-slate-400 hover:text-rose-500"><X size={14} /></button>
+                  <button onClick={() => {setInviteWsId(null); setInviteToken(null);}} className="p-1 text-slate-400 hover:text-rose-500"><X size={14} /></button>
                 </div>
               ) : (
                 <button
                   onClick={() => { setInviteWsId(ws.id); setInviteToken(null); }}
-                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl shrink-0 transition-colors"
                 >
-                  <Link2 size={14} /> Add User
+                  <Link2 size={13} /> Undang
                 </button>
               )}
             </div>
@@ -888,13 +954,13 @@ function SysadminWorkspaceManagement() {
       )}
 
       {inviteToken && (
-        <div className="mt-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Invite Token Generated</p>
+        <div className="mt-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col gap-2">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Invite Token Generated</p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs font-mono text-brand break-all p-2 bg-white dark:bg-slate-950 rounded border border-slate-200 dark:border-slate-700 select-all">{inviteToken}</code>
+            <code className="flex-1 text-xs font-mono text-brand font-bold break-all p-2 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 select-all">{inviteToken}</code>
             <button
               onClick={() => navigator.clipboard.writeText(inviteToken)}
-              className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200 rounded-lg"
+              className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200 rounded-xl"
               title="Copy"
             >
               <Copy size={16} />

@@ -73,7 +73,7 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 dark:bg-[#0B0F19] p-8">
+    <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] p-4 sm:p-8 overflow-y-auto">
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header */}
