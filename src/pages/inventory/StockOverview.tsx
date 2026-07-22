@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Search, Loader2, AlertTriangle, ShieldCheck, RefreshCw, Layers, Activity, History, PackageOpen, Pencil } from 'lucide-react';
-import { getStockOverview, StockOverviewRow } from '../../lib/api';
+import { getStockOverview, StockOverviewRow, exportStockExcel } from '../../lib/api';
 import SetInitialStockModal from './SetInitialStockModal';
 import StockAdjustModal from './StockAdjustModal';
 import StockMovementsPanel from './StockMovementsPanel';
 import BulkStockAdd from './BulkStockAdd';
+import { save } from '@tauri-apps/plugin-dialog';
+import { FileSpreadsheet } from 'lucide-react';
 
 interface StockOverviewProps {
   refreshTrigger: number;
@@ -40,6 +42,25 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
     loadStockData(); 
   }, [refreshTrigger]);
 
+  const handleExportExcel = async () => {
+    try {
+      const filePath = await save({
+        filters: [{ name: 'Excel Files', extensions: ['xlsx'] }],
+        defaultPath: 'Laporan_Inventory.xlsx',
+      });
+      if (filePath) {
+        setLoading(true);
+        await exportStockExcel(filePath);
+        alert('Data inventaris berhasil diekspor ke Excel!');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Gagal mengekspor data: ' + e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const totalItemsCount = stockRows.length;
   const lowStockCount = stockRows.filter(r => r.is_low_stock).length;
 
@@ -60,6 +81,12 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
           </p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={handleExportExcel}
+            className="px-4 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 rounded-xl text-sm font-bold shadow-sm transition active:scale-95 flex items-center gap-2 border border-emerald-200 dark:border-emerald-800/30"
+          >
+            <FileSpreadsheet size={16} /> Export Excel
+          </button>
           <button
             onClick={() => setBulkAdjustOpen(true)}
             className="px-4 py-2 bg-brand text-white text-sm font-bold rounded-xl shadow-sm hover:bg-blue-600 transition active:scale-95 flex items-center gap-2"

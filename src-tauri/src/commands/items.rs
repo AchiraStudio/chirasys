@@ -137,10 +137,28 @@ pub async fn get_item(id: String, state: State<'_, AppState>) -> Result<ItemDeta
         .await
         .map_err(|e| e.to_string())?;
 
+    let active_batches = sqlx::query_as::<_, crate::db::models::item::ActiveBatch>(
+        r#"
+        SELECT batch_no, expiry_date, 
+               SUM(CASE WHEN direction = 'in' THEN qty_change ELSE 0 END) - 
+               SUM(CASE WHEN direction = 'out' THEN qty_change ELSE 0 END) as current_qty 
+        FROM stock_ledger 
+        WHERE item_id = ? 
+        GROUP BY batch_no, expiry_date 
+        HAVING current_qty > 0
+        ORDER BY expiry_date ASC
+        "#
+    )
+    .bind(&id)
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
     Ok(ItemDetail {
         item,
         units,
         prices,
+        active_batches,
     })
 }
 

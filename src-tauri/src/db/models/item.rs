@@ -48,12 +48,20 @@ pub struct ItemPrice {
     pub price: f64,
 }
 
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
+pub struct ActiveBatch {
+    pub batch_no: Option<String>,
+    pub expiry_date: Option<String>,
+    pub current_qty: f64,
+}
+
 // A composite struct to send the full item detail to the frontend at once
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ItemDetail {
     pub item: Item,
     pub units: Vec<ItemUnit>,
     pub prices: Vec<ItemPrice>,
+    pub active_batches: Vec<ActiveBatch>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

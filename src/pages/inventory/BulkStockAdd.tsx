@@ -22,6 +22,10 @@ export default function BulkStockAdd({ isOpen, onClose, branchId, onSuccess }: B
   const [qtys, setQtys] = useState<Record<string, number>>({});
   // hpp state for each item (id -> hpp)
   const [hpps, setHpps] = useState<Record<string, number>>({});
+  // batch state
+  const [batchNos, setBatchNos] = useState<Record<string, string>>({});
+  // expiry state
+  const [expiryDates, setExpiryDates] = useState<Record<string, string>>({});
 
   // QOL multi-select and bulk edit
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -35,6 +39,8 @@ export default function BulkStockAdd({ isOpen, onClose, branchId, onSuccess }: B
       fetchItems('all', '');
       setQtys({});
       setHpps({});
+      setBatchNos({});
+      setExpiryDates({});
     }
   }, [isOpen]);
 
@@ -111,13 +117,21 @@ export default function BulkStockAdd({ isOpen, onClose, branchId, onSuccess }: B
   const handleSubmit = async () => {
     const payload = items
       .filter(i => qtys[i.id] && qtys[i.id] > 0)
-      .map(i => ({
-        item_id: i.id,
-        unit_id: i.base_unit_id,
-        qty_change: qtys[i.id],
-        hpp_value: hpps[i.id] || i.avg_hpp || i.price || 0,
-        notes: 'Bulk Stock Addition',
-      }));
+      .map(i => {
+        let expiryDate = expiryDates[i.id];
+        if (expiryDate && new Date(expiryDate) < new Date(new Date().setHours(0,0,0,0))) {
+          throw new Error(`Item ${i.name} has expiry date in the past.`);
+        }
+        return {
+          item_id: i.id,
+          unit_id: i.base_unit_id,
+          qty_change: qtys[i.id],
+          hpp_value: hpps[i.id] || i.avg_hpp || i.price || 0,
+          batch_no: batchNos[i.id] || null,
+          expiry_date: expiryDate || null,
+          notes: 'Bulk Stock Addition',
+        };
+      });
 
     if (payload.length === 0) {
       alert("No quantities entered.");
@@ -130,8 +144,8 @@ export default function BulkStockAdd({ isOpen, onClose, branchId, onSuccess }: B
       await invoke('bulk_add_stock', { branchId, items: payload });
       onSuccess();
       onClose();
-    } catch (e) {
-      alert(`Failed to save bulk stock: ${e}`);
+    } catch (e: any) {
+      alert(`Failed to save bulk stock: ${e.message || e}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -239,7 +253,9 @@ export default function BulkStockAdd({ isOpen, onClose, branchId, onSuccess }: B
                   <th className="py-3 px-4">Item Name</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4 w-32">Add Qty</th>
-                  <th className="py-3 px-4 w-40">Cost per Unit (HPP)</th>
+                  <th className="py-3 px-4 w-32">Batch No.</th>
+                  <th className="py-3 px-4 w-40">Expiry Date</th>
+                  <th className="py-3 px-4 w-32">Cost/Unit</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-sm">
@@ -266,6 +282,23 @@ export default function BulkStockAdd({ isOpen, onClose, branchId, onSuccess }: B
                         onChange={e => setQtys({...qtys, [item.id]: Number(e.target.value)})}
                         className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-brand outline-none dark:text-white"
                         placeholder="0"
+                      />
+                    </td>
+                    <td className="py-2 px-4">
+                      <input 
+                        type="text"
+                        value={batchNos[item.id] || ''}
+                        onChange={e => setBatchNos({...batchNos, [item.id]: e.target.value})}
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-brand outline-none dark:text-white"
+                        placeholder="Optional"
+                      />
+                    </td>
+                    <td className="py-2 px-4">
+                      <input 
+                        type="date"
+                        value={expiryDates[item.id] || ''}
+                        onChange={e => setExpiryDates({...expiryDates, [item.id]: e.target.value})}
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-brand outline-none dark:text-white"
                       />
                     </td>
                     <td className="py-2 px-4">

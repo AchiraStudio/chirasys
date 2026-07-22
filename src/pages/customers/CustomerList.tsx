@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { getCustomers, Customer } from '../../lib/api';
-import { Loader2, Plus, UserCircle, Crown, Edit2, Search, Eye } from 'lucide-react';
-import CustomerDrawer from './CustomerDrawer';
+import { Loader2, Plus, UserCircle, Edit2, Search, Eye } from 'lucide-react';
+import CustomerModal from './CustomerModal';
 import CustomerProfileDrawer from './CustomerProfileDrawer';
 
 export default function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
   const [profileCustomer, setProfileCustomer] = useState<Customer | null>(null);
 
@@ -19,8 +19,8 @@ export default function CustomerList() {
 
   useEffect(() => { loadData(); }, []);
 
-  const openAdd = () => { setCustomerToEdit(null); setIsDrawerOpen(true); };
-  const openEdit = (c: Customer) => { setCustomerToEdit(c); setIsDrawerOpen(true); };
+  const openAdd = () => { setCustomerToEdit(null); setIsModalOpen(true); };
+  const openEdit = (c: Customer) => { setCustomerToEdit(c); setIsModalOpen(true); };
 
   const getTierColor = (tier: string) => {
     if (tier === 'vip') return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800';
@@ -53,7 +53,7 @@ export default function CustomerList() {
         {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
           <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
             <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
-              <tr><th className="py-4 px-6">Name</th><th className="py-4 px-6">Phone</th><th className="py-4 px-6 text-center">Tier</th><th className="py-4 px-6 text-right">Actions</th></tr>
+              <tr><th className="py-4 px-6">Name</th><th className="py-4 px-6">Phone</th><th className="py-4 px-6">Tier & Expiry</th><th className="py-4 px-6 text-right">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
               {customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search)).map(c => (
@@ -63,11 +63,17 @@ export default function CustomerList() {
                     {c.name} {c.id === 'customer_umum' && <span className="text-[10px] bg-brand/10 text-brand px-2 py-0.5 rounded ml-2">DEFAULT</span>}
                   </td>
                   <td className="py-4 px-6 font-mono text-slate-600">{c.phone || '-'}</td>
-                  <td className="py-4 px-6 text-center">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${getTierColor(c.customer_tier)} flex items-center gap-1 w-fit mx-auto`}>
-                      {c.customer_tier === 'vip' && <Crown size={10} />}
-                      {c.customer_tier}
-                    </span>
+                  <td className="p-4">
+                    <div className="flex flex-col items-start gap-1">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${getTierColor(c.customer_tier)}`}>
+                        {c.customer_tier}
+                      </span>
+                      {c.membership_expiry && c.customer_tier !== 'regular' && (
+                        <span className="text-[10px] text-slate-400 font-mono" title="Membership Expiry Date">
+                          Exp: {c.membership_expiry.split(' ')[0]}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-4 px-6 text-right flex justify-end gap-2">
                     <button onClick={() => setProfileCustomer(c)} className="p-2 text-brand bg-brand/10 hover:bg-brand/20 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"><Eye size={14} /></button>
@@ -79,7 +85,7 @@ export default function CustomerList() {
           </table></div>
         )}
       </div>
-      <CustomerDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} onSuccess={loadData} customerToEdit={customerToEdit} />
+      <CustomerModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={loadData} customerToEdit={customerToEdit} />
       <CustomerProfileDrawer isOpen={!!profileCustomer} onClose={() => setProfileCustomer(null)} customer={profileCustomer} />
     </div>
   );

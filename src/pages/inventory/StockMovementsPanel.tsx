@@ -52,6 +52,11 @@ export default function StockMovementsPanel({ isOpen, onClose, item, branchId }:
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">{mov.source_type}</span>
                     </div>
                     <p className="text-sm font-medium text-slate-900 dark:text-white">{mov.notes || 'System Entry'}</p>
+                    {(mov.batch_no || mov.expiry_date) && (
+                      <p className="text-[11px] font-mono text-slate-500 mt-1">
+                        {mov.batch_no && `Batch: ${mov.batch_no}`} {mov.expiry_date && `| Exp: ${mov.expiry_date}`}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className={`font-mono font-bold flex items-center justify-end gap-1 ${mov.direction === 'in' ? 'text-emerald-600' : 'text-rose-600'}`}>

@@ -42,9 +42,10 @@ export interface Item { id: string; sku: string; barcode?: string; name: string;
 export interface ItemUnit { id: string; item_id: string; unit_name: string; conversion: number; is_base: number; barcode?: string; created_at: string; }
 export interface ItemPrice { id: string; item_id: string; unit_id: string; customer_tier: string; price: number; }
 export interface PaginatedItems { items: Item[]; total: number; page: number; per_page: number; }
-export interface ItemDetailData { item: Item; units: ItemUnit[]; prices: ItemPrice[]; }
+export interface ActiveBatch { batch_no?: string; expiry_date?: string; current_qty: number; }
+export interface ItemDetailData { item: Item; units: ItemUnit[]; prices: ItemPrice[]; active_batches: ActiveBatch[]; }
 export interface Supplier { id: string; name: string; contact_person?: string; phone?: string; email?: string; address?: string; payment_terms?: string; notes?: string; is_active: number; created_at: string; updated_at: string; }
-export interface Customer { id: string; name: string; phone?: string; email?: string; address?: string; region?: string; customer_tier: string; loyalty_points: number; credit_limit: number; notes?: string; is_active: number; created_at: string; updated_at: string; }
+export interface Customer { id: string; name: string; phone?: string; email?: string; address?: string; region?: string; customer_tier: string; loyalty_points: number; notes?: string; membership_expiry?: string; is_active: number; created_at: string; updated_at: string; }
 export interface StockLedgerRow { id: string; item_id: string; unit_id: string; branch_id: string; qty_change: number; direction: 'in' | 'out'; source_type: string; source_id?: string; hpp_value?: number; expiry_date?: string; batch_no?: string; notes?: string; created_by?: string; created_at: string; }
 export interface StockOverviewRow { item_id: string; item_name: string; sku: string; min_stock: number; has_expiry: number; hpp_method: string; category_name: string | null; unit_id: string | null; unit_name: string | null; current_qty: number; is_low_stock: boolean; has_ledger_entries: boolean; }
 export interface StockMovementRow { id: string; direction: string; qty_change: number; source_type: string; hpp_value?: number; expiry_date?: string; batch_no?: string; notes?: string; created_by_name?: string; created_at: string; running_total: number; }
@@ -78,6 +79,8 @@ export interface Purchase {
   status: string;
   created_at: string;
 }
+
+
 
 export interface PurchaseLine {
   id: string;
@@ -161,8 +164,8 @@ export const updateSupplier = async (id: string, name: string, contactPerson?: s
 export const toggleSupplierActive = async (id: string): Promise<void> => invoke('toggle_supplier_active', { id });
 
 export const getCustomers = async (search: string = '', tier: string = '', activeOnly: boolean = false): Promise<Customer[]> => invoke('get_customers', { search: search || null, tier: tier || null, activeOnly });
-export const addCustomer = async (name: string, phone?: string, email?: string, address?: string, region?: string, customerTier: string = 'regular', creditLimit: number = 0, notes?: string): Promise<Customer> => invoke('add_customer', { name, phone: phone || null, email: email || null, address: address || null, region: region || null, customerTier, creditLimit, notes: notes || null });
-export const updateCustomer = async (id: string, name: string, phone?: string, email?: string, address?: string, region?: string, customerTier: string = 'regular', creditLimit: number = 0, notes?: string): Promise<Customer> => invoke('update_customer', { id, name, phone: phone || null, email: email || null, address: address || null, region: region || null, customerTier, creditLimit, notes: notes || null });
+export const addCustomer = async (name: string, phone?: string, email?: string, address?: string, region?: string, customerTier: string = 'regular', notes?: string, membershipExpiry?: string): Promise<Customer> => invoke('add_customer', { name, phone: phone || null, email: email || null, address: address || null, region: region || null, customerTier, notes: notes || null, membershipExpiry: membershipExpiry || null });
+export const updateCustomer = async (id: string, name: string, phone?: string, email?: string, address?: string, region?: string, customerTier: string = 'regular', notes?: string, membershipExpiry?: string): Promise<Customer> => invoke('update_customer', { id, name, phone: phone || null, email: email || null, address: address || null, region: region || null, customerTier, notes: notes || null, membershipExpiry: membershipExpiry || null });
 export const toggleCustomerActive = async (id: string): Promise<void> => invoke('toggle_customer_active', { id });
 
 // --- Phase 4 ---
@@ -223,6 +226,7 @@ export const setSetting = async (key: string, value: string): Promise<void> => i
 
 // --- Phase 10: Excel Exports & Maintenance ---
 export const exportItemsExcel = async (filePath: string): Promise<string> => invoke('export_items_excel', { filePath });
+export const exportStockExcel = async (filePath: string): Promise<string> => invoke('export_stock_excel', { filePath });
 export const exportSalesExcel = async (filePath: string): Promise<string> => invoke('export_sales_excel', { filePath });
 export const optimizeDatabase = async (): Promise<string> => invoke('optimize_database');
 export const resetDbSpecific = async (target: string): Promise<string> => invoke('reset_db_specific', { target });
@@ -273,7 +277,7 @@ export const importItemsExcel = async (filePath: string): Promise<ImportResult> 
 
 // --- Phase 9 Auth ---
 import { UserInfo } from '../store/AuthStore';
-export const loginUser = async (username: string, passwordGuess: string): Promise<{ token: string, user: UserInfo }> => 
+export const loginUser = async (username: string, passwordGuess: string): Promise<{ token: string, supabase_token?: string, user: UserInfo }> => 
   invoke('login', { username, passwordGuess });
 export const getCurrentUser = async (token: string): Promise<UserInfo> => 
   invoke('get_current_user', { token });
@@ -303,7 +307,9 @@ export const leaveWorkspace = async (): Promise<void> =>
 
 // --- System Admin ---
 export interface WorkspaceListInfo { id: string; name: string; code: string; created_at: string; }
-export const sysadminLogin = async (username: string, passwordHash: string): Promise<boolean> =>
+export interface SysadminLoginResponse { success: boolean; supabase_token?: string; }
+export interface UserRowFull { id: string; username: string; name: string; role: string; is_active: boolean; created_at: string; workspace_id?: string; }
+export const sysadminLogin = async (username: string, passwordHash: string): Promise<SysadminLoginResponse> =>
   invoke('sysadmin_login', { username, passwordHash });
 export const sysadminGetWorkspaces = async (): Promise<WorkspaceListInfo[]> =>
   invoke('sysadmin_get_workspaces');
@@ -312,4 +318,7 @@ export const sysadminCreateWorkspace = async (name: string, code: string): Promi
 export const sysadminCreateWorkspaceInvite = async (workspaceId: string, role: string): Promise<string> =>
   invoke('sysadmin_create_workspace_invite', { workspaceId, role });
 export const sysadminUpdateWorkspacePassword = async (workspaceId: string, password?: string): Promise<void> =>
-  invoke('sysadmin_update_workspace_password', { workspaceId, password: password || null });
+  invoke('sysadmin_update_workspace_password', { workspaceId, password: password || null });
+export const getUsers = async (): Promise<UserRowFull[]> => invoke('get_users');
+export const assignUserWorkspace = async (userId: string, workspaceId: string | null): Promise<void> =>
+  invoke('assign_user_workspace', { userId, workspaceId });

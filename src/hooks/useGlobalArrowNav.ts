@@ -32,8 +32,8 @@ export function useGlobalArrowNav() {
       
       const elements = Array.from(document.querySelectorAll(focusableSelectors.join(',')))
         .filter((el): el is HTMLElement => {
-          // Check if element is visible
-          return el.offsetWidth > 0 && el.offsetHeight > 0 && getComputedStyle(el).visibility !== 'hidden';
+          const htmlEl = el as HTMLElement;
+          return htmlEl.offsetWidth > 0 && htmlEl.offsetHeight > 0 && getComputedStyle(htmlEl).visibility !== 'hidden';
         });
 
       if (elements.length === 0) return;
@@ -90,7 +90,7 @@ export function useGlobalArrowNav() {
 
       if (bestElement) {
         e.preventDefault();
-        bestElement.focus();
+        (bestElement as HTMLElement).focus();
       }
     };
 

@@ -1,7 +1,8 @@
 // Force HMR reload
 import { useState, useEffect } from 'react';
-import { Loader2, Plus, Link2, Copy, ShieldCheck, ArrowLeft, Building2, KeyRound, X } from 'lucide-react';
-import { sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, sysadminUpdateWorkspacePassword, WorkspaceListInfo } from '../../lib/api';
+import { Loader2, Plus, ShieldCheck, Building2, KeyRound, X, LayoutDashboard } from 'lucide-react';
+import { sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminUpdateWorkspacePassword, WorkspaceListInfo } from '../../lib/api';
+import WorkspaceOverview from './WorkspaceOverview';
 
 export default function SysadminDashboard({ onLogout }: { onLogout: () => void }) {
   const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
@@ -13,11 +14,8 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
   const [newCode, setNewCode] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const [inviteWsId, setInviteWsId] = useState<string | null>(null);
-  const [inviteRole, setInviteRole] = useState<'admin' | 'worker'>('admin');
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const [inviteLoading, setInviteLoading] = useState(false);
   const [editingPasswordWs, setEditingPasswordWs] = useState<WorkspaceListInfo | null>(null);
+  const [selectedWs, setSelectedWs] = useState<WorkspaceListInfo | null>(null);
 
   useEffect(() => {
     loadWorkspaces();
@@ -59,19 +57,6 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
     }
   };
 
-  const handleGenerateInvite = async (wsId: string) => {
-    setInviteLoading(true);
-    setInviteToken(null);
-    try {
-      const token = await sysadminCreateWorkspaceInvite(wsId, inviteRole);
-      setInviteToken(token);
-    } catch (e: any) {
-      alert(`Failed to generate invite: ${e.message || e}`);
-    } finally {
-      setInviteLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] p-4 sm:p-8 overflow-y-auto">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -107,7 +92,11 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
 
         {/* Dashboard Content */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl shadow-brand/5 p-6">
-          <div className="flex justify-between items-center mb-6">
+          {selectedWs ? (
+            <WorkspaceOverview workspace={selectedWs} onBack={() => setSelectedWs(null)} />
+          ) : (
+            <>
+              <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
               <Building2 size={20} className="text-slate-400" />
               Active Workspaces
@@ -177,63 +166,26 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
                   </div>
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => setSelectedWs(ws)}
+                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-xl transition-all"
+                      title="Lihat Data Workspace"
+                    >
+                      <LayoutDashboard size={15} />
+                    </button>
+                    <button
                       onClick={() => setEditingPasswordWs(ws)}
                       className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all"
                       title="Set/Edit Password"
                     >
                       <KeyRound size={15} />
                     </button>
-                    {inviteWsId === ws.id ? (
-                      <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
-                        <select 
-                          value={inviteRole}
-                          onChange={e => setInviteRole(e.target.value as any)}
-                          className="text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-                        >
-                          <option value="admin">Admin</option>
-                          <option value="worker">Worker</option>
-                        </select>
-                        <button 
-                          onClick={() => handleGenerateInvite(ws.id)}
-                          disabled={inviteLoading}
-                          className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold rounded-md flex items-center gap-1 transition-colors"
-                        >
-                          {inviteLoading ? <Loader2 size={12} className="animate-spin" /> : 'Generate'}
-                        </button>
-                        <button onClick={() => {setInviteWsId(null); setInviteToken(null);}} className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"><ArrowLeft size={14} /></button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => { setInviteWsId(ws.id); setInviteToken(null); }}
-                        className="opacity-0 group-hover:opacity-100 flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
-                      >
-                        <Link2 size={14} /> Add User
-                      </button>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Invite Token Modal/Popup */}
-          {inviteToken && (
-            <div className="fixed bottom-8 right-8 max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8">
-              <h3 className="font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                <Link2 className="text-indigo-500" size={18} /> Invite Generated!
-              </h3>
-              <p className="text-xs text-slate-500 mb-4">Share this token. It acts as a one-time password to join the workspace.</p>
-              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-200 dark:border-slate-800">
-                <code className="text-xs font-mono text-indigo-600 dark:text-indigo-400 flex-1 break-all select-all">{inviteToken}</code>
-                <button
-                  onClick={() => navigator.clipboard.writeText(inviteToken)}
-                  className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200 rounded-md transition-colors"
-                >
-                  <Copy size={14} />
-                </button>
-              </div>
-              <button onClick={() => setInviteToken(null)} className="w-full mt-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Close</button>
-            </div>
+            </>
           )}
         </div>
       </div>

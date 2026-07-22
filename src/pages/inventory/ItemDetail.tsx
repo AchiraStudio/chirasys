@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Package, Activity, Edit, AlertCircle, TrendingUp, Tags } from 'lucide-react';
+import { ArrowLeft, Package, Activity, Edit, AlertCircle, TrendingUp, Tags, CalendarDays } from 'lucide-react';
 import { getItem, ItemDetailData, toggleItemActive } from '../../lib/api';
 
 interface ItemDetailProps {
@@ -148,6 +148,68 @@ export default function ItemDetail({ itemId, onBack, onEditItem, refreshTrigger 
             )}
           </div>
         </div>
+
+        {data.item.has_expiry === 1 && (
+          <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/30">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-lg"><CalendarDays size={18} /></div>
+                <h3 className="font-bold text-slate-900 dark:text-white">Active Batches & Expiries</h3>
+              </div>
+            </div>
+            <div className="flex-1 overflow-x-auto">
+              {!data.active_batches || data.active_batches.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 text-center">
+                  <AlertCircle size={32} className="text-slate-500 dark:text-slate-700 mb-3" />
+                  <p className="font-semibold text-slate-700 dark:text-slate-300">No active batches</p>
+                  <p className="text-sm text-slate-600 mt-1">There is no stock with batch or expiry information.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm min-w-[500px]">
+                  <thead className="bg-slate-50/80 dark:bg-slate-900/50 text-xs uppercase tracking-wider text-slate-600 font-semibold border-b border-slate-100 dark:border-slate-800">
+                    <tr>
+                      <th className="py-3 px-5">Batch No.</th>
+                      <th className="py-3 px-5">Expiry Date</th>
+                      <th className="py-3 px-5">Status</th>
+                      <th className="py-3 px-5 text-right">Current Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {data.active_batches.map((b, idx) => {
+                      const daysLeft = b.expiry_date 
+                        ? Math.ceil((new Date(b.expiry_date).getTime() - new Date().getTime()) / (1000 * 3600 * 24))
+                        : null;
+                      
+                      let statusEl = <span className="text-slate-400">-</span>;
+                      if (daysLeft !== null) {
+                        if (daysLeft <= 0) {
+                          statusEl = <span className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 px-2 py-1 rounded text-xs font-bold uppercase border border-rose-200 dark:border-rose-800">Expired</span>;
+                        } else if (daysLeft <= 30) {
+                          statusEl = <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-2 py-1 rounded text-xs font-bold uppercase border border-orange-200 dark:border-orange-800">Critical ({daysLeft} days)</span>;
+                        } else if (daysLeft <= 90) {
+                          statusEl = <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded text-xs font-bold uppercase border border-amber-200 dark:border-amber-800">Warning ({daysLeft} days)</span>;
+                        } else {
+                          statusEl = <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded text-xs font-bold uppercase border border-emerald-200 dark:border-emerald-800">Good</span>;
+                        }
+                      }
+                      
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                          <td className="py-3.5 px-5 font-mono text-slate-800 dark:text-slate-200">{b.batch_no || '-'}</td>
+                          <td className="py-3.5 px-5 font-mono text-slate-600 dark:text-slate-400">{b.expiry_date || '-'}</td>
+                          <td className="py-3.5 px-5">{statusEl}</td>
+                          <td className="py-3.5 px-5 text-right font-bold text-slate-900 dark:text-white">
+                            {b.current_qty} <span className="text-xs font-normal text-slate-500">{data.item.base_unit_name || 'Unit'}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

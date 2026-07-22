@@ -52,13 +52,13 @@ pub async fn add_customer(
     address: Option<String>,
     region: Option<String>,
     customer_tier: String,
-    credit_limit: f64,
     notes: Option<String>,
+    membership_expiry: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Customer, String> {
     let id = Uuid::new_v4().to_string();
-    sqlx::query("INSERT INTO customers (id, name, phone, email, address, region, customer_tier, credit_limit, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(&id).bind(&name).bind(&phone).bind(&email).bind(&address).bind(&region).bind(&customer_tier).bind(credit_limit).bind(&notes)
+    sqlx::query("INSERT INTO customers (id, name, phone, email, address, region, customer_tier, credit_limit, notes, membership_expiry) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)")
+        .bind(&id).bind(&name).bind(&phone).bind(&email).bind(&address).bind(&region).bind(&customer_tier).bind(&notes).bind(&membership_expiry)
         .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
     sqlx::query_as::<_, Customer>("SELECT * FROM customers WHERE id = ?")
@@ -77,12 +77,12 @@ pub async fn update_customer(
     address: Option<String>,
     region: Option<String>,
     customer_tier: String,
-    credit_limit: f64,
     notes: Option<String>,
+    membership_expiry: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Customer, String> {
-    sqlx::query("UPDATE customers SET name=?, phone=?, email=?, address=?, region=?, customer_tier=?, credit_limit=?, notes=?, updated_at=datetime('now') WHERE id=?")
-        .bind(&name).bind(&phone).bind(&email).bind(&address).bind(&region).bind(&customer_tier).bind(credit_limit).bind(&notes).bind(&id)
+    sqlx::query("UPDATE customers SET name=?, phone=?, email=?, address=?, region=?, customer_tier=?, notes=?, membership_expiry=?, updated_at=datetime('now') WHERE id=?")
+        .bind(&name).bind(&phone).bind(&email).bind(&address).bind(&region).bind(&customer_tier).bind(&notes).bind(&membership_expiry).bind(&id)
         .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
     sqlx::query_as::<_, Customer>("SELECT * FROM customers WHERE id = ?")

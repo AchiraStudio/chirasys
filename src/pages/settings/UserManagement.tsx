@@ -1,9 +1,10 @@
 // Force HMR reload
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Users, Loader2, User, Plus, X, Eye, EyeOff, Power, KeyRound, Pencil } from 'lucide-react';
+import { Users, Loader2, User, Plus, X, Eye, EyeOff, Power, Save, Pencil } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import { sysadminGetWorkspaces, WorkspaceListInfo, assignUserWorkspace } from '../../lib/api';
 
 interface UserRow {
   id: string;
@@ -12,6 +13,7 @@ interface UserRow {
   role: string;
   is_active: boolean;
   created_at: string;
+  workspace_id?: string;
 }
 
 const ROLES = [
@@ -35,10 +37,10 @@ function getRoleColor(role: string) {
 export default function UserManagement() {
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [resetModal, setResetModal] = useState<UserRow | null>(null);
-  const [editUsernameModal, setEditUsernameModal] = useState<UserRow | null>(null);
+  const [editUserModal, setEditUserModal] = useState<UserRow | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
     title: string;
     message: string;
@@ -47,16 +49,22 @@ export default function UserManagement() {
     onConfirm: () => void;
   } | null>(null);
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  const fetchUsers = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const data: UserRow[] = await invoke('get_users');
+      const [data, ws] = await Promise.all([
+        invoke<UserRow[]>('get_users'),
+        sysadminGetWorkspaces().catch(() => [] as WorkspaceListInfo[])
+      ]);
       setUsers(data);
+      setWorkspaces(ws);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
+
+  const fetchUsers = fetchData;
 
   const handleToggleActive = async (u: UserRow) => {
     if (u.id === currentUser?.id) {
@@ -122,6 +130,7 @@ export default function UserManagement() {
                 <tr>
                   <th className="py-4 px-6">Nama & Username</th>
                   <th className="py-4 px-6">Peran (Role)</th>
+                  <th className="py-4 px-6">Workspace</th>
                   <th className="py-4 px-6">Status</th>
                   <th className="py-4 px-6">Dibuat Pada</th>
                   <th className="py-4 px-6 text-right">Aksi</th>
@@ -148,6 +157,24 @@ export default function UserManagement() {
                         {u.role}
                       </span>
                     </td>
+                    <td className="py-3 px-4">
+                      <select
+                        value={u.workspace_id || ''}
+                        className="text-xs px-2 py-1 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-brand"
+                        onChange={async e => {
+                          const wsId = e.target.value || null;
+                          try {
+                            await assignUserWorkspace(u.id, wsId);
+                            fetchData();
+                          } catch (err) { console.error(err); }
+                        }}
+                      >
+                        <option value="">— Tidak ada —</option>
+                        {workspaces.map(ws => (
+                          <option key={ws.id} value={ws.id}>{ws.name}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="py-3 px-6">
                       {u.is_active ? (
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs flex items-center gap-1.5">
@@ -165,18 +192,11 @@ export default function UserManagement() {
                     <td className="py-3 px-6 text-right">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => setEditUsernameModal(u)}
-                          title="Edit Username"
+                          onClick={() => setEditUserModal(u)}
+                          title="Edit User"
                           className="p-2 rounded-lg text-slate-500 hover:text-brand hover:bg-brand/10 transition-colors"
                         >
                           <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => setResetModal(u)}
-                          title="Reset Password"
-                          className="p-2 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
-                        >
-                          <KeyRound size={15} />
                         </button>
                         <button
                           onClick={() => handleToggleActive(u)}
@@ -196,8 +216,7 @@ export default function UserManagement() {
       </div>
 
       {showModal && <AddStaffModal onClose={() => setShowModal(false)} onSuccess={fetchUsers} />}
-      {resetModal && <ResetPasswordModal user={resetModal} onClose={() => setResetModal(null)} />}
-      {editUsernameModal && <EditUsernameModal user={editUsernameModal} onClose={() => setEditUsernameModal(null)} onSuccess={fetchUsers} />}
+      {editUserModal && <EditUserModal user={editUserModal} workspaces={workspaces} onClose={() => setEditUserModal(null)} onSuccess={fetchUsers} />}
       {confirmModal && (
         <ConfirmModal
           title={confirmModal.title}
@@ -217,9 +236,15 @@ function AddStaffModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('staff');
+  const [workspaceId, setWorkspaceId] = useState<string>('');
+  const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    sysadminGetWorkspaces().then(setWorkspaces).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,7 +252,7 @@ function AddStaffModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     if (password.length < 6) { setError('Password minimal 6 karakter.'); return; }
     setLoading(true); setError('');
     try {
-      await invoke('create_user', { name: name.trim(), username: username.trim(), password, role });
+      await invoke('create_user', { name: name.trim(), username: username.trim(), password, role, workspaceId: workspaceId || null });
       onSuccess();
       onClose();
     } catch (e: any) { setError(e.toString()); }
@@ -299,6 +324,21 @@ function AddStaffModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
+            <select
+              value={workspaceId}
+              onChange={e => setWorkspaceId(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+            >
+              <option value="">— Tidak di-assign ke workspace —</option>
+              {workspaces.map(ws => (
+                <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-400 mt-1">Pilih workspace agar user otomatis terhubung saat login.</p>
+          </div>
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
               Batal
@@ -313,114 +353,139 @@ function AddStaffModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   );
 }
 
-function ResetPasswordModal({ user, onClose }: { user: UserRow; onClose: () => void }) {
+function EditUserModal({ user, workspaces, onClose, onSuccess }: { user: UserRow; workspaces: WorkspaceListInfo[]; onClose: () => void; onSuccess: () => void }) {
+  const [name, setName] = useState(user.name);
+  const [username, setUsername] = useState(user.username);
+  const [role, setRole] = useState(user.role);
+  const [workspaceId, setWorkspaceId] = useState(user.workspace_id || '');
   const [newPassword, setNewPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword.length < 6) return;
-    setLoading(true);
-    try {
-      await invoke('reset_user_password', { id: user.id, newPassword });
-      onClose();
-    } catch (e: any) { console.error(e); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Reset Password</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Untuk akun: <strong>{user.name}</strong></p>
-          </div>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Password Baru</label>
-            <div className="relative">
-              <input
-                type={showPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required autoFocus
-                placeholder="Min. 6 karakter"
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
-              />
-              <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Batal</button>
-            <button type="submit" disabled={loading} className="flex-[2] py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />} Simpan Password
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function EditUsernameModal({ user, onClose, onSuccess }: { user: UserRow; onClose: () => void; onSuccess: () => void }) {
-  const [newUsername, setNewUsername] = useState(user.username);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = newUsername.trim().toLowerCase();
-    if (!trimmed || trimmed === user.username) { onClose(); return; }
-    if (trimmed.length < 3) { setError('Username minimal 3 karakter.'); return; }
+    if (!name.trim() || !username.trim()) { setError('Nama dan Username wajib diisi.'); return; }
+    if (newPassword && newPassword.length < 6) { setError('Password minimal 6 karakter.'); return; }
+    
     setLoading(true); setError('');
     try {
-      await invoke('update_user_username', { id: user.id, username: trimmed });
+      await invoke('update_user', { 
+        id: user.id, 
+        name: name.trim(), 
+        username: username.trim().toLowerCase(), 
+        role, 
+        workspaceId: workspaceId || null 
+      });
+      
+      if (newPassword) {
+        await invoke('reset_user_password', { id: user.id, newPassword });
+      }
+      
       onSuccess();
       onClose();
     } catch (e: any) { setError(e.toString()); }
     finally { setLoading(false); }
   };
 
+  const handleDelete = async () => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus user ${user.name}?`)) return;
+    setLoading(true); setError('');
+    try {
+      await invoke('delete_user', { id: user.id });
+      onSuccess();
+      onClose();
+    } catch (e: any) {
+      setError(e.toString());
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden my-8">
+        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Edit Username</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Untuk akun: <strong>{user.name}</strong></p>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Edit Pengguna</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Perbarui profil dan akses user</p>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={20} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        
+        <form onSubmit={handleUpdate} className="p-6 space-y-5">
           {error && (
-            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-sm px-4 py-3 rounded-xl">
-              {error}
+            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-sm px-4 py-3 rounded-xl flex items-start gap-2">
+              <span>⚠</span>
+              <p>{error}</p>
             </div>
           )}
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Username Baru</label>
-            <div className="relative flex items-center">
-              <User size={16} className="absolute left-3 text-slate-400" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Nama Lengkap</label>
               <input
-                type="text"
-                value={newUsername}
-                onChange={e => setNewUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                autoFocus
-                required
-                placeholder="contoh: budi_kasir"
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
+                type="text" value={name} onChange={e => setName(e.target.value)} required
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Username</label>
+              <input
+                type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} required
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
               />
             </div>
           </div>
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Peran (Role)</label>
+            <select
+              value={role} onChange={e => setRole(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+            >
+              {ROLES.map(r => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
+            <select
+              value={workspaceId} onChange={e => setWorkspaceId(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+            >
+              <option value="">— Tidak di-assign ke workspace —</option>
+              {workspaces.map(ws => (
+                <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Reset Password (Opsional)</label>
+            <input
+              type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+              placeholder="Kosongkan jika tidak ingin mengubah password"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button 
+              type="button" 
+              onClick={handleDelete} 
+              disabled={loading}
+              className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 rounded-xl text-sm font-bold transition-colors"
+            >
+              Hapus User
+            </button>
+            <div className="flex-1"></div>
+            <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
               Batal
             </button>
-            <button type="submit" disabled={loading} className="flex-[2] py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? <><Loader2 size={16} className="animate-spin" /> Menyimpan...</> : <><Pencil size={16} /> Simpan Username</>}
+            <button type="submit" disabled={loading} className="px-5 py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Simpan
             </button>
           </div>
         </form>

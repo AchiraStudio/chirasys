@@ -341,9 +341,76 @@ pub async fn export_items_excel(
     worksheet.autofit();
 
     // 7. Save
-    workbook.save(&file_path).map_err(|e| e.to_string())?;
+    workbook.save(file_path).map_err(|e| e.to_string())?;
 
-    Ok(file_path)
+    Ok("Export success".to_string())
+}
+
+#[tauri::command]
+pub async fn export_stock_excel(
+    file_path: String,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<String, String> {
+    use rust_xlsxwriter::{Workbook, Format, Color};
+
+    // 1. Fetch data
+    let stock_data = sqlx::query(
+        "SELECT 
+            i.sku,
+            i.name,
+            c.name as category_name,
+            u.unit_name,
+            sl.batch_no,
+            sl.expiry_date,
+            SUM(CASE sl.direction WHEN 'in' THEN sl.qty_change WHEN 'out' THEN -sl.qty_change ELSE 0 END) as current_qty
+        FROM items i
+        LEFT JOIN categories c ON i.category_id = c.id
+        LEFT JOIN item_units u ON u.item_id = i.id AND u.is_base = 1
+        JOIN stock_ledger sl ON sl.item_id = i.id AND sl.unit_id = u.id
+        GROUP BY i.id, sl.batch_no, sl.expiry_date
+        HAVING current_qty > 0
+        ORDER BY i.name ASC, sl.expiry_date ASC"
+    )
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let mut workbook = Workbook::new();
+    let worksheet = workbook.add_worksheet();
+
+    let header_format = Format::new()
+        .set_bold()
+        .set_background_color(Color::RGB(0x4F46E5))
+        .set_font_color(Color::White);
+
+    let headers = vec![
+        "SKU", "Item Name", "Category", "Unit", "Batch No", "Expiry Date", "Current Qty"
+    ];
+    for (col, &h) in headers.iter().enumerate() {
+        worksheet.write_string_with_format(0, col as u16, h, &header_format).map_err(|e| e.to_string())?;
+    }
+
+    for (row, record) in stock_data.iter().enumerate() {
+        let r = (row + 1) as u32;
+        let sku: String = record.get::<Option<String>, _>("sku").unwrap_or_default();
+        let name: String = record.get("name");
+        let cat: String = record.get::<Option<String>, _>("category_name").unwrap_or_default();
+        let unit: String = record.get::<Option<String>, _>("unit_name").unwrap_or_default();
+        let batch: String = record.get::<Option<String>, _>("batch_no").unwrap_or_default();
+        let expiry: String = record.get::<Option<String>, _>("expiry_date").unwrap_or_default();
+        let qty: f64 = record.get("current_qty");
+
+        worksheet.write_string(r, 0, &sku).map_err(|e| e.to_string())?;
+        worksheet.write_string(r, 1, &name).map_err(|e| e.to_string())?;
+        worksheet.write_string(r, 2, &cat).map_err(|e| e.to_string())?;
+        worksheet.write_string(r, 3, &unit).map_err(|e| e.to_string())?;
+        worksheet.write_string(r, 4, &batch).map_err(|e| e.to_string())?;
+        worksheet.write_string(r, 5, &expiry).map_err(|e| e.to_string())?;
+        worksheet.write_number(r, 6, qty).map_err(|e| e.to_string())?;
+    }
+
+    workbook.save(file_path).map_err(|e| e.to_string())?;
+    Ok("Export success".to_string())
 }
 
 #[tauri::command]

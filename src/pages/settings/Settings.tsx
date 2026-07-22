@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck } from 'lucide-react';
-import { optimizeDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo } from '../../lib/api';
+import { optimizeDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import UserManagement from './UserManagement';
 import HardwareSettings from './HardwareSettings';
@@ -40,6 +40,7 @@ const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
 
 // Keys managed separately in the Profil section — hide from General list
 const PROFILE_KEYS = ['company_name', 'branch_name'];
+const MEMBER_KEYS = ['tier_member_discount', 'tier_vip_discount', 'tier_member_duration_months', 'tier_vip_duration_months'];
 
 export default function Settings() {
   const { user } = useAuthStore();
@@ -76,6 +77,25 @@ export default function Settings() {
   const [inviteRole, setInviteRole] = useState<'admin' | 'worker'>('worker');
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
+
+  const handleGenerateInvite = async () => {
+    setInviteLoading(true);
+    setInviteToken(null);
+    try {
+      const token = await createWorkspaceInvite(inviteRole);
+      setInviteToken(token);
+    } catch (e: any) {
+      setConfirmModal({
+        title: 'Gagal Generate Invite',
+        message: e.message || String(e),
+        variant: 'warning',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadSettings();
@@ -172,25 +192,6 @@ export default function Settings() {
     }
   };
 
-  const handleGenerateInvite = async () => {
-    setInviteLoading(true);
-    setInviteToken(null);
-    try {
-      const token = await createWorkspaceInvite(inviteRole);
-      setInviteToken(token);
-    } catch (e: any) {
-      setConfirmModal({
-        title: 'Gagal Generate Invite',
-        message: e.message || String(e),
-        variant: 'warning',
-        confirmLabel: 'OK',
-        onConfirm: () => setConfirmModal(null),
-      });
-    } finally {
-      setInviteLoading(false);
-    }
-  };
-
   const handleLeaveWorkspace = () => {
     setConfirmModal({
       title: 'Tinggalkan Workspace?',
@@ -208,7 +209,9 @@ export default function Settings() {
     });
   };
 
-  const generalConfigs = configs.filter(c => !PROFILE_KEYS.includes(c.key));
+  // General configs minus the profile keys and member keys
+  const generalConfigs = configs.filter(c => !PROFILE_KEYS.includes(c.key) && !MEMBER_KEYS.includes(c.key));
+  const memberConfigs = configs.filter(c => MEMBER_KEYS.includes(c.key));
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar pb-8 flex flex-col gap-6 animate-in fade-in duration-300 w-full">
@@ -617,6 +620,26 @@ export default function Settings() {
             </div>
           )}
 
+          {/* Membership Configurations Card */}
+          {memberConfigs.length > 0 && (
+            <div className="lg:col-span-12 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7">
+              <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                <div className="p-3 bg-blue-500/10 text-blue-500 rounded-2xl">
+                  <UserCheck size={22} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Membership Settings</h2>
+                  <p className="text-xs text-slate-500">Konfigurasi durasi dan diskon untuk tier Member dan VIP</p>
+                </div>
+                {saving && <Loader2 size={14} className="animate-spin text-slate-400 ml-auto" />}
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {memberConfigs.map((c) => (
+                  <SettingRow key={c.key} config={c} onSave={handleSaveConfig} disabled={!isAdmin} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -786,28 +809,46 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
 
 function SysadminWorkspaceManagement() {
   const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
+  const [allUsers, setAllUsers] = useState<UserRowFull[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newCode, setNewCode] = useState('');
   const [creating, setCreating] = useState(false);
-
+  const [expandedWs, setExpandedWs] = useState<string | null>(null);
+  const [assigningUser, setAssigningUser] = useState<string | null>(null); // user_id being assigned
   const [inviteWsId, setInviteWsId] = useState<string | null>(null);
   const [inviteRole, setInviteRole] = useState<'admin' | 'worker'>('admin');
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
 
+  const handleGenerateInvite = async (wsId: string) => {
+    setInviteLoading(true);
+    setInviteToken(null);
+    try {
+      const token = await sysadminCreateWorkspaceInvite(wsId, inviteRole);
+      setInviteToken(token);
+    } catch (e: any) {
+      alert(`Gagal membuat token invite: ${e.message || e}`);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   useEffect(() => {
-    loadWorkspaces();
+    loadData();
   }, []);
 
-  const loadWorkspaces = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const data = await sysadminGetWorkspaces();
-      setWorkspaces(data);
+      const [ws, users] = await Promise.all([
+        sysadminGetWorkspaces(),
+        getUsers()
+      ]);
+      setWorkspaces(ws);
+      setAllUsers(users);
     } catch (e: any) {
       setError(e.message || String(e));
     } finally {
@@ -824,7 +865,7 @@ function SysadminWorkspaceManagement() {
       setShowCreate(false);
       setNewName('');
       setNewCode('');
-      await loadWorkspaces();
+      await loadData();
     } catch (e: any) {
       setError(e.message || String(e));
     } finally {
@@ -832,18 +873,20 @@ function SysadminWorkspaceManagement() {
     }
   };
 
-  const handleGenerateInvite = async (wsId: string) => {
-    setInviteLoading(true);
-    setInviteToken(null);
+  const handleAssignWorkspace = async (userId: string, workspaceId: string | null) => {
+    setAssigningUser(userId);
     try {
-      const token = await sysadminCreateWorkspaceInvite(wsId, inviteRole);
-      setInviteToken(token);
+      await assignUserWorkspace(userId, workspaceId);
+      await loadData();
     } catch (e: any) {
-      alert(`Failed to generate invite: ${e.message || e}`);
+      alert('Gagal mengassign workspace: ' + (e.message || e));
     } finally {
-      setInviteLoading(false);
+      setAssigningUser(null);
     }
   };
+
+  const getUsersInWorkspace = (wsId: string) => allUsers.filter(u => u.workspace_id === wsId);
+  const getUnassignedUsers = () => allUsers.filter(u => !u.workspace_id);
 
   return (
     <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-indigo-200/80 dark:border-indigo-900/60 shadow-sm p-6 sm:p-7 space-y-5 mt-2">
@@ -854,14 +897,14 @@ function SysadminWorkspaceManagement() {
           </div>
           <div>
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">System Admin Workspaces</h2>
-            <p className="text-xs text-slate-500">Kelola seluruh workspace cloud klien secara global</p>
+            <p className="text-xs text-slate-500">Kelola seluruh workspace cloud dan assign anggota tim</p>
           </div>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
           className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer"
         >
-          Workspace Baru
+          + Workspace Baru
         </button>
       </div>
 
@@ -913,58 +956,146 @@ function SysadminWorkspaceManagement() {
       ) : workspaces.length === 0 ? (
         <div className="text-center p-8 text-slate-500 text-xs">Tidak ada workspace cloud.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {workspaces.map(ws => (
-            <div key={ws.id} className="p-3.5 border border-slate-200/80 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between group hover:border-indigo-400 transition-all">
-              <div className="min-w-0 flex-1 pr-2">
-                <h3 className="font-bold text-xs text-slate-900 dark:text-white truncate">{ws.name}</h3>
-                <code className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md mt-1 inline-block">{ws.code}</code>
-              </div>
-              
-              {inviteWsId === ws.id ? (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <select 
-                    value={inviteRole}
-                    onChange={e => setInviteRole(e.target.value as any)}
-                    className="text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none"
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="worker">Worker</option>
-                  </select>
-                  <button 
-                    onClick={() => handleGenerateInvite(ws.id)}
-                    disabled={inviteLoading}
-                    className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-lg flex items-center gap-1"
-                  >
-                    {inviteLoading ? <Loader2 size={12} className="animate-spin" /> : 'Invite'}
-                  </button>
-                  <button onClick={() => {setInviteWsId(null); setInviteToken(null);}} className="p-1 text-slate-400 hover:text-rose-500"><X size={14} /></button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => { setInviteWsId(ws.id); setInviteToken(null); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl shrink-0 transition-colors"
+        <div className="space-y-3">
+          {workspaces.map(ws => {
+            const wsUsers = getUsersInWorkspace(ws.id);
+            const isExpanded = expandedWs === ws.id;
+            return (
+              <div key={ws.id} className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                {/* Workspace header */}
+                <div
+                  className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                  onClick={() => setExpandedWs(isExpanded ? null : ws.id)}
                 >
-                  <Link2 size={13} /> Undang
-                </button>
-              )}
-            </div>
-          ))}
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">{ws.name}</h3>
+                    <div className="flex items-center gap-3 mt-1">
+                      <code className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">{ws.code}</code>
+                      <span className="text-[10px] text-slate-500">{wsUsers.length} anggota</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setInviteWsId(inviteWsId === ws.id ? null : ws.id); setInviteToken(null); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                    >
+                      <Link2 size={11} /> Undang
+                    </button>
+                    <span className="text-slate-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                  </div>
+                </div>
+
+                {/* Inline invite panel */}
+                {inviteWsId === ws.id && (
+                  <div className="border-t border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 flex items-center gap-2">
+                    <select
+                      value={inviteRole}
+                      onChange={e => setInviteRole(e.target.value as any)}
+                      className="text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="worker">Worker</option>
+                    </select>
+                    <button
+                      onClick={() => handleGenerateInvite(ws.id)}
+                      disabled={inviteLoading}
+                      className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-lg flex items-center gap-1"
+                    >
+                      {inviteLoading ? <Loader2 size={12} className="animate-spin" /> : 'Buat Token'}
+                    </button>
+                    {inviteToken && inviteWsId === ws.id && (
+                      <div className="flex-1 flex items-center gap-2">
+                        <code className="flex-1 text-[10px] font-mono text-brand break-all p-1.5 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 select-all">{inviteToken}</code>
+                        <button onClick={() => navigator.clipboard.writeText(inviteToken)} className="p-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200 rounded-lg">
+                          <Copy size={13} />
+                        </button>
+                      </div>
+                    )}
+                    <button onClick={() => { setInviteWsId(null); setInviteToken(null); }} className="p-1 text-slate-400 hover:text-rose-500"><X size={14} /></button>
+                  </div>
+                )}
+
+                {/* Expanded: member list + assign new member */}
+                {isExpanded && (
+                  <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-3 space-y-2">
+                    {wsUsers.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic py-1">Belum ada anggota di workspace ini.</p>
+                    ) : wsUsers.map(u => (
+                      <div key={u.id} className="flex items-center justify-between py-1.5 px-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-brand/10 text-brand flex items-center justify-center text-xs font-bold shrink-0">
+                            {u.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{u.name}</p>
+                            <p className="text-[10px] text-slate-500">@{u.username} · {u.role}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleAssignWorkspace(u.id, null)}
+                          disabled={assigningUser === u.id}
+                          className="text-[10px] px-2 py-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-md font-semibold transition-colors disabled:opacity-50"
+                          title="Lepas dari workspace ini"
+                        >
+                          {assigningUser === u.id ? '...' : 'Lepas'}
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add user to workspace */}
+                    {getUnassignedUsers().length > 0 && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <select
+                          className="flex-1 text-xs px-2 py-1.5 border border-dashed border-indigo-300 dark:border-indigo-700 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none"
+                          defaultValue=""
+                          onChange={e => {
+                            if (e.target.value) {
+                              handleAssignWorkspace(e.target.value, ws.id);
+                              e.target.value = '';
+                            }
+                          }}
+                        >
+                          <option value="" disabled>+ Assign user ke workspace ini...</option>
+                          {getUnassignedUsers().map(u => (
+                            <option key={u.id} value={u.id}>{u.name} (@{u.username})</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {getUnassignedUsers().length === 0 && wsUsers.length > 0 && (
+                      <p className="text-[10px] text-slate-400 italic pt-1">Semua user sudah di-assign ke workspace.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {inviteToken && (
-        <div className="mt-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col gap-2">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Invite Token Generated</p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs font-mono text-brand font-bold break-all p-2 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 select-all">{inviteToken}</code>
-            <button
-              onClick={() => navigator.clipboard.writeText(inviteToken)}
-              className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200 rounded-xl"
-              title="Copy"
-            >
-              <Copy size={16} />
-            </button>
+      {/* Unassigned users section */}
+      {!loading && getUnassignedUsers().length > 0 && (
+        <div className="mt-2 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl">
+          <p className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-2">⚠ User Tanpa Workspace ({getUnassignedUsers().length})</p>
+          <div className="space-y-1.5">
+            {getUnassignedUsers().map(u => (
+              <div key={u.id} className="flex items-center justify-between">
+                <span className="text-xs text-slate-700 dark:text-slate-300">{u.name} <span className="text-slate-400">(@{u.username})</span></span>
+                <select
+                  className="text-[10px] px-2 py-1 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 outline-none"
+                  defaultValue=""
+                  onChange={e => {
+                    if (e.target.value) handleAssignWorkspace(u.id, e.target.value);
+                    e.currentTarget.value = '';
+                  }}
+                >
+                  <option value="" disabled>Assign ke workspace...</option>
+                  {workspaces.map(ws => (
+                    <option key={ws.id} value={ws.id}>{ws.name}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
           </div>
         </div>
       )}

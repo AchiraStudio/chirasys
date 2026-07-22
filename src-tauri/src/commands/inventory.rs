@@ -257,6 +257,8 @@ pub struct BulkStockInput {
     pub unit_id: String,
     pub qty_change: f64,
     pub hpp_value: Option<f64>,
+    pub batch_no: Option<String>,
+    pub expiry_date: Option<String>,
     pub notes: Option<String>,
 }
 
@@ -271,7 +273,7 @@ pub async fn bulk_add_stock(
     for item in items {
         let ledger_id = Uuid::new_v4().to_string();
         sqlx::query(
-            "INSERT INTO stock_ledger (id, item_id, unit_id, branch_id, qty_change, direction, source_type, notes, hpp_value) VALUES (?, ?, ?, ?, ?, 'in', 'adjustment', ?, ?)"
+            "INSERT INTO stock_ledger (id, item_id, unit_id, branch_id, qty_change, direction, source_type, notes, hpp_value, batch_no, expiry_date) VALUES (?, ?, ?, ?, ?, 'in', 'adjustment', ?, ?, ?, ?)"
         )
         .bind(ledger_id)
         .bind(&item.item_id)
@@ -280,6 +282,8 @@ pub async fn bulk_add_stock(
         .bind(item.qty_change)
         .bind(&item.notes)
         .bind(item.hpp_value)
+        .bind(&item.batch_no)
+        .bind(&item.expiry_date)
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
