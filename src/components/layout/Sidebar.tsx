@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, ChevronDown, LogOut, Database, Pill, Truck, ClipboardList, Tag, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, ChevronDown, LogOut, Truck } from 'lucide-react';
 import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../ui/ConfirmModal';
@@ -47,19 +47,13 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
   };
 
   const allMenuItems = [
-    { id: 'dashboard',    icon: LayoutDashboard, label: 'Overview',        roles: ['owner', 'admin', 'staff'] },
-    { id: 'pos',          icon: ShoppingCart,    label: 'Kasir & POS',     roles: ['owner', 'admin', 'staff'] },
-    { id: 'master-data',  icon: Database,        label: 'Master Data',     roles: ['owner', 'admin', 'staff'] },
-    { id: 'inventory',    icon: Package,         label: 'Stok Inventaris', badge: lowStockCount > 0 ? lowStockCount : null, roles: ['owner', 'admin', 'staff'] },
-    { id: 'stock-opname', icon: ClipboardList,   label: 'Stock Opname',    roles: ['owner', 'admin', 'staff'] },
-    { id: 'catalog',      icon: Pill,            label: 'Katalog Produk',  roles: ['owner', 'admin', 'staff'] },
-    { id: 'suppliers',    icon: Truck,           label: 'Pemasok',         roles: ['owner', 'admin', 'staff'] },
-    { id: 'customers',    icon: Users,           label: 'Pelanggan',       roles: ['owner', 'admin', 'staff'] },
-    { id: 'purchasing',   icon: ClipboardList,   label: 'Pembelian (PO)',  roles: ['owner', 'admin', 'staff'] },
-    { id: 'promos',       icon: Tag,             label: 'Promosi',         roles: ['owner', 'admin'] },
-    { id: 'accounting',   icon: BookOpen,        label: 'Akuntansi',       roles: ['owner', 'admin'] },
-    { id: 'reports',      icon: FileText,        label: 'Laporan',         roles: ['owner', 'admin'] },
-    { id: 'settings',     icon: Settings,        label: 'Pengaturan',      roles: ['owner', 'admin', 'staff'] },
+    { id: 'dashboard',    icon: LayoutDashboard, label: 'Overview',            roles: ['owner', 'admin', 'staff'] },
+    { id: 'pos',          icon: ShoppingCart,    label: 'Kasir & POS',         roles: ['owner', 'admin', 'staff'] },
+    { id: 'inventory',    icon: Package,         label: 'Inventaris & Produk', badge: lowStockCount > 0 ? lowStockCount : null, roles: ['owner', 'admin', 'staff'] },
+    { id: 'purchasing',   icon: Truck,           label: 'Pembelian & Pemasok', roles: ['owner', 'admin', 'staff'] },
+    { id: 'customers',    icon: Users,           label: 'Pelanggan & Promosi', roles: ['owner', 'admin', 'staff'] },
+    { id: 'reports',      icon: FileText,        label: 'Laporan & Akuntansi', roles: ['owner', 'admin'] },
+    { id: 'settings',     icon: Settings,        label: 'Pengaturan',          roles: ['owner', 'admin', 'staff'] },
   ];
 
   const menuItems = allMenuItems.filter(item => item.roles.includes(user?.role || 'staff'));

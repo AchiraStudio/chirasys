@@ -72,11 +72,11 @@ export default function LoginPage() {
 
   // ─── Background blobs ─────────────────────────────────────────────────────
   const Blobs = () => (
-    <>
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand/20 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute top-[40%] right-[20%] w-[20%] h-[20%] bg-emerald-500/10 blur-[80px] rounded-full pointer-events-none" />
-    </>
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand/20 blur-[120px] rounded-full" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500/20 blur-[120px] rounded-full" />
+      <div className="absolute top-[40%] right-[20%] w-[20%] h-[20%] bg-emerald-500/10 blur-[80px] rounded-full" />
+    </div>
   );
 
   // ─── Sysadmin Screens ──────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ export default function LoginPage() {
   // ─── Sysadmin Login Screen ────────────────────────────────────────────────
   if (screen === 'sysadmin_login') {
     return (
-      <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] flex flex-col items-center justify-center p-4 py-8 relative overflow-y-auto">
+      <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] flex flex-col items-center justify-center p-4 py-8 relative overflow-x-hidden overflow-y-auto">
         <Blobs />
         <div className="w-full max-w-md relative z-10 space-y-4 my-auto">
           <button onClick={() => { setError(''); setScreen('login'); }} className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-brand transition-colors">
@@ -150,7 +150,7 @@ export default function LoginPage() {
 
   // ─── Main Login Screen (Step 1) ───────────────────────────────────────────
   return (
-    <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] flex flex-col items-center justify-center p-4 py-8 relative overflow-y-auto">
+    <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] flex flex-col items-center justify-center p-4 py-8 relative overflow-x-hidden overflow-y-auto">
       <Blobs />
 
       <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-brand/10 border border-slate-200/50 dark:border-slate-800/50 overflow-hidden relative z-10 my-auto animate-in fade-in slide-in-from-bottom-4 duration-300">

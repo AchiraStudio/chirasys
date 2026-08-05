@@ -16,17 +16,12 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
 
   const PAGE_TITLES: Record<string, string> = {
     dashboard: 'Overview',
-    'master-data': 'Master Data',
-    inventory: 'Stock Overview',
-    catalog: 'Catalog',
-    suppliers: 'Suppliers',
-    customers: 'Customers',
-    purchasing: 'Purchasing',
-    pos: 'Point of Sale',
-    promos: 'Promotions',
-    accounting: 'Accounting',
-    reports: 'Reports',
-    settings: 'Settings',
+    pos: 'Kasir & Point of Sale',
+    inventory: 'Inventaris & Produk',
+    purchasing: 'Pembelian & Pemasok',
+    customers: 'Pelanggan & Promosi',
+    reports: 'Laporan & Akuntansi',
+    settings: 'Pengaturan System',
   };
 
   const title = PAGE_TITLES[activeMenu] ?? activeMenu.replace(/-/g, ' ');

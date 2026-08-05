@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck } from 'lucide-react';
-import { optimizeDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace } from '../../lib/api';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download } from 'lucide-react';
+import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace } from '../../lib/api';
+import { save } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
 import UserManagement from './UserManagement';
 import HardwareSettings from './HardwareSettings';
@@ -140,6 +141,35 @@ export default function Settings() {
       });
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const handleExportDB = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const defaultPath = `chirasys_backup_${today}.db`;
+      const filePath = await save({
+        defaultPath,
+        filters: [{ name: 'SQLite Database', extensions: ['db', 'sqlite'] }]
+      });
+
+      if (!filePath) return;
+
+      setLoading(true);
+      setSuccessMsg('');
+      const msg = await exportDatabase(filePath);
+      setSuccessMsg(msg);
+      setTimeout(() => setSuccessMsg(''), 6000);
+    } catch (e) {
+      setConfirmModal({
+        title: 'Export Gagal',
+        message: `Gagal mengekspor database: ${e}`,
+        variant: 'danger',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -530,9 +560,17 @@ export default function Settings() {
 
             <div className="space-y-3 pt-2">
               <button
+                onClick={handleExportDB}
+                disabled={loading}
+                className="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/20"
+              >
+                <Download size={15} /> Export Database Backup (.db)
+              </button>
+
+              <button
                 onClick={() => setResetTarget('maintenance')}
                 disabled={loading}
-                className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-brand hover:text-white dark:hover:bg-brand text-slate-800 dark:text-slate-200 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Database size={15} /> Optimize DB (VACUUM)
               </button>

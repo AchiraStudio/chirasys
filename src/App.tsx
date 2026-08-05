@@ -4,19 +4,12 @@ import Topbar from './components/layout/Topbar';
 import Dashboard from './components/Dashboard';
 import TitleBar from './components/TitleBar';
 import AIChat from './components/ai/AIChat';
-import MasterData from './pages/inventory/MasterData';
-import StockOverview from './pages/inventory/StockOverview';
-import StockOpname from './pages/inventory/StockOpname';
-import ItemList from './pages/inventory/ItemList';
-import ItemDetail from './pages/inventory/ItemDetail';
+import InventoryPage from './pages/inventory/InventoryPage';
+import PurchasingPage from './pages/purchasing/PurchasingPage';
+import CustomerPromoPage from './pages/customers/CustomerPromoPage';
+import ReportsAccountingPage from './pages/reports/ReportsAccountingPage';
 import ItemDrawer from './pages/inventory/ItemDrawer';
-import SupplierList from './pages/suppliers/SupplierList';
-import CustomerList from './pages/customers/CustomerList';
-import PurchasingDashboard from './pages/purchasing/PurchasingDashboard';
 import POS from './pages/pos/POS';
-import Promos from './pages/promos/PromoList';
-import Accounting from './pages/accounting/Accounting';
-import Reports from './pages/reports/Reports';
 import Settings from './pages/settings/Settings';
 import LoginPage from './pages/auth/LoginPage';
 import ContextMenu from './components/layout/ContextMenu';
@@ -28,7 +21,6 @@ import { useZoomStore } from './store/ZoomStore';
 
 export default function App() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
-  const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [editItemId, setEditItemId] = useState<string | null>(null);
@@ -163,7 +155,7 @@ export default function App() {
     return (
       <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-[#09090b]">
         <TitleBar />
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative">
           <LoginPage />
         </div>
       </div>
@@ -180,34 +172,31 @@ export default function App() {
           <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
           <div className={`flex-1 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-6 md:p-8'}`}>
             {activeMenu === 'dashboard' ? <Dashboard setActiveMenu={setActiveMenu} /> :
-              activeMenu === 'master-data' ? <MasterData /> :
+              activeMenu === 'pos' ? <POS /> :
                 activeMenu === 'inventory' ? (
-                  <StockOverview
+                  <InventoryPage
                     refreshTrigger={refreshTrigger}
                     onEditItem={(itemId) => {
                       setEditItemId(itemId);
                       setIsDrawerOpen(true);
                     }}
+                    onAddItem={() => {
+                      setEditItemId(null);
+                      setIsDrawerOpen(true);
+                    }}
                   />
                 ) :
-                  activeMenu === 'stock-opname' ? <StockOpname /> :
-                    activeMenu === 'catalog' ? <ItemList refreshTrigger={refreshTrigger} onViewItem={(id) => { setActiveItemId(id); setActiveMenu('item-detail'); }} onEditItem={(id) => { setEditItemId(id); setIsDrawerOpen(true); }} onAddItem={() => { setEditItemId(null); setIsDrawerOpen(true); }} /> :
-                      activeMenu === 'item-detail' && activeItemId ? <ItemDetail itemId={activeItemId} refreshTrigger={refreshTrigger} onBack={() => setActiveMenu('catalog')} onEditItem={() => { setEditItemId(activeItemId); setIsDrawerOpen(true); }} /> :
-                        activeMenu === 'suppliers' ? <SupplierList /> :
-                          activeMenu === 'customers' ? <CustomerList /> :
-                            activeMenu === 'promos' ? <Promos /> :
-                              activeMenu === 'accounting' ? <Accounting /> :
-                                activeMenu === 'purchasing' ? <PurchasingDashboard /> :
-                                  activeMenu === 'reports' ? <Reports /> :
-                                    activeMenu === 'settings' ? <Settings /> :
-                                      activeMenu === 'pos' ? <POS /> :
-                                        (
-                                          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 p-16 text-center h-full flex flex-col items-center justify-center shadow-sm">
-                                            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-full mb-6"><Package size={48} className="text-slate-500" /></div>
-                                            <h3 className="text-2xl font-bold tracking-tight">{activeMenu.charAt(0).toUpperCase() + activeMenu.slice(1)} Module</h3>
-                                            <p className="text-slate-600">Sedang dalam pengembangan.</p>
-                                          </div>
-                                        )}
+                  activeMenu === 'purchasing' ? <PurchasingPage /> :
+                    activeMenu === 'customers' ? <CustomerPromoPage /> :
+                      activeMenu === 'reports' ? <ReportsAccountingPage /> :
+                        activeMenu === 'settings' ? <Settings /> :
+                          (
+                            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 p-16 text-center h-full flex flex-col items-center justify-center shadow-sm">
+                              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-full mb-6"><Package size={48} className="text-slate-500" /></div>
+                              <h3 className="text-2xl font-bold tracking-tight">{activeMenu.charAt(0).toUpperCase() + activeMenu.slice(1)} Module</h3>
+                              <p className="text-slate-600">Sedang dalam pengembangan.</p>
+                            </div>
+                          )}
           </div>
           <ItemDrawer isOpen={isDrawerOpen} onClose={() => { setIsDrawerOpen(false); setEditItemId(null); }} onItemAdded={() => setRefreshTrigger(prev => prev + 1)} editItemId={editItemId} />
 

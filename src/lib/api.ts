@@ -229,6 +229,7 @@ export const exportItemsExcel = async (filePath: string): Promise<string> => inv
 export const exportStockExcel = async (filePath: string): Promise<string> => invoke('export_stock_excel', { filePath });
 export const exportSalesExcel = async (filePath: string): Promise<string> => invoke('export_sales_excel', { filePath });
 export const optimizeDatabase = async (): Promise<string> => invoke('optimize_database');
+export const exportDatabase = async (targetPath: string): Promise<string> => invoke('export_database', { targetPath });
 export const resetDbSpecific = async (target: string): Promise<string> => invoke('reset_db_specific', { target });
 
 // --- Hardware / Printer Commands ---

@@ -27,6 +27,24 @@ pub async fn optimize_database(state: State<'_, AppState>) -> Result<String, Str
 }
 
 #[tauri::command]
+pub async fn export_database(state: State<'_, AppState>, target_path: String) -> Result<String, String> {
+    // If target file exists, remove it first because VACUUM INTO fails if file already exists
+    let path = std::path::Path::new(&target_path);
+    if path.exists() {
+        let _ = std::fs::remove_file(path);
+    }
+
+    let sanitized_path = target_path.replace("'", "''");
+    let sql = format!("VACUUM INTO '{}';", sanitized_path);
+    sqlx::query(&sql)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| format!("Failed to export database: {}", e))?;
+
+    Ok("Database exported successfully!".to_string())
+}
+
+#[tauri::command]
 pub async fn open_devtools(_webview: tauri::WebviewWindow) -> Result<(), String> {
     #[cfg(debug_assertions)]
     _webview.open_devtools();

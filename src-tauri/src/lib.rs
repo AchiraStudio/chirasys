@@ -155,6 +155,7 @@ pub fn run() {
 
             // Phase 10 - Maintenance
             commands::maintenance::optimize_database,
+            commands::maintenance::export_database,
             commands::maintenance::open_devtools,
             commands::maintenance::list_printers,
             commands::maintenance::kick_cash_drawer,
