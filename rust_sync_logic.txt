@@ -1,0 +1,816 @@
+pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &serde_json::Value) -> Result<(), String> {
+    match table_name {
+        "customers" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str());
+            let phone = payload.get("phone").and_then(|v| v.as_str());
+            let email = payload.get("email").and_then(|v| v.as_str());
+            let address = payload.get("address").and_then(|v| v.as_str());
+            let region = payload.get("region").and_then(|v| v.as_str());
+            let customer_tier = payload.get("customer_tier").and_then(|v| v.as_str());
+            let loyalty_points = payload.get("loyalty_points").and_then(|v| v.as_i64());
+            let credit_limit = payload.get("credit_limit").and_then(|v| v.as_f64());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let is_active = payload.get("is_active").and_then(|v| v.as_i64());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO customers (id, name, phone, email, address, region, customer_tier, loyalty_points, credit_limit, notes, is_active, created_at, updated_at, deleted_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET name=excluded.name, phone=excluded.phone, email=excluded.email, address=excluded.address, region=excluded.region, customer_tier=excluded.customer_tier, loyalty_points=excluded.loyalty_points, credit_limit=excluded.credit_limit, notes=excluded.notes, is_active=excluded.is_active, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(name)
+            .bind(phone)
+            .bind(email)
+            .bind(address)
+            .bind(region)
+            .bind(customer_tier)
+            .bind(loyalty_points)
+            .bind(credit_limit)
+            .bind(notes)
+            .bind(is_active)
+            .bind(created_at)
+            .bind(updated_at)
+            .bind(deleted_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "suppliers" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str());
+            let contact_person = payload.get("contact_person").and_then(|v| v.as_str());
+            let phone = payload.get("phone").and_then(|v| v.as_str());
+            let email = payload.get("email").and_then(|v| v.as_str());
+            let address = payload.get("address").and_then(|v| v.as_str());
+            let payment_terms = payload.get("payment_terms").and_then(|v| v.as_str());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let is_active = payload.get("is_active").and_then(|v| v.as_i64());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO suppliers (id, name, contact_person, phone, email, address, payment_terms, notes, is_active, created_at, updated_at, deleted_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET name=excluded.name, contact_person=excluded.contact_person, phone=excluded.phone, email=excluded.email, address=excluded.address, payment_terms=excluded.payment_terms, notes=excluded.notes, is_active=excluded.is_active, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(name)
+            .bind(contact_person)
+            .bind(phone)
+            .bind(email)
+            .bind(address)
+            .bind(payment_terms)
+            .bind(notes)
+            .bind(is_active)
+            .bind(created_at)
+            .bind(updated_at)
+            .bind(deleted_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "purchase_orders" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let branch_id = payload.get("branch_id").and_then(|v| v.as_str());
+            let supplier_id = payload.get("supplier_id").and_then(|v| v.as_str());
+            let status = payload.get("status").and_then(|v| v.as_str());
+            let expected_date = payload.get("expected_date").and_then(|v| v.as_str());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO purchase_orders (id, branch_id, supplier_id, status, expected_date, notes, created_by, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, 'system_sync', ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET branch_id=excluded.branch_id, supplier_id=excluded.supplier_id, status=excluded.status, expected_date=excluded.expected_date, notes=excluded.notes, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(branch_id)
+            .bind(supplier_id)
+            .bind(status)
+            .bind(expected_date)
+            .bind(notes)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "po_lines" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let po_id = payload.get("po_id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let unit_id = payload.get("unit_id").and_then(|v| v.as_str());
+            let qty_ordered = payload.get("qty_ordered").and_then(|v| v.as_f64());
+            let qty_received = payload.get("qty_received").and_then(|v| v.as_f64());
+            let price_estimate = payload.get("price_estimate").and_then(|v| v.as_f64());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO po_lines (id, po_id, item_id, unit_id, qty_ordered, qty_received, price_estimate, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET po_id=excluded.po_id, item_id=excluded.item_id, unit_id=excluded.unit_id, qty_ordered=excluded.qty_ordered, qty_received=excluded.qty_received, price_estimate=excluded.price_estimate, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(po_id)
+            .bind(item_id)
+            .bind(unit_id)
+            .bind(qty_ordered)
+            .bind(qty_received)
+            .bind(price_estimate)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "purchases" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let po_id = payload.get("po_id").and_then(|v| v.as_str());
+            let branch_id = payload.get("branch_id").and_then(|v| v.as_str());
+            let supplier_id = payload.get("supplier_id").and_then(|v| v.as_str());
+            let invoice_no = payload.get("invoice_no").and_then(|v| v.as_str());
+            let invoice_date = payload.get("invoice_date").and_then(|v| v.as_str());
+            let total_amount = payload.get("total_amount").and_then(|v| v.as_f64());
+            let status = payload.get("status").and_then(|v| v.as_str());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO purchases (id, po_id, branch_id, supplier_id, invoice_no, invoice_date, total_amount, status, notes, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET po_id=excluded.po_id, branch_id=excluded.branch_id, supplier_id=excluded.supplier_id, invoice_no=excluded.invoice_no, invoice_date=excluded.invoice_date, total_amount=excluded.total_amount, status=excluded.status, notes=excluded.notes, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(po_id)
+            .bind(branch_id)
+            .bind(supplier_id)
+            .bind(invoice_no)
+            .bind(invoice_date)
+            .bind(total_amount)
+            .bind(status)
+            .bind(notes)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "purchase_lines" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let purchase_id = payload.get("purchase_id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let unit_id = payload.get("unit_id").and_then(|v| v.as_str());
+            let qty_received = payload.get("qty_received").and_then(|v| v.as_f64());
+            let price_per_unit = payload.get("price_per_unit").and_then(|v| v.as_f64());
+            let expiry_date = payload.get("expiry_date").and_then(|v| v.as_str());
+            let batch_no = payload.get("batch_no").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO purchase_lines (id, purchase_id, item_id, unit_id, qty_received, price_per_unit, expiry_date, batch_no, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET purchase_id=excluded.purchase_id, item_id=excluded.item_id, unit_id=excluded.unit_id, qty_received=excluded.qty_received, price_per_unit=excluded.price_per_unit, expiry_date=excluded.expiry_date, batch_no=excluded.batch_no, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(purchase_id)
+            .bind(item_id)
+            .bind(unit_id)
+            .bind(qty_received)
+            .bind(price_per_unit)
+            .bind(expiry_date)
+            .bind(batch_no)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "purchase_payments" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let purchase_id = payload.get("purchase_id").and_then(|v| v.as_str());
+            let amount = payload.get("amount").and_then(|v| v.as_f64());
+            let method = payload.get("method").and_then(|v| v.as_str());
+            let reference = payload.get("reference").and_then(|v| v.as_str());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO purchase_payments (id, purchase_id, amount, method, reference, notes, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET purchase_id=excluded.purchase_id, amount=excluded.amount, method=excluded.method, reference=excluded.reference, notes=excluded.notes, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(purchase_id)
+            .bind(amount)
+            .bind(method)
+            .bind(reference)
+            .bind(notes)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "purchase_returns" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let purchase_id = payload.get("purchase_id").and_then(|v| v.as_str());
+            let supplier_id = payload.get("supplier_id").and_then(|v| v.as_str());
+            let branch_id = payload.get("branch_id").and_then(|v| v.as_str());
+            let reason = payload.get("reason").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO purchase_returns (id, purchase_id, supplier_id, branch_id, reason, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET purchase_id=excluded.purchase_id, supplier_id=excluded.supplier_id, branch_id=excluded.branch_id, reason=excluded.reason, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(purchase_id)
+            .bind(supplier_id)
+            .bind(branch_id)
+            .bind(reason)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "purchase_return_lines" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let return_id = payload.get("return_id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let unit_id = payload.get("unit_id").and_then(|v| v.as_str());
+            let qty = payload.get("qty").and_then(|v| v.as_f64());
+            let reason = payload.get("reason").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO purchase_return_lines (id, return_id, item_id, unit_id, qty, reason, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET return_id=excluded.return_id, item_id=excluded.item_id, unit_id=excluded.unit_id, qty=excluded.qty, reason=excluded.reason, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(return_id)
+            .bind(item_id)
+            .bind(unit_id)
+            .bind(qty)
+            .bind(reason)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "promos" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str());
+            let description = payload.get("description").and_then(|v| v.as_str());
+            let discount_percent = payload.get("discount_percent").and_then(|v| v.as_f64());
+            let min_qty = payload.get("min_qty").and_then(|v| v.as_f64());
+            let category_id = payload.get("category_id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let member_only = payload.get("member_only").and_then(|v| v.as_i64());
+            let active = payload.get("active").and_then(|v| v.as_i64());
+            let start_date = payload.get("start_date").and_then(|v| v.as_str());
+            let end_date = payload.get("end_date").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO promos (id, name, description, discount_percent, min_qty, category_id, item_id, member_only, active, start_date, end_date, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET name=excluded.name, description=excluded.description, discount_percent=excluded.discount_percent, min_qty=excluded.min_qty, category_id=excluded.category_id, item_id=excluded.item_id, member_only=excluded.member_only, active=excluded.active, start_date=excluded.start_date, end_date=excluded.end_date, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(name)
+            .bind(description)
+            .bind(discount_percent)
+            .bind(min_qty)
+            .bind(category_id)
+            .bind(item_id)
+            .bind(member_only)
+            .bind(active)
+            .bind(start_date)
+            .bind(end_date)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "promo_bogo_rules" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let promo_id = payload.get("promo_id").and_then(|v| v.as_str());
+            let buy_qty = payload.get("buy_qty").and_then(|v| v.as_f64());
+            let get_qty = payload.get("get_qty").and_then(|v| v.as_f64());
+            let free_item_id = payload.get("free_item_id").and_then(|v| v.as_str());
+            let free_item_unit_id = payload.get("free_item_unit_id").and_then(|v| v.as_str());
+            let free_item_discount_percent = payload.get("free_item_discount_percent").and_then(|v| v.as_f64());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO promo_bogo_rules (id, promo_id, buy_qty, get_qty, free_item_id, free_item_unit_id, free_item_discount_percent, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET promo_id=excluded.promo_id, buy_qty=excluded.buy_qty, get_qty=excluded.get_qty, free_item_id=excluded.free_item_id, free_item_unit_id=excluded.free_item_unit_id, free_item_discount_percent=excluded.free_item_discount_percent, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(promo_id)
+            .bind(buy_qty)
+            .bind(get_qty)
+            .bind(free_item_id)
+            .bind(free_item_unit_id)
+            .bind(free_item_discount_percent)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "promo_tiers" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let promo_id = payload.get("promo_id").and_then(|v| v.as_str());
+            let min_qty = payload.get("min_qty").and_then(|v| v.as_f64());
+            let discount_percent = payload.get("discount_percent").and_then(|v| v.as_f64());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO promo_tiers (id, promo_id, min_qty, discount_percent, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET promo_id=excluded.promo_id, min_qty=excluded.min_qty, discount_percent=excluded.discount_percent, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(promo_id)
+            .bind(min_qty)
+            .bind(discount_percent)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "promo_bundle_items" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let promo_id = payload.get("promo_id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let qty = payload.get("qty").and_then(|v| v.as_f64());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO promo_bundle_items (id, promo_id, item_id, qty, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET promo_id=excluded.promo_id, item_id=excluded.item_id, qty=excluded.qty, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(promo_id)
+            .bind(item_id)
+            .bind(qty)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "accounts" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let code = payload.get("code").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str());
+            let type_val = payload.get("type").and_then(|v| v.as_str());
+            let parent_id = payload.get("parent_id").and_then(|v| v.as_str());
+            let normal_balance = payload.get("normal_balance").and_then(|v| v.as_str());
+            let is_system = payload.get("is_system").and_then(|v| v.as_i64());
+            let is_active = payload.get("is_active").and_then(|v| v.as_i64());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO accounts (id, code, name, type, parent_id, normal_balance, is_system, is_active, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET code=excluded.code, name=excluded.name, type=excluded.type, parent_id=excluded.parent_id, normal_balance=excluded.normal_balance, is_system=excluded.is_system, is_active=excluded.is_active, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(code)
+            .bind(name)
+            .bind(type_val)
+            .bind(parent_id)
+            .bind(normal_balance)
+            .bind(is_system)
+            .bind(is_active)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "journal_entries" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let entry_no = payload.get("entry_no").and_then(|v| v.as_str());
+            let date = payload.get("date").and_then(|v| v.as_str());
+            let description = payload.get("description").and_then(|v| v.as_str());
+            let source_type = payload.get("source_type").and_then(|v| v.as_str());
+            let source_id = payload.get("source_id").and_then(|v| v.as_str());
+            let branch_id = payload.get("branch_id").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO journal_entries (id, entry_no, date, description, source_type, source_id, branch_id, created_by, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'system_sync', ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET entry_no=excluded.entry_no, date=excluded.date, description=excluded.description, source_type=excluded.source_type, source_id=excluded.source_id, branch_id=excluded.branch_id, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(entry_no)
+            .bind(date)
+            .bind(description)
+            .bind(source_type)
+            .bind(source_id)
+            .bind(branch_id)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "journal_lines" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let journal_entry_id = payload.get("journal_entry_id").and_then(|v| v.as_str());
+            let account_id = payload.get("account_id").and_then(|v| v.as_str());
+            let debit = payload.get("debit").and_then(|v| v.as_f64());
+            let credit = payload.get("credit").and_then(|v| v.as_f64());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, notes, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET journal_entry_id=excluded.journal_entry_id, account_id=excluded.account_id, debit=excluded.debit, credit=excluded.credit, notes=excluded.notes, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(journal_entry_id)
+            .bind(account_id)
+            .bind(debit)
+            .bind(credit)
+            .bind(notes)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "sales" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let transaction_no = payload.get("transaction_no").and_then(|v| v.as_str());
+            let branch_id = payload.get("branch_id").and_then(|v| v.as_str());
+            let customer_id = payload.get("customer_id").and_then(|v| v.as_str());
+            let user_id = payload.get("user_id").and_then(|v| v.as_str());
+            let total_amount = payload.get("total_amount").and_then(|v| v.as_f64());
+            let discount_amount = payload.get("discount_amount").and_then(|v| v.as_f64());
+            let tax_amount = payload.get("tax_amount").and_then(|v| v.as_f64());
+            let grand_total = payload.get("grand_total").and_then(|v| v.as_f64());
+            let status = payload.get("status").and_then(|v| v.as_str());
+            let price_type = payload.get("price_type").and_then(|v| v.as_str());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO sales (id, transaction_no, branch_id, customer_id, user_id, total_amount, discount_amount, tax_amount, grand_total, status, price_type, notes, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET transaction_no=excluded.transaction_no, branch_id=excluded.branch_id, customer_id=excluded.customer_id, user_id=excluded.user_id, total_amount=excluded.total_amount, discount_amount=excluded.discount_amount, tax_amount=excluded.tax_amount, grand_total=excluded.grand_total, status=excluded.status, price_type=excluded.price_type, notes=excluded.notes, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(transaction_no)
+            .bind(branch_id)
+            .bind(customer_id)
+            .bind(user_id)
+            .bind(total_amount)
+            .bind(discount_amount)
+            .bind(tax_amount)
+            .bind(grand_total)
+            .bind(status)
+            .bind(price_type)
+            .bind(notes)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "sale_lines" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let sale_id = payload.get("sale_id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let unit_id = payload.get("unit_id").and_then(|v| v.as_str());
+            let qty = payload.get("qty").and_then(|v| v.as_f64());
+            let price_type = payload.get("price_type").and_then(|v| v.as_str());
+            let price = payload.get("price").and_then(|v| v.as_f64());
+            let discount_amount = payload.get("discount_amount").and_then(|v| v.as_f64());
+            let subtotal = payload.get("subtotal").and_then(|v| v.as_f64());
+            let hpp_value = payload.get("hpp_value").and_then(|v| v.as_f64());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO sale_lines (id, sale_id, item_id, unit_id, qty, price_type, price, discount_amount, subtotal, hpp_value, notes, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET sale_id=excluded.sale_id, item_id=excluded.item_id, unit_id=excluded.unit_id, qty=excluded.qty, price_type=excluded.price_type, price=excluded.price, discount_amount=excluded.discount_amount, subtotal=excluded.subtotal, hpp_value=excluded.hpp_value, notes=excluded.notes, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(sale_id)
+            .bind(item_id)
+            .bind(unit_id)
+            .bind(qty)
+            .bind(price_type)
+            .bind(price)
+            .bind(discount_amount)
+            .bind(subtotal)
+            .bind(hpp_value)
+            .bind(notes)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "sale_payments" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let sale_id = payload.get("sale_id").and_then(|v| v.as_str());
+            let amount = payload.get("amount").and_then(|v| v.as_f64());
+            let method = payload.get("method").and_then(|v| v.as_str());
+            let reference = payload.get("reference").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO sale_payments (id, sale_id, amount, method, reference, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET sale_id=excluded.sale_id, amount=excluded.amount, method=excluded.method, reference=excluded.reference, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(sale_id)
+            .bind(amount)
+            .bind(method)
+            .bind(reference)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "sale_returns" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let sale_id = payload.get("sale_id").and_then(|v| v.as_str());
+            let branch_id = payload.get("branch_id").and_then(|v| v.as_str());
+            let return_total = payload.get("return_total").and_then(|v| v.as_f64());
+            let refund_amount = payload.get("refund_amount").and_then(|v| v.as_f64());
+            let reason = payload.get("reason").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO sale_returns (id, sale_id, branch_id, return_total, refund_amount, reason, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET sale_id=excluded.sale_id, branch_id=excluded.branch_id, return_total=excluded.return_total, refund_amount=excluded.refund_amount, reason=excluded.reason, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(sale_id)
+            .bind(branch_id)
+            .bind(return_total)
+            .bind(refund_amount)
+            .bind(reason)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "sale_return_lines" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let return_id = payload.get("return_id").and_then(|v| v.as_str());
+            let sale_line_id = payload.get("sale_line_id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let qty = payload.get("qty").and_then(|v| v.as_f64());
+            let refund_amount = payload.get("refund_amount").and_then(|v| v.as_f64());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO sale_return_lines (id, return_id, sale_line_id, item_id, qty, refund_amount, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET return_id=excluded.return_id, sale_line_id=excluded.sale_line_id, item_id=excluded.item_id, qty=excluded.qty, refund_amount=excluded.refund_amount, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(return_id)
+            .bind(sale_line_id)
+            .bind(item_id)
+            .bind(qty)
+            .bind(refund_amount)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "stock_opname" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let branch_id = payload.get("branch_id").and_then(|v| v.as_str());
+            let status = payload.get("status").and_then(|v| v.as_str());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let finalized_at = payload.get("finalized_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO stock_opname (id, branch_id, status, notes, created_by, created_at, finalized_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, 'system_sync', ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET branch_id=excluded.branch_id, status=excluded.status, notes=excluded.notes, finalized_at=excluded.finalized_at, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(branch_id)
+            .bind(status)
+            .bind(notes)
+            .bind(created_at)
+            .bind(finalized_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "stock_opname_lines" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let opname_id = payload.get("opname_id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let unit_id = payload.get("unit_id").and_then(|v| v.as_str());
+            let expected_qty = payload.get("expected_qty").and_then(|v| v.as_f64());
+            let actual_qty = payload.get("actual_qty").and_then(|v| v.as_f64());
+            let diff_qty = payload.get("diff_qty").and_then(|v| v.as_f64());
+            let hpp_value = payload.get("hpp_value").and_then(|v| v.as_f64());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO stock_opname_lines (id, opname_id, item_id, unit_id, expected_qty, actual_qty, diff_qty, hpp_value, notes, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET opname_id=excluded.opname_id, item_id=excluded.item_id, unit_id=excluded.unit_id, expected_qty=excluded.expected_qty, actual_qty=excluded.actual_qty, diff_qty=excluded.diff_qty, hpp_value=excluded.hpp_value, notes=excluded.notes, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(opname_id)
+            .bind(item_id)
+            .bind(unit_id)
+            .bind(expected_qty)
+            .bind(actual_qty)
+            .bind(diff_qty)
+            .bind(hpp_value)
+            .bind(notes)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "stock_ledger" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let unit_id = payload.get("unit_id").and_then(|v| v.as_str());
+            let branch_id = payload.get("branch_id").and_then(|v| v.as_str());
+            let qty_change = payload.get("qty_change").and_then(|v| v.as_f64());
+            let direction = payload.get("direction").and_then(|v| v.as_str());
+            let source_type = payload.get("source_type").and_then(|v| v.as_str());
+            let source_id = payload.get("source_id").and_then(|v| v.as_str());
+            let hpp_value = payload.get("hpp_value").and_then(|v| v.as_f64());
+            let expiry_date = payload.get("expiry_date").and_then(|v| v.as_str());
+            let batch_no = payload.get("batch_no").and_then(|v| v.as_str());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO stock_ledger (id, item_id, unit_id, branch_id, qty_change, direction, source_type, source_id, hpp_value, expiry_date, batch_no, notes, created_by, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync', ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET item_id=excluded.item_id, unit_id=excluded.unit_id, branch_id=excluded.branch_id, qty_change=excluded.qty_change, direction=excluded.direction, source_type=excluded.source_type, source_id=excluded.source_id, hpp_value=excluded.hpp_value, expiry_date=excluded.expiry_date, batch_no=excluded.batch_no, notes=excluded.notes, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(item_id)
+            .bind(unit_id)
+            .bind(branch_id)
+            .bind(qty_change)
+            .bind(direction)
+            .bind(source_type)
+            .bind(source_id)
+            .bind(hpp_value)
+            .bind(expiry_date)
+            .bind(batch_no)
+            .bind(notes)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "items" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let sku = payload.get("sku").and_then(|v| v.as_str());
+            let barcode = payload.get("barcode").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str());
+            let generic_name = payload.get("generic_name").and_then(|v| v.as_str());
+            let category_id = payload.get("category_id").and_then(|v| v.as_str());
+            let brand_id = payload.get("brand_id").and_then(|v| v.as_str());
+            let hpp_method = payload.get("hpp_method").and_then(|v| v.as_str());
+            let image_blob = payload.get("image_blob").and_then(|v| v.as_str());
+            let min_stock = payload.get("min_stock").and_then(|v| v.as_f64());
+            let has_expiry = payload.get("has_expiry").and_then(|v| v.as_i64());
+            let requires_prescription = payload.get("requires_prescription").and_then(|v| v.as_i64());
+            let notes = payload.get("notes").and_then(|v| v.as_str());
+            let is_active = payload.get("is_active").and_then(|v| v.as_i64());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO items (id, sku, barcode, name, generic_name, category_id, brand_id, hpp_method, image_blob, min_stock, has_expiry, requires_prescription, notes, is_active, created_at, updated_at, deleted_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET sku=excluded.sku, barcode=excluded.barcode, name=excluded.name, generic_name=excluded.generic_name, category_id=excluded.category_id, brand_id=excluded.brand_id, hpp_method=excluded.hpp_method, image_blob=excluded.image_blob, min_stock=excluded.min_stock, has_expiry=excluded.has_expiry, requires_prescription=excluded.requires_prescription, notes=excluded.notes, is_active=excluded.is_active, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(sku)
+            .bind(barcode)
+            .bind(name)
+            .bind(generic_name)
+            .bind(category_id)
+            .bind(brand_id)
+            .bind(hpp_method)
+            .bind(image_blob)
+            .bind(min_stock)
+            .bind(has_expiry)
+            .bind(requires_prescription)
+            .bind(notes)
+            .bind(is_active)
+            .bind(created_at)
+            .bind(updated_at)
+            .bind(deleted_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "item_units" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let unit_name = payload.get("unit_name").and_then(|v| v.as_str());
+            let conversion = payload.get("conversion").and_then(|v| v.as_f64());
+            let is_base = payload.get("is_base").and_then(|v| v.as_i64());
+            let barcode = payload.get("barcode").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO item_units (id, item_id, unit_name, conversion, is_base, barcode, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET item_id=excluded.item_id, unit_name=excluded.unit_name, conversion=excluded.conversion, is_base=excluded.is_base, barcode=excluded.barcode, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(item_id)
+            .bind(unit_name)
+            .bind(conversion)
+            .bind(is_base)
+            .bind(barcode)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "item_prices" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let unit_id = payload.get("unit_id").and_then(|v| v.as_str());
+            let customer_tier = payload.get("customer_tier").and_then(|v| v.as_str());
+            let price = payload.get("price").and_then(|v| v.as_f64());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO item_prices (id, item_id, unit_id, customer_tier, price, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET item_id=excluded.item_id, unit_id=excluded.unit_id, customer_tier=excluded.customer_tier, price=excluded.price, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(item_id)
+            .bind(unit_id)
+            .bind(customer_tier)
+            .bind(price)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "categories" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let parent_id = payload.get("parent_id").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str());
+            let description = payload.get("description").and_then(|v| v.as_str());
+            let color = payload.get("color").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO categories (id, parent_id, name, description, color, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET parent_id=excluded.parent_id, name=excluded.name, description=excluded.description, color=excluded.color, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(parent_id)
+            .bind(name)
+            .bind(description)
+            .bind(color)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "brands" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str());
+            let logo_blob = payload.get("logo_blob").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO brands (id, name, logo_blob, created_at, deleted_at, updated_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET name=excluded.name, logo_blob=excluded.logo_blob, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(name)
+            .bind(logo_blob)
+            .bind(created_at)
+            .bind(deleted_at)
+            .bind(updated_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        _ => {}
+    }
+    Ok(())
+}

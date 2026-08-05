@@ -479,6 +479,22 @@ pub async fn delete_sale(
     .await
     .map_err(|e| e.to_string())?;
 
+    // 2b. Delete sale_return_lines of any returns for this sale
+    sqlx::query(
+        "DELETE FROM sale_return_lines WHERE return_id IN (SELECT id FROM sale_returns WHERE sale_id = ?)"
+    )
+    .bind(&id)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // 2c. Delete sale_returns for this sale
+    sqlx::query("DELETE FROM sale_returns WHERE sale_id = ?")
+        .bind(&id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
     // 3. Delete journal entries for the sale itself
     sqlx::query("DELETE FROM journal_entries WHERE source_type = 'sale' AND source_id = ?")
         .bind(&id)

@@ -18,6 +18,7 @@ import { getCurrentUser } from './lib/api';
 import { useSyncStore } from './store/SyncStore';
 import { Package, Loader2 } from 'lucide-react';
 import { useZoomStore } from './store/ZoomStore';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
 
 export default function App() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
@@ -30,13 +31,22 @@ export default function App() {
   const [isVerifying, setIsVerifying] = useState(true);
 
   const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
+  
+  useRealtimeSync();
+
+  // Bump refreshTrigger whenever the pull-worker syncs cloud data locally
+  useEffect(() => {
+    const handler = () => setRefreshTrigger(p => p + 1);
+    window.addEventListener('chirasys:sync', handler);
+    return () => window.removeEventListener('chirasys:sync', handler);
+  }, []);
 
   useEffect(() => {
     (document.documentElement.style as any).zoom = `${zoom}%`;
   }, [zoom]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === '=' || e.key === '+') {
           e.preventDefault();
@@ -47,6 +57,24 @@ export default function App() {
         } else if (e.key === '0') {
           e.preventDefault();
           reset();
+        }
+      }
+
+      // Global Shortcut for Cash Drawer (Alt + C)
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        try {
+          const { getSettings, kickCashDrawer } = await import('./lib/api');
+          const data = await getSettings();
+          const pName = data.find((s: any) => s.key === 'printer_name')?.value;
+          if (pName) {
+            console.log(`[Global Shortcut] Kicking cash drawer on printer: ${pName}`);
+            await kickCashDrawer(pName);
+          } else {
+            console.warn('[Global Shortcut] No printer configured for cash drawer kick.');
+          }
+        } catch (err) {
+          console.error('[Global Shortcut] Failed to kick cash drawer:', err);
         }
       }
     };

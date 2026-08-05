@@ -61,7 +61,7 @@ export default function POS() {
     },
     {
       target: '.tour-pos-payment',
-      content: 'Klik Bayar (F10 / End) untuk memproses pembayaran dan mencetak struk.',
+      content: 'Klik Bayar (End) untuk memproses pembayaran dan mencetak struk.',
     }
   ];
 
@@ -188,10 +188,6 @@ export default function POS() {
             setCartDiscount(0);
             setSelectedCartIdx(-1);
           }
-          break;
-        case 'F10':
-          e.preventDefault();
-          if (cart.length > 0 && !showPayment) setShowPayment(true);
           break;
         case 'End':
           e.preventDefault();
@@ -417,9 +413,25 @@ export default function POS() {
     setSelectedCartIdx(-1);
   };
 
-  const handlePaymentSuccess = (saleId: string, print: boolean) => {
+  const handlePaymentSuccess = async (saleId: string, print: boolean) => {
     setCart([]); setCartDiscount(0); setSearch(''); setShowPayment(false);
     setSelectedCartIdx(-1);
+    
+    // Instantly kick the cash drawer in the background
+    try {
+      const settings = await getSettings();
+      const pName = settings.find(s => s.key === 'printer_name')?.value;
+      if (pName) {
+        // We import kickCashDrawer dynamically or statically? 
+        // We can just statically import kickCashDrawer at the top. Let's assume it's imported from api, wait, it's not.
+        // Let's dynamically import to avoid touching imports if not needed, or better, we can use the existing `api.ts` import.
+        const { kickCashDrawer } = await import('../../lib/api');
+        kickCashDrawer(pName).catch(e => console.error("Drawer kick failed", e));
+      }
+    } catch (e) {
+      console.error("Failed to kick drawer on payment", e);
+    }
+
     if (print) setReceiptSaleId(saleId);
   };
 
@@ -428,10 +440,10 @@ export default function POS() {
   return (
     <div className="flex h-full w-full bg-slate-100 dark:bg-[#0B0F19] p-3 gap-3 animate-in fade-in">
       {/* LEFT: Item Search */}
-      <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden min-w-0">
-        <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/50 shrink-0">
+      <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-200/80 dark:border-slate-800 overflow-hidden min-w-0">
+        <div className="p-3.5 border-b border-slate-200/80 dark:border-slate-800 flex items-center gap-3 bg-slate-50/80 dark:bg-slate-950/50 shrink-0">
           <div className="flex-1 relative tour-pos-search">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
             <input
               ref={searchInputRef}
               type="text"
@@ -439,37 +451,51 @@ export default function POS() {
               onChange={e => setSearch(e.target.value)}
               onKeyDown={handleBarcodeEnter}
               placeholder="Scan barcode atau ketik nama obat... (F1/F2)"
-              className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none text-slate-900 dark:text-white placeholder-slate-400"
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none text-slate-900 dark:text-white placeholder-slate-400 shadow-xs transition-all"
               autoFocus
             />
           </div>
-          <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
-            <button onClick={() => setPriceType('retail')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-brand ${priceType === 'retail' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Eceran</button>
-            <button onClick={() => setPriceType('wholesale')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-brand ${priceType === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>Grosir</button>
+          <div className="flex bg-slate-200/70 dark:bg-slate-800/80 p-1 rounded-xl shrink-0">
+            <button onClick={() => setPriceType('retail')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-brand ${priceType === 'retail' ? 'bg-white dark:bg-slate-700 shadow-xs text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Eceran</button>
+            <button onClick={() => setPriceType('wholesale')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-brand ${priceType === 'wholesale' ? 'bg-white dark:bg-slate-700 shadow-xs text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>Grosir</button>
           </div>
-          <button onClick={() => setRunTour(true)} className="p-2.5 text-slate-500 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brand" title="Bantuan & Panduan">
+          <button onClick={() => setRunTour(true)} className="p-2.5 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brand" title="Bantuan & Panduan">
             <HelpCircle size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
           {search.length < 2 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 select-none">
-              <ShoppingCart size={48} className="mb-3 opacity-20" />
-              <p className="text-sm">Scan barcode atau ketik nama obat</p>
-              <p className="text-xs mt-1 text-slate-400">Tekan F1/F2 untuk fokus pencarian</p>
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 select-none text-center">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-3 shadow-inner border border-slate-200/60 dark:border-slate-700/60">
+                <ShoppingCart size={28} className="opacity-40" />
+              </div>
+              <p className="text-sm font-extrabold text-slate-700 dark:text-slate-300">Scan Barcode atau Ketik Nama Obat</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Tekan <kbd className="font-mono bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">F1</kbd> atau <kbd className="font-mono bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">F2</kbd> untuk langsung fokus ke kolom pencarian</p>
               {cart.length > 0 && (
-                <p className="text-xs mt-3 text-brand/70 bg-brand/5 px-3 py-1.5 rounded-lg border border-brand/10">
-                  ↑↓ Navigasi keranjang · ±/- Ubah qty · Alt+H Edit harga · Del Hapus
-                </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-brand bg-brand/5 dark:bg-brand/10 px-3.5 py-2 rounded-xl border border-brand/10 dark:border-brand/20 font-medium">
+                  <span>↑↓ Navigasi keranjang</span>
+                  <span>·</span>
+                  <span>±/- Ubah qty</span>
+                  <span>·</span>
+                  <span>Alt+H Edit harga</span>
+                  <span>·</span>
+                  <span>Del Hapus</span>
+                </div>
               )}
             </div>
           ) : loading ? (
-            <div className="h-full flex justify-center items-center"><Loader2 className="animate-spin text-brand" size={28} /></div>
+            <div className="h-full flex flex-col justify-center items-center gap-2">
+              <Loader2 className="animate-spin text-brand" size={32} />
+              <span className="text-xs text-slate-400 font-medium">Mencari obat...</span>
+            </div>
           ) : items.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400">
-              <Search size={36} className="mb-2 opacity-30" />
-              <p className="text-sm">Tidak ada produk ditemukan</p>
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-3 border border-slate-200/60 dark:border-slate-700/60">
+                <Search size={26} className="opacity-40" />
+              </div>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Tidak ada produk ditemukan</p>
+              <p className="text-xs text-slate-400 mt-1">Coba kata kunci atau nomor SKU lain</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -478,11 +504,11 @@ export default function POS() {
                   key={item.id}
                   ref={el => { itemRefs.current[idx] = el; }}
                   onClick={() => addToCart(item)}
-                  className="flex flex-col text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 hover:border-brand hover:ring-1 hover:ring-brand/50 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand transition-all active:scale-[0.97]"
+                  className="flex flex-col text-left bg-white dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 rounded-xl p-3.5 hover:border-brand hover:ring-2 hover:ring-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand shadow-xs transition-all active:scale-[0.97] group"
                 >
-                  <span className="font-bold text-sm text-slate-900 dark:text-white mb-1 line-clamp-2 leading-tight">{item.name}</span>
+                  <span className="font-bold text-sm text-slate-900 dark:text-white mb-1 line-clamp-2 leading-tight group-hover:text-brand transition-colors">{item.name}</span>
                   <span className="text-[11px] text-slate-500 font-mono mb-2">{item.sku}</span>
-                  <span className="mt-auto font-bold text-brand text-sm">Rp {(item.price || 0).toLocaleString('id-ID')}</span>
+                  <span className="mt-auto font-black text-brand text-sm font-mono">Rp {(item.price || 0).toLocaleString('id-ID')}</span>
                 </button>
               ))}
             </div>
@@ -490,43 +516,68 @@ export default function POS() {
         </div>
 
         {/* Keyboard Shortcut Hint Bar */}
-        <div className="p-2.5 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-slate-500 font-medium shrink-0">
-          {[['F1/F2','Cari'],['F3','Pelanggan'],['F4','Tahan'],['F5','Lanjut'],['F9','Baru'],['F10/End','Bayar'],['Alt+H','Edit Harga'],['F11','Layar Penuh'],['F12','Hapus Baris']].map(([k, v]) => (
-            <span key={k} className="flex items-center gap-1.5"><kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300">{k}</kbd> {v}</span>
+        <div className="p-2.5 bg-slate-50/90 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-slate-500 font-medium shrink-0">
+          {[['F1/F2','Cari'],['F3','Pelanggan'],['F4','Tahan'],['F5','Lanjut'],['F9','Baru'],['End','Bayar'],['Alt+H','Edit Harga'],['F11','Layar Penuh'],['F12','Hapus Baris']].map(([k, v]) => (
+            <span key={k} className="flex items-center gap-1.5"><kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300">{k}</kbd> {v}</span>
           ))}
         </div>
       </div>
 
-      {/* RIGHT: Cart */}
-      <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden w-80 xl:w-96 shrink-0">
+      {/* RIGHT: Cart Panel */}
+      <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-200/80 dark:border-slate-800 overflow-hidden w-80 xl:w-96 shrink-0 transition-all">
         {/* Customer Header */}
         <button
-          className="w-full px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/40 focus:outline-none focus:bg-slate-100 dark:focus:bg-slate-800 focus:ring-inset focus:ring-2 focus:ring-brand transition-colors tour-pos-customer"
+          className="w-full px-4 py-3.5 border-b border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-slate-50 via-slate-50 to-indigo-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/20 flex justify-between items-center cursor-pointer hover:from-slate-100 hover:to-indigo-100/50 dark:hover:from-slate-900 dark:hover:to-indigo-900/30 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-inset transition-all tour-pos-customer group"
           onClick={() => setShowCustomerPicker(true)}
         >
-          <div className="flex items-center gap-2">
-            <UserCheck size={15} className="text-brand" />
-            <div>
-              <p className="text-xs font-bold text-slate-900 dark:text-white leading-none">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 dark:bg-brand/20 text-brand flex items-center justify-center font-bold shrink-0 border border-brand/20 group-hover:scale-105 transition-transform">
+              <UserCheck size={18} />
+            </div>
+            <div className="text-left min-w-0">
+              <p className="text-xs font-black text-slate-900 dark:text-white truncate leading-tight group-hover:text-brand transition-colors">
                 {selectedCustomer ? selectedCustomer.name : 'Pelanggan Umum'}
               </p>
-              {selectedCustomer && (
-                <p className="text-[10px] text-slate-500 mt-0.5">{TIER_LABEL[selectedCustomer.customer_tier] || 'Regular'}</p>
-              )}
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                  {selectedCustomer ? (TIER_LABEL[selectedCustomer.customer_tier] || 'Regular') : 'Umum / Non-Member'}
+                </p>
+              </div>
             </div>
           </div>
-          <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-1 rounded-lg">F3 Ubah</span>
+          <div className="flex items-center gap-1 bg-brand/10 dark:bg-brand/20 text-brand px-2.5 py-1 rounded-xl text-[10px] font-black border border-brand/20 group-hover:bg-brand group-hover:text-white transition-all shadow-xs">
+            <span>F3</span>
+            <span className="font-normal opacity-80">Ubah</span>
+          </div>
         </button>
 
+        {/* Cart Item Header (When items present) */}
+        {cart.length > 0 && (
+          <div className="px-3.5 py-2 bg-slate-50/80 dark:bg-slate-950/40 border-b border-slate-200/60 dark:border-slate-800/60 flex justify-between items-center text-[11px] font-bold text-slate-500 dark:text-slate-400 shrink-0">
+            <span>Daftar Belanja ({cart.length})</span>
+            <span className="text-slate-400 dark:text-slate-500 font-normal">{cart.reduce((s, l) => s + l.qty, 0)} Pcs Total</span>
+          </div>
+        )}
+
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 tour-pos-cart">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2.5 tour-pos-cart">
           {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 select-none">
-              <ShoppingCart size={36} className="mb-2 opacity-20" />
-              <p className="text-xs">Keranjang kosong</p>
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 select-none p-6 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-3 shadow-inner border border-slate-200/60 dark:border-slate-700/60">
+                <ShoppingCart size={28} className="opacity-40" />
+              </div>
+              <p className="text-sm font-extrabold text-slate-700 dark:text-slate-300">Keranjang Masih Kosong</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[200px] leading-relaxed">
+                Scan barcode atau cari obat untuk menambahkan ke keranjang
+              </p>
+              <div className="mt-4 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-[11px] text-slate-500 font-medium">
+                <kbd className="font-mono text-[10px] font-bold bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300">F1 / F2</kbd>
+                <span>Fokus Cari Barang</span>
+              </div>
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {cart.map((l, idx) => {
                 const isSelected = selectedCartIdx === idx;
                 const isEditingPrice = editingPriceIdx === idx;
@@ -545,23 +596,27 @@ export default function POS() {
                       if (e.key === 'Delete' && !l.is_bogo_free) { removeItem(l.item_id); setSelectedCartIdx(Math.max(0, idx - 1)); }
                       if ((e.altKey && e.key === 'h') && !l.is_bogo_free) startEditPrice(idx);
                     }}
-                    className={`p-3 rounded-xl border flex gap-2 transition-all outline-none cursor-pointer ${
+                    className={`p-3 rounded-xl border flex gap-2.5 transition-all outline-none cursor-pointer relative ${
                       isSelected
-                        ? 'ring-2 ring-brand border-brand bg-brand/5 dark:bg-brand/10'
+                        ? 'ring-2 ring-brand border-brand bg-brand/5 dark:bg-brand/10 shadow-xs border-l-4 border-l-brand'
                         : l.is_bogo_free
-                          ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/50'
-                          : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-600'
+                          ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50'
+                          : 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/70'
                     }`}
                   >
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-1">
-                        {l.is_bogo_free && <span className="text-emerald-600 mr-1">FREE</span>}
+                      <h4 className="font-bold text-xs text-slate-900 dark:text-white line-clamp-1 flex items-center gap-1.5">
+                        {l.is_bogo_free && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-500 text-white shrink-0">
+                            FREE
+                          </span>
+                        )}
                         {l.item_name}
                       </h4>
                       {/* Price display / edit */}
                       {isEditingPrice ? (
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-[10px] text-slate-500">Rp</span>
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <span className="text-[10px] font-bold text-slate-500">Rp</span>
                           <input
                             ref={priceEditInputRef}
                             type="number"
@@ -571,43 +626,51 @@ export default function POS() {
                               if (e.key === 'Enter') { e.preventDefault(); commitPriceEdit(); }
                               if (e.key === 'Escape') { e.preventDefault(); cancelPriceEdit(); }
                             }}
-                            className="w-24 text-[11px] font-bold px-1.5 py-0.5 border border-brand rounded bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-brand"
+                            className="w-24 text-[11px] font-bold px-2 py-0.5 border-2 border-brand rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none shadow-xs"
                           />
-                          <button onClick={e => { e.stopPropagation(); commitPriceEdit(); }} className="text-emerald-500 hover:text-emerald-600"><Check size={12}/></button>
-                          <button onClick={e => { e.stopPropagation(); cancelPriceEdit(); }} className="text-slate-400 hover:text-rose-500"><XIcon size={12}/></button>
+                          <button onClick={e => { e.stopPropagation(); commitPriceEdit(); }} className="p-1 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 transition-colors"><Check size={12}/></button>
+                          <button onClick={e => { e.stopPropagation(); cancelPriceEdit(); }} className="p-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-md hover:bg-rose-500 hover:text-white transition-colors"><XIcon size={12}/></button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <p className="text-[11px] text-slate-500">Rp {l.price.toLocaleString('id-ID')} / {l.unit_name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                            Rp {l.price.toLocaleString('id-ID')} <span className="text-[10px] text-slate-400">/ {l.unit_name}</span>
+                          </p>
                           {!l.is_bogo_free && isSelected && (
                             <button
                               onClick={e => { e.stopPropagation(); startEditPrice(idx); }}
-                              className="text-slate-400 hover:text-brand transition-colors"
+                              className="text-slate-400 hover:text-brand bg-slate-200/50 dark:bg-slate-700/50 p-1 rounded-md transition-colors"
                               title="Edit harga (Alt+H)"
                             >
-                              <Edit2 size={10}/>
+                              <Edit2 size={11}/>
                             </button>
                           )}
                         </div>
                       )}
                       {l.discount_amount > 0 && (
-                        <span className="text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded mt-1 inline-block">
-                          -Rp {l.discount_amount.toLocaleString('id-ID')}
+                        <span className="text-[10px] font-bold bg-emerald-500/10 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-md mt-1 inline-block border border-emerald-500/20">
+                          Diskon -Rp {l.discount_amount.toLocaleString('id-ID')}
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-col items-end justify-between gap-1">
-                      <span className="font-bold text-xs text-brand">Rp {((l.qty * l.price) - l.discount_amount).toLocaleString('id-ID')}</span>
+
+                    <div className="flex flex-col items-end justify-between gap-1.5 shrink-0">
+                      <span className="font-extrabold text-xs text-brand dark:text-blue-400">
+                        Rp {((l.qty * l.price) - l.discount_amount).toLocaleString('id-ID')}
+                      </span>
                       {!l.is_bogo_free && (
-                        <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
-                          <button onClick={e => { e.stopPropagation(); updateQty(l.item_id, -1); }} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400 focus:outline-none focus:text-brand focus:bg-brand/10 rounded"><Minus size={12}/></button>
-                          <span className="w-7 text-center text-xs font-bold text-slate-900 dark:text-white">{l.qty}</span>
-                          <button onClick={e => { e.stopPropagation(); updateQty(l.item_id, 1); }} className="p-1 hover:text-brand text-slate-600 dark:text-slate-400 focus:outline-none focus:text-brand focus:bg-brand/10 rounded"><Plus size={12}/></button>
+                        <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-xs p-0.5">
+                          <button onClick={e => { e.stopPropagation(); updateQty(l.item_id, -1); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded transition-colors"><Minus size={12}/></button>
+                          <span className="w-6 text-center text-xs font-black text-slate-900 dark:text-white">{l.qty}</span>
+                          <button onClick={e => { e.stopPropagation(); updateQty(l.item_id, 1); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded transition-colors"><Plus size={12}/></button>
                         </div>
                       )}
                     </div>
+
                     {!l.is_bogo_free && (
-                      <button onClick={e => { e.stopPropagation(); removeItem(l.item_id); }} className="text-slate-400 hover:text-rose-500 focus:outline-none focus:text-rose-500 focus:bg-rose-50 dark:focus:bg-rose-500/10 rounded p-0.5 self-start"><Trash2 size={14}/></button>
+                      <button onClick={e => { e.stopPropagation(); removeItem(l.item_id); }} className="text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 p-1 rounded-lg transition-colors self-start ml-0.5" title="Hapus item (Delete)">
+                        <Trash2 size={13}/>
+                      </button>
                     )}
                   </div>
                 );
@@ -618,9 +681,9 @@ export default function POS() {
 
         {/* Held Transactions */}
         {holds.length > 0 && (
-          <div className="p-2 border-t border-slate-200 dark:border-slate-800 bg-amber-50/50 dark:bg-amber-900/10 flex gap-1.5 overflow-x-auto custom-scrollbar">
+          <div className="p-2 border-t border-slate-200 dark:border-slate-800 bg-amber-50/70 dark:bg-amber-950/30 flex gap-1.5 overflow-x-auto custom-scrollbar shrink-0">
             {holds.map(h => (
-              <button key={h.id} onClick={() => handleResume(h)} className="flex items-center gap-1 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800/50 rounded-lg whitespace-nowrap text-[11px] font-bold text-amber-700 dark:text-amber-500 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors">
+              <button key={h.id} onClick={() => handleResume(h)} className="flex items-center gap-1 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800/50 rounded-xl whitespace-nowrap text-[11px] font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors shadow-xs">
                 <PlayCircle size={12} /> {h.timestamp}
               </button>
             ))}
@@ -628,57 +691,74 @@ export default function POS() {
         )}
 
         {/* Cart Footer */}
-        <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 shrink-0">
-          <div className="flex justify-between items-center mb-2">
-            <button onClick={() => setShowHistory(true)} className="flex items-center px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand transition-colors">
-              <Clock size={14} className="mr-1.5" />
-              <span className="text-xs font-semibold">Riwayat</span>
+        <div className="p-3.5 bg-slate-50/90 dark:bg-slate-950/80 border-t border-slate-200 dark:border-slate-800 shrink-0 space-y-3">
+          {/* History Button & Summary Badge */}
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => setShowHistory(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-brand hover:border-brand/40 shadow-xs text-xs font-bold transition-all cursor-pointer group"
+            >
+              <Clock size={13} className="text-slate-400 group-hover:text-brand transition-colors" />
+              <span>Riwayat Nota</span>
             </button>
-            <div className="text-right">
+            
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 bg-slate-200/60 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+              {cart.reduce((s, l) => s + l.qty, 0)} Pcs ({cart.length} Item)
+            </span>
+          </div>
+
+          {/* Price Breakdown Details */}
+          {(cartDiscount > 0 || currentTierDiscountPercent > 0 || taxRate > 0) && (
+            <div className="space-y-1.5 py-2 border-t border-slate-200/60 dark:border-slate-800/60 text-xs">
               {cartDiscount > 0 && (
-                <div className="flex justify-end gap-2 text-xs">
-                  <span className="text-slate-500">Diskon:</span>
-                  <span className="font-bold text-green-600">-Rp {cartDiscount.toLocaleString('id-ID')}</span>
+                <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                  <span>Diskon Promo</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">-Rp {cartDiscount.toLocaleString('id-ID')}</span>
                 </div>
               )}
               {currentTierDiscountPercent > 0 && (
-                <div className="flex justify-between items-center text-indigo-600 dark:text-indigo-400 font-medium pb-2 border-b border-indigo-100 dark:border-indigo-900/50">
-                  <span className="flex items-center gap-1.5"><Crown size={14} /> Tier Discount ({currentTierDiscountPercent}%)</span>
+                <div className="flex justify-between items-center text-indigo-600 dark:text-indigo-400 font-semibold">
+                  <span className="flex items-center gap-1"><Crown size={12} /> Diskon Tier ({currentTierDiscountPercent}%)</span>
                   <span>-Rp {tierDiscountAmount.toLocaleString('id-ID')}</span>
                 </div>
               )}
-              {taxMode === 'exclude' && taxRate > 0 && (
-                <div className="flex justify-between items-center text-slate-500 font-medium">
-                  <span>Pajak ({taxRate}%)</span>
-                  <span>+Rp {taxAmount.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+              {taxRate > 0 && (
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Pajak ({taxRate}% - {taxMode})</span>
+                  <span>{taxMode === 'exclude' ? '+' : ''}Rp {taxAmount.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                 </div>
               )}
-              {taxMode === 'include' && taxRate > 0 && (
-                <div className="flex justify-between items-center text-slate-500 font-medium">
-                  <span>Termasuk Pajak ({taxRate}%)</span>
-                  <span>Rp {taxAmount.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center font-black text-2xl text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-800">
-                <span>Total</span>
-                <span>Rp {Math.round(total).toLocaleString('id-ID')}</span>
-              </div>
+            </div>
+          )}
+
+          {/* Grand Total Display Banner */}
+          <div className="p-3.5 bg-gradient-to-r from-brand/5 via-slate-50 to-emerald-50/30 dark:from-slate-950 dark:via-slate-950 dark:to-emerald-950/20 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs flex items-center justify-between transition-all">
+            <div>
+              <span className="text-[10px] font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase block">TOTAL BAYAR</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Termasuk pajak & diskon</span>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl xl:text-3xl font-black tracking-tight text-brand dark:text-emerald-400 font-mono">
+                Rp {Math.round(total).toLocaleString('id-ID')}
+              </span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-5 gap-2">
             <button
               onClick={handleHold}
               disabled={cart.length === 0}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-40 transition-colors"
+              className="col-span-2 flex items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-40 transition-all cursor-pointer shadow-xs"
             >
               <PauseCircle size={15}/> Tahan (F4)
             </button>
             <button
               onClick={() => setShowPayment(true)}
               disabled={cart.length === 0}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold bg-brand text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand dark:focus:ring-offset-slate-900 disabled:opacity-40 transition-colors shadow-sm tour-pos-payment"
+              className="col-span-3 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black bg-gradient-to-r from-brand to-blue-600 hover:from-blue-600 hover:to-indigo-600 text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand dark:focus:ring-offset-slate-900 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-md shadow-brand/25 tour-pos-payment cursor-pointer active:scale-[0.98]"
             >
-              Bayar (F10)
+              <span>Bayar (End)</span>
             </button>
           </div>
         </div>

@@ -53,7 +53,10 @@ export default function CustomerPickerModal({ isOpen, onClose, onSelect, selecte
             setLoading(true);
             try {
                 const results = await getCustomers(search, '', true);
-                setCustomers(results);
+                const filtered = results.filter(
+                    c => c.id !== 'cust_umum' && c.name.trim().toLowerCase() !== 'pelanggan umum'
+                );
+                setCustomers(filtered);
             } finally { setLoading(false); }
         }, 250);
         return () => clearTimeout(timer);
@@ -89,7 +92,7 @@ export default function CustomerPickerModal({ isOpen, onClose, onSelect, selecte
 
                 <button
                     onClick={() => { onSelect(null); onClose(); }}
-                    className={`flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 focus:outline-none focus:bg-brand/10 ${!selectedId ? 'bg-brand/5' : ''} ${focusedIndex === 0 ? 'ring-2 ring-inset ring-brand bg-brand/10' : ''}`}
+                    className={`flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 focus:outline-none focus:bg-brand/10 ${(!selectedId || selectedId === 'cust_umum') ? 'bg-brand/5' : ''} ${focusedIndex === 0 ? 'ring-2 ring-inset ring-brand bg-brand/10' : ''}`}
                 >
                     <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                         <UserCheck size={16} className="text-slate-500" />
@@ -98,7 +101,7 @@ export default function CustomerPickerModal({ isOpen, onClose, onSelect, selecte
                         <p className="text-sm font-semibold text-slate-900 dark:text-white">Pelanggan Umum</p>
                         <p className="text-xs text-slate-500">Tanpa pencatatan pelanggan</p>
                     </div>
-                    {!selectedId && <span className="ml-auto text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-full">Dipilih</span>}
+                    {(!selectedId || selectedId === 'cust_umum') && <span className="ml-auto text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-full">Dipilih</span>}
                 </button>
 
                 {/* Customer list */}

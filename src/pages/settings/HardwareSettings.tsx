@@ -7,17 +7,22 @@ export default function HardwareSettings() {
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [showTestReceipt, setShowTestReceipt] = useState(false);
   const [drawerLoading, setDrawerLoading] = useState(false);
 
   // Hardware config state (mirrored from DB via get_settings)
   const [selectedPrinter, setSelectedPrinter] = useState('');
   const [selectedPrinterPort, setSelectedPrinterPort] = useState('');
   const [paperWidth, setPaperWidth] = useState<'80mm' | '58mm'>('80mm');
+  const [printerCharsPerLine, setPrinterCharsPerLine] = useState(32);
   const [autoOpenDrawer, setAutoOpenDrawer] = useState(true);
   const [autoCutPaper, setAutoCutPaper] = useState(true);
   const [enableBarcodeSound, setEnableBarcodeSound] = useState(true);
   const [customerDisplay, setCustomerDisplay] = useState(false);
+
+  // Template config state
+  const [receiptHeader, setReceiptHeader] = useState('');
+  const [receiptAddress, setReceiptAddress] = useState('');
+  const [receiptFooter, setReceiptFooter] = useState('');
 
   // Live detected printers from Windows OS via Tauri invoke
   const [detectedPrinters, setDetectedPrinters] = useState<DetectedPrinterInfo[]>([]);
@@ -35,18 +40,31 @@ export default function HardwareSettings() {
       const pName = data.find(s => s.key === 'printer_name')?.value;
       const pPort = data.find(s => s.key === 'printer_port')?.value;
       const pWidth = data.find(s => s.key === 'printer_width')?.value;
+      const pChars = data.find(s => s.key === 'printer_chars_per_line')?.value;
       const pDrawer = data.find(s => s.key === 'drawer_auto_open')?.value;
       const pCut = data.find(s => s.key === 'printer_autocut')?.value;
       const pBip = data.find(s => s.key === 'barcode_sound')?.value;
       const pDisp = data.find(s => s.key === 'customer_display')?.value;
+      
+      const rHeader = data.find(s => s.key === 'receipt_header')?.value;
+      const rAddress = data.find(s => s.key === 'receipt_address')?.value;
+      const rFooter = data.find(s => s.key === 'receipt_footer')?.value;
 
       if (pName) setSelectedPrinter(pName);
       if (pPort) setSelectedPrinterPort(pPort);
-      if (pWidth === '58mm' || pWidth === '80mm') setPaperWidth(pWidth);
+      if (pWidth === '58mm' || pWidth === '80mm') {
+        setPaperWidth(pWidth);
+        if (!pChars) setPrinterCharsPerLine(pWidth === '80mm' ? 48 : 32);
+      }
+      if (pChars) setPrinterCharsPerLine(parseInt(pChars, 10));
       if (pDrawer !== undefined) setAutoOpenDrawer(pDrawer === 'true');
       if (pCut !== undefined) setAutoCutPaper(pCut === 'true');
       if (pBip !== undefined) setEnableBarcodeSound(pBip === 'true');
       if (pDisp !== undefined) setCustomerDisplay(pDisp === 'true');
+
+      if (rHeader) setReceiptHeader(rHeader);
+      if (rAddress) setReceiptAddress(rAddress);
+      if (rFooter) setReceiptFooter(rFooter);
     } catch (e) {
       console.error('Failed to load hardware settings:', e);
     }
@@ -88,10 +106,16 @@ export default function HardwareSettings() {
       await setSetting('printer_name', selectedPrinter);
       await setSetting('printer_port', selectedPrinterPort);
       await setSetting('printer_width', paperWidth);
+      await setSetting('printer_chars_per_line', String(printerCharsPerLine));
       await setSetting('drawer_auto_open', String(autoOpenDrawer));
       await setSetting('printer_autocut', String(autoCutPaper));
       await setSetting('barcode_sound', String(enableBarcodeSound));
       await setSetting('customer_display', String(customerDisplay));
+      
+      await setSetting('receipt_header', receiptHeader);
+      await setSetting('receipt_address', receiptAddress);
+      await setSetting('receipt_footer', receiptFooter);
+
       setSuccessMsg('Pengaturan printer & hardware berhasil disimpan ke database!');
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (e: any) {
@@ -101,23 +125,70 @@ export default function HardwareSettings() {
     }
   };
 
-  const handleTestPrint = () => {
-    setShowTestReceipt(true);
-  };
+  const handleTestPrint = async () => {
+    if (!selectedPrinter) {
+      setErrorMsg('Pilih printer terlebih dahulu.');
+      return;
+    }
+    setDrawerLoading(true);
+    setErrorMsg('');
+    try {
+      const { EscPosBuilder } = await import('../../lib/escpos');
+      const { printRawReceipt } = await import('../../lib/api');
+      
+      const builder = new EscPosBuilder();
+      
+      // Use standard font
+      
+      // Header (Left Aligned)
+      builder.align('left');
+      builder.bold(true).textLine(receiptHeader || 'CHIRASYS ERP').bold(false);
+      if (receiptAddress) builder.textLine(receiptAddress);
+      builder.feed(1);
+      
+      // Body
+      builder.drawLine(printerCharsPerLine, '-');
+      builder.leftRight('1x ITEM UJI COBA A', '15.000', printerCharsPerLine);
+      builder.leftRight('2x ITEM UJI COBA B', '30.000', printerCharsPerLine);
+      builder.drawLine(printerCharsPerLine, '-');
+      
+      // Total
+      builder.bold(true);
+      builder.leftRight('TOTAL:', 'Rp 45.000', printerCharsPerLine);
+      builder.bold(false);
+      builder.leftRight('TUNAI:', 'Rp 50.000', printerCharsPerLine);
+      builder.bold(true);
+      builder.leftRight('KEMBALI:', 'Rp 5.000', printerCharsPerLine);
+      builder.bold(false);
+      builder.drawLine(printerCharsPerLine, '-');
+      
+      // Footer (Left Aligned)
+      if (receiptFooter) builder.textLine(receiptFooter);
+      builder.textLine('PRINTER THERMAL TERHUBUNG');
+      builder.textLine('ChiraSys ERP & Cashier System');
+      builder.feed(5);
+      
+      if (autoCutPaper) builder.cut();
 
-  const handlePrintTestExecution = () => {
-    window.print();
+      await printRawReceipt(selectedPrinter, builder.build());
+      setSuccessMsg('Struk uji coba berhasil dikirim ke printer!');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (e: any) {
+      setErrorMsg(`Gagal mencetak: ${e?.message || String(e)}`);
+    } finally {
+      setDrawerLoading(false);
+    }
   };
 
   const handleTestDrawer = async () => {
-    if (!selectedPrinterPort) {
+    if (!selectedPrinter) {
       setErrorMsg('Pilih printer terlebih dahulu dan simpan konfigurasi sebelum menguji laci uang.');
       return;
     }
     setDrawerLoading(true);
     setErrorMsg('');
     try {
-      const msg = await kickCashDrawer(selectedPrinterPort);
+      const msg = await kickCashDrawer(selectedPrinter);
       setSuccessMsg(`🔔 Laci Uang: ${msg}`);
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (e: any) {
@@ -225,35 +296,55 @@ export default function HardwareSettings() {
             </div>
 
             {/* Paper Size Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Ukuran Kertas Thermal Roll
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPaperWidth('80mm')}
-                  className={`p-4 rounded-2xl border flex flex-col items-center gap-1.5 text-center transition-all cursor-pointer ${
-                    paperWidth === '80mm'
-                      ? 'bg-brand/10 border-brand text-brand shadow-sm'
-                      : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                  }`}
-                >
-                  <span className="text-sm font-extrabold">80 mm (Standar POS Toko)</span>
-                  <span className="text-[11px] opacity-75">Tampilan lebar, muat detail promo & logo</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaperWidth('58mm')}
-                  className={`p-4 rounded-2xl border flex flex-col items-center gap-1.5 text-center transition-all cursor-pointer ${
-                    paperWidth === '58mm'
-                      ? 'bg-brand/10 border-brand text-brand shadow-sm'
-                      : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                  }`}
-                >
-                  <span className="text-sm font-extrabold">58 mm (Mini / Portable)</span>
-                  <span className="text-[11px] opacity-75">Tampilan ringkas untuk printer Bluetooth/Mobile</span>
-                </button>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Ukuran Kertas Thermal Roll
+                </label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setPaperWidth('80mm'); setPrinterCharsPerLine(48); }}
+                    className={`p-4 rounded-2xl border flex flex-col items-center gap-1.5 text-center transition-all cursor-pointer ${
+                      paperWidth === '80mm'
+                        ? 'bg-brand/10 border-brand text-brand shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-sm font-extrabold">80 mm (Standar POS Toko)</span>
+                    <span className="text-[11px] opacity-75">Tampilan lebar, muat detail promo & logo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPaperWidth('58mm'); setPrinterCharsPerLine(32); }}
+                    className={`p-4 rounded-2xl border flex flex-col items-center gap-1.5 text-center transition-all cursor-pointer ${
+                      paperWidth === '58mm'
+                        ? 'bg-brand/10 border-brand text-brand shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-sm font-extrabold">58 mm (Mini / Portable)</span>
+                    <span className="text-[11px] opacity-75">Tampilan ringkas untuk printer Bluetooth/Mobile</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Karakter per Baris (Lebar Cetak)
+                </label>
+                <p className="text-[10px] text-slate-500 mb-2">Jika teks terpotong di kanan, kurangi angka ini (Standar: 80mm = 48, 58mm = 32). Beberapa printer 58mm butuh 30 atau 32.</p>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="24"
+                    max="64"
+                    value={printerCharsPerLine}
+                    onChange={(e) => setPrinterCharsPerLine(parseInt(e.target.value, 10))}
+                    className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand"
+                  />
+                  <span className="text-sm font-bold w-12 text-center text-brand bg-brand/10 py-1 rounded-lg">{printerCharsPerLine}</span>
+                </div>
               </div>
             </div>
 
@@ -420,13 +511,13 @@ export default function HardwareSettings() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Laci Uang (Cash Drawer)</p>
-                    <p className="text-[10px] text-slate-400">ESC/POS RJ11 via port: {selectedPrinterPort || '(belum diset)'}</p>
+                    <p className="text-[10px] text-slate-400">ESC/POS RJ11 via printer: {selectedPrinter || '(belum diset)'} <span className="text-brand font-semibold ml-1">Shortcut: Alt+C</span></p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleTestDrawer}
-                  disabled={drawerLoading || !selectedPrinterPort}
+                  disabled={drawerLoading || !selectedPrinter}
                   className="px-2.5 py-1 text-[10px] font-bold text-brand bg-brand/10 hover:bg-brand hover:text-white rounded-lg transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
                 >
                   {drawerLoading ? 'Mengirim...' : 'Tes Buka (F2)'}
@@ -454,65 +545,55 @@ export default function HardwareSettings() {
               </div>
             </div>
           </div>
+          {/* Receipt Template Editor */}
+          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 space-y-4 shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl">
+                <Printer size={18} />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm">Template Struk (ESC/POS)</h3>
+                <p className="text-xs text-slate-500">Sesuaikan header dan footer struk Anda</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nama Toko (Header)</label>
+                <input 
+                  type="text" 
+                  value={receiptHeader} 
+                  onChange={e => setReceiptHeader(e.target.value)} 
+                  placeholder="Contoh: CHIRASYS ERP"
+                  className="w-full mt-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Alamat Toko</label>
+                <input 
+                  type="text" 
+                  value={receiptAddress} 
+                  onChange={e => setReceiptAddress(e.target.value)} 
+                  placeholder="Contoh: Jl. Sudirman No. 123"
+                  className="w-full mt-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Pesan Bawah (Footer)</label>
+                <input 
+                  type="text" 
+                  value={receiptFooter} 
+                  onChange={e => setReceiptFooter(e.target.value)} 
+                  placeholder="Contoh: Terima kasih atas kunjungan Anda!"
+                  className="w-full mt-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+            </div>
+          </div>
 
         </div>
       </div>
 
-      {/* Test Print Preview Modal */}
-      {showTestReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
-                <Printer size={16} className="text-brand" /> Uji Cetak Thermal ({paperWidth})
-              </h3>
-              <button onClick={() => setShowTestReceipt(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-full">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50 dark:bg-slate-950">
-              <div className={`mx-auto bg-white text-black p-4 font-mono text-xs leading-tight shadow-md border border-slate-200 rounded-lg print:shadow-none print:border-none ${paperWidth === '58mm' ? 'w-[58mm]' : 'w-[80mm]'}`}>
-                <div className="text-center mb-3">
-                  <h4 className="font-bold text-sm">CHIRASYS POS TEST</h4>
-                  <p className="text-[10px]">Uji Coba Printer Thermal</p>
-                  <p className="text-[10px] font-bold mt-1 truncate">Target: {selectedPrinter || 'Belum Dipilih'}</p>
-                  <p className="text-[10px] font-mono mt-0.5">Port: {selectedPrinterPort || '-'}</p>
-                  <p className="text-[9px] text-gray-500 mt-0.5">{new Date().toLocaleString('id-ID')}</p>
-                </div>
-                <div className="border-t border-black border-dashed py-2 space-y-1">
-                  <div className="flex justify-between"><span>1x ITEM UJI COBA A</span><span>15.000</span></div>
-                  <div className="flex justify-between"><span>2x ITEM UJI COBA B</span><span>30.000</span></div>
-                </div>
-                <div className="border-t border-black border-dashed py-2 space-y-1">
-                  <div className="flex justify-between font-bold"><span>TOTAL:</span><span>Rp 45.000</span></div>
-                  <div className="flex justify-between"><span>TUNAI:</span><span>Rp 50.000</span></div>
-                  <div className="flex justify-between font-bold"><span>KEMBALI:</span><span>Rp 5.000</span></div>
-                </div>
-                <div className="text-center mt-4 pt-2 border-t border-black border-dashed text-[9px]">
-                  <p>✅ PRINTER THERMAL TERHUBUNG</p>
-                  <p>ChiraSys ERP & Cashier System</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3">
-              <button
-                onClick={handlePrintTestExecution}
-                className="flex-1 py-3 bg-brand hover:bg-blue-600 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Printer size={16} /> Cetak Struk Uji Coba
-              </button>
-              <button
-                onClick={() => setShowTestReceipt(false)}
-                className="py-3 px-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-200 transition-all cursor-pointer"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

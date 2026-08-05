@@ -20,7 +20,8 @@ pub fn run() {
                     Ok(pool) => {
                         println!("✅ Database connected successfully.");
                         commands::sync::spawn_sync_worker(pool.clone());
-                        handle.manage(AppState { db_pool: pool });
+                        handle.manage(AppState { db_pool: pool.clone() });
+                        commands::sync::spawn_pull_worker(pool, handle.clone());
                     }
                     Err(e) => {
                         panic!("❌ DATABASE FATAL ERROR: {}", e);
@@ -159,6 +160,7 @@ pub fn run() {
             commands::maintenance::open_devtools,
             commands::maintenance::list_printers,
             commands::maintenance::kick_cash_drawer,
+            commands::maintenance::print_raw_receipt,
             commands::admin::reset_db_specific,
         ])
         .run(tauri::generate_context!())

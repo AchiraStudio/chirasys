@@ -1,6 +1,7 @@
 import { Printer, CheckCircle2, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { getSaleDetail, SaleDetail } from '../../lib/api';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { getSaleDetail, SaleDetail, getSettings, printRawReceipt } from '../../lib/api';
+import { EscPosBuilder } from '../../lib/escpos';
 
 interface ReceiptModalProps {
     saleId: string;
@@ -9,13 +10,114 @@ interface ReceiptModalProps {
 
 export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
     const [detail, setDetail] = useState<SaleDetail | null>(null);
+    const [timeLeft, setTimeLeft] = useState(3);
+    const hasPrinted = useRef(false);
 
     useEffect(() => {
         getSaleDetail(saleId).then(setDetail).catch(console.error);
     }, [saleId]);
 
+    const printReceipt = useCallback(async (data: SaleDetail) => {
+        try {
+            const settings = await getSettings();
+            const pName = settings.find(s => s.key === 'printer_name')?.value;
+            const pWidth = settings.find(s => s.key === 'printer_width')?.value || '80mm';
+            const pChars = settings.find(s => s.key === 'printer_chars_per_line')?.value;
+            const rHeader = settings.find(s => s.key === 'receipt_header')?.value || 'CHIRASYS ERP';
+            const rAddress = settings.find(s => s.key === 'receipt_address')?.value || '';
+            const rFooter = settings.find(s => s.key === 'receipt_footer')?.value || 'Thank you for your purchase!';
+            const pCut = settings.find(s => s.key === 'printer_autocut')?.value !== 'false';
+
+            if (!pName) {
+                console.warn("No printer configured in settings.");
+                return;
+            }
+
+            let width = pWidth === '80mm' ? 42 : 32;
+            if (pChars) width = parseInt(pChars, 10);
+            
+            const builder = new EscPosBuilder();
+            
+            // Header & Info (All Left Aligned)
+            builder.align('left');
+            builder.bold(true).textLine(rHeader).bold(false);
+            if (rAddress) builder.textLine(rAddress);
+            builder.feed(1);
+            builder.textLine(`Receipt: ${data.sale.transaction_no}`);
+            builder.textLine(new Date(data.sale.created_at).toLocaleString('id-ID'));
+            builder.feed(1);
+
+            // Items
+            builder.drawLine(width, '-');
+            data.lines.forEach(line => {
+                builder.bold(true).textLine(line.item_name ?? '').bold(false);
+                const qtyStr = `${line.qty} ${line.unit_name ?? ''} x ${line.price.toLocaleString('id-ID')}`;
+                const subStr = line.subtotal.toLocaleString('id-ID');
+                builder.leftRight(qtyStr, subStr, width);
+            });
+            builder.drawLine(width, '-');
+
+            // Totals
+            builder.leftRight('Subtotal:', data.sale.total_amount.toLocaleString('id-ID'), width);
+            if (data.sale.discount_amount > 0) {
+                builder.leftRight('Discount:', '-' + data.sale.discount_amount.toLocaleString('id-ID'), width);
+            }
+            builder.bold(true);
+            builder.leftRight('Total:', data.sale.grand_total.toLocaleString('id-ID'), width);
+            builder.bold(false);
+            builder.drawLine(width, '-');
+
+            // Payments
+            data.payments.forEach(p => {
+                builder.leftRight(`${p.method.toUpperCase()}:`, p.amount.toLocaleString('id-ID'), width);
+            });
+
+            // Change
+            const paid = data.payments.reduce((sum, p) => sum + p.amount, 0);
+            if (paid > data.sale.grand_total) {
+                builder.bold(true);
+                builder.leftRight('Change:', (paid - data.sale.grand_total).toLocaleString('id-ID'), width);
+                builder.bold(false);
+            }
+
+            // Footer (All Left Aligned)
+            builder.feed(1);
+            if (rFooter) builder.textLine(rFooter);
+            builder.textLine('Served by: System Admin');
+            builder.feed(5);
+
+            if (pCut) builder.cut();
+
+            await printRawReceipt(pName, builder.build());
+        } catch (e) {
+            console.error("Auto-print failed", e);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!detail || hasPrinted.current) return;
+        hasPrinted.current = true;
+        printReceipt(detail);
+    }, [detail, printReceipt]);
+
+    useEffect(() => {
+        if (!detail) return;
+        const timer = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    onClose();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [detail, onClose]);
+
     const handlePrint = () => {
-        window.print();
+        if (detail) printReceipt(detail);
     };
 
     if (!detail) {
@@ -30,9 +132,9 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 print:bg-white print:p-0">
-            {/* Screen UI - Hidden when printing */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 print:hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+            {/* Screen UI */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
                 <div className="p-8 flex flex-col items-center justify-center text-center border-b border-slate-100 dark:border-slate-800">
                     <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center mb-4">
                         <CheckCircle2 size={32} />
@@ -53,69 +155,8 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
                         onClick={onClose}
                         className="w-full flex items-center justify-center gap-2 py-3.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all"
                     >
-                        New Sale
+                        New Sale ({timeLeft}s)
                     </button>
-                </div>
-            </div>
-
-            {/* Print Only UI - Thermal Printer Format (80mm width approx) */}
-            <div className="hidden print:block w-[80mm] bg-white text-black p-4 font-mono text-sm leading-tight mx-auto">
-                <div className="text-center mb-4">
-                    <h1 className="font-bold text-lg">CHIRASYS ERP</h1>
-                    <p className="text-xs">Main Branch</p>
-                    <p className="text-xs mt-1">Receipt: {detail.sale.transaction_no}</p>
-                    <p className="text-[10px] mt-1">{new Date(detail.sale.created_at).toLocaleString()}</p>
-                </div>
-                
-                <div className="border-t border-black border-dashed py-2 text-xs">
-                    {detail.lines.map((line, idx) => (
-                        <div key={idx} className="mb-2">
-                            <div className="font-bold">{line.item_name}</div>
-                            <div className="flex justify-between">
-                                <span>{line.qty} {line.unit_name} x {line.price.toLocaleString('id-ID')}</span>
-                                <span>{line.subtotal.toLocaleString('id-ID')}</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                
-                <div className="border-t border-black border-dashed py-2 text-xs flex flex-col gap-1">
-                    <div className="flex justify-between">
-                        <span>Subtotal:</span>
-                        <span>{detail.sale.total_amount.toLocaleString('id-ID')}</span>
-                    </div>
-                    {detail.sale.discount_amount > 0 && (
-                        <div className="flex justify-between text-red-600">
-                            <span>Discount:</span>
-                            <span>-{detail.sale.discount_amount.toLocaleString('id-ID')}</span>
-                        </div>
-                    )}
-                    <div className="flex justify-between font-bold text-sm mt-1">
-                        <span>Total:</span>
-                        <span>{detail.sale.grand_total.toLocaleString('id-ID')}</span>
-                    </div>
-                </div>
-                
-                <div className="border-t border-black border-dashed py-2 text-xs">
-                    {detail.payments.map((p, idx) => (
-                        <div key={idx} className="flex justify-between uppercase">
-                            <span>{p.method}:</span>
-                            <span>{p.amount.toLocaleString('id-ID')}</span>
-                        </div>
-                    ))}
-                    
-                    {/* Calculate Change */}
-                    {detail.payments.reduce((sum, p) => sum + p.amount, 0) > detail.sale.grand_total && (
-                        <div className="flex justify-between font-bold mt-1">
-                            <span>Change:</span>
-                            <span>{(detail.payments.reduce((sum, p) => sum + p.amount, 0) - detail.sale.grand_total).toLocaleString('id-ID')}</span>
-                        </div>
-                    )}
-                </div>
-
-                <div className="text-center text-xs mt-8 pb-4">
-                    <p>Thank you for your purchase!</p>
-                    <p className="mt-1 text-[10px] text-gray-500">Served by: System Admin</p>
                 </div>
             </div>
         </div>

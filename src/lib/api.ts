@@ -241,7 +241,8 @@ export interface DetectedPrinterInfo {
   Default: boolean;
 }
 export const listPrinters = async (): Promise<DetectedPrinterInfo[]> => invoke('list_printers');
-export const kickCashDrawer = async (printerPort: string): Promise<string> => invoke('kick_cash_drawer', { printerPort });
+export const kickCashDrawer = async (printerName: string): Promise<string> => invoke('kick_cash_drawer', { printerName });
+export const printRawReceipt = async (printerName: string, bytes: number[]): Promise<string> => invoke('print_raw_receipt', { printerName, bytes });
 export const openCashDrawerLegacy = async (): Promise<string> => invoke('open_cash_drawer');
 
 // --- Phase 8 Report Types ---

@@ -102,6 +102,11 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/036_fix_promos_category_fk.sql"), 36),
         (include_str!("./migrations/037_user_workspace_assign.sql"), 37),
         (include_str!("./migrations/038_member_expiry_and_tier_discount.sql"), 38),
+        (include_str!("./migrations/039_soft_deletes.sql"), 39),
+        (include_str!("./migrations/040_full_sync_triggers.sql"), 40),
+        (include_str!("./migrations/041_fix_delete_sync.sql"), 41),
+        (include_str!("./migrations/042_fix_missing_columns.sql"), 42),
+        (include_str!("./migrations/043_force_fix_columns.sql"), 43),
     ];
 
     for (sql, version) in migrations {
@@ -117,13 +122,16 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
             continue;
         }
 
-        // Run migration — tolerate idempotent errors (duplicate column, already exists)
-        if let Err(e) = sqlx::query(sql).execute(pool).await {
-            let msg = e.to_string();
-            if msg.contains("duplicate column name") || msg.contains("already exists") {
-                println!("⚠️  Migration {} skipped (idempotent): {}", version, msg);
-            } else {
-                return Err(format!("❌ Migration {} failed: {}", version, msg));
+        // Execute statement-by-statement to prevent early aborts on idempotent errors
+        let statements = split_sql_statements(sql);
+        for stmt in statements {
+            if let Err(e) = sqlx::query(&stmt).execute(pool).await {
+                let msg = e.to_string();
+                if msg.contains("duplicate column name") || msg.contains("already exists") || msg.contains("non-constant default") {
+                    println!("⚠️ Statement skipped (idempotent): {}", msg);
+                } else {
+                    return Err(format!("❌ Migration {} failed on statement:\n{}\nError: {}", version, stmt, msg));
+                }
             }
         }
 
@@ -139,4 +147,44 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
 
     println!("✅ All migrations up to date.");
     Ok(())
+}
+
+fn split_sql_statements(sql: &str) -> Vec<String> {
+    let mut statements = Vec::new();
+    let mut current = String::new();
+    let mut in_begin_end = 0;
+
+    for line in sql.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("--") || trimmed.is_empty() {
+            continue;
+        }
+
+        let upper = trimmed.to_uppercase();
+        if upper.starts_with("BEGIN") || upper.contains(" BEGIN ") {
+            in_begin_end += 1;
+        }
+
+        current.push_str(line);
+        current.push('\n');
+
+        if upper.contains("END;") || upper.ends_with("END") {
+            if in_begin_end > 0 {
+                in_begin_end -= 1;
+            }
+        }
+
+        if trimmed.ends_with(';') && in_begin_end == 0 {
+            let stmt = current.trim().to_string();
+            if !stmt.is_empty() {
+                statements.push(stmt);
+            }
+            current.clear();
+        }
+    }
+    let stmt = current.trim().to_string();
+    if !stmt.is_empty() {
+        statements.push(stmt);
+    }
+    statements
 }

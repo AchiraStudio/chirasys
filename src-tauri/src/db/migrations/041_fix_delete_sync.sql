@@ -1,0 +1,2 @@
+-- 041_fix_delete_sync.sql
+-- Handled in 040_full_sync_triggers.sql drops

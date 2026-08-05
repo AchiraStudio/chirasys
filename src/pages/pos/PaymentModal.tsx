@@ -116,21 +116,33 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
         amountInputRef.current?.focus();
     }, [activeMethod]);
 
-    // Keyboard shortcut: F10 = Simpan, Alt+F10 = Simpan & Cetak, ESC = close
+    const keysPressed = useRef<Set<string>>(new Set());
+
+    // Keyboard shortcut: End = Simpan, c+End / Ctrl+End = Simpan & Cetak, ESC = close
     useEffect(() => {
-        const handler = (e: KeyboardEvent) => {
-            if (e.key === 'F10' && isReady && !loading) {
+        const downHandler = (e: KeyboardEvent) => {
+            keysPressed.current.add(e.key.toLowerCase());
+            if (e.key === 'End' && isReady && !loading) {
                 e.preventDefault();
-                handlePay(e.altKey);
+                const isCetak = e.ctrlKey || e.altKey || keysPressed.current.has('c');
+                handlePay(isCetak);
             }
             if (e.key === 'Escape') onClose();
         };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
+        const upHandler = (e: KeyboardEvent) => {
+            keysPressed.current.delete(e.key.toLowerCase());
+        };
+        window.addEventListener('keydown', downHandler);
+        window.addEventListener('keyup', upHandler);
+        return () => {
+            window.removeEventListener('keydown', downHandler);
+            window.removeEventListener('keyup', upHandler);
+        };
     }, [isReady, loading, amounts, bankIds, voucher, resolvedTotal]);
 
     const setAmount = (method: MethodKey, val: string) => {
-        setAmounts(prev => ({ ...prev, [method]: val }));
+        const cleanVal = typeof val === 'string' ? val.replace(/[a-zA-Z]/g, '') : val;
+        setAmounts(prev => ({ ...prev, [method]: cleanVal }));
     };
 
     const handleExact = () => {
@@ -282,6 +294,9 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                         if (e.key === 'Enter') {
                                             e.preventDefault();
                                             evaluateMethodAmount(activeMethod);
+                                        }
+                                        if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+                                            e.preventDefault();
                                         }
                                     }}
                                     placeholder="0"
@@ -554,7 +569,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                 className="w-full py-3.5 bg-brand hover:bg-blue-600 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold shadow-lg shadow-brand/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand dark:focus:ring-offset-[#0B0F19]"
                             >
                                 {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                                <span>{loading ? 'Memproses...' : 'Simpan & Cetak (Alt+F10)'}</span>
+                                <span>{loading ? 'Memproses...' : 'Simpan & Cetak (c+End)'}</span>
                             </button>
 
                             <button
@@ -562,7 +577,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                 disabled={!isReady || loading}
                                 className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-800 dark:focus:ring-offset-[#0B0F19]"
                             >
-                                Simpan Transaksi (F10)
+                                Simpan Transaksi (End)
                             </button>
 
                             <button
