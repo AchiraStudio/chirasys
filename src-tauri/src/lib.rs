@@ -146,6 +146,7 @@ pub fn run() {
             commands::sync::join_workspace,
             commands::sync::create_workspace,
             commands::sync::create_workspace_invite,
+            commands::sync::nuke_cloud_workspace_data,
             commands::sync::get_sync_status,
             commands::sync::leave_workspace,
             commands::sync::sysadmin_login,

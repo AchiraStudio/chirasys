@@ -41,6 +41,7 @@ pub struct SaleDetail {
     pub sale: Sale,
     pub lines: Vec<SaleLine>,
     pub payments: Vec<SalePayment>,
+    pub cashier_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]

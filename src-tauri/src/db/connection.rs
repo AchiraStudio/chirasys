@@ -107,6 +107,8 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/041_fix_delete_sync.sql"), 41),
         (include_str!("./migrations/042_fix_missing_columns.sql"), 42),
         (include_str!("./migrations/043_force_fix_columns.sql"), 43),
+        (include_str!("./migrations/044_default_workspace_seed.sql"), 44),
+        (include_str!("./migrations/045_clean_sales_sync_queue.sql"), 45),
     ];
 
     for (sql, version) in migrations {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download } from 'lucide-react';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2 } from 'lucide-react';
 import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace } from '../../lib/api';
 import { save } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
@@ -72,6 +72,10 @@ export default function Settings() {
   // DB Reset state
   const [resetTarget, setResetTarget] = useState<'sales' | 'inventory' | 'all' | 'maintenance' | null>(null);
   const [confirmText, setConfirmText] = useState('');
+
+  // Nuke Supabase state
+  const [nukeStep, setNukeStep] = useState<0 | 1 | 2>(0);
+  const [nukeConfirmText, setNukeConfirmText] = useState('');
 
   // Sync / workspace state
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
@@ -175,6 +179,11 @@ export default function Settings() {
 
   const handleResetDB = async () => {
     if (!resetTarget) return;
+    const role = (user?.role || 'staff').toLowerCase();
+    if (resetTarget !== 'maintenance' && role !== 'owner' && role !== 'admin' && role !== 'sysadmin') {
+      alert('Akses Ditolak: Hanya Admin / Owner yang dapat menghapus / mereset database.');
+      return;
+    }
     if (resetTarget !== 'maintenance' && confirmText !== 'DELETE') return;
 
     setLoading(true);
@@ -195,6 +204,29 @@ export default function Settings() {
       setConfirmModal({
         title: 'Reset Gagal',
         message: `Reset gagal: ${e}`,
+        variant: 'danger',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNukeCloudData = async () => {
+    if (nukeConfirmText !== 'NUKE CLOUD DATA') return;
+    setLoading(true);
+    try {
+      const { nukeCloudWorkspaceData } = await import('../../lib/api');
+      const msg = await nukeCloudWorkspaceData();
+      setSuccessMsg(msg);
+      setTimeout(() => setSuccessMsg(''), 8000);
+      setNukeStep(0);
+      setNukeConfirmText('');
+    } catch (e) {
+      setConfirmModal({
+        title: 'Penghapusan Cloud Gagal',
+        message: `Gagal menghapus data Supabase Cloud: ${e}`,
         variant: 'danger',
         confirmLabel: 'OK',
         onConfirm: () => setConfirmModal(null),
@@ -649,10 +681,23 @@ export default function Settings() {
                       disabled={loading}
                       className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-md shadow-rose-600/20 cursor-pointer"
                     >
-                      Reset Semua Data (Factory Reset)
+                      Reset Semua Data Local (Factory Reset)
                     </button>
-                    <p className="text-[10px] text-slate-400 text-center">Menghapus seluruh Master Data & Transaksi.</p>
+                    <p className="text-[10px] text-slate-400 text-center">Menghapus seluruh Master Data & Transaksi Lokal.</p>
                   </div>
+
+                  {(user?.role === 'owner' || user?.role === 'sysadmin') && (
+                    <div className="space-y-1 pt-3 border-t border-rose-200/60 dark:border-rose-900/60">
+                      <button
+                        onClick={() => setNukeStep(1)}
+                        disabled={loading}
+                        className="w-full py-3.5 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-black text-xs rounded-2xl transition-all shadow-lg shadow-red-600/30 cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <Trash2 size={16} /> Nuke Supabase Cloud Data (Owner Only)
+                      </button>
+                      <p className="text-[10px] text-rose-500 font-bold text-center">PERINGATAN: Menghapus SELURUH database di Supabase Cloud!</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -747,6 +792,87 @@ export default function Settings() {
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
                 {loading ? 'Memproses...' : 'Ya, Eksekusi'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nuke Supabase Modal Step 1: Warning */}
+      {nukeStep === 1 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0B0F19] rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden border border-rose-500/50 dark:border-rose-500/30 animate-in zoom-in-95 duration-200">
+            <div className="p-7 text-center space-y-4">
+              <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto ring-8 ring-rose-500/5">
+                <AlertTriangle size={32} />
+              </div>
+              <div>
+                <span className="px-3 py-1 bg-rose-500/10 text-rose-500 rounded-full text-[10px] font-black uppercase tracking-wider">Peringatan Bahaya (Khusus Owner)</span>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white mt-2">Hapus Seluruh Data Supabase Cloud?</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                  Tindakan ini akan mengosongkan <strong>SELURUH master data, produk, dan transaksi</strong> pada database Cloud Supabase untuk workspace ini.<br/><br/>
+                  <strong className="text-rose-500">TINDAKAN INI TIDAK DAPAT DIBATALKAN ATAU DIKEMBALIKAN!</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+              <button
+                onClick={() => setNukeStep(0)}
+                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => setNukeStep(2)}
+                className="flex-[1.5] py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-black transition-all cursor-pointer shadow-md shadow-rose-600/20"
+              >
+                Lanjut ke Konfirmasi Akhir →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nuke Supabase Modal Step 2: Text Confirmation */}
+      {nukeStep === 2 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0B0F19] rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden border-2 border-red-600 animate-in zoom-in-95 duration-200">
+            <div className="p-7 text-center space-y-4">
+              <div className="w-16 h-16 bg-red-600/15 text-red-600 rounded-full flex items-center justify-center mx-auto ring-8 ring-red-600/10">
+                <Trash2 size={32} />
+              </div>
+              <div>
+                <span className="px-3 py-1 bg-red-600/10 text-red-600 rounded-full text-[10px] font-black uppercase tracking-wider">Konfirmasi Akhir</span>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white mt-2">Ketik untuk Mengonfirmasi Nuke</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                  Ketik frasa <code className="bg-rose-100 dark:bg-rose-950 text-rose-600 font-mono px-1.5 py-0.5 rounded font-bold">NUKE CLOUD DATA</code> di bawah ini untuk membuka tombol eksekusi:
+                </p>
+              </div>
+
+              <input
+                type="text"
+                placeholder="NUKE CLOUD DATA"
+                value={nukeConfirmText}
+                onChange={e => setNukeConfirmText(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-red-500/50 rounded-2xl px-4 py-3 text-sm font-black text-red-600 outline-none uppercase font-mono text-center tracking-wider focus:ring-2 focus:ring-red-600"
+              />
+            </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+              <button
+                onClick={() => { setNukeStep(0); setNukeConfirmText(''); }}
+                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleNukeCloudData}
+                disabled={nukeConfirmText !== 'NUKE CLOUD DATA' || loading}
+                className="flex-[1.5] py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-xs font-black transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-600/30"
+              >
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? 'Memproses Nuke...' : '🔥 EKSEKUSI HAPUS CLOUD'}
               </button>
             </div>
           </div>

@@ -267,26 +267,33 @@ export const aiTools = [
 ];
 
 export const TOOL_ROLE_REQUIREMENTS: Record<string, string[]> = {
-  search_items: ['owner', 'admin', 'staff'],
-  get_stock_overview: ['owner', 'admin', 'staff'],
-  adjust_stock: ['owner', 'admin', 'staff'],
-  bulk_stock_opname: ['owner', 'admin', 'staff'],
-  update_item_retail_price: ['owner', 'admin', 'staff'],
-  update_item_wholesale_price: ['owner', 'admin', 'staff'],
-  get_sales_summary: ['owner', 'admin', 'staff'],
-  create_promo: ['owner', 'admin', 'staff'],
-  delete_promo: ['owner', 'admin'],
-  toggle_promo_active: ['owner', 'admin'],
-  delete_item: ['owner', 'admin'],
-  add_customer: ['owner', 'admin', 'staff'],
-  delete_customer: ['owner', 'admin'],
-  list_promos: ['owner', 'admin', 'staff'],
+  search_items: ['owner', 'admin', 'staff', 'sysadmin'],
+  get_stock_overview: ['owner', 'admin', 'staff', 'sysadmin'],
+  adjust_stock: ['owner', 'admin', 'sysadmin'],
+  bulk_stock_opname: ['owner', 'admin', 'sysadmin'],
+  update_item_retail_price: ['owner', 'admin', 'sysadmin'],
+  update_item_wholesale_price: ['owner', 'admin', 'sysadmin'],
+  get_sales_summary: ['owner', 'admin', 'staff', 'sysadmin'],
+  create_promo: ['owner', 'admin', 'sysadmin'],
+  delete_promo: ['owner', 'admin', 'sysadmin'],
+  toggle_promo_active: ['owner', 'admin', 'sysadmin'],
+  delete_item: ['owner', 'admin', 'sysadmin'],
+  add_customer: ['owner', 'admin', 'staff', 'sysadmin'],
+  delete_customer: ['owner', 'admin', 'sysadmin'],
+  list_promos: ['owner', 'admin', 'staff', 'sysadmin'],
 };
 
 export async function executeTool(name: string, args: any, context: { branchId: string; userId: string; role: string }) {
-  // Enforce roles (User management tools, if added in the future, should be restricted. All other tools are allowed for all roles).
+  // Enforce strict role check
+  const allowedRoles = TOOL_ROLE_REQUIREMENTS[name];
+  const userRole = (context.role || 'staff').toLowerCase();
+  
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    return { error: `Permission Denied. Role '${context.role}' is not authorized to execute tool '${name}'.` };
+  }
+
   const isUserManagement = name.includes('user') || name.includes('role') || name.includes('permission');
-  if (isUserManagement && context.role !== 'owner' && context.role !== 'admin') {
+  if (isUserManagement && userRole !== 'owner' && userRole !== 'admin' && userRole !== 'sysadmin') {
     return { error: `Permission Denied. User role '${context.role}' is not allowed to use user management tool '${name}'.` };
   }
 

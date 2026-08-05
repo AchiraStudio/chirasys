@@ -372,10 +372,21 @@ pub async fn get_sale_detail(
     .await
     .map_err(|e| e.to_string())?;
 
+    let cashier_name: Option<String> = if let Some(ref uid) = sale.user_id {
+        sqlx::query_scalar("SELECT name FROM users WHERE id = ?")
+            .bind(uid)
+            .fetch_optional(&state.db_pool)
+            .await
+            .unwrap_or(None)
+    } else {
+        None
+    };
+
     Ok(crate::db::models::sales::SaleDetail {
         sale,
         lines,
         payments,
+        cashier_name,
     })
 }
 

@@ -63,13 +63,13 @@ export class EscPosBuilder {
   /** Print left-aligned text and right-aligned text on the same line */
   leftRight(left: string, right: string, width: number = 48) {
     const spaceLength = width - left.length - right.length;
-    if (spaceLength > 0) {
+    if (spaceLength >= 0) {
       return this.textLine(left + ' '.repeat(spaceLength) + right);
     } else {
-      // If it overlaps, wrap the right part to the next line
-      this.textLine(left);
-      const rightPad = width - right.length;
-      return this.textLine(' '.repeat(Math.max(0, rightPad)) + right);
+      const maxLeft = Math.max(1, width - right.length - 1);
+      const truncLeft = left.substring(0, maxLeft);
+      const space = width - truncLeft.length - right.length;
+      return this.textLine(truncLeft + ' '.repeat(Math.max(0, space)) + right);
     }
   }
 

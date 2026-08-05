@@ -114,11 +114,18 @@ async fn process_sync_queue(
 
         let endpoint = format!("{}/rest/v1/{}", supabase_url, table_name);
 
-        // Inject workspace_id into the payload
+        // Inject workspace_id into the payload & sanitize legacy field names
         let mut json_payload: serde_json::Value = serde_json::from_str(&payload_str)
             .unwrap_or_else(|_| serde_json::json!({}));
         if let serde_json::Value::Object(ref mut map) = json_payload {
             map.insert("workspace_id".to_string(), serde_json::Value::String(workspace_id.to_string()));
+            if table_name == "sales" {
+                if let Some(created_by_val) = map.remove("created_by") {
+                    if !map.contains_key("user_id") {
+                        map.insert("user_id".to_string(), created_by_val);
+                    }
+                }
+            }
         }
 
         let request = match operation.as_str() {
@@ -1684,4 +1691,48 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
             tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
         }
     });
+}
+
+#[tauri::command]
+pub async fn nuke_cloud_workspace_data(
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<String, String> {
+    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
+    let supabase_key = env::var("SUPABASE_SERVICE_ROLE_KEY")
+        .or_else(|_| env::var("SUPABASE_ANON_KEY"))
+        .map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+
+    let workspace_id: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
+    )
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let ws_id = match workspace_id {
+        Some(id) if !id.is_empty() => id,
+        _ => return Err("Tidak ada cloud workspace yang terhubung.".to_string()),
+    };
+
+    let client = reqwest::Client::new();
+    let tables = vec![
+        "sale_return_lines", "sale_returns", "sale_payments", "sale_lines", "sales",
+        "stock_ledger", "stock_opname_lines", "stock_opname", "purchase_return_lines",
+        "purchase_returns", "purchase_payments", "purchase_lines", "purchases",
+        "po_lines", "purchase_orders", "promo_bundle_items", "promo_tiers", "promo_bogo_rules",
+        "promos", "item_prices", "item_units", "items", "categories", "brands",
+        "suppliers", "customers", "members"
+    ];
+
+    for table in tables {
+        let url = format!("{}/rest/v1/{}?workspace_id=eq.{}", supabase_url, table, ws_id);
+        let _ = client
+            .delete(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .send()
+            .await;
+    }
+
+    Ok(format!("Seluruh data cloud Supabase untuk workspace {} berhasil dibersihkan!", ws_id))
 }

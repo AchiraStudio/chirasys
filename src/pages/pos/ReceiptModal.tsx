@@ -33,8 +33,12 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
                 return;
             }
 
-            let width = pWidth === '80mm' ? 42 : 32;
-            if (pChars) width = parseInt(pChars, 10);
+            const defaultWidth = pWidth === '58mm' ? 32 : 48;
+            let width = defaultWidth;
+            if (pChars) {
+                const parsed = parseInt(pChars, 10);
+                if (!isNaN(parsed) && parsed > 0) width = parsed;
+            }
             
             const builder = new EscPosBuilder();
             
@@ -51,39 +55,44 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
             builder.drawLine(width, '-');
             data.lines.forEach(line => {
                 builder.bold(true).textLine(line.item_name ?? '').bold(false);
-                const qtyStr = `${line.qty} ${line.unit_name ?? ''} x ${line.price.toLocaleString('id-ID')}`;
-                const subStr = line.subtotal.toLocaleString('id-ID');
-                builder.leftRight(qtyStr, subStr, width);
+                const lineDetail = `${line.qty} ${line.unit_name ?? ''} x ${line.price.toLocaleString('id-ID')} = ${line.subtotal.toLocaleString('id-ID')}`;
+                builder.textLine(lineDetail);
             });
             builder.drawLine(width, '-');
 
-            // Totals
-            builder.leftRight('Subtotal:', data.sale.total_amount.toLocaleString('id-ID'), width);
-            if (data.sale.discount_amount > 0) {
-                builder.leftRight('Discount:', '-' + data.sale.discount_amount.toLocaleString('id-ID'), width);
+            // Totals (Left Aligned - Never Cutoff)
+            const subtotalVal = Math.round(data.sale.total_amount ?? 0);
+            builder.textLine(`Subtotal: Rp ${subtotalVal.toLocaleString('id-ID')}`);
+
+            if (data.sale.discount_amount && data.sale.discount_amount > 0) {
+                const discVal = Math.round(data.sale.discount_amount);
+                builder.textLine(`Diskon: -Rp ${discVal.toLocaleString('id-ID')}`);
             }
+
+            const grandTotalVal = Math.round(data.sale.grand_total ?? 0);
             builder.bold(true);
-            builder.leftRight('Total:', data.sale.grand_total.toLocaleString('id-ID'), width);
+            builder.textLine(`TOTAL: Rp ${grandTotalVal.toLocaleString('id-ID')}`);
             builder.bold(false);
             builder.drawLine(width, '-');
 
-            // Payments
+            // Payments & Change
             data.payments.forEach(p => {
-                builder.leftRight(`${p.method.toUpperCase()}:`, p.amount.toLocaleString('id-ID'), width);
+                const payVal = Math.round(p.amount ?? 0);
+                builder.textLine(`${p.method.toUpperCase()}: Rp ${payVal.toLocaleString('id-ID')}`);
             });
 
-            // Change
             const paid = data.payments.reduce((sum, p) => sum + p.amount, 0);
             if (paid > data.sale.grand_total) {
-                builder.bold(true);
-                builder.leftRight('Change:', (paid - data.sale.grand_total).toLocaleString('id-ID'), width);
-                builder.bold(false);
+                const changeVal = Math.round(paid - data.sale.grand_total);
+                builder.textLine(`Kembali: Rp ${changeVal.toLocaleString('id-ID')}`);
             }
+            builder.drawLine(width, '-');
 
             // Footer (All Left Aligned)
             builder.feed(1);
             if (rFooter) builder.textLine(rFooter);
-            builder.textLine('Served by: System Admin');
+            const cashierName = data.cashier_name || 'System Admin';
+            builder.textLine(`Served by: ${cashierName}`);
             builder.feed(5);
 
             if (pCut) builder.cut();

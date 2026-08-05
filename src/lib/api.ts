@@ -11,7 +11,7 @@ export const getSales = async (branchId: string, customerId?: string): Promise<S
 
 export interface SaleLine { id: string; sale_id: string; item_id: string; item_name?: string; unit_id: string; unit_name?: string; qty: number; price_type: string; price: number; discount_amount: number; subtotal: number; hpp_value: number; notes?: string; }
 export interface SalePayment { id: string; sale_id: string; amount: number; method: string; reference?: string; created_at: string; }
-export interface SaleDetail { sale: Sale; lines: SaleLine[]; payments: SalePayment[]; }
+export interface SaleDetail { sale: Sale; lines: SaleLine[]; payments: SalePayment[]; cashier_name?: string; }
 export const getSaleDetail = async (id: string): Promise<SaleDetail> => invoke('get_sale_detail', { id });
 export interface SaleReturnLineInput { sale_line_id: string; item_id: string; unit_id: string; qty: number; price: number; hpp_value: number; }
 export const createSaleReturn = async (saleId: string, lines: SaleReturnLineInput[], reason: string): Promise<void> => invoke('create_sale_return', { saleId, lines, reason });
@@ -231,6 +231,7 @@ export const exportSalesExcel = async (filePath: string): Promise<string> => inv
 export const optimizeDatabase = async (): Promise<string> => invoke('optimize_database');
 export const exportDatabase = async (targetPath: string): Promise<string> => invoke('export_database', { targetPath });
 export const resetDbSpecific = async (target: string): Promise<string> => invoke('reset_db_specific', { target });
+export const nukeCloudWorkspaceData = async (): Promise<string> => invoke('nuke_cloud_workspace_data');
 
 // --- Hardware / Printer Commands ---
 export interface DetectedPrinterInfo {

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Trash2, Clock, UserCheck, PauseCircle, PlayCircle, Loader2, HelpCircle, Edit2, Check, X as XIcon, Crown } from 'lucide-react';
 import { usePosStore, PosLine, PosHold } from './POSStore';
-import { getItemsFiltered, Item, Customer, getSettings } from '../../lib/api';
+import { getItemsFiltered, Item, Customer, getSettings, kickCashDrawer } from '../../lib/api';
 import { applyDiscountsToCart } from '../../lib/discountEngine';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import PaymentModal from './PaymentModal';
@@ -413,24 +413,17 @@ export default function POS() {
     setSelectedCartIdx(-1);
   };
 
-  const handlePaymentSuccess = async (saleId: string, print: boolean) => {
+  const handlePaymentSuccess = (saleId: string, print: boolean) => {
     setCart([]); setCartDiscount(0); setSearch(''); setShowPayment(false);
     setSelectedCartIdx(-1);
     
-    // Instantly kick the cash drawer in the background
-    try {
-      const settings = await getSettings();
+    // Instantly kick the cash drawer in background asynchronously without blocking UI modal close
+    getSettings().then(settings => {
       const pName = settings.find(s => s.key === 'printer_name')?.value;
       if (pName) {
-        // We import kickCashDrawer dynamically or statically? 
-        // We can just statically import kickCashDrawer at the top. Let's assume it's imported from api, wait, it's not.
-        // Let's dynamically import to avoid touching imports if not needed, or better, we can use the existing `api.ts` import.
-        const { kickCashDrawer } = await import('../../lib/api');
-        kickCashDrawer(pName).catch(e => console.error("Drawer kick failed", e));
+        kickCashDrawer(pName).catch((err: unknown) => console.error("Drawer kick failed", err));
       }
-    } catch (e) {
-      console.error("Failed to kick drawer on payment", e);
-    }
+    }).catch(console.error);
 
     if (print) setReceiptSaleId(saleId);
   };
