@@ -20,12 +20,27 @@ pub struct Item {
     pub created_at: String,
     pub updated_at: String,
 
-    // Virtual fields joined for POS efficiency
+    pub cost_price: Option<f64>,
+    pub rack_location: Option<String>,
+    pub item_type: Option<String>,
+
     pub wholesale_price: f64,
     pub price: Option<f64>,
     pub base_unit_id: Option<String>,
     pub base_unit_name: Option<String>,
     pub avg_hpp: Option<f64>,
+    #[sqlx(skip)]
+    pub price_tiers: Option<Vec<ItemPriceTier>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
+pub struct ItemPriceTier {
+    pub id: String,
+    pub item_id: String,
+    pub unit_id: Option<String>,
+    pub tier_level: i64,
+    pub max_qty: f64,
+    pub price: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
@@ -61,6 +76,7 @@ pub struct ItemDetail {
     pub item: Item,
     pub units: Vec<ItemUnit>,
     pub prices: Vec<ItemPrice>,
+    pub price_tiers: Vec<ItemPriceTier>,
     pub active_batches: Vec<ActiveBatch>,
 }
 

@@ -94,10 +94,23 @@ pub async fn get_items_filtered(
         }
     }
 
-    let items = query
+    let mut items = query
         .fetch_all(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    for item in items.iter_mut() {
+        let price_tiers = sqlx::query_as::<_, crate::db::models::item::ItemPriceTier>(
+            "SELECT * FROM item_price_tiers WHERE item_id = ? ORDER BY tier_level ASC",
+        )
+        .bind(&item.id)
+        .fetch_all(&state.db_pool)
+        .await
+        .unwrap_or_default();
+
+        item.price_tiers = Some(price_tiers);
+    }
+
     let total = count_query.fetch_one(&state.db_pool).await.unwrap_or(0);
 
     Ok(PaginatedItems {
@@ -137,6 +150,14 @@ pub async fn get_item(id: String, state: State<'_, AppState>) -> Result<ItemDeta
         .await
         .map_err(|e| e.to_string())?;
 
+    let price_tiers = sqlx::query_as::<_, crate::db::models::item::ItemPriceTier>(
+        "SELECT * FROM item_price_tiers WHERE item_id = ? ORDER BY tier_level ASC",
+    )
+    .bind(&id)
+    .fetch_all(&state.db_pool)
+    .await
+    .unwrap_or_default();
+
     let active_batches = sqlx::query_as::<_, crate::db::models::item::ActiveBatch>(
         r#"
         SELECT batch_no, expiry_date, 
@@ -158,6 +179,7 @@ pub async fn get_item(id: String, state: State<'_, AppState>) -> Result<ItemDeta
         item,
         units,
         prices,
+        price_tiers,
         active_batches,
     })
 }
@@ -388,5 +410,65 @@ pub async fn update_item_wholesale_price(
         .await
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn save_item_price_tiers(
+    item_id: String,
+    unit_id: Option<String>,
+    tiers: Vec<serde_json::Value>,
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::db::models::item::ItemPriceTier>, String> {
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+
+    // Delete existing tiers for this item
+    let _ = sqlx::query("DELETE FROM item_price_tiers WHERE item_id = ?")
+        .bind(&item_id)
+        .execute(&mut *tx)
+        .await;
+
+    for (idx, t) in tiers.iter().enumerate() {
+        let max_qty = t.get("max_qty").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let price = t.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        if max_qty > 0.0 && price > 0.0 {
+            let id = Uuid::new_v4().to_string();
+            let tier_level = (idx + 1) as i64;
+            let _ = sqlx::query(
+                "INSERT INTO item_price_tiers (id, item_id, unit_id, tier_level, max_qty, price) VALUES (?, ?, ?, ?, ?, ?)"
+            )
+            .bind(&id)
+            .bind(&item_id)
+            .bind(&unit_id)
+            .bind(tier_level)
+            .bind(max_qty)
+            .bind(price)
+            .execute(&mut *tx)
+            .await;
+        }
+    }
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+
+    sqlx::query_as::<_, crate::db::models::item::ItemPriceTier>(
+        "SELECT * FROM item_price_tiers WHERE item_id = ? ORDER BY tier_level ASC",
+    )
+    .bind(&item_id)
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_item_price_tiers(
+    item_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::db::models::item::ItemPriceTier>, String> {
+    sqlx::query_as::<_, crate::db::models::item::ItemPriceTier>(
+        "SELECT * FROM item_price_tiers WHERE item_id = ? ORDER BY tier_level ASC",
+    )
+    .bind(&item_id)
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())
 }
 

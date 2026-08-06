@@ -145,12 +145,28 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
             {/* Screen UI */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
                 <div className="p-8 flex flex-col items-center justify-center text-center border-b border-slate-100 dark:border-slate-800">
-                    <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center mb-4">
+                    <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center mb-3">
                         <CheckCircle2 size={32} />
                     </div>
-                    <h2 className="text-2xl font-bold">Payment Successful</h2>
-                    <p className="text-slate-600 mt-2 text-sm">Transaction recorded successfully.</p>
-                    <p className="text-slate-600 font-mono text-xs mt-1">{detail.sale.transaction_no}</p>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Pembayaran Berhasil</h2>
+                    <p className="text-slate-500 text-xs mt-1 font-mono">{detail.sale.transaction_no}</p>
+                </div>
+
+                {/* Visual Receipt Breakdown Preview */}
+                <div className="p-4 mx-6 my-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl font-mono text-xs max-h-48 overflow-y-auto custom-scrollbar">
+                    {detail.lines.map((l, i) => (
+                        <div key={i} className="mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800/50 last:border-0 last:mb-0 last:pb-0">
+                            <p className="font-bold text-slate-900 dark:text-white truncate">{l.item_name}</p>
+                            <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                <span>{l.qty} {l.unit_name || 'Pcs'} x Rp {l.price.toLocaleString('id-ID')}</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200">Rp {l.subtotal.toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+                    ))}
+                    <div className="border-t border-dashed border-slate-300 dark:border-slate-700 pt-2 mt-2 flex justify-between font-bold text-slate-900 dark:text-white text-xs">
+                        <span>TOTAL</span>
+                        <span className="text-brand">Rp {(detail.sale.grand_total || 0).toLocaleString('id-ID')}</span>
+                    </div>
                 </div>
                 
                 <div className="p-6 bg-slate-50 dark:bg-slate-900/50 flex flex-col gap-3">

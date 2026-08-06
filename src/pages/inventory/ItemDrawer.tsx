@@ -32,7 +32,7 @@ interface DraftPrices {
 }
 
 export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }: ItemDrawerProps) {
-  const [activeTab, setActiveTab] = useState<'basic' | 'units' | 'pricing' | 'settings'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'units' | 'pricing' | 'tiers' | 'settings'>('basic');
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,11 +44,13 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
   const [formData, setFormData] = useState({
     sku: '', name: '', generic_name: '', barcode: '',
     category_id: '', brand_id: '', hpp_method: 'avg',
-    min_stock: 0, has_expiry: 0, requires_prescription: 0
+    min_stock: 0, has_expiry: 0, requires_prescription: 0,
+    cost_price: 0, rack_location: '', item_type: 'INV'
   });
 
   const [draftUnits, setDraftUnits] = useState<DraftUnit[]>([]);
   const [draftPrices, setDraftPrices] = useState<DraftPrices>({});
+  const [draftTiers, setDraftTiers] = useState<Array<{ tempId: string; max_qty: number; price: number }>>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -60,15 +62,14 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
       if (editItemId) {
         setIsLoadingEdit(true);
         getItem(editItemId).then((data) => {
-          const { item, units, prices } = data;
+          const { item, units, prices, price_tiers } = data;
           
           setFormData({
             sku: item.sku, name: item.name, generic_name: item.generic_name || '', barcode: item.barcode || '',
             category_id: item.category_id || '', brand_id: item.brand_id || '', hpp_method: item.hpp_method,
-            min_stock: item.min_stock, has_expiry: item.has_expiry, requires_prescription: item.requires_prescription
+            min_stock: item.min_stock, has_expiry: item.has_expiry, requires_prescription: item.requires_prescription,
+            cost_price: item.cost_price || 0, rack_location: item.rack_location || '', item_type: item.item_type || 'INV'
           });
-
-          // In Phase 4, we will fetch the image_blob from Rust and map it to imagePreview here
 
           const loadedUnits: DraftUnit[] = units.map(u => ({
             tempId: `loaded-${u.id}`, savedId: u.id, unit_name: u.unit_name, conversion: u.conversion, is_base: u.is_base === 1, barcode: u.barcode || ''
@@ -85,15 +86,26 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
             };
           });
           setDraftPrices(loadedPrices);
+
+          if (price_tiers && price_tiers.length > 0) {
+            setDraftTiers(price_tiers.map(t => ({ tempId: Math.random().toString(36).substring(2, 9), max_qty: t.max_qty, price: t.price })));
+          } else {
+            setDraftTiers([]);
+          }
         }).finally(() => setIsLoadingEdit(false));
       } else {
         setFormData({
           sku: `MED-${Math.floor(1000 + Math.random() * 9000)}`, name: '', generic_name: '', barcode: '',
           category_id: '', brand_id: '', hpp_method: 'avg',
-          min_stock: 10, has_expiry: 0, requires_prescription: 0
+          min_stock: 10, has_expiry: 0, requires_prescription: 0,
+          cost_price: 0, rack_location: 'R01', item_type: 'INV'
         });
-        setDraftUnits([{ tempId: 'base', unit_name: 'Tablet', conversion: 1, is_base: true }]);
+        setDraftUnits([{ tempId: 'base', unit_name: 'PCS', conversion: 1, is_base: true }]);
         setDraftPrices({});
+        setDraftTiers([
+          { tempId: 't1', max_qty: 9, price: 0 },
+          { tempId: 't2', max_qty: 100, price: 0 }
+        ]);
       }
     }
   }, [isOpen, editItemId]);
@@ -113,7 +125,6 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
-        // Note: For Phase 4, you will pass this base64 string to the Rust backend
       };
       reader.readAsDataURL(file);
     }
@@ -122,6 +133,14 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
   const addConversionRow = () => setDraftUnits([...draftUnits, { tempId: Math.random().toString(36).substr(2, 9), unit_name: '', conversion: 2, is_base: false }]);
   const updateDraftUnit = (tempId: string, field: keyof DraftUnit, value: any) => setDraftUnits(draftUnits.map(u => u.tempId === tempId ? { ...u, [field]: value } : u));
   const removeDraftUnit = (tempId: string) => setDraftUnits(draftUnits.filter(u => u.tempId !== tempId));
+
+  const addTierRow = () => {
+    const lastTier = draftTiers[draftTiers.length - 1];
+    const newMax = lastTier ? lastTier.max_qty + 50 : 10;
+    setDraftTiers([...draftTiers, { tempId: Math.random().toString(36).substring(2, 9), max_qty: newMax, price: lastTier ? lastTier.price : 0 }]);
+  };
+  const updateDraftTier = (tempId: string, field: 'max_qty' | 'price', value: number) => setDraftTiers(draftTiers.map(t => t.tempId === tempId ? { ...t, [field]: value } : t));
+  const removeDraftTier = (tempId: string) => setDraftTiers(draftTiers.filter(t => t.tempId !== tempId));
 
   const updatePrice = (tempId: string, tier: 'regular' | 'member' | 'vip', value: number) => {
     setDraftPrices(prev => ({ ...prev, [tempId]: { ...prev[tempId], [tier]: value } }));
@@ -137,6 +156,8 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
         ...formData, barcode: formData.barcode.trim() || undefined, generic_name: formData.generic_name.trim() || undefined,
         category_id: formData.category_id || undefined, brand_id: formData.brand_id || undefined, notes: undefined, wholesale_price: 0
       };
+
+      let targetItemId = editItemId;
 
       if (editItemId) {
         await updateItem(editItemId, cleanPayload);
@@ -163,6 +184,7 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
         }
       } else {
         const newItem = await addItem(cleanPayload);
+        targetItemId = newItem.id;
         for (const unit of draftUnits) {
           const savedUnit = await addItemUnit(newItem.id, unit.unit_name.trim(), unit.conversion, unit.is_base ? 1 : 0, unit.barcode?.trim());
           const prices = draftPrices[unit.tempId];
@@ -172,6 +194,11 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
             await setItemPrice(newItem.id, savedUnit.id, 'vip', prices.vip || prices.regular);
           }
         }
+      }
+
+      if (targetItemId && draftTiers.length > 0) {
+        const { saveItemPriceTiers } = await import('../../lib/api');
+        await saveItemPriceTiers(targetItemId, null, draftTiers.map(t => ({ max_qty: Number(t.max_qty), price: Number(t.price) })));
       }
 
       onItemAdded();
@@ -209,8 +236,10 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
             </div>
 
             <div className="flex px-6 border-b border-slate-200 dark:border-slate-800">
-              {['basic', 'units', 'pricing', 'settings'].map((tab) => (
-                <button key={tab} onClick={() => setActiveTab(tab as any)} className={`px-4 py-3 text-sm font-semibold capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-brand text-brand' : 'border-transparent text-slate-600 hover:text-slate-700 dark:hover:text-slate-500'}`}>{tab}</button>
+              {['basic', 'units', 'pricing', 'tiers', 'settings'].map((tab) => (
+                <button key={tab} onClick={() => setActiveTab(tab as any)} className={`px-4 py-3 text-sm font-semibold capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-brand text-brand' : 'border-transparent text-slate-600 hover:text-slate-700 dark:hover:text-slate-500'}`}>
+                  {tab === 'tiers' ? 'Tier Harga (Volume)' : tab}
+                </button>
               ))}
             </div>
 
@@ -246,8 +275,15 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80"><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Medicine Name *</label><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand/20 outline-none" placeholder="e.g. Paracetamol 500mg" /></div>
-                  <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Generic Name</label><input type="text" value={formData.generic_name} onChange={e => setFormData({...formData, generic_name: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand/20 outline-none" /></div>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80"><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Medicine / Item Name *</label><input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand/20 outline-none" placeholder="e.g. ACETYLCYSTEINE 200 MG KAP MULIA" /></div>
+                  <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Jenis / Generic Name</label><input type="text" value={formData.generic_name} onChange={e => setFormData({...formData, generic_name: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand/20 outline-none" placeholder="e.g. OBAT BEBAS" /></div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Harga Pokok (HPP Beli)</label><input type="number" value={formData.cost_price || ''} onChange={e => setFormData({...formData, cost_price: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand/20 outline-none font-bold" placeholder="misal: 4591" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Lokasi Rak</label><input type="text" value={formData.rack_location} onChange={e => setFormData({...formData, rack_location: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand/20 outline-none" placeholder="misal: R01" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Tipe Item</label><input type="text" value={formData.item_type} onChange={e => setFormData({...formData, item_type: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand/20 outline-none" placeholder="INV" /></div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-5">
                     <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Category</label><select value={formData.category_id} onChange={e => setFormData({...formData, category_id: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand/20 outline-none"><option value="">Select Category...</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
                     <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Brand</label><select value={formData.brand_id} onChange={e => setFormData({...formData, brand_id: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand/20 outline-none"><option value="">Select Brand...</option>{brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
@@ -297,6 +333,76 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'tiers' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/50 rounded-xl p-4 flex gap-3">
+                    <Pill size={20} className="text-brand shrink-0" />
+                    <p className="text-sm text-blue-900 dark:text-blue-200 font-medium">
+                      Atur Tier Harga Volume (Jml 1..N & Harga Jml 1..N). Pembelian dengan jumlah hingga ambang batas akan otomatis mendapatkan harga tier tersebut di POS.
+                    </p>
+                  </div>
+
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                          <th className="py-3 px-4 text-xs font-semibold text-slate-600 dark:text-slate-400">Level Tier</th>
+                          <th className="py-3 px-4 text-xs font-semibold text-slate-600 dark:text-slate-400">Batas Maksimal Jumlah (Jml N)</th>
+                          <th className="py-3 px-4 text-xs font-semibold text-slate-600 dark:text-slate-400">Harga Satuan (Rp)</th>
+                          <th className="py-3 px-4 w-16"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {draftTiers.map((tier, idx) => (
+                          <tr key={tier.tempId} className="bg-white dark:bg-slate-950">
+                            <td className="p-4 font-bold text-brand">Tier {idx + 1}</td>
+                            <td className="p-3">
+                              <input
+                                type="number"
+                                value={tier.max_qty || ''}
+                                onChange={(e) => updateDraftTier(tier.tempId, 'max_qty', Number(e.target.value))}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20 font-bold"
+                                placeholder="misal: 9"
+                              />
+                            </td>
+                            <td className="p-3">
+                              <input
+                                type="number"
+                                value={tier.price || ''}
+                                onChange={(e) => updateDraftTier(tier.tempId, 'price', Number(e.target.value))}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20 font-bold text-slate-900 dark:text-white"
+                                placeholder="misal: 8000"
+                              />
+                            </td>
+                            <td className="p-3 text-center">
+                              <button
+                                onClick={() => removeDraftTier(tier.tempId)}
+                                className="text-slate-500 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {draftTiers.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="p-6 text-center text-xs text-slate-400">
+                              Belum ada tier harga. Klik tombol di bawah untuk menambah tier (Jml 1 & Harga 1).
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button
+                    onClick={addTierRow}
+                    className="flex items-center gap-2 text-sm font-semibold text-brand hover:text-blue-700 transition-colors px-2"
+                  >
+                    <Plus size={16} /> Tambah Tier Harga Baru
+                  </button>
                 </div>
               )}
 

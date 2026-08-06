@@ -114,11 +114,39 @@ async fn process_sync_queue(
 
         let endpoint = format!("{}/rest/v1/{}", supabase_url, table_name);
 
-        // Inject workspace_id into the payload & sanitize legacy field names
+        // Inject workspace_id into the payload & sanitize legacy field names / null constraints
         let mut json_payload: serde_json::Value = serde_json::from_str(&payload_str)
             .unwrap_or_else(|_| serde_json::json!({}));
         if let serde_json::Value::Object(ref mut map) = json_payload {
             map.insert("workspace_id".to_string(), serde_json::Value::String(workspace_id.to_string()));
+            
+            // Remove image_blob to prevent Supabase schema cache errors
+            map.remove("image_blob");
+
+            // Guarantee non-null updated_at and created_at timestamps for Supabase PostgreSQL constraints
+            let now_iso = chrono::Utc::now().to_rfc3339();
+            let need_updated = match map.get("updated_at") {
+                None | Some(serde_json::Value::Null) => true,
+                Some(serde_json::Value::String(s)) => s.trim().is_empty(),
+                _ => false,
+            };
+            if need_updated {
+                map.insert("updated_at".to_string(), serde_json::Value::String(now_iso.clone()));
+            }
+
+            if table_name == "item_prices" {
+                map.remove("created_at");
+            } else {
+                let need_created = match map.get("created_at") {
+                    None | Some(serde_json::Value::Null) => true,
+                    Some(serde_json::Value::String(s)) => s.trim().is_empty(),
+                    _ => false,
+                };
+                if need_created {
+                    map.insert("created_at".to_string(), serde_json::Value::String(now_iso));
+                }
+            }
+
             if table_name == "sales" {
                 if let Some(created_by_val) = map.remove("created_by") {
                     if !map.contains_key("user_id") {
@@ -650,7 +678,7 @@ pub async fn trigger_sync_pull(
         "accounts", "journal_entries", "journal_lines",
         "sales", "sale_lines", "sale_payments", "sale_returns", "sale_return_lines",
         "stock_opname", "stock_opname_lines",
-        "stock_ledger", "items", "item_units", "item_prices", "categories", "brands"
+        "stock_ledger", "items", "item_units", "item_prices", "item_price_tiers", "categories", "brands"
     ];
 
     let total_tables = tables.len();
@@ -1667,15 +1695,18 @@ pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &ser
             let min_stock = json_to_f64(payload.get("min_stock"), 0.0);
             let has_expiry = json_to_i64(payload.get("has_expiry"), 0);
             let requires_prescription = json_to_i64(payload.get("requires_prescription"), 0);
+            let cost_price = json_to_f64(payload.get("cost_price"), 0.0);
+            let rack_location = payload.get("rack_location").and_then(|v| v.as_str());
+            let item_type = payload.get("item_type").and_then(|v| v.as_str());
             let notes = payload.get("notes").and_then(|v| v.as_str());
             let is_active = json_to_i64(payload.get("is_active"), 1);
             let created_at = payload.get("created_at").and_then(|v| v.as_str());
             let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
             let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
             let _ = sqlx::query(
-                "INSERT INTO items (id, sku, barcode, name, generic_name, category_id, brand_id, hpp_method, image_blob, min_stock, has_expiry, requires_prescription, notes, is_active, created_at, updated_at, deleted_at, updated_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
-                 ON CONFLICT(id) DO UPDATE SET sku=excluded.sku, barcode=excluded.barcode, name=excluded.name, generic_name=excluded.generic_name, category_id=excluded.category_id, brand_id=excluded.brand_id, hpp_method=excluded.hpp_method, image_blob=excluded.image_blob, min_stock=excluded.min_stock, has_expiry=excluded.has_expiry, requires_prescription=excluded.requires_prescription, notes=excluded.notes, is_active=excluded.is_active, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, updated_by=excluded.updated_by"
+                "INSERT INTO items (id, sku, barcode, name, generic_name, category_id, brand_id, hpp_method, image_blob, min_stock, has_expiry, requires_prescription, cost_price, rack_location, item_type, notes, is_active, created_at, updated_at, deleted_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET sku=excluded.sku, barcode=excluded.barcode, name=excluded.name, generic_name=excluded.generic_name, category_id=excluded.category_id, brand_id=excluded.brand_id, hpp_method=excluded.hpp_method, image_blob=excluded.image_blob, min_stock=excluded.min_stock, has_expiry=excluded.has_expiry, requires_prescription=excluded.requires_prescription, cost_price=excluded.cost_price, rack_location=excluded.rack_location, item_type=excluded.item_type, notes=excluded.notes, is_active=excluded.is_active, updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, updated_by=excluded.updated_by"
             )
             .bind(id)
             .bind(sku)
@@ -1689,11 +1720,38 @@ pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &ser
             .bind(min_stock)
             .bind(has_expiry)
             .bind(requires_prescription)
+            .bind(cost_price)
+            .bind(rack_location)
+            .bind(item_type)
             .bind(notes)
             .bind(is_active)
             .bind(created_at)
             .bind(updated_at)
             .bind(deleted_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "item_price_tiers" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let item_id = payload.get("item_id").and_then(|v| v.as_str());
+            let unit_id = payload.get("unit_id").and_then(|v| v.as_str());
+            let tier_level = json_to_i64(payload.get("tier_level"), 1);
+            let max_qty = json_to_f64(payload.get("max_qty"), 0.0);
+            let price = json_to_f64(payload.get("price"), 0.0);
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let _ = sqlx::query(
+                "INSERT INTO item_price_tiers (id, item_id, unit_id, tier_level, max_qty, price, deleted_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 ON CONFLICT(id) DO UPDATE SET item_id=excluded.item_id, unit_id=excluded.unit_id, tier_level=excluded.tier_level, max_qty=excluded.max_qty, price=excluded.price, deleted_at=excluded.deleted_at, updated_at=excluded.updated_at"
+            )
+            .bind(id)
+            .bind(item_id)
+            .bind(unit_id)
+            .bind(tier_level)
+            .bind(max_qty)
+            .bind(price)
+            .bind(deleted_at)
+            .bind(updated_at)
             .execute(pool).await.map_err(|e| e.to_string())?;
         }
         "item_units" => {
@@ -1826,7 +1884,7 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
             "accounts", "journal_entries", "journal_lines",
             "sales", "sale_lines", "sale_payments", "sale_returns", "sale_return_lines",
             "stock_opname", "stock_opname_lines",
-            "stock_ledger", "items", "item_units", "item_prices", "categories", "brands"
+            "stock_ledger", "items", "item_units", "item_prices", "item_price_tiers", "categories", "brands"
         ];
 
         loop {
@@ -1942,7 +2000,7 @@ pub async fn nuke_cloud_workspace_data(
         "stock_ledger", "stock_opname_lines", "stock_opname", "purchase_return_lines",
         "purchase_returns", "purchase_payments", "purchase_lines", "purchases",
         "po_lines", "purchase_orders", "promo_bundle_items", "promo_tiers", "promo_bogo_rules",
-        "promos", "item_prices", "item_units", "items", "categories", "brands",
+        "promos", "item_price_tiers", "item_prices", "item_units", "items", "categories", "brands",
         "suppliers", "customers", "members"
     ];
 

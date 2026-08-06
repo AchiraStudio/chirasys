@@ -42,6 +42,12 @@ Aturan:
     });
   }
 
+  // Prune history to prevent token explosion (keep system prompt + last 10 messages)
+  const systemMsg = conversation.find(m => m.role === 'system');
+  const otherMsgs = conversation.filter(m => m.role !== 'system');
+  const recentMsgs = otherMsgs.slice(-10);
+  conversation = systemMsg ? [systemMsg, ...recentMsgs] : recentMsgs;
+
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -50,7 +56,7 @@ Aturan:
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: conversation,
         tools: aiTools,
         tool_choice: 'auto'
@@ -88,21 +94,24 @@ Aturan:
               role: user.role
             });
           } catch (execError: any) {
-            // Jika eksekusi gagal, kirimkan error sebagai pesan tool
             result = { error: execError.message || String(execError) };
           }
 
-          // Selalu tambahkan pesan tool response, baik sukses maupun error
+          let contentStr = JSON.stringify(result);
+          // Truncate large tool output to prevent token limits
+          if (contentStr.length > 3000) {
+            contentStr = contentStr.substring(0, 3000) + '... (truncated)';
+          }
+
           conversation.push({
             role: 'tool',
             tool_call_id: toolCall.id,
             name: functionName,
-            content: JSON.stringify(result)
+            content: contentStr
           });
         }
       }
       
-      // Recursive call with the new tool results so the model can generate a final answer
       return sendChatRequest(conversation, branchId);
     }
 

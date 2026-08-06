@@ -316,6 +316,47 @@ export const aiTools = [
         required: ['id']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_item_quantity_tiers',
+      description: 'Set or update quantity tier volume pricing for an item (e.g. Jml 1, Harga Jml 1, Jml 2, Harga Jml 2). Restricted to Admin/Owner.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item_id: { type: 'string', description: 'Item ID to set tiers for' },
+          unit_id: { type: 'string', description: 'Optional unit ID' },
+          tiers: {
+            type: 'array',
+            description: 'Array of quantity tier objects { max_qty: number, price: number }',
+            items: {
+              type: 'object',
+              properties: {
+                max_qty: { type: 'number', description: 'Max quantity threshold for this tier' },
+                price: { type: 'number', description: 'Unit selling price for this tier' }
+              },
+              required: ['max_qty', 'price']
+            }
+          }
+        },
+        required: ['item_id', 'tiers']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_item_quantity_tiers',
+      description: 'Get quantity price tiers for an item.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item_id: { type: 'string' }
+        },
+        required: ['item_id']
+      }
+    }
   }
 ];
 
@@ -336,6 +377,8 @@ export const TOOL_ROLE_REQUIREMENTS: Record<string, string[]> = {
   list_promos: ['owner', 'admin', 'staff', 'sysadmin'],
   add_item: ['owner', 'admin', 'sysadmin'],
   update_item: ['owner', 'admin', 'sysadmin'],
+  set_item_quantity_tiers: ['owner', 'admin', 'sysadmin'],
+  get_item_quantity_tiers: ['owner', 'admin', 'staff', 'sysadmin'],
 };
 
 export async function executeTool(name: string, args: any, context: { branchId: string; userId: string; role: string }) {
@@ -512,6 +555,10 @@ export async function executeTool(name: string, args: any, context: { branchId: 
           message: `Berhasil memperbarui data produk '${updatedItem.name}' (SKU: ${updatedItem.sku}).`
         };
       }
+      case 'set_item_quantity_tiers':
+        return await api.saveItemPriceTiers(args.item_id, args.unit_id || null, args.tiers || []);
+      case 'get_item_quantity_tiers':
+        return await api.getItemPriceTiers(args.item_id);
       default:
         return { error: `Tool ${name} not implemented.` };
     }

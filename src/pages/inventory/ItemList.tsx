@@ -163,23 +163,36 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
               <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800">
                 <th className="py-4 px-6">Nama Item</th>
                 <th className="py-4 px-6">SKU</th>
+                <th className="py-4 px-6 text-right w-36">Harga Pokok</th>
                 <th className="py-4 px-6 text-right w-44">Harga Eceran (Retail)</th>
-                <th className="py-4 px-6 text-right w-44">Harga Grosir (Wholesale)</th>
+                <th className="py-4 px-6 text-left min-w-[220px]">Tier Harga Volume (Jml 1..N)</th>
                 <th className="py-4 px-6 text-center w-28">Status</th>
                 <th className="py-4 px-6 text-right w-36">Aksi</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100 dark:divide-slate-800/60">
               {loading ? (
-                <tr><td colSpan={6} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-brand" /></td></tr>
+                <tr><td colSpan={7} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-brand" /></td></tr>
               ) : items.map((item) => (
                 <tr key={item.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group ${item.is_active === 0 ? 'opacity-50' : ''}`}>
                   <td className="py-4 px-6">
-                    <p className="font-bold text-slate-900 dark:text-white">{item.name}</p>
-                    {item.generic_name && <p className="text-xs text-slate-600 mt-0.5">{item.generic_name}</p>}
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-slate-900 dark:text-white">{item.name}</p>
+                      {item.rack_location && (
+                        <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold">
+                          Rak: {item.rack_location}
+                        </span>
+                      )}
+                    </div>
+                    {item.generic_name && <p className="text-xs text-slate-500 mt-0.5">{item.generic_name}</p>}
                   </td>
                   <td className="py-4 px-6 font-mono text-xs text-slate-600">{item.sku}</td>
                   
+                  {/* Harga Pokok (Cost Price) */}
+                  <td className="py-4 px-6 text-right font-mono text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    Rp {(item.cost_price || 0).toLocaleString('id-ID')}
+                  </td>
+
                   {/* Inline Retail Price Input */}
                   <td className="py-3 px-6 text-right">
                     <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-brand/30">
@@ -207,30 +220,30 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                     </div>
                   </td>
 
-                  {/* Inline Wholesale Price Input */}
-                  <td className="py-3 px-6 text-right">
-                    <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-brand/30">
-                      <span className="text-xs text-slate-400 font-bold mr-1">Rp</span>
-                      <input
-                        type="number"
-                        defaultValue={item.wholesale_price || 0}
-                        onBlur={async (e) => {
-                          const val = parseFloat(e.target.value);
-                          if (isNaN(val) || val === item.wholesale_price) return;
-                          try {
-                            const { updateItemWholesalePrice } = await import('../../lib/api');
-                            await updateItemWholesalePrice(item.id, val);
-                          } catch (err) {
-                            alert('Gagal update harga grosir: ' + err);
-                          }
-                        }}
-                        onKeyDown={async (e) => {
-                          if (e.key === 'Enter') {
-                            (e.target as HTMLInputElement).blur();
-                          }
-                        }}
-                        className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white focus:ring-0 p-0 text-right font-mono"
-                      />
+                  {/* Tier Harga Volume (Badges + Quick Edit) */}
+                  <td className="py-3 px-6">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {item.price_tiers && item.price_tiers.length > 0 ? (
+                        item.price_tiers.map((t) => (
+                          <span
+                            key={t.id || t.tier_level}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-extrabold bg-blue-50 dark:bg-blue-950/60 text-brand dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 shadow-2xs"
+                            title={`Tier ${t.tier_level}: Maks ${t.max_qty} Pcs @ Rp ${t.price.toLocaleString('id-ID')}`}
+                          >
+                            <span className="text-[10px] opacity-75 font-mono">≤{t.max_qty}</span>
+                            <span>Rp {t.price.toLocaleString('id-ID')}</span>
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium italic">Tanpa Tier</span>
+                      )}
+                      <button
+                        onClick={() => onEditItem(item.id)}
+                        className="p-1 text-slate-400 hover:text-brand hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                        title="Atur Tier Harga"
+                      >
+                        <Edit size={13} />
+                      </button>
                     </div>
                   </td>
 

@@ -57,6 +57,8 @@ pub fn run() {
             commands::items::delete_item_unit,
             commands::items::set_item_price,
             commands::items::update_item_wholesale_price,
+            commands::items::save_item_price_tiers,
+            commands::items::get_item_price_tiers,
             commands::inventory::get_stock_overview,
             commands::inventory::get_low_stock_alerts,
             commands::inventory::get_stock_movements,

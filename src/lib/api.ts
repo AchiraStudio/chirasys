@@ -38,12 +38,13 @@ export const calculateDiscounts = async (lines: CartLineForDiscount[], customerT
 // --- Types ---
 export interface Brand { id: string; name: string; logo_blob?: number[]; created_at: string; }
 export interface Category { id: string; parent_id?: string; name: string; description?: string; color?: string; created_at: string; }
-export interface Item { id: string; sku: string; barcode?: string; name: string; generic_name?: string; category_id?: string; brand_id?: string; hpp_method: string; min_stock: number; has_expiry: number; requires_prescription: number; notes?: string; is_active: number; created_at: string; wholesale_price: number; price?: number; base_unit_id?: string; base_unit_name?: string; avg_hpp?: number; }
+export interface ItemPriceTier { id: string; item_id: string; unit_id?: string; tier_level: number; max_qty: number; price: number; }
+export interface Item { id: string; sku: string; barcode?: string; name: string; generic_name?: string; category_id?: string; brand_id?: string; hpp_method: string; min_stock: number; has_expiry: number; requires_prescription: number; cost_price?: number; rack_location?: string; item_type?: string; notes?: string; is_active: number; created_at: string; wholesale_price: number; price?: number; base_unit_id?: string; base_unit_name?: string; avg_hpp?: number; price_tiers?: ItemPriceTier[]; }
 export interface ItemUnit { id: string; item_id: string; unit_name: string; conversion: number; is_base: number; barcode?: string; created_at: string; }
 export interface ItemPrice { id: string; item_id: string; unit_id: string; customer_tier: string; price: number; }
 export interface PaginatedItems { items: Item[]; total: number; page: number; per_page: number; }
 export interface ActiveBatch { batch_no?: string; expiry_date?: string; current_qty: number; }
-export interface ItemDetailData { item: Item; units: ItemUnit[]; prices: ItemPrice[]; active_batches: ActiveBatch[]; }
+export interface ItemDetailData { item: Item; units: ItemUnit[]; prices: ItemPrice[]; price_tiers: ItemPriceTier[]; active_batches: ActiveBatch[]; }
 export interface Supplier { id: string; name: string; contact_person?: string; phone?: string; email?: string; address?: string; payment_terms?: string; notes?: string; is_active: number; created_at: string; updated_at: string; }
 export interface Customer { id: string; name: string; phone?: string; email?: string; address?: string; region?: string; customer_tier: string; loyalty_points: number; notes?: string; membership_expiry?: string; is_active: number; created_at: string; updated_at: string; }
 export interface StockLedgerRow { id: string; item_id: string; unit_id: string; branch_id: string; qty_change: number; direction: 'in' | 'out'; source_type: string; source_id?: string; hpp_value?: number; expiry_date?: string; batch_no?: string; notes?: string; created_by?: string; created_at: string; }
@@ -145,6 +146,22 @@ export const updateItemUnit = async (id: string, unitName: string, conversion: n
 export const deleteItemUnit = async (id: string): Promise<void> => invoke('delete_item_unit', { id });
 export const setItemPrice = async (itemId: string, unitId: string, customerTier: 'regular' | 'member' | 'vip', price: number): Promise<ItemPrice> => invoke('set_item_price', { itemId, unitId, customerTier, price });
 export const updateItemWholesalePrice = async (id: string, wholesalePrice: number): Promise<void> => invoke('update_item_wholesale_price', { id, wholesalePrice });
+export const saveItemPriceTiers = async (itemId: string, unitId: string | null, tiers: Array<{ max_qty: number; price: number }>): Promise<ItemPriceTier[]> => invoke('save_item_price_tiers', { itemId, unitId, tiers });
+export const getItemPriceTiers = async (itemId: string): Promise<ItemPriceTier[]> => invoke('get_item_price_tiers', { itemId });
+
+export function resolveTierPrice(item: Item | (Item & { price_tiers?: ItemPriceTier[] }) | ItemDetailData['item'], qty: number, basePriceOverride?: number, priceTiers?: ItemPriceTier[]): { price: number; tierLevel: number | null } {
+  const tiers = priceTiers || (item as any)?.price_tiers || [];
+  if (tiers && tiers.length > 0) {
+    const sorted = [...tiers].sort((a, b) => a.tier_level - b.tier_level);
+    const matchingTier = sorted.find(t => qty <= t.max_qty);
+    if (matchingTier) {
+      return { price: matchingTier.price, tierLevel: matchingTier.tier_level };
+    }
+    const highestTier = sorted[sorted.length - 1];
+    return { price: highestTier.price, tierLevel: highestTier.tier_level };
+  }
+  return { price: basePriceOverride !== undefined ? basePriceOverride : (item.price || 0), tierLevel: null };
+}
 
 export const getStockOverview = async (branchId: string): Promise<StockOverviewRow[]> => invoke('get_stock_overview', { branchId });
 export const getLowStockAlerts = async (branchId: string): Promise<LowStockAlert[]> => invoke('get_low_stock_alerts', { branchId });

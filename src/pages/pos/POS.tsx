@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ShoppingCart, Search, Plus, Minus, Trash2, Clock, UserCheck, PauseCircle, PlayCircle, Loader2, HelpCircle, Edit2, Check, X as XIcon, Crown } from 'lucide-react';
 import { usePosStore, PosLine, PosHold } from './POSStore';
-import { getItemsFiltered, Item, Customer, getSettings, kickCashDrawer } from '../../lib/api';
+import { getItemsFiltered, Item, Customer, getSettings, kickCashDrawer, resolveTierPrice } from '../../lib/api';
 import { applyDiscountsToCart } from '../../lib/discountEngine';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import PaymentModal from './PaymentModal';
@@ -365,23 +365,35 @@ export default function POS() {
   const addToCart = (item: Item) => {
     setCart(prev => {
       const exists = prev.find(l => l.item_id === item.id && !l.is_bogo_free);
-      if (exists) return prev.map(l => (l.item_id === item.id && !l.is_bogo_free) ? { ...l, qty: l.qty + 1 } : l);
-      const price = priceType === 'wholesale' && item.wholesale_price ? item.wholesale_price : (item.price || 0);
+      const newQty = exists ? exists.qty + 1 : 1;
+      const baseDefault = priceType === 'wholesale' && item.wholesale_price ? item.wholesale_price : (item.price || 0);
+      const resolved = resolveTierPrice(item, newQty, baseDefault);
+
+      if (exists) {
+        return prev.map(l => (l.item_id === item.id && !l.is_bogo_free) ? { ...l, qty: newQty, price: resolved.price } : l);
+      }
       return [...prev, {
         item_id: item.id, item_name: item.name,
         unit_id: item.base_unit_id || 'unknown', unit_name: item.base_unit_name || 'Unit',
-        qty: 1, price_type: priceType, price, discount_amount: 0, hpp_value: item.avg_hpp || 0
+        qty: 1, price_type: priceType, price: resolved.price, discount_amount: 0, hpp_value: item.avg_hpp || 0
       }];
     });
-    // Select the last item added
-    setSelectedCartIdx(cart.length); // will be updated after state settles
+    setSelectedCartIdx(cart.length);
   };
 
   const updateQty = (itemId: string, delta: number) => {
     setCart(prev => prev.map(l => {
       if (l.item_id === itemId && !l.is_bogo_free) {
         const newQty = l.qty + delta;
-        return newQty > 0 ? { ...l, qty: newQty } : l;
+        if (newQty <= 0) return l;
+        const matchedItem = items.find(i => i.id === itemId);
+        let newPrice = l.price;
+        if (matchedItem) {
+          const baseDefault = l.price_type === 'wholesale' && matchedItem.wholesale_price ? matchedItem.wholesale_price : (matchedItem.price || 0);
+          const resolved = resolveTierPrice(matchedItem, newQty, baseDefault);
+          newPrice = resolved.price;
+        }
+        return { ...l, qty: newQty, price: newPrice };
       }
       return l;
     }));
@@ -629,6 +641,18 @@ export default function POS() {
                           <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                             Rp {l.price.toLocaleString('id-ID')} <span className="text-[10px] text-slate-400">/ {l.unit_name}</span>
                           </p>
+                          {(() => {
+                            const matchedItem = items.find(i => i.id === l.item_id);
+                            const resolved = matchedItem ? resolveTierPrice(matchedItem, l.qty, l.price) : null;
+                            if (resolved?.tierLevel) {
+                              return (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-100 dark:bg-blue-900/60 text-brand dark:text-blue-300">
+                                  Tier {resolved.tierLevel}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                           {!l.is_bogo_free && isSelected && (
                             <button
                               onClick={e => { e.stopPropagation(); startEditPrice(idx); }}

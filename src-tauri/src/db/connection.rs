@@ -111,6 +111,8 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/045_clean_sales_sync_queue.sql"), 45),
         (include_str!("./migrations/046_clean_sales_net_amount.sql"), 46),
         (include_str!("./migrations/047_fix_null_is_active.sql"), 47),
+        (include_str!("./migrations/048_quantity_price_tiers.sql"), 48),
+        (include_str!("./migrations/049_clean_sync_queue_errors.sql"), 49),
     ];
 
     for (sql, version) in migrations {
