@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Loader2, AlertTriangle, ShieldCheck, RefreshCw, Layers, Activity, History, PackageOpen, Pencil } from 'lucide-react';
-import { getStockOverview, StockOverviewRow, exportStockExcel } from '../../lib/api';
+import { getStockOverview, StockOverviewRow, exportStockExcel, getCategories, Category } from '../../lib/api';
 import SetInitialStockModal from './SetInitialStockModal';
 import StockAdjustModal from './StockAdjustModal';
 import StockMovementsPanel from './StockMovementsPanel';
@@ -15,6 +15,8 @@ interface StockOverviewProps {
 
 export default function StockOverview({ refreshTrigger, onEditItem }: StockOverviewProps) {
   const [stockRows, setStockRows] = useState<StockOverviewRow[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'low'>('all');
@@ -25,6 +27,10 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
   const [bulkAdjustOpen, setBulkAdjustOpen] = useState(false);
 
   const DEFAULT_BRANCH_ID = 'branch_001';
+
+  useEffect(() => {
+    getCategories().then(setCategories).catch(console.error);
+  }, []);
 
   const loadStockData = async () => {
     setLoading(true);
@@ -67,7 +73,8 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
   const filteredRows = stockRows.filter(row => {
     const matchesSearch = row.item_name.toLowerCase().includes(search.toLowerCase()) || row.sku.toLowerCase().includes(search.toLowerCase());
     const matchesTab = filterMode === 'all' || row.is_low_stock;
-    return matchesSearch && matchesTab;
+    const matchesCategory = !selectedCategory || row.category_name === selectedCategory;
+    return matchesSearch && matchesTab && matchesCategory;
   });
 
   return (
@@ -128,7 +135,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
       {/* Table */}
       <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col flex-1 overflow-hidden">
         {/* Filters */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex gap-4 justify-between bg-slate-50/50 dark:bg-slate-900/30">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4 justify-between bg-slate-50/50 dark:bg-slate-900/30">
           <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
             <button 
               onClick={() => setFilterMode('all')} 
@@ -151,15 +158,27 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
               <AlertTriangle size={12} /> Stock Alerts ({lowStockCount})
             </button>
           </div>
-          <div className="flex-1 max-w-md flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3">
-            <Search size={16} className="text-slate-500 mr-2" />
-            <input 
-              type="text" 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)} 
-              placeholder="Search items..." 
-              className="bg-transparent border-none outline-none text-sm w-full focus:ring-0 py-2 text-slate-900 dark:text-white placeholder-slate-400" 
-            />
+          <div className="flex-1 max-w-lg flex items-center gap-3">
+            <div className="flex-1 flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3">
+              <Search size={16} className="text-slate-500 mr-2" />
+              <input 
+                type="text" 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                placeholder="Search items..." 
+                className="bg-transparent border-none outline-none text-sm w-full focus:ring-0 py-2 text-slate-900 dark:text-white placeholder-slate-400" 
+              />
+            </div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand/20 shrink-0"
+            >
+              <option value="">Semua Kategori</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -170,6 +189,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
               <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase font-semibold border-b border-slate-200 dark:border-slate-800">
                 <th className="py-4 px-6">Item</th>
                 <th className="py-4 px-6">SKU</th>
+                <th className="py-4 px-6">Kategori</th>
                 <th className="py-4 px-6 text-center">Base Unit</th>
                 <th className="py-4 px-6 text-right">Min Stock</th>
                 <th className="py-4 px-6 text-right">Balance</th>
@@ -179,14 +199,14 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
             <tbody className="text-sm divide-y divide-slate-100 dark:divide-slate-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-20 text-center">
+                  <td colSpan={7} className="py-20 text-center">
                     <Loader2 size={24} className="animate-spin mx-auto text-brand" />
                     <p className="text-xs text-slate-500 mt-2">Loading stock data...</p>
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-20 text-center text-slate-500">
+                  <td colSpan={7} className="py-20 text-center text-slate-500">
                     No items match your search or filter.
                   </td>
                 </tr>
@@ -205,6 +225,15 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                       )}
                     </td>
                     <td className="py-3 px-6 font-mono text-xs text-slate-600">{row.sku}</td>
+                    <td className="py-3 px-6">
+                      {row.category_name ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50">
+                          {row.category_name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium italic">-</span>
+                      )}
+                    </td>
                     <td className="py-3 px-6 text-center text-slate-600 dark:text-slate-300">{row.unit_name || '-'}</td>
                     <td className="py-3 px-6 text-right font-mono text-slate-600">{row.min_stock}</td>
                     <td className={`py-3 px-6 text-right font-mono font-bold ${row.is_low_stock ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>

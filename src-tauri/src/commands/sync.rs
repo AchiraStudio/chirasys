@@ -52,6 +52,19 @@ pub fn spawn_sync_worker(pool: SqlitePool) {
             }
             let workspace_id = workspace_id.unwrap();
 
+            let auto_sync: String = sqlx::query_scalar(
+                "SELECT value FROM global_settings WHERE key = 'auto_sync'"
+            )
+            .fetch_optional(&pool)
+            .await
+            .unwrap_or(None)
+            .unwrap_or_else(|| "true".to_string());
+
+            if auto_sync == "false" || auto_sync == "0" {
+                sleep(Duration::from_secs(10)).await;
+                continue;
+            }
+
             match process_sync_queue(&pool, &client, &supabase_url, &supabase_key, &workspace_id).await {
                 Ok(synced) => {
                     if synced > 0 {
@@ -241,6 +254,7 @@ pub struct SyncStatus {
     pub pending_count: i64,
     pub failed_count: i64,
     pub last_synced: Option<String>,
+    pub auto_sync: bool,
 }
 
 /// Validate a workspace code or invite token against Supabase and save to local settings.
@@ -553,7 +567,17 @@ pub async fn get_sync_status(state: tauri::State<'_, crate::AppState>) -> Result
     .map_err(|e| e.to_string())?
     .flatten();
 
-    Ok(SyncStatus { workspace_id, workspace_name, workspace_code, pending_count, failed_count, last_synced })
+    let auto_sync_str: String = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'auto_sync'"
+    )
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .unwrap_or_else(|| "true".to_string());
+
+    let auto_sync = auto_sync_str != "false" && auto_sync_str != "0";
+
+    Ok(SyncStatus { workspace_id, workspace_name, workspace_code, pending_count, failed_count, last_synced, auto_sync })
 }
 
 #[tauri::command]
@@ -1901,6 +1925,19 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
                 continue;
             }
             let workspace_id = workspace_id.unwrap();
+
+            let auto_sync: String = sqlx::query_scalar(
+                "SELECT value FROM global_settings WHERE key = 'auto_sync'"
+            )
+            .fetch_optional(&pool)
+            .await
+            .unwrap_or(None)
+            .unwrap_or_else(|| "true".to_string());
+
+            if auto_sync == "false" || auto_sync == "0" {
+                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                continue;
+            }
 
             // Read last_pull_at cursor
             let mut last_pull_at: String = sqlx::query_scalar(

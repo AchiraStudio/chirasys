@@ -28,6 +28,7 @@ pub struct Item {
     pub price: Option<f64>,
     pub base_unit_id: Option<String>,
     pub base_unit_name: Option<String>,
+    pub category_name: Option<String>,
     pub avg_hpp: Option<f64>,
     #[sqlx(skip)]
     pub price_tiers: Option<Vec<ItemPriceTier>>,

@@ -41,6 +41,10 @@ const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
     { label: 'Local Only (Offline)', value: 'local' },
     { label: 'Cloud Sync (Online)', value: 'cloud' },
   ],
+  auto_sync: [
+    { label: 'Aktif (Otomatis Sync Background)', value: 'true' },
+    { label: 'Nonaktif (Manual Sync Saja)', value: 'false' },
+  ],
   language: [
     { label: 'Bahasa Indonesia (ID)', value: 'id' },
     { label: 'English (EN)', value: 'en' },
@@ -249,6 +253,23 @@ export default function Settings() {
       });
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const handleToggleAutoSync = async (enabled: boolean) => {
+    try {
+      await setSetting('auto_sync', enabled ? 'true' : 'false');
+      window.dispatchEvent(new CustomEvent('chirasys:auto_sync_changed'));
+      await loadSyncStatus();
+      await loadSettings();
+    } catch (e: any) {
+      setConfirmModal({
+        title: 'Gagal Mengubah Pengaturan',
+        message: e.message || String(e),
+        variant: 'warning',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
     }
   };
 
@@ -557,6 +578,40 @@ export default function Settings() {
                       <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Gagal Sync</p>
                       <p className={`text-3xl font-black mt-1 font-mono ${syncStatus.failed_count > 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.failed_count}</p>
                     </div>
+                  </div>
+
+                  {/* Auto Sync Toggle Switch */}
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white">Sinkronisasi Otomatis Supabase</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          syncStatus.auto_sync
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700'
+                        }`}>
+                          {syncStatus.auto_sync ? 'Aktif' : 'Nonaktif'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                        Otomatis mengunggah & mengunduh data dengan Supabase Cloud di latar belakang.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleAutoSync(!syncStatus.auto_sync)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        syncStatus.auto_sync ? 'bg-brand' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                      role="switch"
+                      aria-checked={syncStatus.auto_sync}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          syncStatus.auto_sync ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
 
                   {syncStatus.last_synced && (

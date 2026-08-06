@@ -1,7 +1,7 @@
 // src/pages/reports/LaporanStok.tsx
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Loader2, Package, RefreshCw } from 'lucide-react';
-import { getStockValuation, StockValuationRow, exportStockExcel } from '../../lib/api';
+import { getStockValuation, StockValuationRow, exportStockExcel, getCategories, Category } from '../../lib/api';
 import { downloadCsv } from '../../lib/exportCsv';
 import { save } from '@tauri-apps/plugin-dialog';
 import { FileSpreadsheet } from 'lucide-react';
@@ -10,6 +10,8 @@ interface Props { onBack: () => void; }
 
 export default function LaporanStok({ onBack }: Props) {
   const [data, setData] = useState<StockValuationRow[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -20,7 +22,10 @@ export default function LaporanStok({ onBack }: Props) {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+    getCategories().then(setCategories).catch(console.error);
+  }, []);
 
   const handleExportExcel = async () => {
     try {
@@ -41,10 +46,11 @@ export default function LaporanStok({ onBack }: Props) {
     }
   };
 
-  const filtered = data.filter(r =>
-    r.item_name.toLowerCase().includes(search.toLowerCase()) ||
-    r.sku.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = data.filter(r => {
+    const matchesSearch = r.item_name.toLowerCase().includes(search.toLowerCase()) || r.sku.toLowerCase().includes(search.toLowerCase());
+    const matchesCat = !selectedCategory || r.category_name === selectedCategory;
+    return matchesSearch && matchesCat;
+  });
 
   const grandTotal = filtered.reduce((s, r) => s + r.total_value, 0);
 
@@ -64,6 +70,16 @@ export default function LaporanStok({ onBack }: Props) {
             <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari item..."
               className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" />
           </div>
+          <select
+            value={selectedCategory}
+            onChange={e => setSelectedCategory(e.target.value)}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand"
+          >
+            <option value="">Semua Kategori</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
           <button onClick={fetchData} className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>

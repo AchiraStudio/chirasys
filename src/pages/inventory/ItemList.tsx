@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Loader2, Eye, Trash2, Edit, Upload, Download, HelpCircle } from 'lucide-react';
-import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel } from '../../lib/api';
+import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel, getCategories, Category } from '../../lib/api';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import TourGuide from '../../components/ui/TourGuide';
 
@@ -13,6 +13,8 @@ interface ItemListProps {
 
 export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTrigger }: ItemListProps) {
   const [items, setItems] = useState<Item[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   
@@ -42,10 +44,14 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
     }
   ];
 
+  useEffect(() => {
+    getCategories().then(setCategories).catch(console.error);
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await getItemsFiltered(search, '', '', false, page, 20);
+      const data = await getItemsFiltered(search, selectedCategory, '', false, page, 20);
       setItems(data.items);
       setTotal(data.total);
     } catch (error) {
@@ -58,7 +64,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
   useEffect(() => {
     const delay = setTimeout(() => { loadData(); }, 300);
     return () => clearTimeout(delay);
-  }, [search, page, refreshTrigger]);
+  }, [search, selectedCategory, page, refreshTrigger]);
 
   const handleDelete = async (id: string) => {
     if (confirm("Apakah Anda yakin ingin menonaktifkan item ini?")) {
@@ -144,17 +150,27 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
       </div>
 
       <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col flex-1 overflow-hidden tour-inv-table">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex gap-4 bg-slate-50/50 dark:bg-slate-900/30">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4 bg-slate-50/50 dark:bg-slate-900/30">
           <div className="tour-inv-search flex-1 flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all">
             <Search size={16} className="text-slate-500 mr-2" />
             <input 
               type="text" 
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Cari berdasarkan nama, SKU, atau barcode..." 
               className="bg-transparent border-none outline-none text-sm w-full text-slate-900 dark:text-white placeholder-slate-400" 
             />
           </div>
+          <select
+            value={selectedCategory}
+            onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-lg px-3.5 py-2 outline-none focus:ring-2 focus:ring-brand/20"
+          >
+            <option value="">Semua Kategori</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
@@ -163,6 +179,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
               <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800">
                 <th className="py-4 px-6">Nama Item</th>
                 <th className="py-4 px-6">SKU</th>
+                <th className="py-4 px-6">Kategori</th>
                 <th className="py-4 px-6 text-right w-36">Harga Pokok</th>
                 <th className="py-4 px-6 text-right w-44">Harga Eceran (Retail)</th>
                 <th className="py-4 px-6 text-left min-w-[220px]">Tier Harga Volume (Jml 1..N)</th>
@@ -172,7 +189,9 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
             </thead>
             <tbody className="text-sm divide-y divide-slate-100 dark:divide-slate-800/60">
               {loading ? (
-                <tr><td colSpan={7} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-brand" /></td></tr>
+                <tr><td colSpan={8} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-brand" /></td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={8} className="py-20 text-center text-slate-400 font-medium">Tidak ada item ditemukan.</td></tr>
               ) : items.map((item) => (
                 <tr key={item.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group ${item.is_active === 0 ? 'opacity-50' : ''}`}>
                   <td className="py-4 px-6">
@@ -187,6 +206,17 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                     {item.generic_name && <p className="text-xs text-slate-500 mt-0.5">{item.generic_name}</p>}
                   </td>
                   <td className="py-4 px-6 font-mono text-xs text-slate-600">{item.sku}</td>
+
+                  {/* Kategori Column */}
+                  <td className="py-4 px-6">
+                    {item.category_name ? (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50">
+                        {item.category_name}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-medium italic">-</span>
+                    )}
+                  </td>
                   
                   {/* Harga Pokok (Cost Price) */}
                   <td className="py-4 px-6 text-right font-mono text-xs font-semibold text-slate-600 dark:text-slate-400">

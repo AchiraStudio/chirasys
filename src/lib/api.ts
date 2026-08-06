@@ -39,7 +39,7 @@ export const calculateDiscounts = async (lines: CartLineForDiscount[], customerT
 export interface Brand { id: string; name: string; logo_blob?: number[]; created_at: string; }
 export interface Category { id: string; parent_id?: string; name: string; description?: string; color?: string; created_at: string; }
 export interface ItemPriceTier { id: string; item_id: string; unit_id?: string; tier_level: number; max_qty: number; price: number; }
-export interface Item { id: string; sku: string; barcode?: string; name: string; generic_name?: string; category_id?: string; brand_id?: string; hpp_method: string; min_stock: number; has_expiry: number; requires_prescription: number; cost_price?: number; rack_location?: string; item_type?: string; notes?: string; is_active: number; created_at: string; wholesale_price: number; price?: number; base_unit_id?: string; base_unit_name?: string; avg_hpp?: number; price_tiers?: ItemPriceTier[]; }
+export interface Item { id: string; sku: string; barcode?: string; name: string; generic_name?: string; category_id?: string; category_name?: string; brand_id?: string; hpp_method: string; min_stock: number; has_expiry: number; requires_prescription: number; cost_price?: number; rack_location?: string; item_type?: string; notes?: string; is_active: number; created_at: string; wholesale_price: number; price?: number; base_unit_id?: string; base_unit_name?: string; avg_hpp?: number; price_tiers?: ItemPriceTier[]; }
 export interface ItemUnit { id: string; item_id: string; unit_name: string; conversion: number; is_base: number; barcode?: string; created_at: string; }
 export interface ItemPrice { id: string; item_id: string; unit_id: string; customer_tier: string; price: number; }
 export interface PaginatedItems { items: Item[]; total: number; page: number; per_page: number; }
@@ -313,6 +313,7 @@ export interface SyncStatus {
   pending_count: number;
   failed_count: number;
   last_synced: string | null;
+  auto_sync: boolean;
 }
 export const joinWorkspace = async (codeOrToken: string, password?: string): Promise<WorkspaceInfo> =>
   invoke('join_workspace', { codeOrToken, password: password || null });

@@ -114,9 +114,11 @@ export default function App() {
       setStatus('connecting');
 
       let workspaceId = '';
+      let autoSync = true;
       try {
         const syncStatus = await getSyncStatus();
         workspaceId = syncStatus.workspace_id;
+        autoSync = syncStatus.auto_sync;
       } catch (err) {
         console.error("Failed to load sync status:", err);
       }
@@ -124,6 +126,12 @@ export default function App() {
       if (!workspaceId) {
         console.log('⚠️ No active workspace connected. Realtime sync bypassed.');
         setStatus('error');
+        return;
+      }
+
+      if (!autoSync) {
+        console.log('⏸️ Automatic sync disabled in settings. Realtime sync bypassed.');
+        setStatus('disconnected');
         return;
       }
 
@@ -165,9 +173,28 @@ export default function App() {
       };
     };
 
-    const cleanup = setupRealtime();
+    let activeCleanup: (() => void) | undefined;
+
+    const runSetup = async () => {
+      if (activeCleanup) {
+        activeCleanup();
+        activeCleanup = undefined;
+      }
+      const cleanup = await setupRealtime();
+      if (cleanup) activeCleanup = cleanup;
+    };
+
+    runSetup();
+
+    const handleAutoSyncChange = () => {
+      runSetup();
+    };
+
+    window.addEventListener('chirasys:auto_sync_changed', handleAutoSyncChange);
+
     return () => {
-      cleanup.then(fn => fn && fn());
+      window.removeEventListener('chirasys:auto_sync_changed', handleAutoSyncChange);
+      if (activeCleanup) activeCleanup();
     };
   }, [token]);
 

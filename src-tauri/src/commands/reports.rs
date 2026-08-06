@@ -53,6 +53,7 @@ pub struct StockValuationRow {
 pub struct ExpiringItemRow {
     pub item_name: String,
     pub sku: String,
+    pub category_name: Option<String>,
     pub batch_no: Option<String>,
     pub expiry_date: String,
     pub qty: f64,
@@ -272,6 +273,7 @@ pub async fn get_expiring_items(
         SELECT
             i.name                          AS item_name,
             i.sku,
+            (SELECT name FROM categories WHERE id = i.category_id) AS category_name,
             sl.batch_no,
             sl.expiry_date,
             SUM(sl.qty_change)              AS qty,

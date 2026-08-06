@@ -113,6 +113,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/047_fix_null_is_active.sql"), 47),
         (include_str!("./migrations/048_quantity_price_tiers.sql"), 48),
         (include_str!("./migrations/049_clean_sync_queue_errors.sql"), 49),
+        (include_str!("./migrations/050_auto_sync_setting.sql"), 50),
     ];
 
     for (sql, version) in migrations {

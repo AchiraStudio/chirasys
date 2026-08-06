@@ -26,6 +26,7 @@ pub async fn get_items_filtered(
                (SELECT price FROM item_prices WHERE item_id = items.id AND customer_tier = 'regular' LIMIT 1) as price,
                (SELECT id FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_id,
                (SELECT unit_name FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_name,
+               (SELECT name FROM categories WHERE id = items.category_id) as category_name,
                0.0 as avg_hpp
         FROM items WHERE 1=1
     "#,

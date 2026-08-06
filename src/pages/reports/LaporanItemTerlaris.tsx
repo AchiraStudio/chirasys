@@ -1,7 +1,6 @@
-// src/pages/reports/LaporanItemTerlaris.tsx
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { getTopSellingItems, TopItemRow } from '../../lib/api';
+import { getTopSellingItems, TopItemRow, getCategories, Category } from '../../lib/api';
 import { downloadCsv } from '../../lib/exportCsv';
 
 interface Props { onBack: () => void; }
@@ -12,6 +11,8 @@ export default function LaporanItemTerlaris({ onBack }: Props) {
   const [dateFrom, setDateFrom] = useState(firstOfMonth());
   const [dateTo, setDateTo] = useState(today());
   const [data, setData] = useState<TopItemRow[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const fetchData = async () => {
@@ -21,7 +22,12 @@ export default function LaporanItemTerlaris({ onBack }: Props) {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+    getCategories().then(setCategories).catch(console.error);
+  }, []);
+
+  const filteredData = data.filter(r => !selectedCategory || r.category_name === selectedCategory);
 
   const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -35,15 +41,25 @@ export default function LaporanItemTerlaris({ onBack }: Props) {
             <p className="text-xs text-slate-500">Peringkat produk berdasarkan revenue</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" />
           <span className="text-xs text-slate-500">–</span>
           <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" />
+          <select
+            value={selectedCategory}
+            onChange={e => setSelectedCategory(e.target.value)}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand"
+          >
+            <option value="">Semua Kategori</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
           <button onClick={fetchData} className="px-4 py-2 bg-brand text-white rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors">Tampilkan</button>
           <button 
             onClick={() => {
               const headers = ['#', 'Nama Item', 'SKU', 'Kategori', 'Qty Terjual', 'Total Penjualan', 'Total HPP', 'Margin (%)'];
-              const rows = data.map((r, i) => [i + 1, r.item_name, r.sku, r.category_name, r.qty_sold, r.total_revenue, r.total_cogs, r.gross_margin.toFixed(1)]);
+              const rows = filteredData.map((r, i) => [i + 1, r.item_name, r.sku, r.category_name, r.qty_sold, r.total_revenue, r.total_cogs, r.gross_margin.toFixed(1)]);
               downloadCsv('Laporan_Item_Terlaris.csv', headers, rows);
             }}
             className="px-4 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors border border-emerald-200"
@@ -70,9 +86,9 @@ export default function LaporanItemTerlaris({ onBack }: Props) {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
               {loading ? (
                 <tr><td colSpan={7} className="py-16 text-center"><Loader2 className="animate-spin text-brand mx-auto mb-2" size={28}/><p className="text-xs text-slate-500">Memuat data...</p></td></tr>
-              ) : data.length === 0 ? (
+              ) : filteredData.length === 0 ? (
                 <tr><td colSpan={7} className="py-16 text-center text-slate-500">Tidak ada data pada periode ini.</td></tr>
-              ) : data.map((r, i) => {
+              ) : filteredData.map((r, i) => {
                 const marginColor = r.gross_margin >= 30 ? 'text-emerald-600 dark:text-emerald-400' : r.gross_margin >= 10 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400';
                 return (
                   <tr key={r.sku} className={`hover:bg-slate-50 dark:hover:bg-slate-800/30 ${i < 3 ? 'bg-amber-50/30 dark:bg-amber-900/5' : ''}`}>
