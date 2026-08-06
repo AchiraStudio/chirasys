@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2 } from 'lucide-react';
-import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace } from '../../lib/api';
+import { listen } from '@tauri-apps/api/event';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown } from 'lucide-react';
+import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull } from '../../lib/api';
 import { save } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
 import UserManagement from './UserManagement';
 import HardwareSettings from './HardwareSettings';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
-// Keys that should render as a <select> instead of a text input
+// Keys that should render as a custom styled <select> instead of a text input
 const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
   hpp_method: [
     { label: 'Average (AVG)', value: 'avg' },
@@ -20,22 +21,70 @@ const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
     { label: 'Last In First Out (LIFO)', value: 'lifo' },
   ],
   tax_mode: [
-    { label: 'Tidak Ada Pajak', value: 'none' },
-    { label: 'Include (harga sudah termasuk pajak)', value: 'include' },
-    { label: 'Exclude (pajak ditambahkan di atas harga)', value: 'exclude' },
+    { label: 'Tidak Ada Pajak (0%)', value: 'none' },
+    { label: 'Include (Harga Sudah Termasuk Pajak)', value: 'include' },
+    { label: 'Exclude (Pajak Ditambahkan di Akhir)', value: 'exclude' },
+  ],
+  tax_rate: [
+    { label: '0% (Tanpa Pajak)', value: '0' },
+    { label: '11% (PPN Indonesia)', value: '11' },
+    { label: '12% (PPN 2025)', value: '12' },
+    { label: '10%', value: '10' },
+    { label: '5%', value: '5' },
   ],
   transaction_reset: [
-    { label: 'Harian (reset setiap hari)', value: 'daily' },
-    { label: 'Bulanan (reset setiap bulan)', value: 'monthly' },
-    { label: 'Tidak pernah reset', value: 'never' },
+    { label: 'Harian (Reset Setiap Hari)', value: 'daily' },
+    { label: 'Bulanan (Reset Setiap Bulan)', value: 'monthly' },
+    { label: 'Tidak Pernah Reset', value: 'never' },
   ],
   sync_mode: [
-    { label: 'Local Only (offline)', value: 'local' },
-    { label: 'Cloud Sync (online)', value: 'cloud' },
+    { label: 'Local Only (Offline)', value: 'local' },
+    { label: 'Cloud Sync (Online)', value: 'cloud' },
   ],
   language: [
-    { label: 'Indonesia (ID)', value: 'id' },
+    { label: 'Bahasa Indonesia (ID)', value: 'id' },
     { label: 'English (EN)', value: 'en' },
+  ],
+  print_receipt_auto: [
+    { label: 'Ya (Cetak Struk Otomatis)', value: 'true' },
+    { label: 'Tidak (Cetak Manual)', value: 'false' },
+  ],
+  cash_drawer_auto_open: [
+    { label: 'Ya (Buka Laci Otomatis Saat Bayar)', value: 'true' },
+    { label: 'Tidak (Buka Manual)', value: 'false' },
+  ],
+  auto_backup: [
+    { label: 'Harian (Setiap Hari)', value: 'daily' },
+    { label: 'Mingguan (Setiap Minggu)', value: 'weekly' },
+    { label: 'Nonaktif', value: 'disabled' },
+  ],
+  tier_member_duration_months: [
+    { label: '3 Bulan', value: '3' },
+    { label: '6 Bulan', value: '6' },
+    { label: '12 Bulan (1 Tahun)', value: '12' },
+    { label: '24 Bulan (2 Tahun)', value: '24' },
+    { label: 'Tidak Terbatas (Selamanya)', value: '0' },
+  ],
+  tier_vip_duration_months: [
+    { label: '6 Bulan', value: '6' },
+    { label: '12 Bulan (1 Tahun)', value: '12' },
+    { label: '24 Bulan (2 Tahun)', value: '24' },
+    { label: '36 Bulan (3 Tahun)', value: '36' },
+    { label: 'Tidak Terbatas (Selamanya)', value: '0' },
+  ],
+  tier_member_discount: [
+    { label: '0% (Tanpa Diskon)', value: '0' },
+    { label: '2%', value: '2' },
+    { label: '5%', value: '5' },
+    { label: '10%', value: '10' },
+    { label: '15%', value: '15' },
+  ],
+  tier_vip_discount: [
+    { label: '5%', value: '5' },
+    { label: '10%', value: '10' },
+    { label: '15%', value: '15' },
+    { label: '20%', value: '20' },
+    { label: '25%', value: '25' },
   ],
 };
 
@@ -45,8 +94,9 @@ const MEMBER_KEYS = ['tier_member_discount', 'tier_vip_discount', 'tier_member_d
 
 export default function Settings() {
   const { user } = useAuthStore();
-  const isOwner = user?.role === 'owner';
-  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
+  const roleLower = (user?.role || '').toLowerCase();
+  const isOwner = roleLower === 'owner' || roleLower === 'sysadmin';
+  const isAdmin = isOwner || roleLower === 'admin';
 
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -82,6 +132,106 @@ export default function Settings() {
   const [inviteRole, setInviteRole] = useState<'admin' | 'worker'>('worker');
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
+
+  // Progress Modal state for Push / Pull
+  const [progressModal, setProgressModal] = useState<{
+    isOpen: boolean;
+    type: 'push' | 'pull';
+    title: string;
+    subtitle: string;
+    percent: number;
+    details: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let unlistenPush: () => void;
+    let unlistenPull: () => void;
+
+    listen<{ current: number; total: number; percent: number; table_name: string }>('sync-push-progress', (event) => {
+      const { current, total, percent, table_name } = event.payload;
+      setProgressModal({
+        isOpen: true,
+        type: 'push',
+        title: 'Mengunggah Data ke Cloud...',
+        subtitle: `Tabel: ${table_name}`,
+        percent: Math.min(100, Math.max(0, Math.round(percent))),
+        details: `${current} dari ${total} item terproses (${Math.round(percent)}%)`,
+      });
+    }).then((fn) => { unlistenPush = fn; });
+
+    listen<{ current: number; total: number; percent: number; table_name: string; items_pulled: number }>('sync-pull-progress', (event) => {
+      const { current, total, percent, table_name, items_pulled } = event.payload;
+      setProgressModal({
+        isOpen: true,
+        type: 'pull',
+        title: 'Mengunduh Data dari Cloud...',
+        subtitle: `Tabel ${current}/${total}: ${table_name}`,
+        percent: Math.min(100, Math.max(0, Math.round(percent))),
+        details: `${items_pulled} item berhasil diunduh ke database lokal`,
+      });
+    }).then((fn) => { unlistenPull = fn; });
+
+    return () => {
+      if (unlistenPush) unlistenPush();
+      if (unlistenPull) unlistenPull();
+    };
+  }, []);
+
+  const handleManualPush = async () => {
+    setIsPushing(true);
+    try {
+      const pushed = await triggerSyncPush();
+      await loadSyncStatus();
+      setProgressModal(null);
+      setConfirmModal({
+        title: 'Push Berhasil',
+        message: `${pushed} item antrian berhasil diunggah ke Supabase Cloud.`,
+        variant: 'primary',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
+    } catch (err: any) {
+      setProgressModal(null);
+      setConfirmModal({
+        title: 'Gagal Push',
+        message: `Terjadi kesalahan saat upload ke Cloud: ${err.message || err}`,
+        variant: 'warning',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
+    } finally {
+      setIsPushing(false);
+    }
+  };
+
+  const handleManualPull = async (fullPull: boolean = false) => {
+    setIsPulling(true);
+    try {
+      const pulled = await triggerSyncPull(fullPull);
+      await loadSyncStatus();
+      setProgressModal(null);
+      setConfirmModal({
+        title: 'Pull Berhasil',
+        message: `${pulled} data terbaru berhasil diunduh dari Supabase Cloud.`,
+        variant: 'primary',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
+    } catch (err: any) {
+      setProgressModal(null);
+      setConfirmModal({
+        title: 'Gagal Pull',
+        message: `Terjadi kesalahan saat download dari Cloud: ${err.message || err}`,
+        variant: 'warning',
+        confirmLabel: 'OK',
+        onConfirm: () => setConfirmModal(null),
+      });
+    } finally {
+      setIsPulling(false);
+    }
+  };
 
   const handleGenerateInvite = async () => {
     setInviteLoading(true);
@@ -412,6 +562,29 @@ export default function Settings() {
                   {syncStatus.last_synced && (
                     <p className="text-xs text-slate-400 font-mono">Terakhir Sinkron: {new Date(syncStatus.last_synced).toLocaleString('id-ID')}</p>
                   )}
+
+                  {/* Manual Push / Pull Action Buttons - Available for ALL roles */}
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={handleManualPush}
+                      disabled={isPushing || isPulling}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                      title="Upload semua antrian data lokal ke Supabase Cloud secara manual"
+                    >
+                      {isPushing ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
+                      Push ke Cloud (Upload)
+                    </button>
+
+                    <button
+                      onClick={() => handleManualPull(true)}
+                      disabled={isPushing || isPulling}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-brand hover:bg-brand-dark text-white font-extrabold text-xs rounded-2xl transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                      title="Download data terbaru dari Supabase Cloud ke database lokal"
+                    >
+                      {isPulling ? <Loader2 size={16} className="animate-spin" /> : <DownloadCloud size={16} />}
+                      Pull dari Cloud (Download)
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -573,47 +746,49 @@ export default function Settings() {
           </div>
 
           {/* ── Quick Database Health & Maintenance (4 Cols) ── */}
-          <div className="lg:col-span-4 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 flex flex-col justify-between space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-2xl">
-                  <Database size={22} />
+          {isAdmin && (
+            <div className="lg:col-span-4 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 flex flex-col justify-between space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-2xl">
+                    <Database size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Kesehatan Database</h2>
+                    <p className="text-xs text-slate-500">SQLite Engine Optimizations</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Kesehatan Database</h2>
-                  <p className="text-xs text-slate-500">SQLite Engine Optimizations</p>
-                </div>
+
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Jalankan pembersihan rutin VACUUM untuk mengompresi ukuran file database dan mempercepat kueri transaksi kasir.
+                </p>
               </div>
 
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Jalankan pembersihan rutin VACUUM untuk mengompresi ukuran file database dan mempercepat kueri transaksi kasir.
-              </p>
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={handleExportDB}
+                  disabled={loading}
+                  className="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/20"
+                >
+                  <Download size={15} /> Export Database Backup (.db)
+                </button>
+
+                <button
+                  onClick={() => setResetTarget('maintenance')}
+                  disabled={loading}
+                  className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Database size={15} /> Optimize DB (VACUUM)
+                </button>
+
+                {successMsg && (
+                  <p className="text-xs text-center font-bold text-emerald-600 animate-in fade-in">
+                    ✓ {successMsg}
+                  </p>
+                )}
+              </div>
             </div>
-
-            <div className="space-y-3 pt-2">
-              <button
-                onClick={handleExportDB}
-                disabled={loading}
-                className="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/20"
-              >
-                <Download size={15} /> Export Database Backup (.db)
-              </button>
-
-              <button
-                onClick={() => setResetTarget('maintenance')}
-                disabled={loading}
-                className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Database size={15} /> Optimize DB (VACUUM)
-              </button>
-
-              {successMsg && (
-                <p className="text-xs text-center font-bold text-emerald-600 animate-in fade-in">
-                  ✓ {successMsg}
-                </p>
-              )}
-            </div>
-          </div>
+          )}
 
           {/* ── System Preferences & Accounting Config (7 Cols) ── */}
           <div className="lg:col-span-7 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 space-y-5">
@@ -890,13 +1065,123 @@ export default function Settings() {
           onCancel={() => setConfirmModal(null)}
         />
       )}
+
+      {/* Progress Modal for Cloud Push / Pull */}
+      {progressModal?.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150" />
+          <div className="relative bg-white dark:bg-[#0B0F19] rounded-2xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-2xl ${progressModal.type === 'push' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-brand/10 text-brand'}`}>
+                {progressModal.type === 'push' ? <UploadCloud size={24} className="animate-bounce" /> : <DownloadCloud size={24} className="animate-bounce" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">{progressModal.title}</h3>
+                <p className="text-xs text-slate-500 truncate">{progressModal.subtitle}</p>
+              </div>
+            </div>
+
+            {/* Progress Bar Container */}
+            <div className="space-y-2 pt-2">
+              <div className="flex justify-between text-xs font-extrabold">
+                <span className="text-slate-600 dark:text-slate-400">Proses Sync</span>
+                <span className={progressModal.type === 'push' ? 'text-emerald-500' : 'text-brand'}>{progressModal.percent}%</span>
+              </div>
+              <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${progressModal.type === 'push' ? 'bg-emerald-500' : 'bg-brand'}`}
+                  style={{ width: `${progressModal.percent}%` }}
+                />
+              </div>
+              <p className="text-[11px] font-mono text-slate-400 text-center pt-1">{progressModal.details}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CustomSelect({
+  value,
+  options,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  options: { label: string; value: string }[];
+  onChange: (val: string) => void;
+  disabled?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOpt = options.find((o) => o.value === value) || options[0];
+
+  return (
+    <div className="relative flex-1 min-w-0">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-between bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-extrabold text-slate-900 dark:text-white outline-none transition-all shadow-xs ${
+          disabled
+            ? 'opacity-50 cursor-not-allowed'
+            : 'hover:border-brand dark:hover:border-brand focus:ring-2 focus:ring-brand/30 cursor-pointer'
+        }`}
+      >
+        <span className="truncate">{selectedOpt?.label || value}</span>
+        <ChevronDown
+          size={15}
+          className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 shrink-0 ml-2 ${
+            isOpen ? 'rotate-180 text-brand' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && !disabled && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute right-0 left-0 top-full mt-1.5 z-50 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-1.5 max-h-56 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-150">
+            {options.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer text-left ${
+                    isSelected
+                      ? 'bg-brand/10 text-brand dark:bg-brand/20 dark:text-blue-400 font-extrabold'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                  }`}
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {isSelected && <CheckCircle2 size={14} className="text-brand shrink-0 ml-2" />}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 function SettingRow({ config, onSave, disabled }: { config: { key: string; value: string; description?: string }, onSave: (k: string, v: string) => void, disabled?: boolean }) {
   const [val, setVal] = useState(config.value);
-  const options = SELECT_OPTIONS[config.key];
+  const options = SELECT_OPTIONS[config.key] || (
+    config.value === '1' || config.value === '0' || config.value === 'true' || config.value === 'false'
+      ? [
+          { label: 'Ya / Aktif', value: config.value === 'true' || config.value === '1' ? config.value : '1' },
+          { label: 'Tidak / Nonaktif', value: config.value === 'false' || config.value === '0' ? config.value : '0' },
+        ]
+      : null
+  );
 
   useEffect(() => {
     setVal(config.value);
@@ -906,9 +1191,7 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
 
   const handleChange = (newVal: string) => {
     setVal(newVal);
-    if (options) {
-      onSave(config.key, newVal);
-    }
+    onSave(config.key, newVal);
   };
 
   const handleApplyHpp = async () => {
@@ -931,18 +1214,12 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
       </label>
       <div className="flex gap-2 items-center">
         {options ? (
-          <select
+          <CustomSelect
             value={val}
-            onChange={(e) => handleChange(e.target.value)}
+            options={options}
+            onChange={handleChange}
             disabled={disabled}
-            className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
-          >
-            {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          />
         ) : (
           <input
             type="text"
@@ -952,7 +1229,7 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
             onBlur={() => {
               if (val !== config.value) onSave(config.key, val);
             }}
-            className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+            className="flex-1 bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
           />
         )}
         

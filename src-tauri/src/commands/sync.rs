@@ -125,6 +125,7 @@ async fn process_sync_queue(
                         map.insert("user_id".to_string(), created_by_val);
                     }
                 }
+                map.remove("net_amount");
             }
         }
 
@@ -527,6 +528,189 @@ pub async fn get_sync_status(state: tauri::State<'_, crate::AppState>) -> Result
     Ok(SyncStatus { workspace_id, workspace_name, workspace_code, pending_count, failed_count, last_synced })
 }
 
+#[tauri::command]
+pub async fn trigger_sync_push(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<usize, String> {
+    use tauri::Emitter;
+    let _ = dotenvy::dotenv();
+    let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
+    let supabase_key = env::var("SUPABASE_KEY").unwrap_or_default();
+
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("SUPABASE_URL atau SUPABASE_KEY tidak dikonfigurasi di environment.".to_string());
+    }
+
+    let workspace_id: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
+    )
+    .fetch_optional(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    let workspace_id = workspace_id.ok_or_else(|| "Workspace ID belum terhubung.".to_string())?;
+
+    let client = Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .unwrap_or_else(|_| Client::new());
+
+    let total_pending: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sync_queue WHERE synced_at IS NULL AND retry_count < ?"
+    )
+    .bind(MAX_RETRY_COUNT)
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(0);
+
+    if total_pending == 0 {
+        let _ = app.emit("sync-push-progress", serde_json::json!({
+            "current": 0,
+            "total": 0,
+            "percent": 100,
+            "table_name": "Selesai"
+        }));
+        return Ok(0);
+    }
+
+    let mut total_synced = 0;
+    loop {
+        let batch_synced = process_sync_queue(&state.db_pool, &client, &supabase_url, &supabase_key, &workspace_id).await?;
+        if batch_synced == 0 {
+            break;
+        }
+        total_synced += batch_synced;
+        let percent = ((total_synced as f64 / total_pending as f64) * 100.0).min(100.0);
+        let _ = app.emit("sync-push-progress", serde_json::json!({
+            "current": total_synced,
+            "total": total_pending,
+            "percent": percent,
+            "table_name": "sync_queue"
+        }));
+    }
+
+    let _ = app.emit("sync-push-progress", serde_json::json!({
+        "current": total_synced,
+        "total": total_pending,
+        "percent": 100,
+        "table_name": "Selesai"
+    }));
+
+    Ok(total_synced)
+}
+
+#[tauri::command]
+pub async fn trigger_sync_pull(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::AppState>,
+    full_pull: Option<bool>,
+) -> Result<usize, String> {
+    use tauri::Emitter;
+    let _ = dotenvy::dotenv();
+    let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
+    let supabase_key = env::var("SUPABASE_KEY").unwrap_or_default();
+
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("SUPABASE_URL atau SUPABASE_KEY tidak dikonfigurasi di environment.".to_string());
+    }
+
+    let workspace_id: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
+    )
+    .fetch_optional(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    let workspace_id = workspace_id.ok_or_else(|| "Workspace ID belum terhubung.".to_string())?;
+
+    let client = Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap_or_else(|_| Client::new());
+
+    let mut last_pull_at: String = if full_pull.unwrap_or(false) {
+        "2000-01-01T00:00:00Z".to_string()
+    } else {
+        sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'last_pull_at'")
+            .fetch_optional(&state.db_pool)
+            .await
+            .unwrap_or_default()
+            .unwrap_or_default()
+    };
+
+    if last_pull_at.is_empty() {
+        last_pull_at = "2000-01-01T00:00:00Z".to_string();
+    }
+
+    let tables = vec![
+        "customers", "suppliers", 
+        "purchase_orders", "po_lines", "purchases", "purchase_lines", "purchase_payments", "purchase_returns", "purchase_return_lines",
+        "promos", "promo_bogo_rules", "promo_tiers", "promo_bundle_items",
+        "accounts", "journal_entries", "journal_lines",
+        "sales", "sale_lines", "sale_payments", "sale_returns", "sale_return_lines",
+        "stock_opname", "stock_opname_lines",
+        "stock_ledger", "items", "item_units", "item_prices", "categories", "brands"
+    ];
+
+    let total_tables = tables.len();
+    let mut total_pulled = 0;
+    let mut max_updated_at = last_pull_at.clone();
+
+    for (idx, table) in tables.iter().enumerate() {
+        let percent = (((idx + 1) as f64 / total_tables as f64) * 100.0).min(100.0);
+        let _ = app.emit("sync-pull-progress", serde_json::json!({
+            "current": idx + 1,
+            "total": total_tables,
+            "percent": percent,
+            "table_name": table,
+            "items_pulled": total_pulled
+        }));
+
+        let url = format!("{}/rest/v1/{}?workspace_id=eq.{}&updated_at=gt.{}&order=updated_at.asc&limit=500", supabase_url, table, workspace_id, last_pull_at);
+        
+        let req = client.get(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .header("Prefer", "return=representation");
+
+        if let Ok(res) = req.send().await {
+            if res.status().is_success() {
+                if let Ok(rows) = res.json::<Vec<serde_json::Value>>().await {
+                    for row in rows {
+                        if let Some(row_updated_at) = row.get("updated_at").and_then(|v| v.as_str()) {
+                            if row_updated_at > max_updated_at.as_str() {
+                                max_updated_at = row_updated_at.to_string();
+                            }
+                        }
+                        
+                        let _ = apply_cloud_sync(&state.db_pool, table, &row).await;
+                        let _ = app.emit("sync-received", table);
+                        total_pulled += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if total_pulled > 0 && max_updated_at > last_pull_at {
+        let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('last_pull_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+            .bind(&max_updated_at)
+            .execute(&state.db_pool)
+            .await;
+    }
+
+    let _ = app.emit("sync-pull-progress", serde_json::json!({
+        "current": total_tables,
+        "total": total_tables,
+        "percent": 100.0,
+        "table_name": "Selesai",
+        "items_pulled": total_pulled
+    }));
+
+    Ok(total_pulled)
+}
+
 /// Leave the current workspace (clears local workspace config)
 #[tauri::command]
 pub async fn leave_workspace(state: tauri::State<'_, crate::AppState>) -> Result<(), String> {
@@ -766,6 +950,32 @@ pub async fn sysadmin_update_workspace_password(
 }
 
 
+fn json_to_i64(val: Option<&serde_json::Value>, default_val: i64) -> i64 {
+    match val {
+        Some(serde_json::Value::Number(n)) => n.as_i64().unwrap_or(default_val),
+        Some(serde_json::Value::Bool(b)) => if *b { 1 } else { 0 },
+        Some(serde_json::Value::String(s)) => {
+            if s == "true" || s == "1" {
+                1
+            } else if s == "false" || s == "0" {
+                0
+            } else {
+                s.parse::<i64>().unwrap_or(default_val)
+            }
+        }
+        _ => default_val,
+    }
+}
+
+fn json_to_f64(val: Option<&serde_json::Value>, default_val: f64) -> f64 {
+    match val {
+        Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(default_val),
+        Some(serde_json::Value::String(s)) => s.parse::<f64>().unwrap_or(default_val),
+        Some(serde_json::Value::Bool(b)) => if *b { 1.0 } else { 0.0 },
+        _ => default_val,
+    }
+}
+
 pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &serde_json::Value) -> Result<(), String> {
     match table_name {
         "customers" => {
@@ -776,10 +986,10 @@ pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &ser
             let address = payload.get("address").and_then(|v| v.as_str());
             let region = payload.get("region").and_then(|v| v.as_str());
             let customer_tier = payload.get("customer_tier").and_then(|v| v.as_str());
-            let loyalty_points = payload.get("loyalty_points").and_then(|v| v.as_i64());
-            let credit_limit = payload.get("credit_limit").and_then(|v| v.as_f64());
+            let loyalty_points = json_to_i64(payload.get("loyalty_points"), 0);
+            let credit_limit = json_to_f64(payload.get("credit_limit"), 0.0);
             let notes = payload.get("notes").and_then(|v| v.as_str());
-            let is_active = payload.get("is_active").and_then(|v| v.as_i64());
+            let is_active = json_to_i64(payload.get("is_active"), 1);
             let created_at = payload.get("created_at").and_then(|v| v.as_str());
             let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
             let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
@@ -1454,11 +1664,11 @@ pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &ser
             let brand_id = payload.get("brand_id").and_then(|v| v.as_str());
             let hpp_method = payload.get("hpp_method").and_then(|v| v.as_str());
             let image_blob = payload.get("image_blob").and_then(|v| v.as_str());
-            let min_stock = payload.get("min_stock").and_then(|v| v.as_f64());
-            let has_expiry = payload.get("has_expiry").and_then(|v| v.as_i64());
-            let requires_prescription = payload.get("requires_prescription").and_then(|v| v.as_i64());
+            let min_stock = json_to_f64(payload.get("min_stock"), 0.0);
+            let has_expiry = json_to_i64(payload.get("has_expiry"), 0);
+            let requires_prescription = json_to_i64(payload.get("requires_prescription"), 0);
             let notes = payload.get("notes").and_then(|v| v.as_str());
-            let is_active = payload.get("is_active").and_then(|v| v.as_i64());
+            let is_active = json_to_i64(payload.get("is_active"), 1);
             let created_at = payload.get("created_at").and_then(|v| v.as_str());
             let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
             let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
@@ -1490,8 +1700,8 @@ pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &ser
             let id = payload.get("id").and_then(|v| v.as_str());
             let item_id = payload.get("item_id").and_then(|v| v.as_str());
             let unit_name = payload.get("unit_name").and_then(|v| v.as_str());
-            let conversion = payload.get("conversion").and_then(|v| v.as_f64());
-            let is_base = payload.get("is_base").and_then(|v| v.as_i64());
+            let conversion = json_to_f64(payload.get("conversion"), 1.0);
+            let is_base = json_to_i64(payload.get("is_base"), 1);
             let barcode = payload.get("barcode").and_then(|v| v.as_str());
             let created_at = payload.get("created_at").and_then(|v| v.as_str());
             let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
@@ -1517,7 +1727,7 @@ pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &ser
             let item_id = payload.get("item_id").and_then(|v| v.as_str());
             let unit_id = payload.get("unit_id").and_then(|v| v.as_str());
             let customer_tier = payload.get("customer_tier").and_then(|v| v.as_str());
-            let price = payload.get("price").and_then(|v| v.as_f64());
+            let price = json_to_f64(payload.get("price"), 0.0);
             let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
             let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
             let _ = sqlx::query(
@@ -1693,14 +1903,26 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
     });
 }
 
+fn get_supabase_credentials() -> Result<(String, String), String> {
+    let _ = dotenvy::dotenv();
+    let supabase_url = env::var("SUPABASE_URL")
+        .or_else(|_| env::var("VITE_SUPABASE_URL"))
+        .map_err(|_| "SUPABASE_URL tidak dikonfigurasi di environment.".to_string())?;
+
+    let supabase_key = env::var("SUPABASE_KEY")
+        .or_else(|_| env::var("SUPABASE_ANON_KEY"))
+        .or_else(|_| env::var("SUPABASE_SERVICE_ROLE_KEY"))
+        .or_else(|_| env::var("VITE_SUPABASE_ANON_KEY"))
+        .map_err(|_| "SUPABASE_KEY tidak dikonfigurasi di environment.".to_string())?;
+
+    Ok((supabase_url, supabase_key))
+}
+
 #[tauri::command]
 pub async fn nuke_cloud_workspace_data(
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<String, String> {
-    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
-    let supabase_key = env::var("SUPABASE_SERVICE_ROLE_KEY")
-        .or_else(|_| env::var("SUPABASE_ANON_KEY"))
-        .map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+    let (supabase_url, supabase_key) = get_supabase_credentials()?;
 
     let workspace_id: Option<String> = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"

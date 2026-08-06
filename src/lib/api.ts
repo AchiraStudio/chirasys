@@ -305,6 +305,10 @@ export const createWorkspaceInvite = async (role: string, email?: string): Promi
   invoke('create_workspace_invite', { role, email: email || null });
 export const getSyncStatus = async (): Promise<SyncStatus> =>
   invoke('get_sync_status');
+export const triggerSyncPush = async (): Promise<number> =>
+  invoke('trigger_sync_push');
+export const triggerSyncPull = async (fullPull: boolean = false): Promise<number> =>
+  invoke('trigger_sync_pull', { fullPull });
 export const leaveWorkspace = async (): Promise<void> =>
   invoke('leave_workspace');
 

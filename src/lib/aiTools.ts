@@ -263,6 +263,59 @@ export const aiTools = [
         required: ['id']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_item',
+      description: 'Add a brand new item/product to the inventory. Uses the global HPP method automatically.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Name of the product (required)' },
+          sku: { type: 'string', description: 'SKU or product code (required)' },
+          barcode: { type: 'string', description: 'Barcode string if available' },
+          generic_name: { type: 'string', description: 'Generic or chemical name' },
+          category_id: { type: 'string', description: 'Category ID if known' },
+          brand_id: { type: 'string', description: 'Brand ID if known' },
+          min_stock: { type: 'number', description: 'Minimum stock alert threshold' },
+          has_expiry: { type: 'number', description: '1 if item has expiry dates, 0 otherwise' },
+          requires_prescription: { type: 'number', description: '1 if prescription required, 0 otherwise' },
+          notes: { type: 'string', description: 'Additional notes' },
+          wholesale_price: { type: 'number', description: 'Wholesale price' },
+          base_unit_name: { type: 'string', description: 'Base unit name (e.g. Pcs, Box, Botol). Default is Pcs.' },
+          price: { type: 'number', description: 'Retail selling price (optional)' },
+          initial_stock: { type: 'number', description: 'Initial stock quantity (optional)' }
+        },
+        required: ['name', 'sku']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_item',
+      description: 'Update details of an existing item/product in inventory (name, SKU, barcode, category, brand, min_stock, notes, etc.).',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Item ID to update (required)' },
+          name: { type: 'string', description: 'New product name' },
+          sku: { type: 'string', description: 'New SKU code' },
+          barcode: { type: 'string', description: 'New barcode' },
+          generic_name: { type: 'string', description: 'New generic/chemical name' },
+          category_id: { type: 'string', description: 'New Category ID' },
+          brand_id: { type: 'string', description: 'New Brand ID' },
+          min_stock: { type: 'number', description: 'New minimum stock threshold' },
+          has_expiry: { type: 'number', description: '1 if tracks expiry, 0 if not' },
+          requires_prescription: { type: 'number', description: '1 if prescription required, 0 if not' },
+          notes: { type: 'string', description: 'Updated notes' },
+          wholesale_price: { type: 'number', description: 'New wholesale price' },
+          hpp_method: { type: 'string', enum: ['avg', 'fifo', 'lifo'], description: 'HPP valuation method' }
+        },
+        required: ['id']
+      }
+    }
   }
 ];
 
@@ -281,6 +334,8 @@ export const TOOL_ROLE_REQUIREMENTS: Record<string, string[]> = {
   add_customer: ['owner', 'admin', 'staff', 'sysadmin'],
   delete_customer: ['owner', 'admin', 'sysadmin'],
   list_promos: ['owner', 'admin', 'staff', 'sysadmin'],
+  add_item: ['owner', 'admin', 'sysadmin'],
+  update_item: ['owner', 'admin', 'sysadmin'],
 };
 
 export async function executeTool(name: string, args: any, context: { branchId: string; userId: string; role: string }) {
@@ -377,6 +432,86 @@ export async function executeTool(name: string, args: any, context: { branchId: 
         return await api.deleteItem(args.id);
       case 'delete_customer':
         return await api.toggleCustomerActive(args.id); // Typically soft-deleted
+      case 'add_item': {
+        if (!args.name) throw new Error('Nama produk (name) wajib diisi.');
+        if (!args.sku) throw new Error('SKU produk wajib diisi.');
+
+        // Fetch global settings to get global hpp_method
+        let hppMethod = 'avg';
+        try {
+          const settings = await api.getSettings();
+          const hppSetting = settings.find(s => s.key === 'hpp_method' || s.key === 'hpp_method_default');
+          if (hppSetting && hppSetting.value) {
+            hppMethod = hppSetting.value.toLowerCase();
+          }
+        } catch (_) {
+          // fallback to avg
+        }
+
+        const newItem = await api.addItem({
+          sku: args.sku,
+          barcode: args.barcode || '',
+          name: args.name,
+          generic_name: args.generic_name || '',
+          category_id: args.category_id || '',
+          brand_id: args.brand_id || '',
+          hpp_method: hppMethod,
+          min_stock: args.min_stock || 0,
+          has_expiry: args.has_expiry ? 1 : 0,
+          requires_prescription: args.requires_prescription ? 1 : 0,
+          notes: args.notes || '',
+          wholesale_price: args.wholesale_price || 0,
+        });
+
+        // Create base unit (default: Pcs)
+        const baseUnitName = args.base_unit_name || 'Pcs';
+        const unit = await api.addItemUnit(newItem.id, baseUnitName, 1, 1, args.barcode || undefined);
+
+        // Set retail price if provided
+        if (args.price && args.price > 0) {
+          await api.setItemPrice(newItem.id, unit.id, 'regular', args.price);
+        }
+
+        // Set initial stock if provided
+        if (args.initial_stock && args.initial_stock > 0) {
+          await api.setInitialStock(newItem.id, unit.id, context.branchId, args.initial_stock, 0, 'Initial stock via AI');
+        }
+
+        return {
+          success: true,
+          item: newItem,
+          unit,
+          hpp_method_used: hppMethod,
+          message: `Berhasil menambahkan produk '${newItem.name}' dengan SKU ${newItem.sku} (Metode HPP: ${hppMethod.toUpperCase()}).`
+        };
+      }
+      case 'update_item': {
+        if (!args.id) throw new Error('ID produk wajib diisi.');
+        const itemDetail = await api.getItem(args.id);
+        if (!itemDetail || !itemDetail.item) throw new Error(`Produk dengan ID ${args.id} tidak ditemukan.`);
+
+        const curr = itemDetail.item;
+        const updatedItem = await api.updateItem(args.id, {
+          sku: args.sku !== undefined ? args.sku : curr.sku,
+          barcode: args.barcode !== undefined ? args.barcode : (curr.barcode || ''),
+          name: args.name !== undefined ? args.name : curr.name,
+          generic_name: args.generic_name !== undefined ? args.generic_name : (curr.generic_name || ''),
+          category_id: args.category_id !== undefined ? args.category_id : (curr.category_id || ''),
+          brand_id: args.brand_id !== undefined ? args.brand_id : (curr.brand_id || ''),
+          hpp_method: args.hpp_method !== undefined ? args.hpp_method : curr.hpp_method,
+          min_stock: args.min_stock !== undefined ? args.min_stock : curr.min_stock,
+          has_expiry: args.has_expiry !== undefined ? (args.has_expiry ? 1 : 0) : curr.has_expiry,
+          requires_prescription: args.requires_prescription !== undefined ? (args.requires_prescription ? 1 : 0) : curr.requires_prescription,
+          notes: args.notes !== undefined ? args.notes : (curr.notes || ''),
+          wholesale_price: args.wholesale_price !== undefined ? args.wholesale_price : (curr.wholesale_price || 0)
+        });
+
+        return {
+          success: true,
+          item: updatedItem,
+          message: `Berhasil memperbarui data produk '${updatedItem.name}' (SKU: ${updatedItem.sku}).`
+        };
+      }
       default:
         return { error: `Tool ${name} not implemented.` };
     }

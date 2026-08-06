@@ -148,6 +148,8 @@ pub fn run() {
             commands::sync::create_workspace_invite,
             commands::sync::nuke_cloud_workspace_data,
             commands::sync::get_sync_status,
+            commands::sync::trigger_sync_push,
+            commands::sync::trigger_sync_pull,
             commands::sync::leave_workspace,
             commands::sync::sysadmin_login,
             commands::sync::sysadmin_get_workspaces,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, ChevronDown, LogOut, Truck } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, ChevronDown, LogOut, Truck, RefreshCw } from 'lucide-react';
+import { listen } from '@tauri-apps/api/event';
 import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../ui/ConfirmModal';
@@ -16,6 +17,12 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
   const [companyName, setCompanyName] = useState('ChiraSys');
   const [branchName, setBranchName] = useState('Cabang Utama');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [bgSyncProgress, setBgSyncProgress] = useState<{
+    active: boolean;
+    type: 'push' | 'pull';
+    percent: number;
+    table_name: string;
+  } | null>(null);
   const { user, token, clearAuth } = useAuthStore();
 
   useEffect(() => {
@@ -40,6 +47,44 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
       .then(s => setSyncStatus(s))
       .catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    let unlistenPush: () => void;
+    let unlistenPull: () => void;
+
+    listen<{ current: number; total: number; percent: number; table_name: string }>('sync-push-progress', (event) => {
+      const { percent, table_name } = event.payload;
+      const rounded = Math.min(100, Math.max(0, Math.round(percent)));
+      setBgSyncProgress({
+        active: true,
+        type: 'push',
+        percent: rounded,
+        table_name,
+      });
+      if (rounded >= 100) {
+        setTimeout(() => setBgSyncProgress(null), 2500);
+      }
+    }).then((fn) => { unlistenPush = fn; });
+
+    listen<{ current: number; total: number; percent: number; table_name: string }>('sync-pull-progress', (event) => {
+      const { percent, table_name } = event.payload;
+      const rounded = Math.min(100, Math.max(0, Math.round(percent)));
+      setBgSyncProgress({
+        active: true,
+        type: 'pull',
+        percent: rounded,
+        table_name,
+      });
+      if (rounded >= 100) {
+        setTimeout(() => setBgSyncProgress(null), 2500);
+      }
+    }).then((fn) => { unlistenPull = fn; });
+
+    return () => {
+      if (unlistenPush) unlistenPush();
+      if (unlistenPull) unlistenPull();
+    };
+  }, []);
 
   const handleLogout = async () => {
     if (token) await logoutUser(token);
@@ -129,7 +174,26 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
         </nav>
 
         {/* User Profile Footer */}
-        <div className="mt-auto mx-3 mb-3 flex flex-col gap-1">
+        <div className="mt-auto mx-3 mb-3 flex flex-col gap-1.5">
+          {/* Mini Background Sync Progress Bar */}
+          {bgSyncProgress?.active && (
+            <div className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-1 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between text-[11px] font-extrabold">
+                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                  <RefreshCw size={12} className="animate-spin text-emerald-500" />
+                  {bgSyncProgress.type === 'push' ? 'Push Sync...' : 'Pull Sync...'}
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-mono text-[10px]">{bgSyncProgress.percent}%</span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                  style={{ width: `${bgSyncProgress.percent}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {syncStatus?.workspace_name && (
             <div className="px-3 py-2.5 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/30 rounded-xl flex items-center justify-between">
               <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">{syncStatus.workspace_name}</span>
