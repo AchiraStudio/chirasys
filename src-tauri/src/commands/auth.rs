@@ -21,7 +21,10 @@ struct Claims {
 }
 
 fn mint_supabase_jwt(user_id: &str, role: &str, workspace_id: Option<String>) -> Option<String> {
-    let secret = std::env::var("VITE_SUPABASE_JWT_SECRET").unwrap_or_default();
+    let default_secret = "fQTM5FzWc5ZQljXshc+HxRw+JUpNSkFiNf43dJmmY2gVbue5ioFDtCeTRHqHfQwbRBwfvXlKKMtKSuH4fsbofw==";
+    let secret = std::env::var("VITE_SUPABASE_JWT_SECRET")
+        .or_else(|_| std::env::var("SUPABASE_JWT_SECRET"))
+        .unwrap_or_else(|_| default_secret.to_string());
     if secret.is_empty() {
         return None;
     }
