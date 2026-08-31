@@ -1,10 +1,12 @@
 // Force HMR reload
 import { useState, useEffect, useRef } from 'react';
 import { getSales, getSaleDetail, Sale, SaleDetail } from '../../lib/api';
-import { X, Loader2, Printer, RotateCcw, Trash2, AlertTriangle, FileText } from 'lucide-react';
+import { Loader2, Printer, RotateCcw, Trash2, AlertTriangle, FileText } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import ReceiptModal from './ReceiptModal';
 import SaleReturnModal from './SaleReturnModal';
-import { invoke } from '@tauri-apps/api/core';
+import { usePermissions } from '../../lib/permissions';
+import Modal from '../../components/ui/Modal';
 
 interface Props {
   isOpen: boolean;
@@ -12,6 +14,7 @@ interface Props {
 }
 
 export default function SalesHistoryModal({ isOpen, onClose }: Props) {
+  const { can } = usePermissions();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(false);
   const [receiptSaleId, setReceiptSaleId] = useState<string | null>(null);
@@ -95,26 +98,18 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
-        style={{ maxHeight: 'min(90vh, 720px)' }}>
-        
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Riwayat Transaksi</h2>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {loading ? 'Memuat...' : `${sales.length} transaksi · ↑↓ navigasi · Enter lihat detail`}
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full text-slate-500 transition-colors">
-            <X size={22} />
-          </button>
-        </div>
-
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        size="4xl"
+        title="Riwayat Transaksi"
+        subtitle={loading ? 'Memuat...' : `${sales.length} transaksi · ↑↓ navigasi · Enter lihat detail`}
+        icon={FileText}
+        noPadding={true}
+      >
         {/* Table */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="overflow-y-auto custom-scrollbar max-h-[65vh]">
           {loading ? (
             <div className="py-20 text-center"><Loader2 className="animate-spin text-brand mx-auto" size={32} /></div>
           ) : sales.length === 0 ? (
@@ -135,65 +130,65 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
                   <tr
                     key={s.id}
                     ref={el => { rowRefs.current[idx] = el; }}
-                    tabIndex={0}
-                    onFocus={() => setSelectedIdx(idx)}
-                    onClick={() => { setSelectedIdx(idx); setDetailSaleId(s.id); }}
-                    className={`transition-colors cursor-pointer outline-none ${
-                      selectedIdx === idx
-                        ? 'bg-brand/5 dark:bg-brand/10'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
+                    onClick={() => setSelectedIdx(idx)}
+                    className={`cursor-pointer transition-colors ${
+                      idx === selectedIdx 
+                        ? 'bg-brand/10 dark:bg-brand/20' 
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                     }`}
                   >
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-400 text-xs">
-                      {new Date(s.created_at).toLocaleString('id-ID')}
+                    <td className="py-3.5 px-4 font-mono text-xs text-slate-500">
+                      {new Date(s.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white text-xs">
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
                       {s.transaction_no}
+                      {idx === selectedIdx && (
+                        <span className="ml-2 text-[10px] bg-brand text-white px-1.5 py-0.5 rounded font-sans font-normal">
+                          ENTER
+                        </span>
+                      )}
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                    <td className="py-3.5 px-4 text-right font-bold text-slate-900 dark:text-white">
                       Rp {s.grand_total.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
-                        s.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                        : s.status === 'returned' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'
-                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                    <td className="py-3.5 px-4 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        s.status === 'completed'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          : s.status === 'returned'
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                            : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
                       }`}>
                         {s.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => setDetailSaleId(s.id)}
-                          title="Lihat Detail"
-                          className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 transition-colors"
-                        >
-                          <FileText size={14} />
-                        </button>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => setReceiptSaleId(s.id)}
-                          title="Cetak Struk"
-                          className="p-1.5 rounded-lg bg-brand/10 text-brand hover:bg-brand/20 transition-colors"
+                          title="Cetak Ulang Struk"
+                          className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 transition-colors"
                         >
-                          <Printer size={14} />
+                          <Printer size={15} />
                         </button>
-                        {s.status === 'completed' && (
+                        {can('sales.return') && (
                           <button
                             onClick={() => setReturnSaleId(s.id)}
-                            title="Retur"
-                            className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 transition-colors"
+                            title="Retur Transaksi"
+                            className="p-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg transition-colors"
                           >
-                            <RotateCcw size={14} />
+                            <RotateCcw size={15} />
                           </button>
                         )}
-                        <button
-                          onClick={() => setDeleteConfirmId(s.id)}
-                          title="Hapus Transaksi"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {can('sales.delete') && (
+                          <button
+                            onClick={() => setDeleteConfirmId(s.id)}
+                            title="Hapus Transaksi"
+                            className="p-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-rose-500 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -202,38 +197,37 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
             </table>
           )}
         </div>
-      </div>
+      </Modal>
 
-      {/* Sale Detail Modal */}
+      {/* Detail Modal */}
       {detailSaleId && (
-        <SaleDetailModal saleId={detailSaleId} onClose={() => setDetailSaleId(null)} />
+        <SaleDetailModal
+          saleId={detailSaleId}
+          onClose={() => setDetailSaleId(null)}
+        />
       )}
 
       {/* Delete Confirm Modal */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirmId(null)} />
-          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center text-rose-500">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 dark:text-white">Hapus Transaksi?</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
-              Transaksi <strong className="font-mono">{sales.find(s => s.id === deleteConfirmId)?.transaction_no}</strong> akan dihapus permanen.
-            </p>
-            <div className="flex gap-3">
+        <Modal
+          isOpen={true}
+          onClose={() => setDeleteConfirmId(null)}
+          size="sm"
+          title="Hapus Transaksi?"
+          subtitle="Tindakan ini tidak dapat dibatalkan."
+          icon={AlertTriangle}
+          iconBg="bg-rose-50 dark:bg-rose-500/10 text-rose-500"
+          footer={
+            <div className="flex gap-3 w-full">
               <button
+                type="button"
                 onClick={() => setDeleteConfirmId(null)}
                 className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
                 Batal
               </button>
               <button
+                type="button"
                 onClick={() => handleDelete(deleteConfirmId)}
                 disabled={deleting}
                 className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
@@ -242,13 +236,17 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
                 Ya, Hapus
               </button>
             </div>
-          </div>
-        </div>
+          }
+        >
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Transaksi <strong className="font-mono">{sales.find(s => s.id === deleteConfirmId)?.transaction_no}</strong> akan dihapus permanen.
+          </p>
+        </Modal>
       )}
 
       {receiptSaleId && <ReceiptModal saleId={receiptSaleId} onClose={() => setReceiptSaleId(null)} />}
       {returnSaleId && <SaleReturnModal saleId={returnSaleId} onClose={() => { setReturnSaleId(null); fetchSales(); }} />}
-    </div>
+    </>
   );
 }
 
@@ -264,81 +262,69 @@ function SaleDetailModal({ saleId, onClose }: { saleId: string, onClose: () => v
   }, [saleId]);
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
-        style={{ maxHeight: 'min(85vh, 600px)' }}>
-        
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Detail Transaksi</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {detail ? `No: ${detail.sale.transaction_no}` : 'Memuat...'}
-            </p>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      size="2xl"
+      title="Detail Transaksi"
+      subtitle={detail ? `No: ${detail.sale.transaction_no}` : 'Memuat...'}
+      icon={FileText}
+    >
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 size={32} className="animate-spin text-brand" /></div>
+      ) : detail ? (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 uppercase font-semibold text-xs">
+                <tr>
+                  <th className="py-3 px-4 text-left">Item</th>
+                  <th className="py-3 px-4 text-center">Qty</th>
+                  <th className="py-3 px-4 text-right">Harga</th>
+                  <th className="py-3 px-4 text-right">Diskon</th>
+                  <th className="py-3 px-4 text-right">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {detail.lines.map(line => (
+                  <tr key={line.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
+                      {line.item_name || line.item_id}
+                      <span className="text-slate-400 ml-1">({line.unit_name || line.unit_id})</span>
+                    </td>
+                    <td className="py-3 px-4 text-center text-slate-700 dark:text-slate-300">{line.qty}</td>
+                    <td className="py-3 px-4 text-right text-slate-700 dark:text-slate-300">Rp {line.price.toLocaleString('id-ID')}</td>
+                    <td className="py-3 px-4 text-right text-amber-600 dark:text-amber-400">
+                      {line.discount_amount > 0 ? `-Rp ${line.discount_amount.toLocaleString('id-ID')}` : '-'}
+                    </td>
+                    <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">Rp {line.subtotal.toLocaleString('id-ID')}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50 dark:bg-slate-800/50 font-bold border-t border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+                <tr>
+                  <td colSpan={4} className="py-3 px-4 text-right">Total Belanja</td>
+                  <td className="py-3 px-4 text-right text-brand">Rp {detail.sale.grand_total.toLocaleString('id-ID')}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full text-slate-500 transition-colors">
-            <X size={20} />
-          </button>
-        </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-          {loading ? (
-            <div className="flex justify-center py-10"><Loader2 size={32} className="animate-spin text-brand" /></div>
-          ) : detail ? (
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 uppercase font-semibold text-xs">
-                    <tr>
-                      <th className="py-3 px-4 text-left">Item</th>
-                      <th className="py-3 px-4 text-center">Qty</th>
-                      <th className="py-3 px-4 text-right">Harga</th>
-                      <th className="py-3 px-4 text-right">Diskon</th>
-                      <th className="py-3 px-4 text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {detail.lines.map(line => (
-                      <tr key={line.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                        <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
-                          {line.item_name || line.item_id}
-                          <span className="text-slate-400 ml-1">({line.unit_name || line.unit_id})</span>
-                        </td>
-                        <td className="py-3 px-4 text-center text-slate-700 dark:text-slate-300">{line.qty}</td>
-                        <td className="py-3 px-4 text-right text-slate-700 dark:text-slate-300">Rp {line.price.toLocaleString('id-ID')}</td>
-                        <td className="py-3 px-4 text-right text-amber-600 dark:text-amber-400">
-                          {line.discount_amount > 0 ? `-Rp ${line.discount_amount.toLocaleString('id-ID')}` : '-'}
-                        </td>
-                        <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">Rp {line.subtotal.toLocaleString('id-ID')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-slate-50 dark:bg-slate-800/50 font-bold border-t border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
-                    <tr>
-                      <td colSpan={4} className="py-3 px-4 text-right">Total Belanja</td>
-                      <td className="py-3 px-4 text-right text-brand">Rp {detail.sale.grand_total.toLocaleString('id-ID')}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Info Pembayaran</h4>
-                <div className="flex gap-4">
-                  {detail.payments.map(p => (
-                    <div key={p.id} className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3">
-                      <span className="text-xs font-bold text-slate-500 uppercase">{p.method}</span>
-                      <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">Rp {p.amount.toLocaleString('id-ID')}</span>
-                    </div>
-                  ))}
+          <div>
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Info Pembayaran</h4>
+            <div className="flex gap-4">
+              {detail.payments.map(p => (
+                <div key={p.id} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 px-4 py-2.5 rounded-xl flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-500 uppercase">{p.method}</span>
+                  <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">Rp {p.amount.toLocaleString('id-ID')}</span>
                 </div>
-              </div>
+              ))}
             </div>
-          ) : (
-            <div className="text-center py-10 text-slate-500">Gagal memuat detail transaksi.</div>
-          )}
+          </div>
         </div>
-      </div>
-    </div>
+      ) : (
+        <div className="text-center py-10 text-slate-500">Gagal memuat detail transaksi.</div>
+      )}
+    </Modal>
   );
 }

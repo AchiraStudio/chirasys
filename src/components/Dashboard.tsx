@@ -32,55 +32,55 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
   }, []);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in duration-500 w-full max-w-7xl mx-auto">
+    <div className="flex-1 min-h-0 flex flex-col gap-4 sm:gap-5 animate-in fade-in duration-500 w-full max-w-7xl mx-auto overflow-y-auto custom-scrollbar">
       <div className="flex justify-between items-end shrink-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Overview</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Here is what's happening today.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Overview</h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">Ringkasan aktivitas dan performa bisnis hari ini.</p>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 pr-2 pb-6">
-        <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* LEFT: Placeholder for future real metrics */}
-        <div className="xl:col-span-2 flex flex-col gap-6 min-h-0">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
-            <div className="glass-card rounded-2xl p-6 flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-4">
-                <p className="text-slate-500 dark:text-slate-400 font-medium">Hari Ini</p>
-                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
-                  <DollarSign size={20} />
+      <div className="flex-1 flex flex-col min-h-0 pb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* LEFT: Metrics & Recent Transactions */}
+        <div className="lg:col-span-2 flex flex-col gap-5 min-h-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 shrink-0">
+            <div className="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-xs">
+              <div className="flex justify-between items-start mb-3">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Hari Ini</p>
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                  <DollarSign size={18} />
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Rp {(summary?.total_revenue || 0).toLocaleString('id-ID')}</h3>
-                <p className="text-sm text-slate-500 mt-2">Total Pendapatan</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-mono">Rp {(summary?.total_revenue || 0).toLocaleString('id-ID')}</h3>
+                <p className="text-xs text-slate-500 mt-1">Total Pendapatan</p>
               </div>
             </div>
             
-            <div className="glass-card rounded-2xl p-6 flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-4">
-                <p className="text-slate-500 dark:text-slate-400 font-medium">Transaksi</p>
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-                  <ShoppingCart size={20} />
+            <div className="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-xs">
+              <div className="flex justify-between items-start mb-3">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Transaksi</p>
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
+                  <ShoppingCart size={18} />
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{summary?.transaction_count || 0}</h3>
-                <p className="text-sm text-slate-500 mt-2">Penjualan Selesai</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-mono">{summary?.transaction_count || 0}</h3>
+                <p className="text-xs text-slate-500 mt-1">Penjualan Selesai</p>
               </div>
             </div>
 
-            <div className="glass-card rounded-2xl p-6 flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-4">
-                <p className="text-slate-500 dark:text-slate-400 font-medium">Laba Kotor</p>
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
-                  <Activity size={20} />
+            <div className="glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-xs">
+              <div className="flex justify-between items-start mb-3">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Laba Kotor</p>
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl">
+                  <Activity size={18} />
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Rp {(summary?.gross_profit || 0).toLocaleString('id-ID')}</h3>
-                <p className="text-sm text-slate-500 mt-2">Estimasi Kasar</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-mono">Rp {(summary?.gross_profit || 0).toLocaleString('id-ID')}</h3>
+                <p className="text-xs text-slate-500 mt-1">Estimasi Kasar</p>
               </div>
             </div>
           </div>

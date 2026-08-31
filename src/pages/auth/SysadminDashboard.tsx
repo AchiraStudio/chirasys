@@ -1,8 +1,9 @@
 // Force HMR reload
 import { useState, useEffect } from 'react';
-import { Loader2, Plus, ShieldCheck, Building2, KeyRound, X, LayoutDashboard } from 'lucide-react';
+import { Loader2, Plus, ShieldCheck, Building2, KeyRound, LayoutDashboard } from 'lucide-react';
 import { sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminUpdateWorkspacePassword, WorkspaceListInfo } from '../../lib/api';
 import WorkspaceOverview from './WorkspaceOverview';
+import Modal from '../../components/ui/Modal';
 
 export default function SysadminDashboard({ onLogout }: { onLogout: () => void }) {
   const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
@@ -219,50 +220,60 @@ function EditWorkspacePasswordModal({ ws, onClose }: { ws: WorkspaceListInfo; on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Workspace Password</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Workspace: <strong>{ws.name}</strong></p>
-          </div>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      size="sm"
+      title="Kata Sandi Workspace"
+      subtitle={`Workspace: ${ws.name}`}
+      icon={KeyRound}
+      footer={
+        <div className="flex gap-3 w-full">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading || success}
+            className="flex-[2] py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {loading ? 'Menyimpan...' : 'Simpan Password'}
+          </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs px-4 py-3 rounded-xl">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs px-4 py-3 rounded-xl">
-              Password berhasil disimpan!
-            </div>
-          )}
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Password Baru</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Kosongkan untuk menghapus password"
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
-              autoFocus
-            />
-            <p className="text-[10px] text-slate-400 mt-1.5">
-              Kosongkan dan simpan jika ingin workspace ini dapat diakses tanpa password.
-            </p>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs px-4 py-3 rounded-xl">
+            {error}
           </div>
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-              Batal
-            </button>
-            <button type="submit" disabled={loading || success} className="flex-[2] py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? 'Menyimpan...' : 'Simpan Password'}
-            </button>
+        )}
+        {success && (
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs px-4 py-3 rounded-xl">
+            Password berhasil disimpan!
           </div>
-        </form>
-      </div>
-    </div>
+        )}
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Password Baru</label>
+          <input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Kosongkan untuk menghapus password"
+            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            autoFocus
+          />
+          <p className="text-[10px] text-slate-400 mt-1.5">
+            Kosongkan dan simpan jika ingin workspace ini dapat diakses tanpa password.
+          </p>
+        </div>
+      </form>
+    </Modal>
   );
 }

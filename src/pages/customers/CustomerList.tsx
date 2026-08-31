@@ -52,12 +52,12 @@ export default function CustomerList() {
         </div>
         {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
           <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
-            <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
               <tr><th className="py-4 px-6">Name</th><th className="py-4 px-6">Phone</th><th className="py-4 px-6">Tier & Expiry</th><th className="py-4 px-6 text-right">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
               {customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search)).map(c => (
-                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group">
+                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group fast-render-row">
                   <td className="py-4 px-6 font-bold flex items-center gap-3">
                     <UserCircle size={16} className="text-slate-500" />
                     {c.name} {c.id === 'customer_umum' && <span className="text-[10px] bg-brand/10 text-brand px-2 py-0.5 rounded ml-2">DEFAULT</span>}

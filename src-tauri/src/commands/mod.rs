@@ -13,3 +13,4 @@ pub mod sync;
 pub mod suppliers;
 pub mod maintenance;
 pub mod admin;
+pub mod lan;

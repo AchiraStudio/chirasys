@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, FileSpreadsheet } from 'lucide-react';
 import { createManualJournal, getAccounts, Account } from '../../lib/api';
+import Modal from '../../components/ui/Modal';
 
 interface ManualJournalModalProps {
   isOpen: boolean;
@@ -59,16 +60,16 @@ export default function ManualJournalModal({ isOpen, onClose, onSaved }: ManualJ
     
     const validLines = lines.filter(l => l.account_id !== '' && (l.debit > 0 || l.credit > 0));
     if (validLines.length < 2) {
-        alert("Please add at least two valid lines.");
+        alert("Harap isi setidaknya dua baris jurnal valid.");
         return;
     }
 
     if (!isBalanced) {
-        alert("Journal entry must balance.");
+        alert("Entri jurnal harus seimbang (Balance antara Debit & Kredit).");
         return;
     }
 
-    if (!confirm("Are you sure you want to post this manual journal? It cannot be easily reversed.")) return;
+    if (!confirm("Apakah Anda yakin ingin memposting jurnal manual ini?")) return;
 
     setLoading(true);
     try {
@@ -80,7 +81,7 @@ export default function ManualJournalModal({ isOpen, onClose, onSaved }: ManualJ
       onClose();
     } catch (error) {
       console.error(error);
-      alert('Failed to post journal: ' + error);
+      alert('Gagal memposting jurnal: ' + error);
     }
     setLoading(false);
   };
@@ -92,99 +93,142 @@ export default function ManualJournalModal({ isOpen, onClose, onSaved }: ManualJ
   const isBalanced = totalDebit === totalCredit && totalDebit > 0;
 
   return (
-    <>
-      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">New Manual Journal</h2>
-            <p className="text-sm text-amber-600 mt-1">Warning: Direct ledger adjustments should only be made by authorized personnel.</p>
-          </div>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-            <X size={20} />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="4xl"
+      title="Entri Jurnal Umum Manual"
+      subtitle="Catat penyesuaian akuntansi dan transaksi memorial debit-kredit"
+      icon={FileSpreadsheet}
+      footer={
+        <div className="flex justify-end gap-3 w-full">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            Batal
           </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 dark:bg-slate-900/30 custom-scrollbar">
-          <form id="journalForm" onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description / Memo</label>
-                <input required type="text" value={description} onChange={e => setDescription(e.target.value)} className="input-field" placeholder="Reason for this adjustment..." />
-            </div>
-
-            <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-slate-600 bg-slate-50 dark:bg-slate-900 uppercase font-semibold border-b border-slate-200 dark:border-slate-700">
-                    <tr>
-                      <th className="px-4 py-3 w-[30%]">Account</th>
-                      <th className="px-4 py-3 w-[30%]">Line Note</th>
-                      <th className="px-4 py-3 text-right w-[15%]">Debit</th>
-                      <th className="px-4 py-3 text-right w-[15%]">Credit</th>
-                      <th className="px-4 py-3 text-center w-[10%]"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                    {lines.map((line, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-2">
-                           <select 
-                             required
-                             value={line.account_id} 
-                             onChange={e => updateLine(idx, 'account_id', e.target.value)} 
-                             className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand"
-                           >
-                             <option value="">Select Account...</option>
-                             {accounts.map(a => (
-                               <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
-                             ))}
-                           </select>
-                        </td>
-                        <td className="px-4 py-2">
-                           <input type="text" value={line.notes} onChange={e => updateLine(idx, 'notes', e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="Optional note" />
-                        </td>
-                        <td className="px-4 py-2">
-                           <input type="number" min="0" value={line.debit || ''} onChange={e => updateLine(idx, 'debit', parseFloat(e.target.value) || 0)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-2 focus:ring-brand tabular-nums" placeholder="0" />
-                        </td>
-                        <td className="px-4 py-2">
-                           <input type="number" min="0" value={line.credit || ''} onChange={e => updateLine(idx, 'credit', parseFloat(e.target.value) || 0)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-2 focus:ring-brand tabular-nums" placeholder="0" />
-                        </td>
-                        <td className="px-4 py-2 text-center">
-                           <button type="button" onClick={() => handleRemoveLine(idx)} disabled={lines.length <= 2} className="p-1.5 text-slate-500 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                               <Trash2 size={16} />
-                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="p-3 bg-slate-50 border-t border-slate-200 dark:bg-slate-900 dark:border-slate-700">
-                   <button type="button" onClick={handleAddLine} className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center font-medium">
-                      <Plus size={16} className="mr-1"/> Add Line
-                   </button>
-                </div>
-            </div>
-
-            <div className={`p-4 rounded-xl border flex justify-between items-center ${isBalanced ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800' : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800'}`}>
-                <div className="font-medium">Total Balance</div>
-                <div className="flex gap-8 text-right font-mono font-bold">
-                    <div><span className="text-xs opacity-70 mr-2 uppercase">Debit</span>{totalDebit.toLocaleString('id-ID')}</div>
-                    <div><span className="text-xs opacity-70 mr-2 uppercase">Credit</span>{totalCredit.toLocaleString('id-ID')}</div>
-                </div>
-            </div>
-            
-          </form>
-        </div>
-
-        <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="btn-secondary">
-            Cancel
-          </button>
-          <button type="submit" form="journalForm" disabled={loading || !isBalanced} className="btn-primary flex items-center gap-2">
+          <button
+            type="submit"
+            form="journalForm"
+            disabled={loading || !isBalanced}
+            className="bg-brand hover:bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-md shadow-brand/20 disabled:opacity-50"
+          >
             <Save size={16} />
-            {loading ? 'Posting...' : 'Post Journal'}
+            {loading ? 'Memposting...' : 'Posting Jurnal'}
           </button>
         </div>
-      </div>
-    </>
+      }
+    >
+      <form id="journalForm" onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+            Deskripsi / Keterangan Transaksi
+          </label>
+          <input 
+            type="text" 
+            value={description} 
+            onChange={e => setDescription(e.target.value)} 
+            placeholder="contoh: Penyesuaian Saldo Awal Kas / Beban Listrik & Air" 
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" 
+          />
+        </div>
+
+        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-xs font-bold uppercase text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Akun Rekening</th>
+                <th className="px-4 py-3">Keterangan Baris</th>
+                <th className="px-4 py-3 w-36 text-right">Debit (Rp)</th>
+                <th className="px-4 py-3 w-36 text-right">Kredit (Rp)</th>
+                <th className="px-4 py-3 w-12 text-center"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {lines.map((line, idx) => (
+                <tr key={idx} className="bg-white dark:bg-slate-950">
+                  <td className="px-4 py-2.5">
+                    <select 
+                      value={line.account_id} 
+                      onChange={e => updateLine(idx, 'account_id', e.target.value)} 
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand"
+                    >
+                      <option value="">Pilih Akun Rekening...</option>
+                      {accounts.map(acc => (
+                        <option key={acc.id} value={acc.id}>{acc.code} - {acc.name}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <input 
+                      type="text" 
+                      value={line.notes} 
+                      onChange={e => updateLine(idx, 'notes', e.target.value)} 
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand" 
+                      placeholder="Catatan..." 
+                    />
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <input 
+                      type="number" 
+                      min="0" 
+                      value={line.debit || ''} 
+                      onChange={e => updateLine(idx, 'debit', parseFloat(e.target.value) || 0)} 
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-right outline-none focus:ring-2 focus:ring-brand font-mono font-bold" 
+                      placeholder="0" 
+                    />
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <input 
+                      type="number" 
+                      min="0" 
+                      value={line.credit || ''} 
+                      onChange={e => updateLine(idx, 'credit', parseFloat(e.target.value) || 0)} 
+                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-right outline-none focus:ring-2 focus:ring-brand font-mono font-bold" 
+                      placeholder="0" 
+                    />
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    <button 
+                      type="button" 
+                      onClick={() => handleRemoveLine(idx)} 
+                      disabled={lines.length <= 2} 
+                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-200 dark:border-slate-800">
+            <button 
+              type="button" 
+              onClick={handleAddLine} 
+              className="text-xs text-brand hover:underline flex items-center font-bold"
+            >
+              <Plus size={14} className="mr-1"/> Tambah Baris
+            </button>
+          </div>
+        </div>
+
+        <div className={`p-4 rounded-2xl border flex justify-between items-center ${
+          isBalanced 
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-300' 
+            : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-300'
+        }`}>
+          <div className="text-xs font-bold uppercase tracking-wider">
+            Status Saldo: {isBalanced ? '✓ SEIMBANG (BALANCED)' : '✕ TIDAK SEIMBANG'}
+          </div>
+          <div className="flex gap-8 text-right font-mono font-bold text-sm">
+            <div><span className="text-xs opacity-70 mr-2 uppercase">Total Debit</span>Rp {totalDebit.toLocaleString('id-ID')}</div>
+            <div><span className="text-xs opacity-70 mr-2 uppercase">Total Kredit</span>Rp {totalCredit.toLocaleString('id-ID')}</div>
+          </div>
+        </div>
+      </form>
+    </Modal>
   );
 }

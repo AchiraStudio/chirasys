@@ -96,7 +96,7 @@ export default function PurchasingDashboard() {
         <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden flex flex-col">
           {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
             <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
-              <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
+              <thead className="sticky top-0 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
                 <tr>
                   <th className="py-4 px-6">PO Number</th>
                   <th className="py-4 px-6">Supplier</th>
@@ -109,7 +109,7 @@ export default function PurchasingDashboard() {
                 {pos.length === 0 ? (
                   <tr><td colSpan={5} className="py-12 text-center text-slate-500">No Purchase Orders found. Create your first one!</td></tr>
                 ) : pos.map(po => (
-                  <tr key={po.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group">
+                  <tr key={po.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group fast-render-row">
                     <td className="py-4 px-6 font-mono text-xs text-slate-600 flex items-center gap-2">
                       <FileText size={14} className="text-slate-500" />
                       {po.id.split('-')[0].toUpperCase()}
@@ -160,7 +160,7 @@ export default function PurchasingDashboard() {
           </div>
           {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
             <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
-              <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
+              <thead className="sticky top-0 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
                 <tr>
                   <th className="py-4 px-6">Invoice No</th>
                   <th className="py-4 px-6">Supplier</th>
@@ -173,7 +173,7 @@ export default function PurchasingDashboard() {
                 {purchases.filter(p => !supplierFilter || p.supplier_id === supplierFilter).length === 0 ? (
                   <tr><td colSpan={5} className="py-12 text-center text-slate-500">No received goods yet.</td></tr>
                 ) : purchases.filter(p => !supplierFilter || p.supplier_id === supplierFilter).map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group">
+                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group fast-render-row">
                     <td className="py-4 px-6 font-bold flex items-center gap-2">
                       <FileText size={14} className="text-slate-500" />
                       {p.invoice_no || 'No Invoice'}

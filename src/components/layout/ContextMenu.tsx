@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Copy, Navigation, RefreshCw, ClipboardPaste, Code2 } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
+import { invoke } from '@tauri-apps/api/core';
 
 export default function ContextMenu() {
   const [show, setShow] = useState(false);
@@ -91,7 +92,6 @@ export default function ContextMenu() {
               setShow(false);
               // Try Tauri v2 devtools API first
               try {
-                const { invoke } = await import('@tauri-apps/api/core');
                 await invoke('open_devtools');
               } catch {
                 try {

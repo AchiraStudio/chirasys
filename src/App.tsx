@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import Dashboard from './components/Dashboard';
@@ -14,7 +14,9 @@ import Settings from './pages/settings/Settings';
 import LoginPage from './pages/auth/LoginPage';
 import ContextMenu from './components/layout/ContextMenu';
 import { useAuthStore } from './store/AuthStore';
-import { getCurrentUser } from './lib/api';
+import { getCurrentUser, getSettings, kickCashDrawer, getSyncStatus } from './lib/api';
+import { supabase } from './lib/supabase';
+import { invoke } from '@tauri-apps/api/core';
 import { useSyncStore } from './store/SyncStore';
 import { Package, Loader2 } from 'lucide-react';
 import { useZoomStore } from './store/ZoomStore';
@@ -31,6 +33,17 @@ export default function App() {
   const [isVerifying, setIsVerifying] = useState(true);
 
   const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('chirasys_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('chirasys_sidebar_collapsed', String(next));
+      return next;
+    });
+  }, []);
   
   useRealtimeSync();
 
@@ -57,6 +70,9 @@ export default function App() {
         } else if (e.key === '0') {
           e.preventDefault();
           reset();
+        } else if (e.key.toLowerCase() === 'b') {
+          e.preventDefault();
+          toggleSidebar();
         }
       }
 
@@ -64,7 +80,6 @@ export default function App() {
       if (e.altKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
         try {
-          const { getSettings, kickCashDrawer } = await import('./lib/api');
           const data = await getSettings();
           const pName = data.find((s: any) => s.key === 'printer_name')?.value;
           if (pName) {
@@ -80,7 +95,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [zoomIn, zoomOut, reset]);
+  }, [zoomIn, zoomOut, reset, toggleSidebar]);
 
   useEffect(() => {
     const verifySession = async () => {
@@ -106,9 +121,6 @@ export default function App() {
 
     // --- Phase 9: Realtime Cloud -> Local Sync ---
     const setupRealtime = async () => {
-      const { supabase } = await import('./lib/supabase');
-      const { invoke } = await import('@tauri-apps/api/core');
-      const { getSyncStatus } = await import('./lib/api');
       const { setStatus, setLastSyncTime } = useSyncStore.getState();
 
       setStatus('connecting');
@@ -140,7 +152,8 @@ export default function App() {
       let channel = supabase.channel(`chirasys-sync-${workspaceId}`);
 
       const tablesToSync = [
-        'sales', 'stock_ledger', 'categories', 'brands', 'items', 'item_units', 'item_prices'
+        'sales', 'stock_ledger', 'categories', 'brands', 'items', 'item_units', 'item_prices',
+        'customers', 'suppliers', 'promos', 'users', 'role_default_permissions'
       ];
 
       tablesToSync.forEach(table => {
@@ -222,10 +235,16 @@ export default function App() {
       <ContextMenu />
       <TitleBar />
       <div className="flex flex-1 overflow-hidden pt-10">
-        <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
+        <Sidebar 
+          activeMenu={activeMenu} 
+          setActiveMenu={setActiveMenu} 
+          onOpenAIChat={() => setIsAIChatOpen(true)} 
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
+        />
         <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50 dark:bg-[#0B0F19]">
           <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
-          <div className={`flex-1 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-6 md:p-8'}`}>
+          <div className={`flex-1 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-3 sm:p-4 lg:p-6'}`}>
             {activeMenu === 'dashboard' ? <Dashboard setActiveMenu={setActiveMenu} /> :
               activeMenu === 'pos' ? <POS /> :
                 activeMenu === 'inventory' ? (

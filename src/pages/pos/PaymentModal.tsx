@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { PosLine } from './POSStore';
 import { createSale, CreateSaleInput } from '../../lib/api';
-import { X, Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2, CheckCircle2, Ticket, ShoppingBag } from 'lucide-react';
-import { useAuthStore } from '../../store/AuthStore';
+import { Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2, CheckCircle2, Ticket, ShoppingBag } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import Modal from '../../components/ui/Modal';
+import { useAuthStore } from '../../store/AuthStore';
 
 interface PaymentModalProps {
     branchId: string;
@@ -213,25 +214,17 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-[#0B0F19] rounded-[2rem] shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-200/80 dark:border-slate-800/85 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
-                
-                {/* Header */}
-                <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 dark:border-slate-800/60">
-                    <div>
-                        <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Checkout Transaksi</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pilih metode pembayaran dan masukkan jumlah bayar</p>
-                    </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                {/* Main Content Area */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 grid grid-cols-1 md:grid-cols-12 gap-8">
-                    
-                    {/* Left Column: Payment Inputs & Methods (7 cols) */}
-                    <div className="md:col-span-7 space-y-6">
+        <Modal
+            isOpen={true}
+            onClose={onClose}
+            size="5xl"
+            title="Checkout Transaksi"
+            subtitle="Pilih metode pembayaran dan masukkan jumlah bayar"
+            noPadding={true}
+        >
+            <div className="p-8 grid grid-cols-1 md:grid-cols-12 gap-8">
+                {/* Left Column: Payment Inputs & Methods (7 cols) */}
+                <div className="md:col-span-7 space-y-6">
                         
                         {/* Payment Methods Grid Selector */}
                         <div>
@@ -587,12 +580,8 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                 Batal (ESC)
                             </button>
                         </div>
-
                     </div>
-
                 </div>
-
-            </div>
-        </div>
+        </Modal>
     );
 }

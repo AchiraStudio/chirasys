@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown } from 'lucide-react';
-import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull } from '../../lib/api';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, Settings as SettingsIcon, Globe, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown, Network } from 'lucide-react';
+import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData } from '../../lib/api';
+import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
 import UserManagement from './UserManagement';
 import HardwareSettings from './HardwareSettings';
+import LanSyncSettings from './LanSyncSettings';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import Modal from '../../components/ui/Modal';
+
+import { usePermissions } from '../../lib/permissions';
 
 // Keys that should render as a custom styled <select> instead of a text input
 const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
@@ -98,15 +102,13 @@ const MEMBER_KEYS = ['tier_member_discount', 'tier_vip_discount', 'tier_member_d
 
 export default function Settings() {
   const { user } = useAuthStore();
-  const roleLower = (user?.role || '').toLowerCase();
-  const isOwner = roleLower === 'owner' || roleLower === 'sysadmin';
-  const isAdmin = isOwner || roleLower === 'admin';
+  const { can, isOwner, isAdmin } = usePermissions();
 
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [configs, setConfigs] = useState<{key: string, value: string, description?: string}[]>([]);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'system' | 'users' | 'sync' | 'hardware'>('system');
+  const [activeTab, setActiveTab] = useState<'system' | 'users' | 'sync' | 'lan' | 'hardware'>('system');
 
   // Profile settings
   const [companyName, setCompanyName] = useState('');
@@ -133,71 +135,15 @@ export default function Settings() {
 
   // Sync / workspace state
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
-  const [inviteRole, setInviteRole] = useState<'admin' | 'worker'>('worker');
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const [inviteLoading, setInviteLoading] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
-
-  // Progress Modal state for Push / Pull
-  const [progressModal, setProgressModal] = useState<{
-    isOpen: boolean;
-    type: 'push' | 'pull';
-    title: string;
-    subtitle: string;
-    percent: number;
-    details: string;
-  } | null>(null);
-
-  useEffect(() => {
-    let unlistenPush: () => void;
-    let unlistenPull: () => void;
-
-    listen<{ current: number; total: number; percent: number; table_name: string }>('sync-push-progress', (event) => {
-      const { current, total, percent, table_name } = event.payload;
-      setProgressModal({
-        isOpen: true,
-        type: 'push',
-        title: 'Mengunggah Data ke Cloud...',
-        subtitle: `Tabel: ${table_name}`,
-        percent: Math.min(100, Math.max(0, Math.round(percent))),
-        details: `${current} dari ${total} item terproses (${Math.round(percent)}%)`,
-      });
-    }).then((fn) => { unlistenPush = fn; });
-
-    listen<{ current: number; total: number; percent: number; table_name: string; items_pulled: number }>('sync-pull-progress', (event) => {
-      const { current, total, percent, table_name, items_pulled } = event.payload;
-      setProgressModal({
-        isOpen: true,
-        type: 'pull',
-        title: 'Mengunduh Data dari Cloud...',
-        subtitle: `Tabel ${current}/${total}: ${table_name}`,
-        percent: Math.min(100, Math.max(0, Math.round(percent))),
-        details: `${items_pulled} item berhasil diunduh ke database lokal`,
-      });
-    }).then((fn) => { unlistenPull = fn; });
-
-    return () => {
-      if (unlistenPush) unlistenPush();
-      if (unlistenPull) unlistenPull();
-    };
-  }, []);
 
   const handleManualPush = async () => {
     setIsPushing(true);
     try {
-      const pushed = await triggerSyncPush();
+      await triggerSyncPush();
       await loadSyncStatus();
-      setProgressModal(null);
-      setConfirmModal({
-        title: 'Push Berhasil',
-        message: `${pushed} item antrian berhasil diunggah ke Supabase Cloud.`,
-        variant: 'primary',
-        confirmLabel: 'OK',
-        onConfirm: () => setConfirmModal(null),
-      });
     } catch (err: any) {
-      setProgressModal(null);
       setConfirmModal({
         title: 'Gagal Push',
         message: `Terjadi kesalahan saat upload ke Cloud: ${err.message || err}`,
@@ -213,18 +159,9 @@ export default function Settings() {
   const handleManualPull = async (fullPull: boolean = false) => {
     setIsPulling(true);
     try {
-      const pulled = await triggerSyncPull(fullPull);
+      await triggerSyncPull(fullPull);
       await loadSyncStatus();
-      setProgressModal(null);
-      setConfirmModal({
-        title: 'Pull Berhasil',
-        message: `${pulled} data terbaru berhasil diunduh dari Supabase Cloud.`,
-        variant: 'primary',
-        confirmLabel: 'OK',
-        onConfirm: () => setConfirmModal(null),
-      });
     } catch (err: any) {
-      setProgressModal(null);
       setConfirmModal({
         title: 'Gagal Pull',
         message: `Terjadi kesalahan saat download dari Cloud: ${err.message || err}`,
@@ -234,25 +171,6 @@ export default function Settings() {
       });
     } finally {
       setIsPulling(false);
-    }
-  };
-
-  const handleGenerateInvite = async () => {
-    setInviteLoading(true);
-    setInviteToken(null);
-    try {
-      const token = await createWorkspaceInvite(inviteRole);
-      setInviteToken(token);
-    } catch (e: any) {
-      setConfirmModal({
-        title: 'Gagal Generate Invite',
-        message: e.message || String(e),
-        variant: 'warning',
-        confirmLabel: 'OK',
-        onConfirm: () => setConfirmModal(null),
-      });
-    } finally {
-      setInviteLoading(false);
     }
   };
 
@@ -364,7 +282,6 @@ export default function Settings() {
         const msg = await optimizeDatabase();
         setSuccessMsg(msg);
       } else {
-        const { resetDbSpecific } = await import('../../lib/api');
         const msg = await resetDbSpecific(resetTarget);
         setSuccessMsg(msg);
       }
@@ -388,7 +305,6 @@ export default function Settings() {
     if (nukeConfirmText !== 'NUKE CLOUD DATA') return;
     setLoading(true);
     try {
-      const { nukeCloudWorkspaceData } = await import('../../lib/api');
       const msg = await nukeCloudWorkspaceData();
       setSuccessMsg(msg);
       setTimeout(() => setSuccessMsg(''), 8000);
@@ -485,43 +401,60 @@ export default function Settings() {
 
       {/* Tab Navigation (Shrink-0 & Robust Styling) */}
       <div className="shrink-0 flex items-center gap-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-3 overflow-x-auto custom-scrollbar">
+        {can('settings.general') && (
+          <button
+            onClick={() => setActiveTab('system')}
+            className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'system'
+                ? 'bg-brand text-white shadow-md shadow-brand/20'
+                : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <Sliders size={15} /> Konfigurasi Umum
+          </button>
+        )}
+
+        {can('settings.hardware') && (
+          <button
+            onClick={() => setActiveTab('hardware')}
+            className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'hardware'
+                ? 'bg-brand text-white shadow-md shadow-brand/20'
+                : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <Printer size={15} /> Printer & Hardware POS
+          </button>
+        )}
+
+        {can('settings.database') && (
+          <button
+            onClick={() => { setActiveTab('sync'); loadSyncStatus(); }}
+            className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'sync'
+                ? 'bg-brand text-white shadow-md shadow-brand/20'
+                : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <Globe size={15} /> Cloud & Workspace
+            {syncStatus?.pending_count ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">{syncStatus.pending_count}</span>
+            ) : null}
+          </button>
+        )}
+
         <button
-          onClick={() => setActiveTab('system')}
+          onClick={() => setActiveTab('lan')}
           className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'system'
+            activeTab === 'lan'
               ? 'bg-brand text-white shadow-md shadow-brand/20'
               : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
           }`}
         >
-          <Sliders size={15} /> Konfigurasi Umum
+          <Network size={15} /> Jaringan Lokal (LAN)
         </button>
 
-        <button
-          onClick={() => setActiveTab('hardware')}
-          className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'hardware'
-              ? 'bg-brand text-white shadow-md shadow-brand/20'
-              : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-          }`}
-        >
-          <Printer size={15} /> Printer & Hardware POS
-        </button>
-
-        <button
-          onClick={() => { setActiveTab('sync'); loadSyncStatus(); }}
-          className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'sync'
-              ? 'bg-brand text-white shadow-md shadow-brand/20'
-              : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-          }`}
-        >
-          <Globe size={15} /> Cloud & Workspace
-          {syncStatus?.pending_count ? (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">{syncStatus.pending_count}</span>
-          ) : null}
-        </button>
-
-        {isAdmin && (
+        {(can('settings.users') || isAdmin) && (
           <button
             onClick={() => setActiveTab('users')}
             className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
@@ -540,10 +473,12 @@ export default function Settings() {
         <HardwareSettings />
       ) : activeTab === 'users' ? (
         <UserManagement />
+      ) : activeTab === 'lan' ? (
+        <LanSyncSettings />
       ) : activeTab === 'sync' ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
-          {/* Workspace Status (6 cols) */}
-          <div className="lg:col-span-6 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between space-y-6">
+          {/* Workspace Status (12 cols) */}
+          <div className="lg:col-span-12 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between space-y-6">
             <div className="space-y-5">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div className="flex items-center gap-3">
@@ -553,7 +488,7 @@ export default function Settings() {
                     <p className="text-xs text-slate-500">Status sinkronisasi data antar cabang</p>
                   </div>
                 </div>
-                <button onClick={loadSyncStatus} className="p-2.5 text-slate-400 hover:text-brand rounded-xl hover:bg-brand/10 transition-all" title="Refresh Sync Status">
+                <button onClick={loadSyncStatus} className="p-2.5 text-slate-400 hover:text-brand rounded-xl hover:bg-brand/10 transition-all cursor-pointer" title="Refresh Sync Status">
                   <RefreshCw size={18} />
                 </button>
               </div>
@@ -569,7 +504,7 @@ export default function Settings() {
                     <Wifi size={20} className="text-emerald-500 shrink-0 animate-pulse" />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800/80">
                       <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Antrian Pending</p>
                       <p className={`text-3xl font-black mt-1 font-mono ${syncStatus.pending_count > 0 ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.pending_count}</p>
@@ -659,60 +594,6 @@ export default function Settings() {
               </button>
             )}
           </div>
-
-          {/* Invite Generator (6 cols) */}
-          {isAdmin && syncStatus?.workspace_id && (
-            <div className="lg:col-span-6 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between space-y-6">
-              <div className="space-y-5">
-                <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-                  <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl"><Link2 size={22} /></div>
-                  <div>
-                    <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Undang Anggota / Kasir Baru</h2>
-                    <p className="text-xs text-slate-500">Buat kode akses untuk menghubungkan perangkat cabang baru</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Role untuk Anggota Baru</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['admin', 'worker'] as const).map(r => (
-                      <label key={r} className={`flex items-center gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                        inviteRole === r ? 'bg-brand/10 border-brand text-brand font-bold' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-700 dark:text-slate-300'
-                      }`}>
-                        <input type="radio" name="role" value={r} checked={inviteRole === r} onChange={() => setInviteRole(r)} className="text-brand focus:ring-brand" />
-                        <span className="text-xs capitalize font-bold">{r === 'admin' ? 'Admin Cabang' : 'Staf / Kasir'}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleGenerateInvite}
-                  disabled={inviteLoading}
-                  className="flex items-center justify-center gap-2 w-full bg-brand hover:bg-blue-600 text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-md shadow-brand/20 disabled:opacity-50 cursor-pointer"
-                >
-                  {inviteLoading ? <Loader2 size={18} className="animate-spin" /> : <Link2 size={18} />}
-                  Buat Kode Token Undangan
-                </button>
-
-                {inviteToken && (
-                  <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 animate-in zoom-in-95">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kode Undangan (Berlaku 7 Hari)</p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-xs font-mono text-brand font-bold break-all p-2.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 select-all">{inviteToken}</code>
-                      <button
-                        onClick={() => { navigator.clipboard.writeText(inviteToken); }}
-                        className="p-2.5 bg-brand/10 text-brand hover:bg-brand hover:text-white rounded-xl transition-all"
-                        title="Copy Kode"
-                      >
-                        <Copy size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Sysadmin Only: Global Workspace Management */}
           {user?.username === 'admin' && (
@@ -958,64 +839,24 @@ export default function Settings() {
 
       {/* DB Reset Warning Modal */}
       {resetTarget !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl">
-                  <AlertTriangle size={20} />
-                </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                  {resetTarget === 'maintenance' ? 'Optimize Database?' : 'Konfirmasi Wipe Database'}
-                </h3>
-              </div>
-              <button onClick={() => setResetTarget(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {resetTarget === 'maintenance' ? (
-                <>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                    Menjalankan <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">VACUUM</code> dan <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">ANALYZE</code> untuk mengompresi database SQLite.
-                  </p>
-                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                    Aplikasi mungkin jeda sejenak. Tidak ada data yang dihapus.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/50 rounded-2xl space-y-2">
-                    <p className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">⚠ Tindakan Permanen</p>
-                    <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
-                      {resetTarget === 'sales' && 'Seluruh transaksi kasir, pembayaran, dan laporan penjualan akan dihapus permanen.'}
-                      {resetTarget === 'inventory' && 'Seluruh kartu stok, mutasi barang, dan PO pembelian akan dihapus.'}
-                      {resetTarget === 'all' && 'SELURUH DATA (Master Data, Stok, Sales) akan dihapus total dan aplikasi kembali ke kondisi awal.'}
-                    </p>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    Ketik <strong>DELETE</strong> untuk mengonfirmasi:
-                  </p>
-                  <input
-                    type="text"
-                    value={confirmText}
-                    onChange={e => setConfirmText(e.target.value)}
-                    placeholder="DELETE"
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-rose-200 dark:border-rose-800/80 rounded-2xl px-4 py-3 text-sm font-bold text-rose-600 outline-none uppercase font-mono"
-                  />
-                </>
-              )}
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+        <Modal
+          isOpen={true}
+          onClose={() => setResetTarget(null)}
+          size="md"
+          title={resetTarget === 'maintenance' ? 'Optimize Database?' : 'Konfirmasi Wipe Database'}
+          icon={AlertTriangle}
+          iconBg="bg-rose-100 dark:bg-rose-900/30 text-rose-600"
+          footer={
+            <div className="flex gap-3 w-full">
               <button
+                type="button"
                 onClick={() => setResetTarget(null)}
-                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 Batal
               </button>
               <button
+                type="button"
                 onClick={handleResetDB}
                 disabled={resetTarget !== 'maintenance' && confirmText !== 'DELETE'}
                 className="flex-[1.5] py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-rose-600/20"
@@ -1024,79 +865,102 @@ export default function Settings() {
                 {loading ? 'Memproses...' : 'Ya, Eksekusi'}
               </button>
             </div>
+          }
+        >
+          <div className="space-y-4">
+            {resetTarget === 'maintenance' ? (
+              <>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Menjalankan <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">VACUUM</code> dan <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">ANALYZE</code> untuk mengompresi database SQLite.
+                </p>
+                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  Aplikasi mungkin jeda sejenak. Tidak ada data yang dihapus.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/50 rounded-2xl space-y-2">
+                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">⚠ Tindakan Permanen</p>
+                  <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+                    {resetTarget === 'sales' && 'Seluruh transaksi kasir, pembayaran, dan laporan penjualan akan dihapus permanen.'}
+                    {resetTarget === 'inventory' && 'Seluruh kartu stok, mutasi barang, dan PO pembelian akan dihapus.'}
+                    {resetTarget === 'all' && 'SELURUH DATA (Master Data, Stok, Sales) akan dihapus total dan aplikasi kembali ke kondisi awal.'}
+                  </p>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Ketik <strong>DELETE</strong> untuk mengonfirmasi:
+                </p>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={e => setConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-rose-200 dark:border-rose-800/80 rounded-2xl px-4 py-3 text-sm font-bold text-rose-600 outline-none uppercase font-mono"
+                />
+              </>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Nuke Supabase Modal Step 1: Warning */}
       {nukeStep === 1 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0B0F19] rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden border border-rose-500/50 dark:border-rose-500/30 animate-in zoom-in-95 duration-200">
-            <div className="p-7 text-center space-y-4">
-              <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto ring-8 ring-rose-500/5">
-                <AlertTriangle size={32} />
-              </div>
-              <div>
-                <span className="px-3 py-1 bg-rose-500/10 text-rose-500 rounded-full text-[10px] font-black uppercase tracking-wider">Peringatan Bahaya (Khusus Owner)</span>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white mt-2">Hapus Seluruh Data Supabase Cloud?</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                  Tindakan ini akan mengosongkan <strong>SELURUH master data, produk, dan transaksi</strong> pada database Cloud Supabase untuk workspace ini.<br/><br/>
-                  <strong className="text-rose-500">TINDAKAN INI TIDAK DAPAT DIBATALKAN ATAU DIKEMBALIKAN!</strong>
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+        <Modal
+          isOpen={true}
+          onClose={() => setNukeStep(0)}
+          size="md"
+          title="Peringatan Bahaya (Owner)"
+          icon={AlertTriangle}
+          iconBg="bg-rose-500/10 text-rose-500"
+          footer={
+            <div className="flex gap-3 w-full">
               <button
+                type="button"
                 onClick={() => setNukeStep(0)}
-                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 Batal
               </button>
               <button
+                type="button"
                 onClick={() => setNukeStep(2)}
                 className="flex-[1.5] py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-black transition-all cursor-pointer shadow-md shadow-rose-600/20"
               >
                 Lanjut ke Konfirmasi Akhir →
               </button>
             </div>
+          }
+        >
+          <div className="text-center space-y-4 py-2">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">Hapus Seluruh Data Supabase Cloud?</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Tindakan ini akan mengosongkan <strong>SELURUH master data, produk, dan transaksi</strong> pada database Cloud Supabase untuk workspace ini.<br/><br/>
+              <strong className="text-rose-500">TINDAKAN INI TIDAK DAPAT DIBATALKAN ATAU DIKEMBALIKAN!</strong>
+            </p>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Nuke Supabase Modal Step 2: Text Confirmation */}
       {nukeStep === 2 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0B0F19] rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden border-2 border-red-600 animate-in zoom-in-95 duration-200">
-            <div className="p-7 text-center space-y-4">
-              <div className="w-16 h-16 bg-red-600/15 text-red-600 rounded-full flex items-center justify-center mx-auto ring-8 ring-red-600/10">
-                <Trash2 size={32} />
-              </div>
-              <div>
-                <span className="px-3 py-1 bg-red-600/10 text-red-600 rounded-full text-[10px] font-black uppercase tracking-wider">Konfirmasi Akhir</span>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white mt-2">Ketik untuk Mengonfirmasi Nuke</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                  Ketik frasa <code className="bg-rose-100 dark:bg-rose-950 text-rose-600 font-mono px-1.5 py-0.5 rounded font-bold">NUKE CLOUD DATA</code> di bawah ini untuk membuka tombol eksekusi:
-                </p>
-              </div>
-
-              <input
-                type="text"
-                placeholder="NUKE CLOUD DATA"
-                value={nukeConfirmText}
-                onChange={e => setNukeConfirmText(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-red-500/50 rounded-2xl px-4 py-3 text-sm font-black text-red-600 outline-none uppercase font-mono text-center tracking-wider focus:ring-2 focus:ring-red-600"
-              />
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+        <Modal
+          isOpen={true}
+          onClose={() => { setNukeStep(0); setNukeConfirmText(''); }}
+          size="md"
+          title="Konfirmasi Akhir Nuke Cloud"
+          icon={Trash2}
+          iconBg="bg-red-600/15 text-red-600"
+          footer={
+            <div className="flex gap-3 w-full">
               <button
+                type="button"
                 onClick={() => { setNukeStep(0); setNukeConfirmText(''); }}
-                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 Batal
               </button>
               <button
+                type="button"
                 onClick={handleNukeCloudData}
                 disabled={nukeConfirmText !== 'NUKE CLOUD DATA' || loading}
                 className="flex-[1.5] py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-xs font-black transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-600/30"
@@ -1105,8 +969,22 @@ export default function Settings() {
                 {loading ? 'Memproses Nuke...' : '🔥 EKSEKUSI HAPUS CLOUD'}
               </button>
             </div>
+          }
+        >
+          <div className="text-center space-y-4 py-2">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">Ketik untuk Mengonfirmasi Nuke</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Ketik frasa <code className="bg-rose-100 dark:bg-rose-950 text-rose-600 font-mono px-1.5 py-0.5 rounded font-bold">NUKE CLOUD DATA</code> di bawah ini untuk membuka tombol eksekusi:
+            </p>
+            <input
+              type="text"
+              placeholder="NUKE CLOUD DATA"
+              value={nukeConfirmText}
+              onChange={e => setNukeConfirmText(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-red-500/50 rounded-2xl px-4 py-3 text-sm font-black text-red-600 outline-none uppercase font-mono text-center tracking-wider focus:ring-2 focus:ring-red-600"
+            />
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Global Confirm Modal */}
@@ -1119,39 +997,6 @@ export default function Settings() {
           onConfirm={confirmModal.onConfirm}
           onCancel={() => setConfirmModal(null)}
         />
-      )}
-
-      {/* Progress Modal for Cloud Push / Pull */}
-      {progressModal?.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150" />
-          <div className="relative bg-white dark:bg-[#0B0F19] rounded-2xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-2xl ${progressModal.type === 'push' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-brand/10 text-brand'}`}>
-                {progressModal.type === 'push' ? <UploadCloud size={24} className="animate-bounce" /> : <DownloadCloud size={24} className="animate-bounce" />}
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">{progressModal.title}</h3>
-                <p className="text-xs text-slate-500 truncate">{progressModal.subtitle}</p>
-              </div>
-            </div>
-
-            {/* Progress Bar Container */}
-            <div className="space-y-2 pt-2">
-              <div className="flex justify-between text-xs font-extrabold">
-                <span className="text-slate-600 dark:text-slate-400">Proses Sync</span>
-                <span className={progressModal.type === 'push' ? 'text-emerald-500' : 'text-brand'}>{progressModal.percent}%</span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${progressModal.type === 'push' ? 'bg-emerald-500' : 'bg-brand'}`}
-                  style={{ width: `${progressModal.percent}%` }}
-                />
-              </div>
-              <p className="text-[11px] font-mono text-slate-400 text-center pt-1">{progressModal.details}</p>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
@@ -1252,7 +1097,6 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
   const handleApplyHpp = async () => {
     setApplyingHpp(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
       const msg = await invoke('apply_hpp_retroactive', { method: val });
       alert(msg);
     } catch (e) {
@@ -1314,23 +1158,6 @@ function SysadminWorkspaceManagement() {
   const [creating, setCreating] = useState(false);
   const [expandedWs, setExpandedWs] = useState<string | null>(null);
   const [assigningUser, setAssigningUser] = useState<string | null>(null); // user_id being assigned
-  const [inviteWsId, setInviteWsId] = useState<string | null>(null);
-  const [inviteRole, setInviteRole] = useState<'admin' | 'worker'>('admin');
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const [inviteLoading, setInviteLoading] = useState(false);
-
-  const handleGenerateInvite = async (wsId: string) => {
-    setInviteLoading(true);
-    setInviteToken(null);
-    try {
-      const token = await sysadminCreateWorkspaceInvite(wsId, inviteRole);
-      setInviteToken(token);
-    } catch (e: any) {
-      alert(`Gagal membuat token invite: ${e.message || e}`);
-    } finally {
-      setInviteLoading(false);
-    }
-  };
 
   useEffect(() => {
     loadData();
@@ -1471,45 +1298,9 @@ function SysadminWorkspaceManagement() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setInviteWsId(inviteWsId === ws.id ? null : ws.id); setInviteToken(null); }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                    >
-                      <Link2 size={11} /> Undang
-                    </button>
                     <span className="text-slate-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
-
-                {/* Inline invite panel */}
-                {inviteWsId === ws.id && (
-                  <div className="border-t border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 flex items-center gap-2">
-                    <select
-                      value={inviteRole}
-                      onChange={e => setInviteRole(e.target.value as any)}
-                      className="text-xs px-2 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none"
-                    >
-                      <option value="admin">Admin</option>
-                      <option value="worker">Worker</option>
-                    </select>
-                    <button
-                      onClick={() => handleGenerateInvite(ws.id)}
-                      disabled={inviteLoading}
-                      className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-lg flex items-center gap-1"
-                    >
-                      {inviteLoading ? <Loader2 size={12} className="animate-spin" /> : 'Buat Token'}
-                    </button>
-                    {inviteToken && inviteWsId === ws.id && (
-                      <div className="flex-1 flex items-center gap-2">
-                        <code className="flex-1 text-[10px] font-mono text-brand break-all p-1.5 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 select-all">{inviteToken}</code>
-                        <button onClick={() => navigator.clipboard.writeText(inviteToken)} className="p-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200 rounded-lg">
-                          <Copy size={13} />
-                        </button>
-                      </div>
-                    )}
-                    <button onClick={() => { setInviteWsId(null); setInviteToken(null); }} className="p-1 text-slate-400 hover:text-rose-500"><X size={14} /></button>
-                  </div>
-                )}
 
                 {/* Expanded: member list + assign new member */}
                 {isExpanded && (

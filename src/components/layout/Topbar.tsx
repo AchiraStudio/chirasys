@@ -1,7 +1,10 @@
-import { Sun, Moon, Bell, Search, Cloud, CloudOff, RefreshCw, ZoomIn, ZoomOut, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sun, Moon, Bell, Search, Cloud, CloudOff, RefreshCw, ZoomIn, ZoomOut, Sparkles, Radio } from 'lucide-react';
 import { useTheme } from '../ThemeProvider';
 import { useSyncStore } from '../../store/SyncStore';
 import { useZoomStore } from '../../store/ZoomStore';
+import { getLanPeers, LanPeer } from '../../lib/api';
+import { listen } from '@tauri-apps/api/event';
 
 interface TopbarProps {
   activeMenu: string;
@@ -13,6 +16,21 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
   const { theme, setTheme } = useTheme();
   const { status, lastSyncTime } = useSyncStore();
   const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
+  const [lanPeerCount, setLanPeerCount] = useState(0);
+
+  useEffect(() => {
+    getLanPeers().then(p => setLanPeerCount(p.length)).catch(() => {});
+    let unlisten: (() => void) | undefined;
+    listen<LanPeer[]>('chirasys:lan_peers_updated', e => {
+      setLanPeerCount(e.payload.length);
+    }).then(u => {
+      unlisten = u;
+    });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   const PAGE_TITLES: Record<string, string> = {
     dashboard: 'Overview',
@@ -27,16 +45,16 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
   const title = PAGE_TITLES[activeMenu] ?? activeMenu.replace(/-/g, ' ');
 
   return (
-    <header className="h-20 glass border-b flex items-center px-8 justify-between sticky top-0 z-10 transition-colors duration-300">
+    <header className="h-16 bg-white dark:bg-[#0B0F19] border-b border-slate-200/80 dark:border-slate-800 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-10 shrink-0">
 
       {/* Dynamic Page Title */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white capitalize tracking-tight">
+      <div className="min-w-0 mr-2">
+        <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white capitalize tracking-tight truncate">
           {title}
         </h2>
       </div>
 
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
 
         {/* Global Search Bar */}
         <div className="hidden md:flex items-center bg-slate-100/80 dark:bg-slate-900/80 rounded-full px-4 py-2 border border-slate-200 dark:border-slate-800 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all shadow-inner">
@@ -49,6 +67,14 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
           <kbd className="hidden lg:inline-block ml-2 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
             ⌘K
           </kbd>
+        </div>
+
+        {/* LAN Mesh Status */}
+        <div className="hidden lg:flex items-center text-xs font-semibold" title={`LAN Mesh: ${lanPeerCount} perangkat terdeteksi di jaringan lokal`}>
+          <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800/60">
+            <Radio size={13} className={lanPeerCount > 1 ? "animate-pulse text-emerald-500" : "text-indigo-500"} />
+            <span>LAN ({lanPeerCount})</span>
+          </span>
         </div>
 
         {/* Sync Status */}
@@ -114,11 +140,11 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
         {onOpenAIChat && (
           <button
             onClick={onOpenAIChat}
-            className="ml-2 flex items-center gap-2 bg-gradient-to-tr from-brand to-indigo-600 hover:from-blue-600 hover:to-indigo-500 text-white px-5 py-2.5 rounded-full font-semibold text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98] group"
+            className="ml-1 sm:ml-2 flex items-center gap-1.5 sm:gap-2 bg-gradient-to-tr from-brand to-indigo-600 hover:from-blue-600 hover:to-indigo-500 text-white px-3.5 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98] group"
             title="Tanya Achira"
           >
-            <Sparkles size={18} className="group-hover:animate-pulse" aria-hidden="true" />
-            <span>Tanya Achira</span>
+            <Sparkles size={16} className="group-hover:animate-pulse" aria-hidden="true" />
+            <span className="hidden sm:inline">Tanya Achira</span>
           </button>
         )}
       </div>

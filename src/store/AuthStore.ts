@@ -6,7 +6,8 @@ export interface UserInfo {
   name: string;
   username: string;
   role: string;
-  permissions: string;
+  permissions: string[] | string;
+  is_custom_perms?: boolean;
   branch_id?: string;
   avatar_color?: string;
   workspace_id?: string;

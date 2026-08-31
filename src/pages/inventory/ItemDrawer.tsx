@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Save, Pill, AlertCircle, Plus, Trash2, DollarSign, Settings as SettingsIcon, Loader2, Image as ImageIcon, Edit2 } from 'lucide-react';
+import { Save, Pill, AlertCircle, Plus, Trash2, DollarSign, Settings as SettingsIcon, Loader2, Image as ImageIcon, Edit2 } from 'lucide-react';
 import { 
   getCategories, getBrands, Category, Brand, 
   addItem, updateItem, 
   addItemUnit, updateItemUnit, deleteItemUnit, 
-  setItemPrice, getItem 
+  setItemPrice, getItem, saveItemPriceTiers
 } from '../../lib/api';
+
+import { usePermissions } from '../../lib/permissions';
+import Modal from '../../components/ui/Modal';
 
 interface ItemDrawerProps {
   isOpen: boolean;
@@ -32,6 +35,7 @@ interface DraftPrices {
 }
 
 export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }: ItemDrawerProps) {
+  const { can } = usePermissions();
   const [activeTab, setActiveTab] = useState<'basic' | 'units' | 'pricing' | 'tiers' | 'settings'>('basic');
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -197,7 +201,6 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
       }
 
       if (targetItemId && draftTiers.length > 0) {
-        const { saveItemPriceTiers } = await import('../../lib/api');
         await saveItemPriceTiers(targetItemId, null, draftTiers.map(t => ({ max_qty: Number(t.max_qty), price: Number(t.price) })));
       }
 
@@ -214,36 +217,42 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-white dark:bg-[#0B0F19] shadow-2xl flex flex-col rounded-3xl border border-slate-200/80 dark:border-slate-800/80 max-h-[90vh] animate-in zoom-in-95 duration-300 overflow-hidden">
-        {isLoadingEdit ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
-            <Loader2 className="animate-spin mb-4 text-brand" size={32} />
-            <p>Loading record data...</p>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="2xl"
+      title={editItemId ? 'Edit Medicine' : 'Add New Medicine'}
+      subtitle={editItemId ? 'Update master record details' : 'Create a new master record'}
+      icon={Pill}
+      noPadding={true}
+      footer={
+        !isLoadingEdit ? (
+          <div className="flex justify-end gap-3 w-full">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+            <button type="button" onClick={handleSubmit} disabled={isSubmitting} className="flex items-center gap-2 bg-brand hover:bg-blue-600 text-white px-6 py-2 rounded-xl font-semibold text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98] disabled:opacity-50">
+              {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {editItemId ? 'Update Medicine' : 'Save Medicine'}
+            </button>
           </div>
-        ) : (
-          <>
-            <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-brand/10 text-brand rounded-lg"><Pill size={20} /></div>
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">{editItemId ? 'Edit Medicine' : 'Add New Medicine'}</h2>
-                  <p className="text-xs text-slate-600 font-medium">{editItemId ? 'Update master record details' : 'Create a new master record'}</p>
-                </div>
-              </div>
-              <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-200 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-200 dark:border-slate-700 transition-colors"><X size={18} /></button>
-            </div>
+        ) : null
+      }
+    >
+      {isLoadingEdit ? (
+        <div className="py-20 flex flex-col items-center justify-center text-slate-500">
+          <Loader2 className="animate-spin mb-4 text-brand" size={32} />
+          <p>Loading record data...</p>
+        </div>
+      ) : (
+        <div className="flex flex-col h-full">
+          <div className="flex px-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+            {['basic', 'units', 'pricing', 'tiers', 'settings'].map((tab) => (
+              <button key={tab} type="button" onClick={() => setActiveTab(tab as any)} className={`px-4 py-3 text-sm font-semibold capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-brand text-brand' : 'border-transparent text-slate-600 hover:text-slate-700 dark:hover:text-slate-500'}`}>
+                {tab === 'tiers' ? 'Tier Harga (Volume)' : tab}
+              </button>
+            ))}
+          </div>
 
-            <div className="flex px-6 border-b border-slate-200 dark:border-slate-800">
-              {['basic', 'units', 'pricing', 'tiers', 'settings'].map((tab) => (
-                <button key={tab} onClick={() => setActiveTab(tab as any)} className={`px-4 py-3 text-sm font-semibold capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-brand text-brand' : 'border-transparent text-slate-600 hover:text-slate-700 dark:hover:text-slate-500'}`}>
-                  {tab === 'tiers' ? 'Tier Harga (Volume)' : tab}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          <div className="p-6">
               {activeTab === 'basic' && (
                 <div className="space-y-6 animate-in fade-in">
                   
@@ -324,9 +333,9 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                           return (
                             <tr key={unit.tempId} className="bg-white dark:bg-slate-950">
                               <td className="p-4 font-medium text-slate-900 dark:text-white">{unit.unit_name || 'Unnamed Unit'}</td>
-                              <td className="p-3"><input type="number" value={prices.regular || ''} onChange={(e) => updatePrice(unit.tempId, 'regular', Number(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" /></td>
-                              <td className="p-3"><input type="number" value={prices.member || ''} onChange={(e) => updatePrice(unit.tempId, 'member', Number(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" /></td>
-                              <td className="p-3"><input type="number" value={prices.vip || ''} onChange={(e) => updatePrice(unit.tempId, 'vip', Number(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" /></td>
+                              <td className="p-3"><input type="number" disabled={!can('items.change_price')} value={prices.regular || ''} onChange={(e) => updatePrice(unit.tempId, 'regular', Number(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-900 disabled:opacity-60 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" /></td>
+                              <td className="p-3"><input type="number" disabled={!can('items.change_price')} value={prices.member || ''} onChange={(e) => updatePrice(unit.tempId, 'member', Number(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-900 disabled:opacity-60 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" /></td>
+                              <td className="p-3"><input type="number" disabled={!can('items.change_price')} value={prices.vip || ''} onChange={(e) => updatePrice(unit.tempId, 'vip', Number(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-900 disabled:opacity-60 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" /></td>
                             </tr>
                           );
                         })}
@@ -362,28 +371,33 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                             <td className="p-3">
                               <input
                                 type="number"
+                                disabled={!can('items.change_price')}
                                 value={tier.max_qty || ''}
                                 onChange={(e) => updateDraftTier(tier.tempId, 'max_qty', Number(e.target.value))}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20 font-bold"
+                                className="w-full bg-slate-50 dark:bg-slate-900 disabled:opacity-60 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20 font-bold"
                                 placeholder="misal: 9"
                               />
                             </td>
                             <td className="p-3">
                               <input
                                 type="number"
+                                disabled={!can('items.change_price')}
                                 value={tier.price || ''}
                                 onChange={(e) => updateDraftTier(tier.tempId, 'price', Number(e.target.value))}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20 font-bold text-slate-900 dark:text-white"
+                                className="w-full bg-slate-50 dark:bg-slate-900 disabled:opacity-60 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20 font-bold text-slate-900 dark:text-white"
                                 placeholder="misal: 8000"
                               />
                             </td>
                             <td className="p-3 text-center">
-                              <button
-                                onClick={() => removeDraftTier(tier.tempId)}
-                                className="text-slate-500 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                              {can('items.change_price') && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeDraftTier(tier.tempId)}
+                                  className="text-slate-500 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -397,12 +411,15 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                       </tbody>
                     </table>
                   </div>
-                  <button
-                    onClick={addTierRow}
-                    className="flex items-center gap-2 text-sm font-semibold text-brand hover:text-blue-700 transition-colors px-2"
-                  >
-                    <Plus size={16} /> Tambah Tier Harga Baru
-                  </button>
+                  {can('items.change_price') && (
+                    <button
+                      type="button"
+                      onClick={addTierRow}
+                      className="flex items-center gap-2 text-sm font-semibold text-brand hover:text-blue-700 transition-colors px-2"
+                    >
+                      <Plus size={16} /> Tambah Level Tier
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -429,18 +446,9 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-end gap-3 mt-auto">
-              <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Cancel</button>
-              <button onClick={handleSubmit} disabled={isSubmitting} className="flex items-center gap-2 bg-brand hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98] disabled:opacity-50">
-                {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {editItemId ? 'Update Medicine' : 'Save Medicine'}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }

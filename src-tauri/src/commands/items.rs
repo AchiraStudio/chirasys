@@ -15,6 +15,8 @@ pub async fn get_items_filtered(
     active_only: bool,
     page: i64,
     per_page: i64,
+    sort_by: Option<String>,
+    sort_order: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<PaginatedItems, String> {
     let offset = (page - 1) * per_page;
@@ -57,9 +59,24 @@ pub async fn get_items_filtered(
         }
     }
 
+    let order_dir = match sort_order.as_deref().map(|s| s.to_lowercase()).as_deref() {
+        Some("desc") => "DESC",
+        _ => "ASC",
+    };
+
+    let order_clause = match sort_by.as_deref().map(|s| s.to_lowercase()).as_deref() {
+        Some("category") | Some("category_name") => format!(
+            "ORDER BY (SELECT name FROM categories WHERE id = items.category_id) {}, name ASC",
+            order_dir
+        ),
+        Some("sku") => format!("ORDER BY sku {}, name ASC", order_dir),
+        Some("price") => format!("ORDER BY price {}, name ASC", order_dir),
+        _ => format!("ORDER BY name {}", order_dir),
+    };
+
     query_str.push_str(&format!(
-        " ORDER BY name ASC LIMIT {} OFFSET {}",
-        per_page, offset
+        " {} LIMIT {} OFFSET {}",
+        order_clause, per_page, offset
     ));
 
     // Build the execution queries dynamically
@@ -100,16 +117,28 @@ pub async fn get_items_filtered(
         .await
         .map_err(|e| e.to_string())?;
 
-    for item in items.iter_mut() {
-        let price_tiers = sqlx::query_as::<_, crate::db::models::item::ItemPriceTier>(
-            "SELECT * FROM item_price_tiers WHERE item_id = ? ORDER BY tier_level ASC",
-        )
-        .bind(&item.id)
-        .fetch_all(&state.db_pool)
-        .await
-        .unwrap_or_default();
+    if !items.is_empty() {
+        let item_ids: Vec<String> = items.iter().map(|i| i.id.clone()).collect();
+        let placeholders = item_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let tiers_query_str = format!(
+            "SELECT * FROM item_price_tiers WHERE item_id IN ({}) ORDER BY tier_level ASC",
+            placeholders
+        );
+        let mut tiers_query = sqlx::query_as::<_, crate::db::models::item::ItemPriceTier>(&tiers_query_str);
+        for id in &item_ids {
+            tiers_query = tiers_query.bind(id);
+        }
+        let all_tiers = tiers_query.fetch_all(&state.db_pool).await.unwrap_or_default();
 
-        item.price_tiers = Some(price_tiers);
+        let mut tiers_map: std::collections::HashMap<String, Vec<crate::db::models::item::ItemPriceTier>> = std::collections::HashMap::new();
+        for tier in all_tiers {
+            tiers_map.entry(tier.item_id.clone()).or_default().push(tier);
+        }
+
+        for item in items.iter_mut() {
+            let tiers = tiers_map.remove(&item.id).unwrap_or_default();
+            item.price_tiers = Some(tiers);
+        }
     }
 
     let total = count_query.fetch_one(&state.db_pool).await.unwrap_or(0);

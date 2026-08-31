@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Printer, RefreshCw, CheckCircle2, Cpu, Barcode, Zap, Sliders, Play, X, Check, Monitor, WifiOff, AlertTriangle } from 'lucide-react';
-import { getSettings, setSetting, listPrinters, kickCashDrawer, DetectedPrinterInfo } from '../../lib/api';
+import { getSettings, setSetting, listPrinters, kickCashDrawer, printRawReceipt, DetectedPrinterInfo } from '../../lib/api';
+import { EscPosBuilder } from '../../lib/escpos';
 
 export default function HardwareSettings() {
 
@@ -133,9 +134,6 @@ export default function HardwareSettings() {
     setDrawerLoading(true);
     setErrorMsg('');
     try {
-      const { EscPosBuilder } = await import('../../lib/escpos');
-      const { printRawReceipt } = await import('../../lib/api');
-      
       const builder = new EscPosBuilder();
       
       // Use standard font

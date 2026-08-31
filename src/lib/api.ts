@@ -135,7 +135,7 @@ export const addCategory = async (name: string, description?: string, color?: st
 export const updateCategory = async (id: string, name: string): Promise<Category> => invoke('update_category', { id, name });
 export const deleteCategory = async (id: string): Promise<void> => invoke('delete_category', { id });
 
-export const getItemsFiltered = async (search: string = '', categoryId: string = '', brandId: string = '', activeOnly: boolean = false, page: number = 1, perPage: number = 20): Promise<PaginatedItems> => invoke('get_items_filtered', { search: search.trim() || null, categoryId: categoryId || null, brandId: brandId || null, activeOnly, page, perPage });
+export const getItemsFiltered = async (search: string = '', categoryId: string = '', brandId: string = '', activeOnly: boolean = false, page: number = 1, perPage: number = 20, sortBy: string = 'name', sortOrder: string = 'asc'): Promise<PaginatedItems> => invoke('get_items_filtered', { search: search.trim() || null, categoryId: categoryId || null, brandId: brandId || null, activeOnly, page, perPage, sortBy: sortBy || null, sortOrder: sortOrder || null });
 export const getItem = async (id: string): Promise<ItemDetailData> => invoke('get_item', { id });
 export const addItem = async (payload: Omit<Item, 'id' | 'created_at' | 'is_active'>): Promise<Item> => invoke('add_item', { sku: payload.sku, barcode: payload.barcode, name: payload.name, genericName: payload.generic_name, categoryId: payload.category_id, brandId: payload.brand_id, hppMethod: payload.hpp_method, minStock: payload.min_stock, hasExpiry: payload.has_expiry, requiresPrescription: payload.requires_prescription, notes: payload.notes });
 export const updateItem = async (id: string, payload: Omit<Item, 'id' | 'created_at' | 'is_active'>): Promise<Item> => invoke('update_item', { id, sku: payload.sku, barcode: payload.barcode, name: payload.name, genericName: payload.generic_name, categoryId: payload.category_id, brandId: payload.brand_id, hppMethod: payload.hpp_method, minStock: payload.min_stock, hasExpiry: payload.has_expiry, requiresPrescription: payload.requires_prescription, notes: payload.notes });
@@ -333,7 +333,7 @@ export const leaveWorkspace = async (): Promise<void> =>
 // --- System Admin ---
 export interface WorkspaceListInfo { id: string; name: string; code: string; created_at: string; }
 export interface SysadminLoginResponse { success: boolean; supabase_token?: string; }
-export interface UserRowFull { id: string; username: string; name: string; role: string; is_active: boolean; created_at: string; workspace_id?: string; }
+export interface UserRowFull { id: string; username: string; name: string; role: string; is_active: boolean; created_at: string; workspace_id?: string; permissions?: string; is_custom_perms?: boolean; }
 export const sysadminLogin = async (username: string, passwordHash: string): Promise<SysadminLoginResponse> =>
   invoke('sysadmin_login', { username, passwordHash });
 export const sysadminGetWorkspaces = async (): Promise<WorkspaceListInfo[]> =>
@@ -346,4 +346,54 @@ export const sysadminUpdateWorkspacePassword = async (workspaceId: string, passw
   invoke('sysadmin_update_workspace_password', { workspaceId, password: password || null });
 export const getUsers = async (): Promise<UserRowFull[]> => invoke('get_users');
 export const assignUserWorkspace = async (userId: string, workspaceId: string | null): Promise<void> =>
-  invoke('assign_user_workspace', { userId, workspaceId });
+  invoke('assign_user_workspace', { userId, workspaceId });
+
+// --- Phase 11: Role-Based Access Control & Permissions ---
+import type { PermissionDef, RolePermissionItem, UserPermissionsPayload } from './permissions';
+export type { PermissionDef, RolePermissionItem, UserPermissionsPayload };
+
+export const getPermissionDefinitions = async (): Promise<PermissionDef[]> =>
+  invoke('get_permission_definitions');
+export const getRoleDefaultPermissions = async (): Promise<RolePermissionItem[]> =>
+  invoke('get_role_default_permissions');
+export const updateRoleDefaultPermissions = async (role: string, permissions: string[]): Promise<void> =>
+  invoke('update_role_default_permissions', { role, permissions });
+export const getUserPermissions = async (userId: string): Promise<UserPermissionsPayload> =>
+  invoke('get_user_permissions', { userId });
+export const updateUserPermissions = async (userId: string, isCustom: boolean, permissions: string[]): Promise<void> =>
+  invoke('update_user_permissions', { userId, isCustom, permissions });
+
+// --- Phase 12: LAN Offline Auto-Discovery & Sync ---
+export interface LanPeer {
+  device_id: string;
+  device_name: string;
+  role: 'parent' | 'child';
+  ip_address: string;
+  http_port: number;
+  workspace_id: string;
+  last_seen: number;
+  is_self: boolean;
+  is_paired: boolean;
+}
+
+export interface LanStatus {
+  device_id: string;
+  device_name: string;
+  role: 'parent' | 'child';
+  local_ip: string;
+  http_port: number;
+  auto_connect: boolean;
+  paired_parent_ip?: string;
+  paired_parent_port?: number;
+  peers_count: number;
+  is_server_running: boolean;
+}
+
+export const getLanStatus = async (): Promise<LanStatus> => invoke('get_lan_status');
+export const getLanPeers = async (): Promise<LanPeer[]> => invoke('get_lan_peers');
+export const setLanRole = async (role: 'parent' | 'child'): Promise<void> => invoke('set_lan_role', { role });
+export const setLanDeviceName = async (name: string): Promise<void> => invoke('set_lan_device_name', { name });
+export const setLanAutoConnect = async (enabled: boolean): Promise<void> => invoke('set_lan_auto_connect', { enabled });
+export const cloneFromParent = async (parentIp: string, parentPort?: number): Promise<number> =>
+  invoke('clone_from_parent', { parentIp, parentPort });
+

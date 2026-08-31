@@ -185,7 +185,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
         {/* Table Body */}
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm z-10">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-[#0B0F19] z-10">
               <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase font-semibold border-b border-slate-200 dark:border-slate-800">
                 <th className="py-4 px-6">Item</th>
                 <th className="py-4 px-6">SKU</th>
@@ -214,7 +214,7 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                 filteredRows.map((row) => (
                   <tr 
                     key={row.item_id} 
-                    className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 group transition-colors"
+                    className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 group transition-colors fast-render-row"
                   >
                     <td className="py-3 px-6 font-bold text-slate-900 dark:text-white">
                       {row.item_name}

@@ -1,11 +1,11 @@
 use crate::AppState;
 use bcrypt::{hash, verify, DEFAULT_COST};
+use chrono::Utc;
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use tauri::State;
 use uuid::Uuid;
-use chrono::Utc;
-use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
 
 #[derive(Debug, Serialize)]
 struct AppMetadata {
@@ -25,12 +25,8 @@ fn mint_supabase_jwt(user_id: &str, role: &str, workspace_id: Option<String>) ->
     if secret.is_empty() {
         return None;
     }
-    
-    // Map chirasys role to supabase role if necessary (e.g. sysadmin -> authenticated, or custom role)
-    // Supabase standard authenticated role is usually 'authenticated'. 
-    // If we use RLS, we can rely on role='authenticated' and use app_metadata for specific authorization.
-    let jwt_role = if role == "sysadmin" { "sysadmin" } else { "authenticated" };
 
+    let jwt_role = if role == "sysadmin" { "sysadmin" } else { "authenticated" };
     let exp = (Utc::now() + chrono::Duration::try_hours(12).unwrap_or(chrono::Duration::hours(12))).timestamp() as usize;
     let claims = Claims {
         sub: user_id.to_string(),
@@ -42,13 +38,14 @@ fn mint_supabase_jwt(user_id: &str, role: &str, workspace_id: Option<String>) ->
     encode(&Header::new(Algorithm::HS256), &claims, &EncodingKey::from_secret(secret.as_bytes())).ok()
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserInfo {
     pub id: String,
     pub name: String,
     pub username: String,
     pub role: String,
-    pub permissions: String,
+    pub permissions: Vec<String>,
+    pub is_custom_perms: bool,
     pub branch_id: Option<String>,
     pub avatar_color: Option<String>,
     pub workspace_id: Option<String>,
@@ -61,91 +58,296 @@ pub struct LoginResponse {
     pub user: UserInfo,
 }
 
-// 1. LOGIN
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PermissionDef {
+    pub key: String,
+    pub name: String,
+    pub description: String,
+    pub category: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RolePermissionItem {
+    pub role: String,
+    pub permissions: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UserPermissionsPayload {
+    pub user_id: String,
+    pub user_name: String,
+    pub username: String,
+    pub role: String,
+    pub is_custom: bool,
+    pub permissions: Vec<String>,
+    pub role_defaults: Vec<String>,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Permission Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub fn get_system_permission_definitions() -> Vec<PermissionDef> {
+    vec![
+        // Penjualan (Sales/POS)
+        PermissionDef { key: "sales.create".into(), name: "Buat Transaksi Kasir (POS)".into(), description: "Memproses transaksi penjualan produk di kasir".into(), category: "Penjualan (POS)".into() },
+        PermissionDef { key: "sales.delete".into(), name: "Hapus Transaksi Penjualan".into(), description: "Menghapus/void nota penjualan dan mengembalikan stok".into(), category: "Penjualan (POS)".into() },
+        PermissionDef { key: "sales.return".into(), name: "Retur Penjualan".into(), description: "Memproses retur nota dan pengembalian dana pelanggan".into(), category: "Penjualan (POS)".into() },
+        PermissionDef { key: "sales.discount".into(), name: "Diskon Kustom Kasir".into(), description: "Memberikan potongan/diskon manual pada keranjang kasir".into(), category: "Penjualan (POS)".into() },
+        PermissionDef { key: "sales.cash_drawer".into(), name: "Buka Laci Kasir (Cash Drawer)".into(), description: "Membuka laci uang kasir secara manual atau shortcut".into(), category: "Penjualan (POS)".into() },
+
+        // Inventaris & Produk
+        PermissionDef { key: "items.view".into(), name: "Lihat Daftar Produk".into(), description: "Melihat katalog produk, harga, dan varian".into(), category: "Inventaris & Produk".into() },
+        PermissionDef { key: "items.create".into(), name: "Tambah Produk Baru".into(), description: "Menambahkan master produk dan satuan baru".into(), category: "Inventaris & Produk".into() },
+        PermissionDef { key: "items.edit".into(), name: "Ubah Data Produk".into(), description: "Mengedit nama produk, kategori, brand, dan barcode".into(), category: "Inventaris & Produk".into() },
+        PermissionDef { key: "items.delete".into(), name: "Hapus Produk".into(), description: "Menghapus produk dari katalog inventaris".into(), category: "Inventaris & Produk".into() },
+        PermissionDef { key: "items.change_price".into(), name: "Ubah Harga Jual & Grosir".into(), description: "Mengubah harga eceran, member, VIP, dan tier grosir".into(), category: "Inventaris & Produk".into() },
+        PermissionDef { key: "inventory.view".into(), name: "Lihat Stok & Riwayat".into(), description: "Melihat jumlah stok dan riwayat mutasi kartu stok".into(), category: "Inventaris & Produk".into() },
+        PermissionDef { key: "inventory.adjust".into(), name: "Penyesuaian Stok Manual".into(), description: "Melakukan koreksi stok masuk/keluar manual".into(), category: "Inventaris & Produk".into() },
+        PermissionDef { key: "inventory.opname".into(), name: "Stock Opname".into(), description: "Membuat dan menyelesaikan sesi audit stock opname fisik".into(), category: "Inventaris & Produk".into() },
+
+        // Pembelian & Pemasok
+        PermissionDef { key: "purchasing.view".into(), name: "Lihat Pembelian".into(), description: "Melihat daftar Purchase Order dan faktur pembelian".into(), category: "Pembelian & Pemasok".into() },
+        PermissionDef { key: "purchasing.create".into(), name: "Buat Purchase Order".into(), description: "Membuat pesanan pembelian baru ke supplier".into(), category: "Pembelian & Pemasok".into() },
+        PermissionDef { key: "purchasing.receive".into(), name: "Penerimaan Barang".into(), description: "Menerima barang fisik dari supplier ke gudang".into(), category: "Pembelian & Pemasok".into() },
+        PermissionDef { key: "purchasing.payment".into(), name: "Bayar Hutang Pembelian".into(), description: "Mencatat pembayaran hutang ke supplier".into(), category: "Pembelian & Pemasok".into() },
+        PermissionDef { key: "purchasing.return".into(), name: "Retur Pembelian".into(), description: "Mengembalikan barang rusak/cacat ke supplier".into(), category: "Pembelian & Pemasok".into() },
+
+        // Pelanggan & Promo
+        PermissionDef { key: "crm.customers".into(), name: "Kelola Pelanggan & Member".into(), description: "Tambah, ubah, dan kelola data pelanggan & loyalitas".into(), category: "Pelanggan & Promo".into() },
+        PermissionDef { key: "crm.suppliers".into(), name: "Kelola Supplier".into(), description: "Tambah, ubah, dan kelola data kontak supplier".into(), category: "Pelanggan & Promo".into() },
+        PermissionDef { key: "promos.manage".into(), name: "Kelola Promo & Diskon".into(), description: "Membuat dan mengubah diskon otomatis & promo bundle".into(), category: "Pelanggan & Promo".into() },
+
+        // Laporan & Keuangan
+        PermissionDef { key: "reports.view".into(), name: "Lihat Laporan & Laba Rugi".into(), description: "Melihat ringkasan omset, laba kotor, dan analitik".into(), category: "Laporan & Keuangan".into() },
+        PermissionDef { key: "reports.export".into(), name: "Ekspor Laporan Excel".into(), description: "Mengunduh file laporan ke Excel/Spreadsheet".into(), category: "Laporan & Keuangan".into() },
+        PermissionDef { key: "accounting.manage".into(), name: "Kelola Kas & Akuntansi".into(), description: "Mencatat kas masuk/keluar dan jurnal akuntansi".into(), category: "Laporan & Keuangan".into() },
+
+        // Pengaturan & Sistem
+        PermissionDef { key: "settings.general".into(), name: "Pengaturan Toko & Pajak".into(), description: "Mengubah profil toko, metode HPP, dan pajak".into(), category: "Pengaturan & Sistem".into() },
+        PermissionDef { key: "settings.hardware".into(), name: "Pengaturan Printer & Hardware".into(), description: "Konfigurasi printer thermal dan ukuran kertas".into(), category: "Pengaturan & Sistem".into() },
+        PermissionDef { key: "settings.users".into(), name: "Manajemen Akun & Hak Akses".into(), description: "Menambah user, ubah password, dan atur hak akses".into(), category: "Pengaturan & Sistem".into() },
+        PermissionDef { key: "settings.database".into(), name: "Database & Sinkronisasi Cloud".into(), description: "Optimasi, ekspor database, dan sinkronisasi workspace".into(), category: "Pengaturan & Sistem".into() },
+    ]
+}
+
+pub async fn resolve_effective_permissions(
+    pool: &sqlx::SqlitePool,
+    role: &str,
+    raw_perms: &str,
+) -> (bool, Vec<String>) {
+    let role_lower = role.to_lowercase();
+    if role_lower == "owner" || role_lower == "sysadmin" {
+        return (false, vec!["*".to_string()]);
+    }
+
+    // Check if user has explicit custom permissions (JSON array and not "default")
+    if !raw_perms.is_empty() && raw_perms != "default" && raw_perms != "[]" {
+        if let Ok(parsed) = serde_json::from_str::<Vec<String>>(raw_perms) {
+            return (true, parsed);
+        }
+    }
+
+    // Fetch role default permissions
+    let role_perms: Option<String> = sqlx::query_scalar(
+        "SELECT permissions FROM role_default_permissions WHERE role = ?"
+    )
+    .bind(&role_lower)
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some(rp) = role_perms {
+        if let Ok(parsed) = serde_json::from_str::<Vec<String>>(&rp) {
+            return (false, parsed);
+        }
+    }
+
+    // Fallbacks
+    if role_lower == "admin" {
+        (false, vec![
+            "sales.create".into(), "sales.delete".into(), "sales.return".into(), "sales.discount".into(), "sales.cash_drawer".into(),
+            "items.view".into(), "items.create".into(), "items.edit".into(), "items.delete".into(), "items.change_price".into(),
+            "inventory.view".into(), "inventory.adjust".into(), "inventory.opname".into(),
+            "purchasing.view".into(), "purchasing.create".into(), "purchasing.receive".into(), "purchasing.payment".into(), "purchasing.return".into(),
+            "crm.customers".into(), "crm.suppliers".into(), "promos.manage".into(),
+            "reports.view".into(), "reports.export".into(), "accounting.manage".into(),
+            "settings.general".into(), "settings.hardware".into(), "settings.users".into(),
+        ])
+    } else {
+        (false, vec![
+            "sales.create".into(), "sales.return".into(), "sales.cash_drawer".into(),
+            "items.view".into(), "inventory.view".into(), "purchasing.view".into(),
+            "crm.customers".into(),
+        ])
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Authentication Commands
+// ─────────────────────────────────────────────────────────────────────────────
+
 #[tauri::command]
 pub async fn login(username: String, password_guess: String, state: State<'_, AppState>) -> Result<LoginResponse, String> {
-    // Note: We avoid sqlx::query! to bypass compile-time DB checks without URL.
     let user_res = sqlx::query("SELECT id, name, username, password_hash, role, permissions, branch_id, avatar_color, active, workspace_id FROM users WHERE username = ?")
         .bind(&username)
         .fetch_optional(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
 
-    if let Some(row) = user_res {
-        let is_active = row.get::<bool, _>("active");
-        if !is_active {
-            return Err("Akun ini telah dinonaktifkan.".to_string());
-        }
+    let row = if let Some(r) = user_res {
+        r
+    } else {
+        // Fallback: Check Supabase cloud if user exists in cloud workspace
+        let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
 
-        let stored_hash = row.get::<String, _>("password_hash");
-        
-        // For the very first default admin login, we might not have a real hash yet.
-        // We'll hardcode 'admin' for the default user if the hash isn't valid bcrypt yet.
-        let is_valid = if stored_hash == "hashed_password_placeholder" && password_guess == "admin" {
-            true // Auto-approve the default admin on first run
-        } else {
-            verify(&password_guess, &stored_hash).unwrap_or(false)
-        };
+        if !supabase_url.is_empty() && !supabase_key.is_empty() {
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new());
 
-        if is_valid {
-            // Update the placeholder hash if it was the default login
-            if stored_hash == "hashed_password_placeholder" {
-                let new_hash = hash(&password_guess, DEFAULT_COST).unwrap_or(stored_hash);
-                let _ = sqlx::query("UPDATE users SET password_hash = ? WHERE id = ?")
-                    .bind(new_hash)
-                    .bind(row.get::<String, _>("id"))
-                    .execute(&state.db_pool)
-                    .await;
-            }
-
-            let token = Uuid::new_v4().to_string();
-            let expires_at = (Utc::now() + chrono::Duration::try_hours(12).unwrap_or(chrono::Duration::hours(12))).to_rfc3339();
-            let user_id = row.get::<String, _>("id");
-
-            let _ = sqlx::query("INSERT INTO local_sessions (token, user_id, expires_at) VALUES (?, ?, ?)")
-                .bind(&token)
-                .bind(&user_id)
-                .bind(expires_at)
-                .execute(&state.db_pool)
-                .await
-                .map_err(|e| e.to_string())?;
-
-            let _ = sqlx::query("UPDATE users SET last_login = datetime('now') WHERE id = ?")
-                .bind(&user_id)
-                .execute(&state.db_pool)
+            let url = format!("{}/rest/v1/users?username=eq.{}&limit=1", supabase_url, username.trim());
+            let cloud_user_res = client.get(&url)
+                .header("apikey", &supabase_key)
+                .header("Authorization", format!("Bearer {}", &supabase_key))
+                .send()
                 .await;
 
-            let user_info = UserInfo {
-                id: user_id,
-                name: row.get("name"),
-                username: row.get("username"),
-                role: row.get("role"),
-                permissions: row.get("permissions"),
-                branch_id: row.get("branch_id"),
-                avatar_color: row.get("avatar_color"),
-                workspace_id: row.get("workspace_id"),
-            };
-            
-            let supabase_token = mint_supabase_jwt(
-                &user_info.id,
-                &user_info.role,
-                user_info.workspace_id.clone()
-            );
+            if let Ok(res) = cloud_user_res {
+                if res.status().is_success() {
+                    if let Ok(cloud_users) = res.json::<Vec<serde_json::Value>>().await {
+                        if let Some(cloud_user) = cloud_users.first() {
+                            // Apply cloud user to local DB
+                            let _ = crate::commands::sync::apply_cloud_sync(&state.db_pool, "users", cloud_user).await;
 
-            Ok(LoginResponse {
-                token,
-                supabase_token,
-                user: user_info
-            })
+                            // If local workspace_id is empty and cloud user has workspace_id, configure it
+                            if let Some(ws_id) = cloud_user.get("workspace_id").and_then(|v| v.as_str()) {
+                                let local_ws: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''")
+                                    .fetch_optional(&state.db_pool)
+                                    .await
+                                    .unwrap_or(None);
+
+                                if local_ws.is_none() {
+                                    let ws_url = format!("{}/rest/v1/workspaces?id=eq.{}&limit=1", supabase_url, ws_id);
+                                    if let Ok(ws_res) = client.get(&ws_url)
+                                        .header("apikey", &supabase_key)
+                                        .header("Authorization", format!("Bearer {}", &supabase_key))
+                                        .send()
+                                        .await
+                                    {
+                                        if let Ok(workspaces) = ws_res.json::<Vec<serde_json::Value>>().await {
+                                            if let Some(ws) = workspaces.first() {
+                                                let ws_name = ws.get("name").and_then(|v| v.as_str()).unwrap_or("Cloud Workspace");
+                                                let ws_code = ws.get("code").and_then(|v| v.as_str()).unwrap_or("");
+                                                for (k, v) in [("workspace_id", ws_id), ("workspace_name", ws_name), ("workspace_code", ws_code)] {
+                                                    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+                                                        .bind(k).bind(v)
+                                                        .execute(&state.db_pool).await;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Re-fetch from local DB
+                            sqlx::query("SELECT id, name, username, password_hash, role, permissions, branch_id, avatar_color, active, workspace_id FROM users WHERE username = ?")
+                                .bind(&username)
+                                .fetch_optional(&state.db_pool)
+                                .await
+                                .map_err(|e| e.to_string())?
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         } else {
-            Err("Password salah.".to_string())
-        }
+            None
+        }.ok_or_else(|| "Username tidak ditemukan.".to_string())?
+    };
+
+    let is_active = row.get::<bool, _>("active");
+    if !is_active {
+        return Err("Akun ini telah dinonaktifkan.".to_string());
+    }
+
+    let stored_hash = row.get::<String, _>("password_hash");
+    let is_valid = if stored_hash == "hashed_password_placeholder" && password_guess == "admin" {
+        true
     } else {
-        Err("Username tidak ditemukan.".to_string())
+        verify(&password_guess, &stored_hash).unwrap_or(false)
+    };
+
+    if is_valid {
+        if stored_hash == "hashed_password_placeholder" {
+            let new_hash = match hash(&password_guess, DEFAULT_COST) {
+                Ok(h) => h,
+                Err(_) => stored_hash.clone(),
+            };
+            let _ = sqlx::query("UPDATE users SET password_hash = ? WHERE id = ?")
+                .bind(new_hash)
+                .bind(row.get::<String, _>("id"))
+                .execute(&state.db_pool)
+                .await;
+        }
+
+        let token = Uuid::new_v4().to_string();
+        let expires_at = (Utc::now() + chrono::Duration::try_hours(12).unwrap_or(chrono::Duration::hours(12))).to_rfc3339();
+        let user_id: String = row.get("id");
+        let role: String = row.get("role");
+        let raw_perms: String = row.get::<Option<String>, _>("permissions").unwrap_or_else(|| "default".to_string());
+
+        let (is_custom, effective_perms) = resolve_effective_permissions(&state.db_pool, &role, &raw_perms).await;
+
+        let _ = sqlx::query("INSERT INTO local_sessions (token, user_id, expires_at) VALUES (?, ?, ?)")
+            .bind(&token)
+            .bind(&user_id)
+            .bind(expires_at)
+            .execute(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let _ = sqlx::query("UPDATE users SET last_login = datetime('now') WHERE id = ?")
+            .bind(&user_id)
+            .execute(&state.db_pool)
+            .await;
+
+        let user_info = UserInfo {
+            id: user_id,
+            name: row.get("name"),
+            username: row.get("username"),
+            role: role.clone(),
+            permissions: effective_perms,
+            is_custom_perms: is_custom,
+            branch_id: row.get("branch_id"),
+            avatar_color: row.get("avatar_color"),
+            workspace_id: row.get("workspace_id"),
+        };
+
+        let supabase_token = mint_supabase_jwt(
+            &user_info.id,
+            &user_info.role,
+            user_info.workspace_id.clone(),
+        );
+
+        Ok(LoginResponse {
+            token,
+            supabase_token,
+            user: user_info,
+        })
+    } else {
+        Err("Password salah.".to_string())
     }
 }
 
-// 2. GET CURRENT USER
 #[tauri::command]
 pub async fn get_current_user(token: String, state: State<'_, AppState>) -> Result<UserInfo, String> {
     let query = "
@@ -162,12 +364,17 @@ pub async fn get_current_user(token: String, state: State<'_, AppState>) -> Resu
         .map_err(|e| e.to_string())?;
 
     if let Some(r) = row {
+        let role: String = r.get("role");
+        let raw_perms: String = r.get::<Option<String>, _>("permissions").unwrap_or_else(|| "default".to_string());
+        let (is_custom, effective_perms) = resolve_effective_permissions(&state.db_pool, &role, &raw_perms).await;
+
         Ok(UserInfo {
             id: r.get("id"),
             name: r.get("name"),
             username: r.get("username"),
-            role: r.get("role"),
-            permissions: r.get("permissions"),
+            role,
+            permissions: effective_perms,
+            is_custom_perms: is_custom,
             branch_id: r.get("branch_id"),
             avatar_color: r.get("avatar_color"),
             workspace_id: r.get("workspace_id"),
@@ -177,7 +384,6 @@ pub async fn get_current_user(token: String, state: State<'_, AppState>) -> Resu
     }
 }
 
-// 3. LOGOUT
 #[tauri::command]
 pub async fn logout(token: String, state: State<'_, AppState>) -> Result<(), String> {
     let _ = sqlx::query("DELETE FROM local_sessions WHERE token = ?")
@@ -188,6 +394,10 @@ pub async fn logout(token: String, state: State<'_, AppState>) -> Result<(), Str
     Ok(())
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// User Management Commands
+// ─────────────────────────────────────────────────────────────────────────────
+
 #[derive(serde::Serialize, sqlx::FromRow)]
 pub struct UserRow {
     pub id: String,
@@ -197,16 +407,38 @@ pub struct UserRow {
     pub is_active: bool,
     pub created_at: String,
     pub workspace_id: Option<String>,
+    pub permissions: Option<String>,
+    pub is_custom_perms: bool,
 }
 
 #[tauri::command]
 pub async fn get_users(state: State<'_, AppState>) -> Result<Vec<UserRow>, String> {
-    sqlx::query_as::<_, UserRow>(
-        r#"SELECT id, username, name, role, active AS is_active, created_at, workspace_id FROM users ORDER BY name ASC"#
+    let rows = sqlx::query(
+        r#"SELECT id, username, name, role, active AS is_active, created_at, workspace_id, permissions FROM users ORDER BY name ASC"#
     )
     .fetch_all(&state.db_pool)
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+
+    let mut users = Vec::new();
+    for r in rows {
+        let raw_perms: String = r.get::<Option<String>, _>("permissions").unwrap_or_else(|| "default".to_string());
+        let is_custom = !raw_perms.is_empty() && raw_perms != "default" && raw_perms != "[]";
+
+        users.push(UserRow {
+            id: r.get("id"),
+            username: r.get("username"),
+            name: r.get("name"),
+            role: r.get("role"),
+            is_active: r.get("is_active"),
+            created_at: r.get("created_at"),
+            workspace_id: r.get("workspace_id"),
+            permissions: Some(raw_perms),
+            is_custom_perms: is_custom,
+        });
+    }
+
+    Ok(users)
 }
 
 #[tauri::command]
@@ -227,24 +459,33 @@ pub async fn create_user(
         return Err("Username sudah digunakan.".to_string());
     }
 
+    let resolved_workspace_id = match workspace_id {
+        Some(w) if !w.trim().is_empty() => Some(w),
+        _ => {
+            sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''")
+                .fetch_optional(&state.db_pool)
+                .await
+                .unwrap_or(None)
+        }
+    };
+
     let id = Uuid::new_v4().to_string();
     let password_hash = hash(&password, DEFAULT_COST).map_err(|e| e.to_string())?;
     let colors = ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#EC4899"];
     let avatar_color = colors[id.len() % colors.len()];
-
     let created_at_ts = Utc::now().to_rfc3339();
 
     sqlx::query(
-        "INSERT INTO users (id, username, password_hash, name, role, permissions, avatar_color, active, workspace_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)"
+        "INSERT INTO users (id, username, password_hash, name, role, permissions, avatar_color, active, workspace_id, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, 'default', ?, 1, ?, ?, ?, 'user')"
     )
     .bind(&id)
     .bind(&username)
     .bind(&password_hash)
     .bind(&name)
     .bind(&role)
-    .bind("default")
     .bind(avatar_color)
-    .bind(&workspace_id)
+    .bind(&resolved_workspace_id)
+    .bind(&created_at_ts)
     .bind(&created_at_ts)
     .execute(&state.db_pool)
     .await
@@ -256,15 +497,22 @@ pub async fn create_user(
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(UserRow { id, username, name, role, is_active: true, created_at: created_at.0, workspace_id })
+    Ok(UserRow {
+        id,
+        username,
+        name,
+        role,
+        is_active: true,
+        created_at: created_at.0,
+        workspace_id: resolved_workspace_id,
+        permissions: Some("default".to_string()),
+        is_custom_perms: false,
+    })
 }
 
 #[tauri::command]
-pub async fn toggle_user_active(
-    id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
-    sqlx::query("UPDATE users SET active = NOT active WHERE id = ?")
+pub async fn toggle_user_active(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    sqlx::query("UPDATE users SET active = NOT active, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
         .bind(&id)
         .execute(&state.db_pool)
         .await
@@ -273,13 +521,9 @@ pub async fn toggle_user_active(
 }
 
 #[tauri::command]
-pub async fn reset_user_password(
-    id: String,
-    new_password: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn reset_user_password(id: String, new_password: String, state: State<'_, AppState>) -> Result<(), String> {
     let new_hash = hash(&new_password, DEFAULT_COST).map_err(|e| e.to_string())?;
-    sqlx::query("UPDATE users SET password_hash = ? WHERE id = ?")
+    sqlx::query("UPDATE users SET password_hash = ?, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
         .bind(new_hash)
         .bind(&id)
         .execute(&state.db_pool)
@@ -307,7 +551,7 @@ pub async fn update_user(
         return Err("Username sudah digunakan.".to_string());
     }
 
-    sqlx::query("UPDATE users SET name = ?, username = ?, role = ?, workspace_id = ? WHERE id = ?")
+    sqlx::query("UPDATE users SET name = ?, username = ?, role = ?, workspace_id = ?, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
         .bind(&name)
         .bind(&username)
         .bind(&role)
@@ -335,18 +579,116 @@ pub async fn delete_user(id: String, state: State<'_, AppState>) -> Result<(), S
     Ok(())
 }
 
-
 #[tauri::command]
 pub async fn assign_user_workspace(
     user_id: String,
     workspace_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    sqlx::query("UPDATE users SET workspace_id = ? WHERE id = ?")
+    sqlx::query("UPDATE users SET workspace_id = ?, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
         .bind(&workspace_id)
         .bind(&user_id)
         .execute(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Permission System Commands (Role Defaults & User Overrides)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_permission_definitions() -> Vec<PermissionDef> {
+    get_system_permission_definitions()
+}
+
+#[tauri::command]
+pub async fn get_role_default_permissions(state: State<'_, AppState>) -> Result<Vec<RolePermissionItem>, String> {
+    let rows = sqlx::query("SELECT role, permissions FROM role_default_permissions ORDER BY role ASC")
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut list = Vec::new();
+    for r in rows {
+        let role: String = r.get("role");
+        let perms_str: String = r.get("permissions");
+        let perms: Vec<String> = serde_json::from_str(&perms_str).unwrap_or_default();
+        list.push(RolePermissionItem { role, permissions: perms });
+    }
+    Ok(list)
+}
+
+#[tauri::command]
+pub async fn update_role_default_permissions(
+    role: String,
+    permissions: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let perms_json = serde_json::to_string(&permissions).map_err(|e| e.to_string())?;
+    let role_lower = role.to_lowercase();
+
+    sqlx::query(
+        "INSERT INTO role_default_permissions (role, permissions, updated_at, updated_by) VALUES (?, ?, datetime('now'), 'user')
+         ON CONFLICT(role) DO UPDATE SET permissions = excluded.permissions, updated_at = datetime('now'), updated_by = 'user'"
+    )
+    .bind(&role_lower)
+    .bind(&perms_json)
+    .execute(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_user_permissions(user_id: String, state: State<'_, AppState>) -> Result<UserPermissionsPayload, String> {
+    let user_row = sqlx::query("SELECT id, name, username, role, permissions FROM users WHERE id = ?")
+        .bind(&user_id)
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Some(r) = user_row {
+        let role: String = r.get("role");
+        let raw_perms: String = r.get::<Option<String>, _>("permissions").unwrap_or_else(|| "default".to_string());
+        let (_, role_defaults) = resolve_effective_permissions(&state.db_pool, &role, "default").await;
+        let (is_custom, user_perms) = resolve_effective_permissions(&state.db_pool, &role, &raw_perms).await;
+
+        Ok(UserPermissionsPayload {
+            user_id: r.get("id"),
+            user_name: r.get("name"),
+            username: r.get("username"),
+            role,
+            is_custom,
+            permissions: user_perms,
+            role_defaults,
+        })
+    } else {
+        Err("Pengguna tidak ditemukan.".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn update_user_permissions(
+    user_id: String,
+    is_custom: bool,
+    permissions: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let perms_val = if is_custom {
+        serde_json::to_string(&permissions).map_err(|e| e.to_string())?
+    } else {
+        "default".to_string()
+    };
+
+    sqlx::query("UPDATE users SET permissions = ?, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
+        .bind(&perms_val)
+        .bind(&user_id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
     Ok(())
 }

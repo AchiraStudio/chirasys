@@ -1,8 +1,9 @@
 // src/pages/purchasing/PurchaseDetail.tsx
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2, Plus, Undo2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Undo2, CreditCard, RotateCcw } from 'lucide-react';
 import { getPurchaseDetail, addPurchasePayment, createPurchaseReturn } from '../../lib/api';
 import type { PurchaseDetail as PurchaseDetailData, ReceiveLineInput } from '../../lib/api';
+import Modal from '../../components/ui/Modal';
 
 interface PurchaseDetailProps {
   purchaseId: string;
@@ -140,63 +141,134 @@ export default function PurchaseDetail({ purchaseId, onBack }: PurchaseDetailPro
 
       {/* Payment Modal */}
       {showPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-[#0B0F19] p-6 rounded-xl shadow-lg w-96">
-            <h2 className="text-lg font-bold mb-4">Record Payment</h2>
-            <div className="space-y-3">
-              <input type="number" value={paymentAmount} onChange={e => setPaymentAmount(Number(e.target.value))} placeholder="Amount" className="w-full p-2 border rounded dark:bg-slate-900" />
-              <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full p-2 border rounded dark:bg-slate-900">
-                <option value="cash">Cash</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="cheque">Cheque</option>
-              </select>
-              <input type="text" value={paymentRef} onChange={e => setPaymentRef(e.target.value)} placeholder="Reference" className="w-full p-2 border rounded dark:bg-slate-900" />
+        <Modal
+          isOpen={true}
+          onClose={() => setShowPayment(false)}
+          size="sm"
+          title="Catat Pembayaran"
+          subtitle="Catat pelunasan atau cicilan pembelian"
+          icon={CreditCard}
+          footer={
+            <div className="flex justify-end gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setShowPayment(false)}
+                className="px-4 py-2 text-sm font-semibold rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handlePayment}
+                className="bg-brand hover:bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md shadow-brand/20 transition-all"
+              >
+                Simpan Pembayaran
+              </button>
             </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowPayment(false)} className="px-4 py-2 text-sm">Cancel</button>
-              <button onClick={handlePayment} className="bg-brand text-white px-4 py-2 rounded text-sm">Save</button>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Jumlah Bayar</label>
+              <input
+                type="number"
+                value={paymentAmount}
+                onChange={e => setPaymentAmount(Number(e.target.value))}
+                placeholder="Jumlah (Rp)"
+                className="w-full p-2.5 border rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-brand"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Metode Pembayaran</label>
+              <select
+                value={paymentMethod}
+                onChange={e => setPaymentMethod(e.target.value)}
+                className="w-full p-2.5 border rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-brand"
+              >
+                <option value="cash">Tunai (Cash)</option>
+                <option value="bank_transfer">Transfer Bank</option>
+                <option value="cheque">Giro / Cek</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Nomor Referensi / Bukti Transfer</label>
+              <input
+                type="text"
+                value={paymentRef}
+                onChange={e => setPaymentRef(e.target.value)}
+                placeholder="No. Referensi (Opsional)"
+                className="w-full p-2.5 border rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-brand"
+              />
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Return Modal */}
       {showReturn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-[#0B0F19] p-6 rounded-xl shadow-lg w-[480px] max-h-[80vh] overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Return Items</h2>
-            <input
-              type="text"
-              value={returnReason}
-              onChange={e => setReturnReason(e.target.value)}
-              placeholder="Reason for return"
-              className="w-full p-2 border rounded dark:bg-slate-900 mb-4"
-            />
-            {returnLines.map((r, i) => (
-              <div key={r.line.id} className="flex items-center gap-2 mb-2">
-                <span className="flex-1 text-sm">{r.line.item_name || r.line.item_id} {r.line.unit_name ? `(${r.line.unit_name})` : ''}</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={r.line.qty_received}
-                  value={r.qty}
-                  onChange={e => {
-                    const newLines = [...returnLines];
-                    newLines[i].qty = Number(e.target.value);
-                    setReturnLines(newLines);
-                  }}
-                  className="w-20 p-1 border rounded dark:bg-slate-900 text-sm"
-                  placeholder="Qty"
-                />
-                <span className="text-xs text-slate-500">/ {r.line.qty_received}</span>
-              </div>
-            ))}
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowReturn(false)} className="px-4 py-2 text-sm">Cancel</button>
-              <button onClick={handleReturn} className="bg-rose-500 text-white px-4 py-2 rounded text-sm">Process Return</button>
+        <Modal
+          isOpen={true}
+          onClose={() => setShowReturn(false)}
+          size="lg"
+          title="Retur Pembelian ke Supplier"
+          subtitle="Pilih item dan jumlah yang akan dikembalikan"
+          icon={RotateCcw}
+          iconBg="bg-rose-500/10 text-rose-500"
+          footer={
+            <div className="flex justify-end gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setShowReturn(false)}
+                className="px-4 py-2 text-sm font-semibold rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleReturn}
+                className="bg-rose-500 hover:bg-rose-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md shadow-rose-500/20 transition-all"
+              >
+                Proses Retur
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Alasan Retur</label>
+              <input
+                type="text"
+                value={returnReason}
+                onChange={e => setReturnReason(e.target.value)}
+                placeholder="Alasan retur (barang rusak / kadaluarsa / salah kirim)"
+                className="w-full p-2.5 border rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-brand"
+              />
+            </div>
+            <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+              {returnLines.map((r, i) => (
+                <div key={r.line.id} className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-white flex-1">{r.line.item_name || r.line.item_id} {r.line.unit_name ? `(${r.line.unit_name})` : ''}</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={r.line.qty_received}
+                      value={r.qty}
+                      onChange={e => {
+                        const newLines = [...returnLines];
+                        newLines[i].qty = Number(e.target.value);
+                        setReturnLines(newLines);
+                      }}
+                      className="w-20 p-1.5 border rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-center font-bold text-xs"
+                      placeholder="Qty"
+                    />
+                    <span className="text-xs text-slate-500 font-mono">/ {r.line.qty_received}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

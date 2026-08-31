@@ -1,20 +1,13 @@
 // Force HMR reload
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Users, Loader2, User, Plus, X, Eye, EyeOff, Power, Save, Pencil } from 'lucide-react';
+import { Users, Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../../components/ui/ConfirmModal';
-import { sysadminGetWorkspaces, WorkspaceListInfo, assignUserWorkspace } from '../../lib/api';
-
-interface UserRow {
-  id: string;
-  username: string;
-  name: string;
-  role: string;
-  is_active: boolean;
-  created_at: string;
-  workspace_id?: string;
-}
+import Modal from '../../components/ui/Modal';
+import { sysadminGetWorkspaces, WorkspaceListInfo, assignUserWorkspace, UserRowFull } from '../../lib/api';
+import UserPermissionsModal from './UserPermissionsModal';
+import RoleDefaultsModal from './RoleDefaultsModal';
 
 const ROLES = [
   { value: 'staff',  label: 'Staff',           desc: 'Akses POS, inventaris, gudang, dan pelanggan' },
@@ -27,7 +20,7 @@ function getRoleColor(role: string) {
     case 'owner': return 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400';
     case 'admin': return 'bg-brand/10 text-brand';
     case 'staff': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400';
-    // legacy roles (pre-migration)
+    // legacy roles
     case 'kasir': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400';
     case 'gudang': return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400';
     default: return 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400';
@@ -36,11 +29,14 @@ function getRoleColor(role: string) {
 
 export default function UserManagement() {
   const { user: currentUser } = useAuthStore();
-  const [users, setUsers] = useState<UserRow[]>([]);
+  const [users, setUsers] = useState<UserRowFull[]>([]);
   const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [editUserModal, setEditUserModal] = useState<UserRow | null>(null);
+  const [editUserModal, setEditUserModal] = useState<UserRowFull | null>(null);
+  const [permModalUserId, setPermModalUserId] = useState<string | null>(null);
+  const [showRoleDefaultsModal, setShowRoleDefaultsModal] = useState(false);
+
   const [confirmModal, setConfirmModal] = useState<{
     title: string;
     message: string;
@@ -55,7 +51,7 @@ export default function UserManagement() {
     setLoading(true);
     try {
       const [data, ws] = await Promise.all([
-        invoke<UserRow[]>('get_users'),
+        invoke<UserRowFull[]>('get_users'),
         sysadminGetWorkspaces().catch(() => [] as WorkspaceListInfo[])
       ]);
       setUsers(data);
@@ -66,7 +62,7 @@ export default function UserManagement() {
 
   const fetchUsers = fetchData;
 
-  const handleToggleActive = async (u: UserRow) => {
+  const handleToggleActive = async (u: UserRowFull) => {
     if (u.id === currentUser?.id) {
       setConfirmModal({
         title: 'Tidak Dapat Menonaktifkan',
@@ -102,21 +98,36 @@ export default function UserManagement() {
 
   return (
     <div className="flex flex-col flex-1 h-full gap-6 animate-in fade-in duration-300">
-      <div className="flex justify-between items-end">
+      
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Users className="text-brand" /> Manajemen Pengguna
+            <Users className="text-brand" /> Manajemen Pengguna & Hak Akses
           </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Kelola akses dan akun staff ChiraSys.</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            Kelola akun pengguna, batasan akses per peran, dan kustomisasi toggle izin per staff.
+          </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-brand hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-lg shadow-brand/20"
-        >
-          <Plus size={18} /> Tambah Staff
-        </button>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setShowRoleDefaultsModal(true)}
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-sm text-sm"
+          >
+            <Sliders size={16} className="text-brand" /> Atur Default Peran
+          </button>
+
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-brand hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-lg shadow-brand/20 text-sm"
+          >
+            <Plus size={18} /> Tambah Staff
+          </button>
+        </div>
       </div>
 
+      {/* Main Table Container */}
       <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden flex flex-col">
         {loading ? (
           <div className="py-20 text-center flex flex-col items-center justify-center text-slate-500">
@@ -126,10 +137,11 @@ export default function UserManagement() {
         ) : (
           <div className="flex-1 overflow-y-auto custom-scrollbar relative">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold">
+              <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold">
                 <tr>
                   <th className="py-4 px-6">Nama & Username</th>
                   <th className="py-4 px-6">Peran (Role)</th>
+                  <th className="py-4 px-6">Hak Akses</th>
                   <th className="py-4 px-6">Workspace</th>
                   <th className="py-4 px-6">Status</th>
                   <th className="py-4 px-6">Dibuat Pada</th>
@@ -138,9 +150,11 @@ export default function UserManagement() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {users.length === 0 ? (
-                  <tr><td colSpan={5} className="py-12 text-center text-slate-500">Tidak ada pengguna ditemukan.</td></tr>
+                  <tr><td colSpan={7} className="py-12 text-center text-slate-500">Tidak ada pengguna ditemukan.</td></tr>
                 ) : users.map(u => (
-                  <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+                  <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group fast-render-row">
+                    
+                    {/* User Info */}
                     <td className="py-3 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-brand/10 text-brand flex items-center justify-center shrink-0 font-bold text-sm">
@@ -152,11 +166,32 @@ export default function UserManagement() {
                         </div>
                       </div>
                     </td>
+
+                    {/* Role Badge */}
                     <td className="py-3 px-6">
                       <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${getRoleColor(u.role)}`}>
                         {u.role}
                       </span>
                     </td>
+
+                    {/* Permissions Status */}
+                    <td className="py-3 px-6">
+                      {u.role.toLowerCase() === 'owner' ? (
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400">
+                          Akses Penuh
+                        </span>
+                      ) : u.is_custom_perms ? (
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 flex items-center gap-1 w-fit">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Kustom
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 w-fit block">
+                          Default Role
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Workspace Selector */}
                     <td className="py-3 px-4">
                       <select
                         value={u.workspace_id || ''}
@@ -175,6 +210,8 @@ export default function UserManagement() {
                         ))}
                       </select>
                     </td>
+
+                    {/* Active Status */}
                     <td className="py-3 px-6">
                       {u.is_active ? (
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs flex items-center gap-1.5">
@@ -186,11 +223,27 @@ export default function UserManagement() {
                         </span>
                       )}
                     </td>
+
+                    {/* Created Date */}
                     <td className="py-3 px-6 text-slate-500 font-mono text-xs">
                       {new Date(u.created_at).toLocaleDateString('id-ID')}
                     </td>
+
+                    {/* Action Buttons */}
                     <td className="py-3 px-6 text-right">
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-1">
+                        
+                        {/* Hak Akses Button */}
+                        <button
+                          onClick={() => setPermModalUserId(u.id)}
+                          title="Atur Hak Akses Pengguna"
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-brand/5 hover:bg-brand/15 text-brand dark:bg-brand/10 dark:hover:bg-brand/20 transition-colors flex items-center gap-1.5"
+                        >
+                          <Shield size={13} />
+                          <span>Hak Akses</span>
+                        </button>
+
+                        {/* Edit User Button */}
                         <button
                           onClick={() => setEditUserModal(u)}
                           title="Edit User"
@@ -198,6 +251,8 @@ export default function UserManagement() {
                         >
                           <Pencil size={14} />
                         </button>
+
+                        {/* Toggle Active Button */}
                         <button
                           onClick={() => handleToggleActive(u)}
                           title={u.is_active ? 'Nonaktifkan' : 'Aktifkan'}
@@ -215,8 +270,30 @@ export default function UserManagement() {
         )}
       </div>
 
-      {showModal && <AddStaffModal onClose={() => setShowModal(false)} onSuccess={fetchUsers} />}
+      {/* Add Staff Modal */}
+      {showModal && <AddStaffModal currentWorkspaceId={currentUser?.workspace_id} onClose={() => setShowModal(false)} onSuccess={fetchUsers} />}
+      
+      {/* Edit User Modal */}
       {editUserModal && <EditUserModal user={editUserModal} workspaces={workspaces} onClose={() => setEditUserModal(null)} onSuccess={fetchUsers} />}
+      
+      {/* User Specific Permissions Modal */}
+      {permModalUserId && (
+        <UserPermissionsModal 
+          userId={permModalUserId} 
+          onClose={() => setPermModalUserId(null)} 
+          onSuccess={fetchUsers} 
+        />
+      )}
+
+      {/* Role Baseline Permissions Modal */}
+      {showRoleDefaultsModal && (
+        <RoleDefaultsModal 
+          onClose={() => setShowRoleDefaultsModal(false)} 
+          onSuccess={fetchUsers} 
+        />
+      )}
+
+      {/* Confirm Action Modal */}
       {confirmModal && (
         <ConfirmModal
           title={confirmModal.title}
@@ -231,12 +308,12 @@ export default function UserManagement() {
   );
 }
 
-function AddStaffModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function AddStaffModal({ currentWorkspaceId, onClose, onSuccess }: { currentWorkspaceId?: string | null; onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('staff');
-  const [workspaceId, setWorkspaceId] = useState<string>('');
+  const [workspaceId, setWorkspaceId] = useState<string>(currentWorkspaceId || '');
   const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -260,100 +337,97 @@ function AddStaffModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Tambah Staff Baru</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Buat akun login untuk anggota tim</p>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      size="md"
+      title="Tambah Staff Baru"
+      subtitle="Buat akun login untuk anggota tim"
+      icon={User}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-sm px-4 py-3 rounded-xl">
+            {error}
           </div>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"><X size={20} /></button>
+        )}
+
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Nama Lengkap</label>
+          <input
+            type="text" value={name} onChange={e => setName(e.target.value)} required
+            placeholder="contoh: Budi Santoso"
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-sm px-4 py-3 rounded-xl">
-              {error}
-            </div>
-          )}
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Username Login</label>
+          <input
+            type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} required
+            placeholder="contoh: budi_kasir"
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
+          />
+        </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Nama Lengkap</label>
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Password</label>
+          <div className="relative">
             <input
-              type="text" value={name} onChange={e => setName(e.target.value)} required
-              placeholder="contoh: Budi Santoso"
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+              type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
+              placeholder="Min. 6 karakter"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
             />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Username Login</label>
-            <input
-              type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} required
-              placeholder="contoh: budi_kasir"
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Password</label>
-            <div className="relative">
-              <input
-                type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
-                placeholder="Min. 6 karakter"
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
-              />
-              <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Peran / Role</label>
-            <div className="space-y-2">
-              {ROLES.map(r => (
-                <label key={r.value} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${role === r.value ? 'border-brand bg-brand/5 dark:bg-brand/10' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
-                  <input type="radio" name="role" value={r.value} checked={role === r.value} onChange={() => setRole(r.value)} className="mt-0.5 accent-brand" />
-                  <div>
-                    <p className="font-bold text-sm text-slate-900 dark:text-white">{r.label}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{r.desc}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
-            <select
-              value={workspaceId}
-              onChange={e => setWorkspaceId(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
-            >
-              <option value="">— Tidak di-assign ke workspace —</option>
-              {workspaces.map(ws => (
-                <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
-              ))}
-            </select>
-            <p className="text-[10px] text-slate-400 mt-1">Pilih workspace agar user otomatis terhubung saat login.</p>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-              Batal
-            </button>
-            <button type="submit" disabled={loading} className="flex-[2] py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? <><Loader2 size={16} className="animate-spin" /> Menyimpan...</> : <><User size={16} /> Buat Akun</>}
+            <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Peran / Role</label>
+          <div className="space-y-2">
+            {ROLES.map(r => (
+              <label key={r.value} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${role === r.value ? 'border-brand bg-brand/5 dark:bg-brand/10' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
+                <input type="radio" name="role" value={r.value} checked={role === r.value} onChange={() => setRole(r.value)} className="mt-0.5 accent-brand" />
+                <div>
+                  <p className="font-bold text-sm text-slate-900 dark:text-white">{r.label}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{r.desc}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
+          <select
+            value={workspaceId}
+            onChange={e => setWorkspaceId(e.target.value)}
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+          >
+            <option value="">— Tidak di-assign ke workspace —</option>
+            {workspaces.map(ws => (
+              <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
+            ))}
+          </select>
+          <p className="text-[10px] text-slate-400 mt-1">Pilih workspace agar user otomatis terhubung saat login.</p>
+        </div>
+
+        <div className="flex gap-3 pt-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            Batal
+          </button>
+          <button type="submit" disabled={loading} className="flex-[2] py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {loading ? <><Loader2 size={16} className="animate-spin" /> Menyimpan...</> : <><User size={16} /> Buat Akun</>}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
-function EditUserModal({ user, workspaces, onClose, onSuccess }: { user: UserRow; workspaces: WorkspaceListInfo[]; onClose: () => void; onSuccess: () => void }) {
+function EditUserModal({ user, workspaces, onClose, onSuccess }: { user: UserRowFull; workspaces: WorkspaceListInfo[]; onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState(user.name);
   const [username, setUsername] = useState(user.username);
   const [role, setRole] = useState(user.role);
@@ -402,94 +476,91 @@ function EditUserModal({ user, workspaces, onClose, onSuccess }: { user: UserRow
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-[#0B0F19] rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-hidden my-8">
-        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      size="md"
+      title="Edit Pengguna"
+      subtitle="Perbarui profil dan akses user"
+      icon={Pencil}
+    >
+      <form onSubmit={handleUpdate} className="space-y-5">
+        {error && (
+          <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-sm px-4 py-3 rounded-xl flex items-start gap-2">
+            <span>⚠</span>
+            <p>{error}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Edit Pengguna</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Perbarui profil dan akses user</p>
-          </div>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={20} /></button>
-        </div>
-        
-        <form onSubmit={handleUpdate} className="p-6 space-y-5">
-          {error && (
-            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-sm px-4 py-3 rounded-xl flex items-start gap-2">
-              <span>⚠</span>
-              <p>{error}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Nama Lengkap</label>
-              <input
-                type="text" value={name} onChange={e => setName(e.target.value)} required
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Username</label>
-              <input
-                type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} required
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Peran (Role)</label>
-            <select
-              value={role} onChange={e => setRole(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
-            >
-              {ROLES.map(r => (
-                <option key={r.value} value={r.value}>{r.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
-            <select
-              value={workspaceId} onChange={e => setWorkspaceId(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
-            >
-              <option value="">— Tidak di-assign ke workspace —</option>
-              {workspaces.map(ws => (
-                <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Reset Password (Opsional)</label>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Nama Lengkap</label>
             <input
-              type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-              placeholder="Kosongkan jika tidak ingin mengubah password"
+              type="text" value={name} onChange={e => setName(e.target.value)} required
               className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
             />
           </div>
-
-          <div className="flex gap-3 pt-4">
-            <button 
-              type="button" 
-              onClick={handleDelete} 
-              disabled={loading}
-              className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 rounded-xl text-sm font-bold transition-colors"
-            >
-              Hapus User
-            </button>
-            <div className="flex-1"></div>
-            <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-              Batal
-            </button>
-            <button type="submit" disabled={loading} className="px-5 py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Simpan
-            </button>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Username</label>
+            <input
+              type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} required
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
+            />
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Peran (Role)</label>
+          <select
+            value={role} onChange={e => setRole(e.target.value)}
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+          >
+            {ROLES.map(r => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
+          <select
+            value={workspaceId} onChange={e => setWorkspaceId(e.target.value)}
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+          >
+            <option value="">— Tidak di-assign ke workspace —</option>
+            {workspaces.map(ws => (
+              <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Reset Password (Opsional)</label>
+          <input
+            type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+            placeholder="Kosongkan jika tidak ingin mengubah password"
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+          />
+        </div>
+
+        <div className="flex gap-3 pt-4">
+          <button 
+            type="button" 
+            onClick={handleDelete} 
+            disabled={loading}
+            className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 rounded-xl text-sm font-bold transition-colors"
+          >
+            Hapus User
+          </button>
+          <div className="flex-1"></div>
+          <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            Batal
+          </button>
+          <button type="submit" disabled={loading} className="px-5 py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Simpan
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

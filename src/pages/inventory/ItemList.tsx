@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Loader2, Eye, Trash2, Edit, Upload, Download, HelpCircle } from 'lucide-react';
-import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel, getCategories, Category } from '../../lib/api';
+import { Plus, Search, Loader2, Eye, Trash2, Edit, Upload, Download, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel, getCategories, Category, setItemPrice } from '../../lib/api';
 import { open, save } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
 import TourGuide from '../../components/ui/TourGuide';
+import { usePermissions } from '../../lib/permissions';
 
 interface ItemListProps {
   onViewItem: (id: string) => void;
@@ -12,6 +14,7 @@ interface ItemListProps {
 }
 
 export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTrigger }: ItemListProps) {
+  const { can } = usePermissions();
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -21,6 +24,8 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [sortBy, setSortBy] = useState<'name' | 'sku' | 'category' | 'price'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Tour State
   const [runTour, setRunTour] = useState(false);
@@ -51,7 +56,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await getItemsFiltered(search, selectedCategory, '', false, page, 20);
+      const data = await getItemsFiltered(search, selectedCategory, '', false, page, 20, sortBy, sortOrder);
       setItems(data.items);
       setTotal(data.total);
     } catch (error) {
@@ -64,7 +69,27 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
   useEffect(() => {
     const delay = setTimeout(() => { loadData(); }, 300);
     return () => clearTimeout(delay);
-  }, [search, selectedCategory, page, refreshTrigger]);
+  }, [search, selectedCategory, page, sortBy, sortOrder, refreshTrigger]);
+
+  const handleSort = (column: 'name' | 'sku' | 'category' | 'price') => {
+    if (sortBy === column) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+  };
+
+  const renderSortIcon = (column: 'name' | 'sku' | 'category' | 'price') => {
+    if (sortBy !== column) {
+      return <ArrowUpDown size={14} className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity" />;
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp size={14} className="text-brand font-bold" />
+    ) : (
+      <ArrowDown size={14} className="text-brand font-bold" />
+    );
+  };
 
   const handleDelete = async (id: string) => {
     if (confirm("Apakah Anda yakin ingin menonaktifkan item ini?")) {
@@ -86,7 +111,6 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
       const res = await importItemsExcel(file as string);
       if (res.success) {
         try {
-          const { invoke } = await import('@tauri-apps/api/core');
           await invoke('auto_assign_brands');
         } catch (e) {
           console.warn("Failed to auto-assign brands", e);
@@ -128,21 +152,27 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Kelola katalog produk Anda. Total data: {total}</p>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-xl transition-all font-semibold text-sm border border-emerald-200 dark:border-emerald-500/20 active:scale-[0.98]">
-            <Download size={18} /> Ekspor
-          </button>
-          <button 
-            onClick={handleImport}
-            disabled={isImporting}
-            className="tour-inv-import flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-xl transition-all font-semibold text-sm disabled:opacity-50 border border-indigo-200 dark:border-indigo-500/20 active:scale-[0.98]">
-            {isImporting ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
-            {isImporting ? 'Mengimpor...' : 'Impor'}
-          </button>
-          <button onClick={onAddItem} className="tour-inv-add flex items-center gap-2 bg-brand hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98]">
-            <Plus size={18} /> Tambah Item
-          </button>
+          {can('reports.export') && (
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-xl transition-all font-semibold text-sm border border-emerald-200 dark:border-emerald-500/20 active:scale-[0.98]">
+              <Download size={18} /> Ekspor
+            </button>
+          )}
+          {can('items.create') && (
+            <button 
+              onClick={handleImport}
+              disabled={isImporting}
+              className="tour-inv-import flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-xl transition-all font-semibold text-sm disabled:opacity-50 border border-indigo-200 dark:border-indigo-500/20 active:scale-[0.98]">
+              {isImporting ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
+              {isImporting ? 'Mengimpor...' : 'Impor'}
+            </button>
+          )}
+          {can('items.create') && (
+            <button onClick={onAddItem} className="tour-inv-add flex items-center gap-2 bg-brand hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98]">
+              <Plus size={18} /> Tambah Item
+            </button>
+          )}
           <button onClick={() => setRunTour(true)} className="p-2.5 text-slate-500 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors" title="Bantuan & Panduan">
             <HelpCircle size={20} />
           </button>
@@ -175,13 +205,45 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
 
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm z-10">
-              <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800">
-                <th className="py-4 px-6">Nama Item</th>
-                <th className="py-4 px-6">SKU</th>
-                <th className="py-4 px-6">Kategori</th>
+            <thead className="sticky top-0 bg-slate-50 dark:bg-[#0B0F19] z-10">
+              <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800 select-none">
+                <th 
+                  onClick={() => handleSort('name')}
+                  className="py-4 px-6 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Nama Item</span>
+                    {renderSortIcon('name')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('sku')}
+                  className="py-4 px-6 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>SKU</span>
+                    {renderSortIcon('sku')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('category')}
+                  className="py-4 px-6 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Kategori</span>
+                    {renderSortIcon('category')}
+                  </div>
+                </th>
                 <th className="py-4 px-6 text-right w-36">Harga Pokok</th>
-                <th className="py-4 px-6 text-right w-44">Harga Eceran (Retail)</th>
+                <th 
+                  onClick={() => handleSort('price')}
+                  className="py-4 px-6 text-right w-44 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>Harga Eceran (Retail)</span>
+                    {renderSortIcon('price')}
+                  </div>
+                </th>
                 <th className="py-4 px-6 text-left min-w-[220px]">Tier Harga Volume (Jml 1..N)</th>
                 <th className="py-4 px-6 text-center w-28">Status</th>
                 <th className="py-4 px-6 text-right w-36">Aksi</th>
@@ -193,7 +255,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
               ) : items.length === 0 ? (
                 <tr><td colSpan={8} className="py-20 text-center text-slate-400 font-medium">Tidak ada item ditemukan.</td></tr>
               ) : items.map((item) => (
-                <tr key={item.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group ${item.is_active === 0 ? 'opacity-50' : ''}`}>
+                <tr key={item.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group fast-render-row ${item.is_active === 0 ? 'opacity-50' : ''}`}>
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-slate-900 dark:text-white">{item.name}</p>
@@ -225,29 +287,34 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
 
                   {/* Inline Retail Price Input */}
                   <td className="py-3 px-6 text-right">
-                    <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-brand/30">
-                      <span className="text-xs text-slate-400 font-bold mr-1">Rp</span>
-                      <input
-                        type="number"
-                        defaultValue={item.price || 0}
-                        onBlur={async (e) => {
-                          const val = parseFloat(e.target.value);
-                          if (isNaN(val) || val === item.price) return;
-                          try {
-                            const { setItemPrice } = await import('../../lib/api');
-                            await setItemPrice(item.id, item.base_unit_id || 'base', 'regular', val);
-                          } catch (err) {
-                            alert('Gagal update harga retail: ' + err);
-                          }
-                        }}
-                        onKeyDown={async (e) => {
-                          if (e.key === 'Enter') {
-                            (e.target as HTMLInputElement).blur();
-                          }
-                        }}
-                        className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white focus:ring-0 p-0 text-right font-mono"
-                      />
-                    </div>
+                    {can('items.change_price') ? (
+                      <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-brand/30">
+                        <span className="text-xs text-slate-400 font-bold mr-1">Rp</span>
+                        <input
+                          type="number"
+                          defaultValue={item.price || 0}
+                          onBlur={async (e) => {
+                            const val = parseFloat(e.target.value);
+                            if (isNaN(val) || val === item.price) return;
+                            try {
+                              await setItemPrice(item.id, item.base_unit_id || 'base', 'regular', val);
+                            } catch (err) {
+                              alert('Gagal update harga retail: ' + err);
+                            }
+                          }}
+                          onKeyDown={async (e) => {
+                            if (e.key === 'Enter') {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white focus:ring-0 p-0 text-right font-mono"
+                        />
+                      </div>
+                    ) : (
+                      <span className="font-bold text-xs font-mono text-slate-900 dark:text-white">
+                        Rp {(item.price || 0).toLocaleString('id-ID')}
+                      </span>
+                    )}
                   </td>
 
                   {/* Tier Harga Volume (Badges + Quick Edit) */}
@@ -267,13 +334,15 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                       ) : (
                         <span className="text-xs text-slate-400 font-medium italic">Tanpa Tier</span>
                       )}
-                      <button
-                        onClick={() => onEditItem(item.id)}
-                        className="p-1 text-slate-400 hover:text-brand hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-                        title="Atur Tier Harga"
-                      >
-                        <Edit size={13} />
-                      </button>
+                      {can('items.change_price') && (
+                        <button
+                          onClick={() => onEditItem(item.id)}
+                          className="p-1 text-slate-400 hover:text-brand hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                          title="Atur Tier Harga"
+                        >
+                          <Edit size={13} />
+                        </button>
+                      )}
                     </div>
                   </td>
 
@@ -287,12 +356,16 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                       <button onClick={() => onViewItem(item.id)} className="p-2 text-slate-500 hover:text-brand bg-slate-100 dark:bg-slate-800 rounded-lg" title="Lihat Detail">
                         <Eye size={16} />
                       </button>
-                      <button onClick={() => onEditItem(item.id)} className="p-2 text-slate-500 hover:text-amber-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Edit Item">
-                        <Edit size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-500 hover:text-rose-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Nonaktifkan">
-                        <Trash2 size={16} />
-                      </button>
+                      {can('items.edit') && (
+                        <button onClick={() => onEditItem(item.id)} className="p-2 text-slate-500 hover:text-amber-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Edit Item">
+                          <Edit size={16} />
+                        </button>
+                      )}
+                      {can('items.delete') && (
+                        <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-500 hover:text-rose-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Nonaktifkan / Hapus">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

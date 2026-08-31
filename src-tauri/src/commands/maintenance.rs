@@ -124,6 +124,12 @@ pub async fn list_printers() -> Result<Vec<serde_json::Value>, String> {
 mod winspool {
     use std::ffi::CString;
     use std::ptr;
+    use std::sync::Mutex;
+    use lazy_static::lazy_static;
+
+    lazy_static! {
+        static ref SPOOLER_LOCK: Mutex<()> = Mutex::new(());
+    }
 
     #[repr(C)]
     struct DocInfoA {
@@ -143,14 +149,16 @@ mod winspool {
         fn WritePrinter(h_printer: usize, p_buf: *const std::ffi::c_void, buf_size: u32, p_written: *mut u32) -> i32;
     }
 
-    pub unsafe fn send_bytes_to_printer(printer_name: &str, bytes: &[u8]) -> Result<(), String> {
+    pub unsafe fn send_bytes_to_printer(printer_name: &str, bytes: &[u8], doc_title: &str) -> Result<(), String> {
+        let _guard = SPOOLER_LOCK.lock().map_err(|e| e.to_string())?;
+
         let c_printer_name = CString::new(printer_name).map_err(|e| e.to_string())?;
-        let c_doc_name = CString::new("Cash Drawer Kick").map_err(|e| e.to_string())?;
+        let c_doc_name = CString::new(doc_title).map_err(|e| e.to_string())?;
         let c_data_type = CString::new("RAW").map_err(|e| e.to_string())?;
 
         let mut h_printer: usize = 0;
         if OpenPrinterA(c_printer_name.as_ptr(), &mut h_printer, ptr::null()) == 0 {
-            return Err(format!("Failed to open printer '{}' (Check printer name)", printer_name));
+            return Err(format!("Failed to open printer '{}' (Check printer name or connection)", printer_name));
         }
 
         let doc_info = DocInfoA {
@@ -194,7 +202,7 @@ pub async fn kick_cash_drawer(printer_name: String) -> Result<String, String> {
         // Raw bytes: 27, 112, 0, 25, 250 (0x1B 0x70 0x00 0x19 0xFA)
         let kick_bytes: [u8; 5] = [27, 112, 0, 25, 250];
         unsafe {
-            winspool::send_bytes_to_printer(&printer_name, &kick_bytes)?;
+            winspool::send_bytes_to_printer(&printer_name, &kick_bytes, "Cash Drawer Kick")?;
         }
         Ok("Cash drawer kick pulse sent instantly!".to_string())
     }
@@ -228,7 +236,7 @@ pub async fn print_raw_receipt(printer_name: String, bytes: Vec<u8>) -> Result<S
     #[cfg(target_os = "windows")]
     {
         unsafe {
-            winspool::send_bytes_to_printer(&printer_name, &bytes)?;
+            winspool::send_bytes_to_printer(&printer_name, &bytes, "ChiraSys POS Receipt")?;
         }
         Ok("Print job sent instantly!".to_string())
     }

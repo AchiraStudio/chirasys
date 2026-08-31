@@ -1,10 +1,11 @@
 // Force HMR reload
 import { useEffect, useState } from 'react';
 import { getJournalEntries, JournalEntry } from '../../lib/api';
-import { FileText, Plus, Search, Trash2 } from 'lucide-react';
+import { FileText, Plus, Search, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import JournalVoucher from './JournalVoucher';
 import ManualJournalModal from './ManualJournalModal';
 import { invoke } from '@tauri-apps/api/core';
+import Modal from '../../components/ui/Modal';
 
 export default function JournalList() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -113,7 +114,7 @@ export default function JournalList() {
       <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto flex-1 custom-scrollbar">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-600 bg-slate-50/50 dark:bg-slate-800/50 uppercase font-semibold sticky top-0 backdrop-blur-md">
+            <thead className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 uppercase font-semibold sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 rounded-tl-xl">Date</th>
                 <th className="px-6 py-4">Entry No</th>
@@ -129,7 +130,7 @@ export default function JournalList() {
                 <tr><td colSpan={5} className="text-center py-10 text-slate-600">No journal entries found.</td></tr>
               ) : (
                 paginatedEntries.map(entry => (
-                  <tr key={entry.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                  <tr key={entry.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors fast-render-row">
                     <td className="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-400">
                       {new Date(entry.date).toLocaleDateString()} {new Date(entry.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </td>
@@ -200,36 +201,47 @@ export default function JournalList() {
 
       {/* Delete Sale Confirmation */}
       {deleteConfirmEntry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmEntry(null)} />
-          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">Hapus Transaksi Penjualan?</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
-              Journal: <span className="font-mono font-bold">{deleteConfirmEntry.entry_no}</span>
-            </p>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
-              Penjualan: <span className="font-mono font-bold">{deleteConfirmEntry.description}</span>
-            </p>
-            <p className="text-xs text-rose-500 bg-rose-50 dark:bg-rose-900/20 p-2.5 rounded-lg mb-4">
-              ⚠ Tindakan ini akan menghapus transaksi penjualan beserta jurnal terkait. Tidak dapat dibatalkan.
-            </p>
-            <div className="flex gap-3">
+        <Modal
+          isOpen={true}
+          onClose={() => setDeleteConfirmEntry(null)}
+          size="sm"
+          title="Hapus Transaksi Penjualan?"
+          subtitle="Tindakan ini tidak dapat dibatalkan"
+          icon={AlertTriangle}
+          iconBg="bg-rose-500/10 text-rose-500"
+          footer={
+            <div className="flex gap-3 w-full">
               <button
+                type="button"
                 onClick={() => setDeleteConfirmEntry(null)}
-                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
                 Batal
               </button>
               <button
+                type="button"
                 onClick={() => handleDeleteSale(deleteConfirmEntry)}
                 disabled={deleting}
                 className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
               >
+                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 {deleting ? 'Menghapus...' : 'Ya, Hapus'}
               </button>
             </div>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              No. Jurnal: <span className="font-mono font-bold text-slate-900 dark:text-white">{deleteConfirmEntry.entry_no}</span>
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Keterangan: <span className="font-mono font-bold text-slate-900 dark:text-white">{deleteConfirmEntry.description}</span>
+            </p>
+            <div className="text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-xl border border-rose-200 dark:border-rose-800/40">
+              Tindakan ini akan menghapus transaksi penjualan beserta seluruh baris jurnal akuntansi terkait secara permanen.
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

@@ -56,7 +56,7 @@ export default function PromoList() {
       <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1 custom-scrollbar relative">
           <table className="w-full text-sm text-left border-collapse">
-            <thead className="text-xs text-slate-600 bg-slate-50/50 dark:bg-slate-800/50 uppercase font-semibold sticky top-0 backdrop-blur-md">
+            <thead className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 uppercase font-semibold sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 rounded-tl-xl">Name</th>
                 <th className="px-6 py-4">Type</th>
@@ -73,7 +73,7 @@ export default function PromoList() {
                 <tr><td colSpan={6} className="text-center py-10 text-slate-600">No promos found.</td></tr>
               ) : (
                 promos.map(promo => (
-                  <tr key={promo.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                  <tr key={promo.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors fast-render-row">
                     <td className="px-6 py-3 font-medium text-slate-900 dark:text-white">
                       {promo.name}
                       {promo.member_tier && <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{promo.member_tier}</span>}

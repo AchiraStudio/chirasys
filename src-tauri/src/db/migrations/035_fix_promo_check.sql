@@ -1,6 +1,8 @@
 PRAGMA foreign_keys=OFF;
 
-CREATE TABLE promos_new (
+DROP TABLE IF EXISTS promos_new;
+
+CREATE TABLE IF NOT EXISTS promos_new (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
@@ -22,7 +24,7 @@ CREATE TABLE promos_new (
     member_tier TEXT
 );
 
-INSERT INTO promos_new (
+INSERT OR IGNORE INTO promos_new (
     id, name, description, discount_percent, min_qty, category_id, item_id, 
     member_only, active, start_date, end_date, created_at, promo_type, 
     discount_value, applies_to, max_discount_amount, stack_rule, priority, member_tier
@@ -32,7 +34,7 @@ INSERT INTO promos_new (
     discount_value, applies_to, max_discount_amount, stack_rule, priority, member_tier
 FROM promos;
 
-DROP TABLE promos;
+DROP TABLE IF EXISTS promos;
 
 ALTER TABLE promos_new RENAME TO promos;
 

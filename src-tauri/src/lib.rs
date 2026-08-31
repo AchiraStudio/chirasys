@@ -12,22 +12,48 @@ pub struct AppState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = dotenvy::dotenv();
+    let _ = dotenvy::from_filename(".env");
+    let _ = dotenvy::from_filename("../.env");
+
     tauri::Builder::default()
         .setup(|app| {
             let handle = app.handle().clone();
-            tauri::async_runtime::block_on(async move {
-                match db::connection::establish_connection(&handle).await {
-                    Ok(pool) => {
-                        println!("✅ Database connected successfully.");
-                        commands::sync::spawn_sync_worker(pool.clone());
-                        handle.manage(AppState { db_pool: pool.clone() });
-                        commands::sync::spawn_pull_worker(pool, handle.clone());
+            let pool = match tauri::async_runtime::block_on(db::connection::establish_connection(&handle)) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("❌ DATABASE FATAL ERROR: {}", e);
+                    if let Ok(app_dir) = handle.path().app_data_dir() {
+                        let _ = std::fs::create_dir_all(&app_dir);
+                        let crash_log = app_dir.join("crash.log");
+                        let timestamp = chrono::Local::now().to_rfc3339();
+                        let msg = format!("[{}] DATABASE FATAL ERROR:\n{}\n\n", timestamp, e);
+                        let _ = std::fs::write(&crash_log, msg);
                     }
-                    Err(e) => {
-                        panic!("❌ DATABASE FATAL ERROR: {}", e);
+                    if let Some(appdata) = std::env::var_os("APPDATA") {
+                        let _ = std::fs::write(
+                            std::path::Path::new(&appdata).join("chirasys_crash.log"),
+                            format!("DATABASE ERROR: {}", e),
+                        );
                     }
+                    panic!("❌ DATABASE FATAL ERROR: {}", e);
                 }
+            };
+
+            app.manage(AppState { db_pool: pool.clone() });
+
+            println!("✅ Database connected & AppState managed.");
+            commands::sync::spawn_sync_worker(pool.clone());
+            commands::sync::spawn_pull_worker(pool.clone(), handle.clone());
+
+            // Spawn LAN Auto-Discovery and Embedded Local Server
+            let pool_for_lan = pool.clone();
+            let handle_for_lan = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                commands::lan::start_lan_http_server(pool_for_lan.clone(), handle_for_lan.clone(), 3699).await;
+                commands::lan::spawn_lan_discovery_service(pool_for_lan, handle_for_lan).await;
             });
+
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
@@ -142,6 +168,11 @@ pub fn run() {
             commands::auth::update_user,
             commands::auth::delete_user,
             commands::auth::assign_user_workspace,
+            commands::auth::get_permission_definitions,
+            commands::auth::get_role_default_permissions,
+            commands::auth::update_role_default_permissions,
+            commands::auth::get_user_permissions,
+            commands::auth::update_user_permissions,
             
             // Phase 9 - Sync
             commands::sync::receive_cloud_sync,
@@ -167,6 +198,14 @@ pub fn run() {
             commands::maintenance::kick_cash_drawer,
             commands::maintenance::print_raw_receipt,
             commands::admin::reset_db_specific,
+
+            // Phase 11 - Local Network (LAN) Offline Discovery & Sync
+            commands::lan::get_lan_status,
+            commands::lan::get_lan_peers,
+            commands::lan::set_lan_role,
+            commands::lan::set_lan_device_name,
+            commands::lan::set_lan_auto_connect,
+            commands::lan::clone_from_parent,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getStockOverview, StockOverviewRow, createOpnameSession, submitOpnameLines, finalizeOpname } from '../../lib/api';
+import { getStockOverview, StockOverviewRow, createOpnameSession, submitOpnameLines, finalizeOpname, getItemsFiltered } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import { Package, Search, Save, Loader2, ClipboardList, HelpCircle, CheckCircle2, TrendingUp, TrendingDown, Minus, Plus, RefreshCw, Filter, AlertTriangle, X } from 'lucide-react';
 import TourGuide from '../../components/ui/TourGuide';
@@ -50,7 +50,6 @@ export default function StockOpname() {
   const fetchStock = async () => {
     setLoading(true);
     try {
-      const { getItemsFiltered } = await import('../../lib/api');
       await getItemsFiltered('', '', '', true, 1, 9999);
       const data = await getStockOverview(DEFAULT_BRANCH);
       setItems(data);
@@ -338,7 +337,7 @@ export default function StockOpname() {
             </div>
           ) : (
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 uppercase text-[11px] text-slate-400 font-extrabold sticky top-0 z-10">
+              <thead className="bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 uppercase text-[11px] text-slate-400 font-extrabold sticky top-0 z-10">
                 <tr>
                   <th className="py-3.5 px-4 w-10 text-center">
                     <input 
@@ -368,7 +367,7 @@ export default function StockOpname() {
                   return (
                     <tr 
                       key={item.item_id} 
-                      className={`transition-colors ${
+                      className={`transition-colors fast-render-row ${
                         isSurplus ? 'bg-emerald-50/40 dark:bg-emerald-950/20' :
                         isDeficit ? 'bg-rose-50/40 dark:bg-rose-950/20' :
                         isMatch ? 'bg-slate-50/40 dark:bg-slate-900/20' :

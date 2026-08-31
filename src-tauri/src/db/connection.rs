@@ -1,28 +1,53 @@
-use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous},
+    SqlitePool,
+};
 use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
 
 pub async fn establish_connection(app_handle: &tauri::AppHandle) -> Result<SqlitePool, String> {
-    let app_dir: PathBuf = app_handle
-        .path()
-        .app_data_dir()
-        .expect("Failed to resolve app data directory");
+    let app_dir: PathBuf = match app_handle.path().app_data_dir() {
+        Ok(dir) => dir,
+        Err(_) => {
+            if let Some(appdata) = std::env::var_os("APPDATA") {
+                PathBuf::from(appdata).join("com.chirasys.erp")
+            } else {
+                PathBuf::from(".").join("data")
+            }
+        }
+    };
 
     if !app_dir.exists() {
         fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
     }
 
     let db_path = app_dir.join("chirasys.db");
+    
+    // Seamless fallback: If target db does not exist, check if legacy com.chirasys.app db exists and copy it
+    if !db_path.exists() {
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            let legacy_db = PathBuf::from(&appdata).join("com.chirasys.app").join("chirasys.db");
+            if legacy_db.exists() {
+                println!("📦 Found legacy database at {}, copying to {}", legacy_db.display(), db_path.display());
+                let _ = fs::copy(&legacy_db, &db_path);
+            }
+        }
+    }
+
     println!("🗄️ DATABASE IS LOCATED AT: {}", db_path.display());
 
-    let database_url = format!("sqlite://{}?mode=rwc", db_path.display());
+    let connect_options = SqliteConnectOptions::new()
+        .filename(&db_path)
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .synchronous(SqliteSynchronous::Normal);
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
-        .connect(&database_url)
+        .connect_with(connect_options)
         .await
-        .map_err(|e| format!("Failed to connect to SQLite: {}", e))?;
+        .map_err(|e| format!("Failed to connect to SQLite at {}: {}", db_path.display(), e))?;
 
     run_migrations(&pool).await?;
 
@@ -30,25 +55,24 @@ pub async fn establish_connection(app_handle: &tauri::AppHandle) -> Result<Sqlit
 }
 
 async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
-    // Enable WAL mode for much better write performance (~3x faster)
-    sqlx::query("PRAGMA journal_mode=WAL;")
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    sqlx::query("PRAGMA synchronous=NORMAL;")
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    // Acquire a single dedicated connection for all migration steps.
+    // This ensures PRAGMA foreign_keys = OFF is consistently respected across all DDL statements
+    // and prevents cross-connection schema cache / lock inconsistencies.
+    let mut conn = pool.acquire().await.map_err(|e| e.to_string())?;
+
+    // Enable performance PRAGMAs
     sqlx::query("PRAGMA cache_size=-32000;")
-        .execute(pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    sqlx::query("PRAGMA foreign_keys=ON;")
-        .execute(pool)
+        .execute(&mut *conn)
         .await
         .map_err(|e| e.to_string())?;
     sqlx::query("PRAGMA temp_store=MEMORY;")
-        .execute(pool)
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Disable foreign keys during migrations to allow table alterations and trigger updates
+    sqlx::query("PRAGMA foreign_keys=OFF;")
+        .execute(&mut *conn)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -59,7 +83,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
             applied_at TEXT NOT NULL DEFAULT (datetime('now'))
         )",
     )
-    .execute(pool)
+    .execute(&mut *conn)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -114,6 +138,11 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/048_quantity_price_tiers.sql"), 48),
         (include_str!("./migrations/049_clean_sync_queue_errors.sql"), 49),
         (include_str!("./migrations/050_auto_sync_setting.sql"), 50),
+        (include_str!("./migrations/051_role_permissions.sql"), 51),
+        (include_str!("./migrations/052_performance_indexes.sql"), 52),
+        (include_str!("./migrations/053_sync_items_and_tiers_triggers.sql"), 53),
+        (include_str!("./migrations/054_lan_sync_config.sql"), 54),
+        (include_str!("./migrations/055_sync_users_and_permissions.sql"), 55),
     ];
 
     for (sql, version) in migrations {
@@ -121,7 +150,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         let already_applied: Option<i64> =
             sqlx::query_scalar("SELECT 1 FROM _schema_version WHERE version = ?")
                 .bind(version)
-                .fetch_optional(pool)
+                .fetch_optional(&mut *conn)
                 .await
                 .map_err(|e| e.to_string())?;
 
@@ -132,12 +161,22 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         // Execute statement-by-statement to prevent early aborts on idempotent errors
         let statements = split_sql_statements(sql);
         for stmt in statements {
-            if let Err(e) = sqlx::query(&stmt).execute(pool).await {
-                let msg = e.to_string();
-                if msg.contains("duplicate column name") || msg.contains("already exists") || msg.contains("non-constant default") {
-                    println!("⚠️ Statement skipped (idempotent): {}", msg);
+            if let Err(e) = sqlx::query(&stmt).execute(&mut *conn).await {
+                let msg = e.to_string().to_lowercase();
+                if msg.contains("duplicate column")
+                    || msg.contains("already exists")
+                    || msg.contains("already another table")
+                    || msg.contains("already another index")
+                    || msg.contains("with this name")
+                    || msg.contains("non-constant default")
+                    || msg.contains("cannot add a not null column")
+                    || msg.contains("no such column")
+                    || msg.contains("no such table")
+                    || msg.contains("no such index")
+                {
+                    println!("⚠️ Migration {} statement skipped (idempotent): {}", version, e);
                 } else {
-                    return Err(format!("❌ Migration {} failed on statement:\n{}\nError: {}", version, stmt, msg));
+                    return Err(format!("❌ Migration {} failed on statement:\n{}\nError: {}", version, stmt, e));
                 }
             }
         }
@@ -145,12 +184,18 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         // Record as applied
         sqlx::query("INSERT OR IGNORE INTO _schema_version (version) VALUES (?)")
             .bind(version)
-            .execute(pool)
+            .execute(&mut *conn)
             .await
             .map_err(|e| e.to_string())?;
 
         println!("✅ Migration {} applied.", version);
     }
+
+    // Re-enable foreign keys after all migrations have completed
+    sqlx::query("PRAGMA foreign_keys=ON;")
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| e.to_string())?;
 
     println!("✅ All migrations up to date.");
     Ok(())

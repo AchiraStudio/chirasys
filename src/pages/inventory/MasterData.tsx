@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Tag, FolderTree, Plus, Loader2, Trash2, Edit2, Save, X, ChevronRight, Wand2, Search, Layers, Sparkles, Building2 } from 'lucide-react';
 import { getBrands, addBrand, updateBrand, deleteBrand, getCategories, addCategory, updateCategory, deleteCategory, Brand, Category, discoverPotentialBrands, DiscoveredBrand } from '../../lib/api';
+import { invoke } from '@tauri-apps/api/core';
+import Modal from '../../components/ui/Modal';
 
 export default function MasterData() {
   const [activeTab, setActiveTab] = useState<'categories' | 'brands'>('categories');
@@ -45,7 +47,6 @@ export default function MasterData() {
       if (activeTab === 'brands') { 
         await addBrand(newItemName.trim());
         try {
-          const { invoke } = await import('@tauri-apps/api/core');
           await invoke('auto_assign_brands');
         } catch (e) {
           console.warn("Failed to auto-assign brands", e);
@@ -101,7 +102,6 @@ export default function MasterData() {
       for (const bName of Array.from(selectedDiscovered)) {
         await addBrand(bName);
       }
-      const { invoke } = await import('@tauri-apps/api/core');
       const msg = await invoke('auto_assign_brands');
       alert(msg as string);
       setShowDiscovery(false);
@@ -428,90 +428,25 @@ export default function MasterData() {
 
       {/* Discovery Modal */}
       {showDiscovery && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative bg-white dark:bg-[#0B0F19] rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-emerald-50/50 dark:bg-emerald-900/10">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl">
-                  <Wand2 size={20} />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Auto-Discover Brand Produk</h3>
-                  <p className="text-xs text-slate-500">Memindai nama obat unassigned untuk mendeteksi merk baru</p>
-                </div>
-              </div>
-              <button onClick={() => setShowDiscovery(false)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full">
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-50/50 dark:bg-transparent">
-              {isDiscovering ? (
-                <div className="flex flex-col items-center py-20 text-slate-400">
-                  <Loader2 size={36} className="animate-spin mb-3 text-emerald-500" />
-                  <p className="text-xs font-semibold">Menganalisis katalog obat...</p>
-                </div>
-              ) : discoveredBrands.length === 0 ? (
-                <div className="text-center py-20 space-y-2">
-                  <Tag size={40} className="mx-auto text-slate-300 dark:text-slate-700" />
-                  <p className="text-xs font-bold text-slate-600 dark:text-slate-400">Tidak ada brand baru terdeteksi.</p>
-                  <p className="text-[11px] text-slate-400">Semua produk sudah terhubung dengan registri brand yang sesuai.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <p className="text-xs text-slate-600 dark:text-slate-400">Ditemukan <span className="font-bold text-slate-900 dark:text-white">{discoveredBrands.length}</span> merk baru. Pilih merk untuk didaftarkan:</p>
-                    <button 
-                      onClick={() => {
-                        if (selectedDiscovered.size === discoveredBrands.length) {
-                          setSelectedDiscovered(new Set());
-                        } else {
-                          setSelectedDiscovered(new Set(discoveredBrands.map(b => b.name)));
-                        }
-                      }}
-                      className="text-xs font-bold text-brand hover:underline"
-                    >
-                      {selectedDiscovered.size === discoveredBrands.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
-                    </button>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {discoveredBrands.map((brand, idx) => (
-                      <label 
-                        key={idx}
-                        className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${
-                          selectedDiscovered.has(brand.name) 
-                            ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-800' 
-                            : 'bg-white border-slate-200 hover:border-emerald-300 dark:bg-[#0B0F19] dark:border-slate-800'
-                        }`}
-                      >
-                        <input 
-                          type="checkbox" 
-                          className="mt-1 w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                          checked={selectedDiscovered.has(brand.name)}
-                          onChange={(e) => {
-                            const newSet = new Set(selectedDiscovered);
-                            if (e.target.checked) newSet.add(brand.name);
-                            else newSet.delete(brand.name);
-                            setSelectedDiscovered(newSet);
-                          }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-900 dark:text-white text-xs truncate" title={brand.name}>{brand.name}</p>
-                          <p className="text-[10px] font-mono text-slate-400 mt-0.5">{brand.count} produk terkait</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0B0F19] flex justify-end gap-3">
-              <button onClick={() => setShowDiscovery(false)} className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors">
+        <Modal
+          isOpen={true}
+          onClose={() => setShowDiscovery(false)}
+          size="2xl"
+          title="Auto-Discover Brand Produk"
+          subtitle="Memindai nama obat unassigned untuk mendeteksi merk baru"
+          icon={Wand2}
+          iconBg="bg-emerald-500/10 text-emerald-500"
+          footer={
+            <div className="flex justify-end gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setShowDiscovery(false)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+              >
                 Batal
               </button>
               <button 
+                type="button"
                 onClick={handleAddDiscovered} 
                 disabled={isAddingDiscovered || selectedDiscovered.size === 0} 
                 className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs transition-all shadow-md shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
@@ -520,8 +455,71 @@ export default function MasterData() {
                 Daftarkan {selectedDiscovered.size} Brand
               </button>
             </div>
-          </div>
-        </div>
+          }
+        >
+          {isDiscovering ? (
+            <div className="flex flex-col items-center py-20 text-slate-400">
+              <Loader2 size={36} className="animate-spin mb-3 text-emerald-500" />
+              <p className="text-xs font-semibold">Menganalisis katalog obat...</p>
+            </div>
+          ) : discoveredBrands.length === 0 ? (
+            <div className="text-center py-20 space-y-2">
+              <Tag size={40} className="mx-auto text-slate-300 dark:text-slate-700" />
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400">Tidak ada brand baru terdeteksi.</p>
+              <p className="text-[11px] text-slate-400">Semua produk sudah terhubung dengan registri brand yang sesuai.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  Ditemukan <span className="font-bold text-slate-900 dark:text-white">{discoveredBrands.length}</span> merk baru. Pilih merk untuk didaftarkan:
+                </p>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (selectedDiscovered.size === discoveredBrands.length) {
+                      setSelectedDiscovered(new Set());
+                    } else {
+                      setSelectedDiscovered(new Set(discoveredBrands.map(b => b.name)));
+                    }
+                  }}
+                  className="text-xs font-bold text-brand hover:underline"
+                >
+                  {selectedDiscovered.size === discoveredBrands.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {discoveredBrands.map((brand, idx) => (
+                  <label 
+                    key={idx}
+                    className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${
+                      selectedDiscovered.has(brand.name) 
+                        ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-800' 
+                        : 'bg-white border-slate-200 hover:border-emerald-300 dark:bg-[#0B0F19] dark:border-slate-800'
+                    }`}
+                  >
+                    <input 
+                      type="checkbox" 
+                      className="mt-1 w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                      checked={selectedDiscovered.has(brand.name)}
+                      onChange={(e) => {
+                        const newSet = new Set(selectedDiscovered);
+                        if (e.target.checked) newSet.add(brand.name);
+                        else newSet.delete(brand.name);
+                        setSelectedDiscovered(newSet);
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-slate-900 dark:text-white text-xs truncate" title={brand.name}>{brand.name}</p>
+                      <p className="text-[10px] font-mono text-slate-400 mt-0.5">{brand.count} produk terkait</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </Modal>
       )}
 
     </div>

@@ -44,12 +44,12 @@ export default function SupplierList() {
         </div>
         {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
           <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
-            <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
               <tr><th className="py-4 px-6">Name</th><th className="py-4 px-6">Contact</th><th className="py-4 px-6">Phone</th><th className="py-4 px-6 text-right">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
               {suppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()) || (s.phone || '').includes(search)).map(s => (
-                <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group">
+                <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 group fast-render-row">
                   <td className="py-4 px-6 font-bold flex items-center gap-3"><Building2 size={16} className="text-slate-500" />{s.name}</td>
                   <td className="py-4 px-6">{s.contact_person || '-'}</td>
                   <td className="py-4 px-6 font-mono text-slate-600">{s.phone || '-'}</td>

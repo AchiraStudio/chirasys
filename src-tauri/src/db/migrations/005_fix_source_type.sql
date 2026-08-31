@@ -5,6 +5,8 @@
 
 PRAGMA foreign_keys = OFF;
 
+DROP TABLE IF EXISTS stock_ledger_new;
+
 CREATE TABLE IF NOT EXISTS stock_ledger_new (
     id TEXT PRIMARY KEY,
     item_id TEXT NOT NULL REFERENCES items(id),
@@ -25,8 +27,8 @@ CREATE TABLE IF NOT EXISTS stock_ledger_new (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-INSERT INTO stock_ledger_new SELECT * FROM stock_ledger;
-DROP TABLE stock_ledger;
+INSERT OR IGNORE INTO stock_ledger_new SELECT * FROM stock_ledger;
+DROP TABLE IF EXISTS stock_ledger;
 ALTER TABLE stock_ledger_new RENAME TO stock_ledger;
 
 -- Recreate indexes

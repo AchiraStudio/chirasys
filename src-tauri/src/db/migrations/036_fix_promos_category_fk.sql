@@ -4,6 +4,8 @@
 
 PRAGMA foreign_keys=OFF;
 
+DROP TABLE IF EXISTS promos_new;
+
 CREATE TABLE IF NOT EXISTS promos_new (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -37,7 +39,7 @@ SELECT
     discount_value, applies_to, max_discount_amount, stack_rule, priority, member_tier
 FROM promos;
 
-DROP TABLE promos;
+DROP TABLE IF EXISTS promos;
 
 ALTER TABLE promos_new RENAME TO promos;
 

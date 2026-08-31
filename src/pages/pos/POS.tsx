@@ -429,15 +429,17 @@ export default function POS() {
     setCart([]); setCartDiscount(0); setSearch(''); setShowPayment(false);
     setSelectedCartIdx(-1);
     
-    // Instantly kick the cash drawer in background asynchronously without blocking UI modal close
-    getSettings().then(settings => {
-      const pName = settings.find(s => s.key === 'printer_name')?.value;
-      if (pName) {
-        kickCashDrawer(pName).catch((err: unknown) => console.error("Drawer kick failed", err));
-      }
-    }).catch(console.error);
-
-    if (print) setReceiptSaleId(saleId);
+    if (print) {
+      setReceiptSaleId(saleId);
+    } else {
+      // If saving without printing, kick the cash drawer directly
+      getSettings().then(settings => {
+        const pName = settings.find(s => s.key === 'printer_name')?.value;
+        if (pName) {
+          kickCashDrawer(pName).catch((err: unknown) => console.error("Drawer kick failed", err));
+        }
+      }).catch(console.error);
+    }
   };
 
   const TIER_LABEL: Record<string, string> = { regular: 'Regular', member: 'Member', vip: 'VIP' };
@@ -503,17 +505,17 @@ export default function POS() {
               <p className="text-xs text-slate-400 mt-1">Coba kata kunci atau nomor SKU lain</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 sm:gap-3">
               {items.map((item, idx) => (
                 <button
                   key={item.id}
                   ref={el => { itemRefs.current[idx] = el; }}
                   onClick={() => addToCart(item)}
-                  className="flex flex-col text-left bg-white dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 rounded-xl p-3.5 hover:border-brand hover:ring-2 hover:ring-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand shadow-xs transition-all active:scale-[0.97] group"
+                  className="flex flex-col text-left bg-white dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 rounded-xl p-3 hover:border-brand hover:ring-2 hover:ring-brand/30 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand shadow-xs transition-colors active:scale-[0.98] group fast-render-card"
                 >
-                  <span className="font-bold text-sm text-slate-900 dark:text-white mb-1 line-clamp-2 leading-tight group-hover:text-brand transition-colors">{item.name}</span>
-                  <span className="text-[11px] text-slate-500 font-mono mb-2">{item.sku}</span>
-                  <span className="mt-auto font-black text-brand text-sm font-mono">Rp {(item.price || 0).toLocaleString('id-ID')}</span>
+                  <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white mb-1 line-clamp-2 leading-tight group-hover:text-brand transition-colors">{item.name}</span>
+                  <span className="text-[10px] sm:text-[11px] text-slate-500 font-mono mb-2">{item.sku}</span>
+                  <span className="mt-auto font-black text-brand text-xs sm:text-sm font-mono">Rp {(item.price || 0).toLocaleString('id-ID')}</span>
                 </button>
               ))}
             </div>
@@ -521,15 +523,15 @@ export default function POS() {
         </div>
 
         {/* Keyboard Shortcut Hint Bar */}
-        <div className="p-2.5 bg-slate-50/90 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-slate-500 font-medium shrink-0">
+        <div className="py-2 px-3 bg-slate-50/90 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-slate-500 font-medium shrink-0">
           {[['F1/F2','Cari'],['F3','Pelanggan'],['F4','Tahan'],['F5','Lanjut'],['F9','Baru'],['End','Bayar'],['Alt+H','Edit Harga'],['F11','Layar Penuh'],['F12','Hapus Baris']].map(([k, v]) => (
-            <span key={k} className="flex items-center gap-1.5"><kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300">{k}</kbd> {v}</span>
+            <span key={k} className="flex items-center gap-1"><kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300">{k}</kbd> {v}</span>
           ))}
         </div>
       </div>
 
       {/* RIGHT: Cart Panel */}
-      <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-200/80 dark:border-slate-800 overflow-hidden w-80 xl:w-96 shrink-0 transition-all">
+      <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-200/80 dark:border-slate-800 overflow-hidden w-80 2xl:w-96 shrink-0 transition-all">
         {/* Customer Header */}
         <button
           className="w-full px-4 py-3.5 border-b border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-slate-50 via-slate-50 to-indigo-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/20 flex justify-between items-center cursor-pointer hover:from-slate-100 hover:to-indigo-100/50 dark:hover:from-slate-900 dark:hover:to-indigo-900/30 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-inset transition-all tour-pos-customer group"
@@ -601,7 +603,7 @@ export default function POS() {
                       if (e.key === 'Delete' && !l.is_bogo_free) { removeItem(l.item_id); setSelectedCartIdx(Math.max(0, idx - 1)); }
                       if ((e.altKey && e.key === 'h') && !l.is_bogo_free) startEditPrice(idx);
                     }}
-                    className={`p-3 rounded-xl border flex gap-2.5 transition-all outline-none cursor-pointer relative ${
+                    className={`p-3 rounded-xl border flex gap-2.5 transition-colors outline-none cursor-pointer relative fast-render-row ${
                       isSelected
                         ? 'ring-2 ring-brand border-brand bg-brand/5 dark:bg-brand/10 shadow-xs border-l-4 border-l-brand'
                         : l.is_bogo_free

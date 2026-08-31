@@ -1,7 +1,7 @@
-// Force HMR reload
 import { useEffect, useState } from 'react';
-import { X, ExternalLink } from 'lucide-react';
+import { ExternalLink, Receipt, Info, Loader2 } from 'lucide-react';
 import { getJournalDetail, JournalEntryWithLines } from '../../lib/api';
+import Modal from '../../components/ui/Modal';
 
 interface JournalVoucherProps {
   isOpen: boolean;
@@ -38,96 +38,93 @@ export default function JournalVoucher({ isOpen, onClose, entryId }: JournalVouc
   const totalCredit = detail?.lines.reduce((sum, l) => sum + l.credit, 0) || 0;
 
   return (
-    <>
-      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Journal Voucher</h2>
-            <p className="text-sm text-slate-600 mt-1">{detail?.entry.entry_no}</p>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="3xl"
+      title="Voucher Jurnal Akuntansi"
+      subtitle={detail ? `Nomor Bukti: ${detail.entry.entry_no}` : 'Memuat data...'}
+      icon={Receipt}
+    >
+      <div>
+        {loading ? (
+          <div className="text-center py-16 text-slate-500 flex flex-col items-center justify-center">
+            <Loader2 className="animate-spin mb-3 text-brand" size={28} />
+            <p className="text-xs font-medium">Memuat rincian voucher jurnal...</p>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 dark:bg-slate-900/30">
-          {loading ? (
-            <div className="text-center py-10 text-slate-600">Loading details...</div>
-          ) : detail ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4 text-sm bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                <div>
-                  <div className="text-slate-600 mb-1">Date</div>
-                  <div className="font-medium text-slate-900 dark:text-white">{new Date(detail.entry.date).toLocaleString()}</div>
-                </div>
-                <div>
-                  <div className="text-slate-600 mb-1">Source</div>
-                  <div className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                    <span className="capitalize">{detail.entry.source_type.replace('_', ' ')}</span>
-                    {detail.entry.source_type !== 'manual' && (
-                        <button title="Go to source" className="text-indigo-500 hover:text-indigo-600">
-                            <ExternalLink size={14}/>
-                        </button>
-                    )}
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <div className="text-slate-600 mb-1">Description</div>
-                  <div className="font-medium text-slate-900 dark:text-white">{detail.entry.description || '-'}</div>
+        ) : detail ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+              <div>
+                <div className="text-slate-500 mb-1 font-semibold uppercase tracking-wider text-[10px]">Tanggal Jurnal</div>
+                <div className="font-semibold text-slate-900 dark:text-white text-sm">{new Date(detail.entry.date).toLocaleString('id-ID')}</div>
+              </div>
+              <div>
+                <div className="text-slate-500 mb-1 font-semibold uppercase tracking-wider text-[10px]">Sumber Transaksi</div>
+                <div className="font-semibold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                  <span className="capitalize">{detail.entry.source_type.replace('_', ' ')}</span>
+                  {detail.entry.source_type !== 'manual' && (
+                    <button title="Lihat sumber asli" className="text-brand hover:underline flex items-center gap-1">
+                      <ExternalLink size={12}/>
+                    </button>
+                  )}
                 </div>
               </div>
-
-              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-slate-600 bg-slate-50 dark:bg-slate-900 uppercase font-semibold">
-                    <tr>
-                      <th className="px-4 py-3">Account</th>
-                      <th className="px-4 py-3">Description</th>
-                      <th className="px-4 py-3 text-right">Debit</th>
-                      <th className="px-4 py-3 text-right">Credit</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                    {detail.lines.map((line, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/20">
-                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                          <div className="flex flex-col">
-                              <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400">{line.account_code}</span>
-                              <span>{line.account_name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{line.notes || '-'}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{line.debit > 0 ? line.debit.toLocaleString('id-ID') : '-'}</td>
-                        <td className="px-4 py-3 text-right tabular-nums">{line.credit > 0 ? line.credit.toLocaleString('id-ID') : '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-slate-50 dark:bg-slate-900 font-bold border-t border-slate-200 dark:border-slate-700">
-                    <tr>
-                      <td colSpan={2} className="px-4 py-4 text-right text-slate-600 dark:text-slate-400">Total</td>
-                      <td className="px-4 py-4 text-right tabular-nums text-slate-900 dark:text-white">{totalDebit.toLocaleString('id-ID')}</td>
-                      <td className="px-4 py-4 text-right tabular-nums text-slate-900 dark:text-white">{totalCredit.toLocaleString('id-ID')}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+              <div className="col-span-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                <div className="text-slate-500 mb-1 font-semibold uppercase tracking-wider text-[10px]">Keterangan Transaksi</div>
+                <div className="font-semibold text-slate-900 dark:text-white text-sm">{detail.entry.description || '-'}</div>
               </div>
-
-              {/* Double-entry explanation note */}
-              {detail.entry.source_type === 'sale' && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30 rounded-xl flex items-start gap-2.5">
-                  <svg className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                    <strong>Catatan Akuntansi:</strong> Total debit/kredit ({totalDebit.toLocaleString('id-ID')}) adalah 2× dari nilai penjualan karena setiap transaksi menghasilkan dua pasang jurnal: (1) Kas↔Penjualan dan (2) HPP↔Persediaan. Ini adalah perilaku normal double-entry accounting.
-                  </p>
-                </div>
-              )}
             </div>
-          ) : (
-            <div className="text-center py-10 text-slate-600">Failed to load journal voucher.</div>
-          )}
-        </div>
+
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+              <table className="w-full text-xs text-left">
+                <thead className="text-[11px] text-slate-500 bg-slate-50 dark:bg-slate-900 uppercase font-bold border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th className="px-4 py-3">Akun Rekening</th>
+                    <th className="px-4 py-3">Keterangan</th>
+                    <th className="px-4 py-3 text-right">Debit (Rp)</th>
+                    <th className="px-4 py-3 text-right">Kredit (Rp)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {detail.lines.map((line, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 bg-white dark:bg-slate-950">
+                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
+                        <div className="flex flex-col">
+                          <span className="font-mono text-[10px] text-brand">{line.account_code}</span>
+                          <span className="text-xs">{line.account_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">{line.notes || '-'}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">{line.debit > 0 ? line.debit.toLocaleString('id-ID') : '-'}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">{line.credit > 0 ? line.credit.toLocaleString('id-ID') : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-slate-50 dark:bg-slate-900/80 font-bold border-t border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <td colSpan={2} className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">Total Balance</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-900 dark:text-white">Rp {totalDebit.toLocaleString('id-ID')}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-900 dark:text-white">Rp {totalCredit.toLocaleString('id-ID')}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Double-entry explanation note */}
+            {detail.entry.source_type === 'sale' && (
+              <div className="p-3.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-2xl flex items-start gap-3">
+                <Info size={16} className="text-brand shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                  <strong>Catatan Akuntansi:</strong> Total debit/kredit (Rp {totalDebit.toLocaleString('id-ID')}) adalah 2× dari nilai penjualan karena setiap transaksi menghasilkan dua pasang jurnal berpasangan: (1) Kas ↔ Pendapatan Penjualan dan (2) HPP ↔ Persediaan Barang Dagang.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-10 text-slate-500">Gagal memuat voucher jurnal.</div>
+        )}
       </div>
-    </>
+    </Modal>
   );
 }

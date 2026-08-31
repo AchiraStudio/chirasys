@@ -67,7 +67,7 @@ export default function ChartOfAccounts() {
       <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto flex-1 custom-scrollbar">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-600 bg-slate-50/50 dark:bg-slate-800/50 uppercase font-semibold sticky top-0 backdrop-blur-md z-10">
+            <thead className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 uppercase font-semibold sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 rounded-tl-xl">Code</th>
                 <th className="px-6 py-4">Account Name</th>
@@ -84,7 +84,7 @@ export default function ChartOfAccounts() {
                 <tr><td colSpan={6} className="text-center py-10 text-slate-600">No accounts found.</td></tr>
               ) : (
                 accounts.map(acc => (
-                  <tr key={acc.id} className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors ${acc.is_active === 0 ? 'opacity-50' : ''}`}>
+                  <tr key={acc.id} className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors fast-render-row ${acc.is_active === 0 ? 'opacity-50' : ''}`}>
                     <td className="px-6 py-3 font-mono font-medium text-slate-900 dark:text-white">
                       {acc.code}
                     </td>

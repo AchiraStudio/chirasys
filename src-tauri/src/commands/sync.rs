@@ -13,14 +13,37 @@ const BACKOFF_INTERVAL_SECS: u64 = 120; // 2 minutes
 // Background sync worker
 // ─────────────────────────────────────────────────────────────────────────────
 
+pub fn get_supabase_credentials() -> (String, String) {
+    let _ = dotenvy::dotenv();
+    let _ = dotenvy::from_filename(".env");
+    let _ = dotenvy::from_filename("../.env");
+
+    let default_url = "https://vtjvtwglbalkukeyogsx.supabase.co".to_string();
+    let default_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0anZ0d2dsYmFsa3VrZXlvZ3N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzIxOTEsImV4cCI6MjA5NTEwODE5MX0.wjByh0VRKUVo6z0KUsCEWOd9QBpizSBrS75o9r7zKyE".to_string();
+
+    let supabase_url = env::var("SUPABASE_URL")
+        .or_else(|_| env::var("VITE_SUPABASE_URL"))
+        .unwrap_or(default_url);
+
+    let supabase_key = env::var("SUPABASE_KEY")
+        .or_else(|_| env::var("SUPABASE_ANON_KEY"))
+        .or_else(|_| env::var("SUPABASE_SERVICE_ROLE_KEY"))
+        .or_else(|_| env::var("VITE_SUPABASE_ANON_KEY"))
+        .unwrap_or(default_key);
+
+    (supabase_url, supabase_key)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background sync worker
+// ─────────────────────────────────────────────────────────────────────────────
+
 pub fn spawn_sync_worker(pool: SqlitePool) {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         // Let the app fully start before trying
         sleep(Duration::from_secs(8)).await;
-        let _ = dotenvy::dotenv();
 
-        let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
-        let supabase_key = env::var("SUPABASE_KEY").unwrap_or_default();
+        let (supabase_url, supabase_key) = get_supabase_credentials();
 
         if supabase_url.is_empty() || supabase_key.is_empty() {
             println!("⚠️  Sync worker stopped: SUPABASE_URL or SUPABASE_KEY not set.");
@@ -97,13 +120,13 @@ async fn process_sync_queue(
     supabase_key: &str,
     workspace_id: &str,
 ) -> Result<usize, String> {
-    // Only process items that haven't permanently failed
+    // Read up to 250 pending rows per tick for high-throughput batching
     let pending_items = sqlx::query(
         "SELECT id, table_name, record_id, operation, payload
          FROM sync_queue
          WHERE synced_at IS NULL AND retry_count < ?
          ORDER BY created_at ASC
-         LIMIT 50"
+         LIMIT 250"
     )
     .bind(MAX_RETRY_COUNT)
     .fetch_all(pool)
@@ -114,9 +137,13 @@ async fn process_sync_queue(
         return Ok(0);
     }
 
-    println!("🔄 Processing {} items in sync queue...", pending_items.len());
+    println!("🔄 Processing batch of {} items in sync queue...", pending_items.len());
     let mut success_count = 0;
     let mut all_network_failed = true;
+
+    // Group items into batches: (table_name, operation) -> Vec<(queue_id, record_id, payload)>
+    use std::collections::HashMap;
+    let mut groups: HashMap<(String, String), Vec<(String, String, serde_json::Value)>> = HashMap::new();
 
     for row in &pending_items {
         let queue_id: String = row.get("id");
@@ -125,18 +152,13 @@ async fn process_sync_queue(
         let operation: String = row.get("operation");
         let payload_str: String = row.get("payload");
 
-        let endpoint = format!("{}/rest/v1/{}", supabase_url, table_name);
-
-        // Inject workspace_id into the payload & sanitize legacy field names / null constraints
         let mut json_payload: serde_json::Value = serde_json::from_str(&payload_str)
             .unwrap_or_else(|_| serde_json::json!({}));
+
         if let serde_json::Value::Object(ref mut map) = json_payload {
             map.insert("workspace_id".to_string(), serde_json::Value::String(workspace_id.to_string()));
-            
-            // Remove image_blob to prevent Supabase schema cache errors
             map.remove("image_blob");
 
-            // Guarantee non-null updated_at and created_at timestamps for Supabase PostgreSQL constraints
             let now_iso = chrono::Utc::now().to_rfc3339();
             let need_updated = match map.get("updated_at") {
                 None | Some(serde_json::Value::Null) => true,
@@ -168,61 +190,130 @@ async fn process_sync_queue(
                 }
                 map.remove("net_amount");
             }
+
+            if table_name == "users" || table_name == "role_default_permissions" {
+                if let Some(perms_val) = map.get("permissions") {
+                    if let Some(perms_str) = perms_val.as_str() {
+                        if let Ok(parsed_json) = serde_json::from_str::<serde_json::Value>(perms_str) {
+                            map.insert("permissions".to_string(), parsed_json);
+                        }
+                    }
+                }
+            }
         }
 
-        let request = match operation.as_str() {
-            "insert" => client
+        groups.entry((table_name, operation)).or_default().push((queue_id, record_id, json_payload));
+    }
+
+    for ((table_name, operation), items) in groups {
+        let endpoint = format!("{}/rest/v1/{}", supabase_url, table_name);
+
+        if operation == "insert" || operation == "update" {
+            // Batch UPSERT via single HTTP POST array with Prefer: resolution=merge-duplicates
+            let payloads: Vec<serde_json::Value> = items.iter().map(|(_, _, p)| p.clone()).collect();
+            let queue_ids: Vec<String> = items.iter().map(|(qid, _, _)| qid.clone()).collect();
+
+            let batch_req = client
                 .post(&endpoint)
-                .header("Prefer", "resolution=merge-duplicates,return=minimal"),
-            "update" | "delete" => client
-                .patch(&format!("{}?id=eq.{}", endpoint, record_id))
-                .header("Prefer", "return=minimal"),
-            _ => continue,
-        };
+                .header("Prefer", "resolution=merge-duplicates,return=minimal")
+                .header("apikey", supabase_key)
+                .header("Authorization", format!("Bearer {}", supabase_key))
+                .header("Content-Type", "application/json")
+                .json(&payloads);
 
-        let request = request
-            .header("apikey", supabase_key)
-            .header("Authorization", format!("Bearer {}", supabase_key))
-            .header("Content-Type", "application/json")
-            .json(&json_payload);
+            match batch_req.send().await {
+                Ok(res) if res.status().is_success() => {
+                    let count = queue_ids.len();
+                    for qid in queue_ids {
+                        let _ = sqlx::query(
+                            "UPDATE sync_queue SET synced_at = datetime('now'), error = NULL WHERE id = ?"
+                        )
+                        .bind(&qid)
+                        .execute(pool)
+                        .await;
+                    }
+                    success_count += count;
+                    all_network_failed = false;
+                }
+                Ok(res) => {
+                    // Fallback to item-by-item if batch fails
+                    all_network_failed = false;
+                    let batch_status = res.status();
+                    let batch_err = res.text().await.unwrap_or_default();
+                    eprintln!("⚠️ Batch upsert fallback for {} (HTTP {}: {}). Retrying item-by-item...", table_name, batch_status, batch_err);
 
-        match request.send().await {
-            Ok(res) if res.status().is_success() => {
-                let _ = sqlx::query(
-                    "UPDATE sync_queue SET synced_at = datetime('now'), error = NULL WHERE id = ?"
-                )
-                .bind(&queue_id)
-                .execute(pool)
-                .await;
-                success_count += 1;
-                all_network_failed = false;
+                    for (queue_id, record_id, json_payload) in items {
+                        let single_req = if operation == "insert" {
+                            client
+                                .post(&endpoint)
+                                .header("Prefer", "resolution=merge-duplicates,return=minimal")
+                        } else {
+                            let id_col = if table_name == "role_default_permissions" { "role" } else { "id" };
+                            client
+                                .patch(&format!("{}?{}=eq.{}", endpoint, id_col, record_id))
+                                .header("Prefer", "return=minimal")
+                        };
+
+                        let single_req = single_req
+                            .header("apikey", supabase_key)
+                            .header("Authorization", format!("Bearer {}", supabase_key))
+                            .header("Content-Type", "application/json")
+                            .json(&json_payload);
+
+                        match single_req.send().await {
+                            Ok(r) if r.status().is_success() => {
+                                let _ = sqlx::query("UPDATE sync_queue SET synced_at = datetime('now'), error = NULL WHERE id = ?")
+                                    .bind(&queue_id).execute(pool).await;
+                                success_count += 1;
+                            }
+                            Ok(r) => {
+                                let err_msg = format!("HTTP {}: {}", r.status(), r.text().await.unwrap_or_default());
+                                let _ = sqlx::query("UPDATE sync_queue SET error = ?, retry_count = retry_count + 1 WHERE id = ?")
+                                    .bind(&err_msg).bind(&queue_id).execute(pool).await;
+                            }
+                            Err(e) => {
+                                let err_msg = e.to_string();
+                                let _ = sqlx::query("UPDATE sync_queue SET error = ?, retry_count = retry_count + 1 WHERE id = ?")
+                                    .bind(&err_msg).bind(&queue_id).execute(pool).await;
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    let err_msg = e.to_string();
+                    for (queue_id, _, _) in items {
+                        let _ = sqlx::query("UPDATE sync_queue SET error = ?, retry_count = retry_count + 1 WHERE id = ?")
+                            .bind(&err_msg).bind(&queue_id).execute(pool).await;
+                    }
+                }
             }
-            Ok(res) => {
-                let status = res.status();
-                let err_text = res.text().await.unwrap_or_default();
-                let err_msg = format!("HTTP {}: {}", status, err_text);
-                let _ = sqlx::query(
-                    "UPDATE sync_queue SET error = ?, retry_count = retry_count + 1 WHERE id = ?"
-                )
-                .bind(&err_msg)
-                .bind(&queue_id)
-                .execute(pool)
-                .await;
-                eprintln!("❌ Sync HTTP error for {}/{}: {}", table_name, record_id, err_msg);
-                all_network_failed = false; // HTTP error = server responded, not network fail
-            }
-            Err(e) => {
-                let err_msg = e.to_string();
-                let _ = sqlx::query(
-                    "UPDATE sync_queue SET error = ?, retry_count = retry_count + 1 WHERE id = ?"
-                )
-                .bind(&err_msg)
-                .bind(&queue_id)
-                .execute(pool)
-                .await;
-                // Only print first network error per batch to avoid log spam
-                if success_count == 0 && all_network_failed {
-                    eprintln!("📡 Sync network error (Supabase unreachable): {}", err_msg);
+        } else {
+            // Delete operation
+            for (queue_id, record_id, _) in items {
+                let id_col = if table_name == "role_default_permissions" { "role" } else { "id" };
+                let delete_req = client
+                    .delete(&format!("{}?{}=eq.{}", endpoint, id_col, record_id))
+                    .header("apikey", supabase_key)
+                    .header("Authorization", format!("Bearer {}", supabase_key));
+
+                match delete_req.send().await {
+                    Ok(res) if res.status().is_success() => {
+                        let _ = sqlx::query("UPDATE sync_queue SET synced_at = datetime('now'), error = NULL WHERE id = ?")
+                            .bind(&queue_id).execute(pool).await;
+                        success_count += 1;
+                        all_network_failed = false;
+                    }
+                    Ok(res) => {
+                        let err_msg = format!("HTTP {}: {}", res.status(), res.text().await.unwrap_or_default());
+                        let _ = sqlx::query("UPDATE sync_queue SET error = ?, retry_count = retry_count + 1 WHERE id = ?")
+                            .bind(&err_msg).bind(&queue_id).execute(pool).await;
+                        all_network_failed = false;
+                    }
+                    Err(e) => {
+                        let err_msg = e.to_string();
+                        let _ = sqlx::query("UPDATE sync_queue SET error = ?, retry_count = retry_count + 1 WHERE id = ?")
+                            .bind(&err_msg).bind(&queue_id).execute(pool).await;
+                    }
                 }
             }
         }
@@ -264,9 +355,7 @@ pub async fn join_workspace(
     password: Option<String>,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<WorkspaceInfo, String> {
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
-    let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let client = Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -411,9 +500,7 @@ pub async fn create_workspace(
     code: String,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<WorkspaceInfo, String> {
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
-    let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let client = Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -469,9 +556,7 @@ pub async fn create_workspace_invite(
     email: Option<String>,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<String, String> {
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
-    let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let workspace_id: String = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
@@ -586,13 +671,7 @@ pub async fn trigger_sync_push(
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<usize, String> {
     use tauri::Emitter;
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
-    let supabase_key = env::var("SUPABASE_KEY").unwrap_or_default();
-
-    if supabase_url.is_empty() || supabase_key.is_empty() {
-        return Err("SUPABASE_URL atau SUPABASE_KEY tidak dikonfigurasi di environment.".to_string());
-    }
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let workspace_id: Option<String> = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
@@ -659,13 +738,7 @@ pub async fn trigger_sync_pull(
     full_pull: Option<bool>,
 ) -> Result<usize, String> {
     use tauri::Emitter;
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").unwrap_or_default();
-    let supabase_key = env::var("SUPABASE_KEY").unwrap_or_default();
-
-    if supabase_url.is_empty() || supabase_key.is_empty() {
-        return Err("SUPABASE_URL atau SUPABASE_KEY tidak dikonfigurasi di environment.".to_string());
-    }
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let workspace_id: Option<String> = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
@@ -696,6 +769,7 @@ pub async fn trigger_sync_pull(
     }
 
     let tables = vec![
+        "role_default_permissions", "users",
         "customers", "suppliers", 
         "purchase_orders", "po_lines", "purchases", "purchase_lines", "purchase_payments", "purchase_returns", "purchase_return_lines",
         "promos", "promo_bogo_rules", "promo_tiers", "promo_bundle_items",
@@ -819,9 +893,7 @@ pub struct SysadminLoginResponse {
 
 #[tauri::command]
 pub async fn sysadmin_login(username: String, password_hash: String) -> Result<SysadminLoginResponse, String> {
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
-    let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
@@ -859,9 +931,7 @@ pub struct WorkspaceListInfo {
 
 #[tauri::command]
 pub async fn sysadmin_get_workspaces() -> Result<Vec<WorkspaceListInfo>, String> {
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
-    let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
@@ -884,9 +954,7 @@ pub async fn sysadmin_get_workspaces() -> Result<Vec<WorkspaceListInfo>, String>
 
 #[tauri::command]
 pub async fn sysadmin_create_workspace(name: String, code: String) -> Result<WorkspaceInfo, String> {
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
-    let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
@@ -921,9 +989,7 @@ pub async fn sysadmin_create_workspace(name: String, code: String) -> Result<Wor
 
 #[tauri::command]
 pub async fn sysadmin_create_workspace_invite(workspace_id: String, role: String) -> Result<String, String> {
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
-    let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
@@ -961,9 +1027,7 @@ pub async fn sysadmin_update_workspace_password(
     workspace_id: String,
     password: Option<String>,
 ) -> Result<(), String> {
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL").map_err(|_| "SUPABASE_URL not configured".to_string())?;
-    let supabase_key = env::var("SUPABASE_KEY").map_err(|_| "SUPABASE_KEY not configured".to_string())?;
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
@@ -1870,6 +1934,81 @@ pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &ser
             .bind(updated_at)
             .execute(pool).await.map_err(|e| e.to_string())?;
         }
+        "users" => {
+            let id = payload.get("id").and_then(|v| v.as_str());
+            let branch_id = payload.get("branch_id").and_then(|v| v.as_str());
+            let name = payload.get("name").and_then(|v| v.as_str());
+            let username = payload.get("username").and_then(|v| v.as_str());
+            let password_hash = payload.get("password_hash").and_then(|v| v.as_str());
+            let role = payload.get("role").and_then(|v| v.as_str());
+            let permissions_raw = match payload.get("permissions") {
+                Some(serde_json::Value::String(s)) => s.clone(),
+                Some(v) if !v.is_null() => serde_json::to_string(v).unwrap_or_else(|_| "default".to_string()),
+                _ => "default".to_string(),
+            };
+            let active = json_to_i64(payload.get("active"), 1);
+            let last_login = payload.get("last_login").and_then(|v| v.as_str());
+            let avatar_color = payload.get("avatar_color").and_then(|v| v.as_str());
+            let workspace_id = payload.get("workspace_id").and_then(|v| v.as_str());
+            let created_at = payload.get("created_at").and_then(|v| v.as_str());
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+            let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
+            
+            let _ = sqlx::query(
+                "INSERT INTO users (id, branch_id, name, username, password_hash, role, permissions, active, last_login, avatar_color, workspace_id, created_at, updated_at, deleted_at, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')
+                 ON CONFLICT(id) DO UPDATE SET 
+                    branch_id=excluded.branch_id, 
+                    name=excluded.name, 
+                    username=excluded.username, 
+                    password_hash=excluded.password_hash, 
+                    role=excluded.role, 
+                    permissions=excluded.permissions, 
+                    active=excluded.active, 
+                    last_login=excluded.last_login, 
+                    avatar_color=excluded.avatar_color, 
+                    workspace_id=excluded.workspace_id, 
+                    updated_at=excluded.updated_at, 
+                    deleted_at=excluded.deleted_at, 
+                    updated_by=excluded.updated_by"
+            )
+            .bind(id)
+            .bind(branch_id)
+            .bind(name)
+            .bind(username)
+            .bind(password_hash)
+            .bind(role)
+            .bind(permissions_raw)
+            .bind(active)
+            .bind(last_login)
+            .bind(avatar_color)
+            .bind(workspace_id)
+            .bind(created_at)
+            .bind(updated_at)
+            .bind(deleted_at)
+            .execute(pool).await.map_err(|e| e.to_string())?;
+        }
+        "role_default_permissions" => {
+            let role = payload.get("role").and_then(|v| v.as_str());
+            let permissions_raw = match payload.get("permissions") {
+                Some(serde_json::Value::String(s)) => s.clone(),
+                Some(v) if !v.is_null() => serde_json::to_string(v).unwrap_or_else(|_| "[]".to_string()),
+                _ => "[]".to_string(),
+            };
+            let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
+
+            if let Some(r) = role {
+                let _ = sqlx::query(
+                    "INSERT INTO role_default_permissions (role, permissions, updated_at, updated_by)
+                     VALUES (?, ?, ?, 'system_sync')
+                     ON CONFLICT(role) DO UPDATE SET permissions=excluded.permissions, updated_at=excluded.updated_at, updated_by=excluded.updated_by"
+                )
+                .bind(r)
+                .bind(permissions_raw)
+                .bind(updated_at)
+                .execute(pool).await.map_err(|e| e.to_string())?;
+            }
+        }
         _ => {}
     }
     Ok(())
@@ -1881,13 +2020,11 @@ pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &ser
 
 pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
     use tauri::Emitter;
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         // Delay startup so we don't hammer the network immediately
         tokio::time::sleep(tokio::time::Duration::from_secs(12)).await;
-        let _ = dotenvy::dotenv();
 
-        let supabase_url = std::env::var("SUPABASE_URL").unwrap_or_default();
-        let supabase_key = std::env::var("SUPABASE_KEY").unwrap_or_default();
+        let (supabase_url, supabase_key) = get_supabase_credentials();
 
         if supabase_url.is_empty() || supabase_key.is_empty() {
             println!("⚠️  Pull worker stopped: SUPABASE_URL or SUPABASE_KEY not set.");
@@ -1902,6 +2039,7 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
         println!("📥 Cloud Pull Worker started...");
 
         let tables = vec![
+            "role_default_permissions", "users",
             "customers", "suppliers", 
             "purchase_orders", "po_lines", "purchases", "purchase_lines", "purchase_payments", "purchase_returns", "purchase_return_lines",
             "promos", "promo_bogo_rules", "promo_tiers", "promo_bundle_items",
@@ -1998,26 +2136,11 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
     });
 }
 
-fn get_supabase_credentials() -> Result<(String, String), String> {
-    let _ = dotenvy::dotenv();
-    let supabase_url = env::var("SUPABASE_URL")
-        .or_else(|_| env::var("VITE_SUPABASE_URL"))
-        .map_err(|_| "SUPABASE_URL tidak dikonfigurasi di environment.".to_string())?;
-
-    let supabase_key = env::var("SUPABASE_KEY")
-        .or_else(|_| env::var("SUPABASE_ANON_KEY"))
-        .or_else(|_| env::var("SUPABASE_SERVICE_ROLE_KEY"))
-        .or_else(|_| env::var("VITE_SUPABASE_ANON_KEY"))
-        .map_err(|_| "SUPABASE_KEY tidak dikonfigurasi di environment.".to_string())?;
-
-    Ok((supabase_url, supabase_key))
-}
-
 #[tauri::command]
 pub async fn nuke_cloud_workspace_data(
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<String, String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials()?;
+    let (supabase_url, supabase_key) = get_supabase_credentials();
 
     let workspace_id: Option<String> = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
@@ -2033,6 +2156,7 @@ pub async fn nuke_cloud_workspace_data(
 
     let client = reqwest::Client::new();
     let tables = vec![
+        "role_default_permissions", "users",
         "sale_return_lines", "sale_returns", "sale_payments", "sale_lines", "sales",
         "stock_ledger", "stock_opname_lines", "stock_opname", "purchase_return_lines",
         "purchase_returns", "purchase_payments", "purchase_lines", "purchases",

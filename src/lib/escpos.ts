@@ -11,6 +11,12 @@ export class EscPosBuilder {
     return this;
   }
 
+  /** Kick cash drawer pulse (ESC p <pin> 25 250) */
+  kickDrawer(pin: 0 | 1 = 0) {
+    this.bytes.push(0x1b, 0x70, pin, 25, 250);
+    return this;
+  }
+
   /** Select character font (0 = Font A, 1 = Font B) */
   font(n: 0 | 1) {
     this.bytes.push(0x1b, 0x4d, n);

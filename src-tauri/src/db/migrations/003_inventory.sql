@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS stock_ledger (
     branch_id   TEXT NOT NULL REFERENCES branches(id),
     qty_change  REAL NOT NULL,
     direction   TEXT NOT NULL CHECK (direction IN ('in','out')),
-    source_type TEXT NOT NULL CHECK (source_type IN ('purchase','sale','adjustment','opname','initial')),
+    source_type TEXT NOT NULL CHECK (source_type IN ('purchase','sale','adjustment','opname','initial','purchase_return','sale_return')),
     source_id   TEXT,
     hpp_value   REAL,
     expiry_date TEXT,
