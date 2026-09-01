@@ -94,6 +94,11 @@ const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
     { label: '20%', value: '20' },
     { label: '25%', value: '25' },
   ],
+  openai_model: [
+    { label: 'GPT-4o Mini (Direkomendasikan - Cepat & Hemat)', value: 'gpt-4o-mini' },
+    { label: 'GPT-4o (Paling Cerdas & Akurat)', value: 'gpt-4o' },
+    { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+  ],
 };
 
 // Keys managed separately in the Profil section — hide from General list
@@ -1124,12 +1129,18 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
           />
         ) : (
           <input
-            type="text"
+            type={config.key === 'openai_api_key' ? 'password' : 'text'}
             value={val}
+            placeholder={config.key === 'openai_api_key' ? 'sk-proj-...' : ''}
             onChange={(e) => setVal(e.target.value)}
             disabled={disabled}
             onBlur={() => {
-              if (val !== config.value) onSave(config.key, val);
+              if (val !== config.value) {
+                if (config.key === 'openai_api_key') {
+                  localStorage.setItem('chirasys_openai_api_key', val.trim());
+                }
+                onSave(config.key, val);
+              }
             }}
             className="flex-1 bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
           />

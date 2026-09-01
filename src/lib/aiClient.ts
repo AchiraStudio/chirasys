@@ -1,6 +1,7 @@
 import { aiTools, executeTool } from './aiTools';
 import { useAuthStore, UserInfo } from '../store/AuthStore';
 import { invoke } from '@tauri-apps/api/core';
+import { getSettings } from './api';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -8,6 +9,38 @@ export interface ChatMessage {
   tool_calls?: any[];
   tool_call_id?: string;
   name?: string;
+}
+
+export async function getOpenAIApiKey(): Promise<string> {
+  // 1. Check localStorage
+  const localKey = localStorage.getItem('chirasys_openai_api_key');
+  if (localKey && localKey.trim()) return localKey.trim();
+
+  // 2. Check DB settings
+  try {
+    const settings = await getSettings();
+    const dbKey = settings.find((s: any) => s.key === 'openai_api_key')?.value;
+    if (dbKey && dbKey.trim()) return dbKey.trim();
+  } catch {}
+
+  // 3. Fallback to Vite env
+  const envKey = import.meta.env.VITE_OPENAI_API_KEY;
+  if (envKey && envKey.trim()) return envKey.trim();
+
+  return '';
+}
+
+export async function getSelectedAIModel(): Promise<string> {
+  const localModel = localStorage.getItem('chirasys_ai_model');
+  if (localModel && localModel.trim()) return localModel.trim();
+
+  try {
+    const settings = await getSettings();
+    const dbModel = settings.find((s: any) => s.key === 'openai_model')?.value;
+    if (dbModel && dbModel.trim()) return dbModel.trim();
+  } catch {}
+
+  return 'gpt-4o-mini';
 }
 
 function buildConversationPrompt(messages: ChatMessage[], user: UserInfo, branchId: string): ChatMessage[] {
@@ -31,46 +64,58 @@ Aturan:
 
   const systemMsg = conversation.find(m => m.role === 'system');
   const otherMsgs = conversation.filter(m => m.role !== 'system');
-  const recentMsgs = otherMsgs.slice(-10);
+
+  // Keep last 14 messages while ensuring no orphan tool message at the start of recent list
+  let recentMsgs = otherMsgs.slice(-14);
+  while (recentMsgs.length > 0 && recentMsgs[0].role === 'tool') {
+    recentMsgs.shift();
+  }
+
   return systemMsg ? [systemMsg, ...recentMsgs] : recentMsgs;
 }
 
 async function fetchChatCompletion(conversation: ChatMessage[], apiKey?: string): Promise<any> {
+  const resolvedKey = apiKey || (await getOpenAIApiKey());
+  const selectedModel = await getSelectedAIModel();
+
   try {
     return await invoke('send_ai_chat_request', {
       request: {
-        model: 'gpt-4o',
+        model: selectedModel,
         messages: conversation,
         tools: aiTools,
         tool_choice: 'auto',
-        api_key: apiKey || undefined,
+        api_key: resolvedKey || undefined,
       }
     });
   } catch (tauriError: any) {
-    if (!apiKey) {
-      throw new Error('OpenAI API Key is not configured in the .env file (VITE_OPENAI_API_KEY). ' + (tauriError?.message || String(tauriError)));
+    const errMsg = tauriError?.message || String(tauriError);
+
+    // Fallback: If not invoke error, try browser fetch
+    if (errMsg.includes('Command') && errMsg.includes('not found') && resolvedKey) {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${resolvedKey}`
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: conversation,
+          tools: aiTools,
+          tool_choice: 'auto'
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(`OpenAI Error (${response.status}): ${errData.error?.message || response.statusText}`);
+      }
+
+      return await response.json();
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: conversation,
-        tools: aiTools,
-        tool_choice: 'auto'
-      })
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(`OpenAI Error: ${response.status} ${errData.error?.message || response.statusText}`);
-    }
-
-    return await response.json();
+    throw new Error(errMsg);
   }
 }
 
@@ -110,7 +155,7 @@ export async function sendChatRequest(messages: ChatMessage[], branchId: string)
   const { user } = useAuthStore.getState();
   if (!user) throw new Error('Not logged in');
 
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  const apiKey = await getOpenAIApiKey();
   let conversation = buildConversationPrompt(messages, user, branchId);
 
   const data = await fetchChatCompletion(conversation, apiKey);

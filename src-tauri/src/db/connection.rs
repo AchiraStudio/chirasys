@@ -143,6 +143,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/053_sync_items_and_tiers_triggers.sql"), 53),
         (include_str!("./migrations/054_lan_sync_config.sql"), 54),
         (include_str!("./migrations/055_sync_users_and_permissions.sql"), 55),
+        (include_str!("./migrations/056_openai_settings.sql"), 56),
     ];
 
     for (sql, version) in migrations {

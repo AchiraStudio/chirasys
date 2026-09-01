@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, Minimize2, Maximize2, Trash2, Copy, Check, X, BarChart3, Package, Gift, ArrowRight } from 'lucide-react';
-import { ChatMessage, sendChatRequest } from '../../lib/aiClient';
+import { Send, Bot, User, Loader2, Sparkles, Minimize2, Maximize2, Trash2, Copy, Check, X, BarChart3, Package, Gift, ArrowRight, Key } from 'lucide-react';
+import { ChatMessage, sendChatRequest, getOpenAIApiKey, getSelectedAIModel } from '../../lib/aiClient';
 import * as api from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 
@@ -90,9 +90,44 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [pendingPreview, setPendingPreview] = useState<{items: any[]}|null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const animatedIndices = useRef<Set<number>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      getOpenAIApiKey().then(k => setApiKeyInput(k));
+      getSelectedAIModel().then(m => setSelectedModel(m));
+    }
+  }, [isOpen]);
+
+  const handleSaveAISettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    try {
+      const cleanKey = apiKeyInput.trim();
+      localStorage.setItem('chirasys_openai_api_key', cleanKey);
+      localStorage.setItem('chirasys_ai_model', selectedModel);
+      try {
+        await api.setSetting('openai_api_key', cleanKey);
+        await api.setSetting('openai_model', selectedModel);
+      } catch {}
+      setSettingsSaved(true);
+      setTimeout(() => {
+        setSettingsSaved(false);
+        setShowSettings(false);
+      }, 1200);
+    } catch (err: any) {
+      alert(`Gagal menyimpan pengaturan AI: ${err.message || err}`);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -294,6 +329,13 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
           </div>
 
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 text-slate-400 hover:text-brand bg-slate-50 dark:bg-slate-800/60 hover:bg-brand/10 rounded-xl transition-all"
+              title="Pengaturan OpenAI API Key & Model"
+            >
+              <Key size={15} />
+            </button>
             {visibleMessages.length > 0 && (
               <button
                 onClick={clearHistory}
@@ -319,6 +361,90 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
             </button>
           </div>
         </div>
+
+        {/* Settings Modal Overlay */}
+        {showSettings && (
+          <div className="absolute inset-0 z-30 bg-slate-900/70 backdrop-blur-sm p-6 flex flex-col justify-center animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-[#0B0F19] rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-brand/10 text-brand rounded-xl">
+                    <Key size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Pengaturan OpenAI API</h3>
+                    <p className="text-[11px] text-slate-500">Konfigurasi API Key & Model AI</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveAISettings} className="space-y-3.5">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                    OpenAI API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    placeholder="sk-proj-..."
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    Dapatkan API Key dari platform.openai.com.
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                    Model AI
+                  </label>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+                  >
+                    <option value="gpt-4o-mini">GPT-4o Mini (Direkomendasikan - Cepat & Hemat)</option>
+                    <option value="gpt-4o">GPT-4o (Paling Cerdas & Akurat)</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                  </select>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between">
+                  {settingsSaved ? (
+                    <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
+                      <Check size={14} /> Tersimpan!
+                    </span>
+                  ) : <span />}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowSettings(false)}
+                      className="px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingSettings}
+                      className="px-4 py-2 bg-brand hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      {savingSettings ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      Simpan
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Messages Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-slate-50/40 dark:bg-slate-950/30 custom-scrollbar scroll-smooth">
@@ -442,6 +568,18 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
                       >
                         {copiedIdx === idx ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
                       </button>
+
+                      {/* Direct action button if API Key error */}
+                      {(msg.content?.includes('API Key') || msg.content?.includes('Error') || msg.content?.includes('401') || msg.content?.includes('Unauthorized')) && (
+                        <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center">
+                          <button
+                            onClick={() => setShowSettings(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand/10 hover:bg-brand/20 text-brand text-xs font-bold rounded-xl transition-all cursor-pointer"
+                          >
+                            <Key size={13} /> Atur API Key OpenAI
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>

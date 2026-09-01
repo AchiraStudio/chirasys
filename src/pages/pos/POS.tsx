@@ -46,15 +46,18 @@ export default function POS() {
   const [tierMemberDiscount, setTierMemberDiscount] = useState<number>(0);
   const [tierVipDiscount, setTierVipDiscount] = useState<number>(0);
 
-  // Cart item selection & inline price editing
+  // Cart item selection & inline price / subtotal editing
   const [selectedCartIdx, setSelectedCartIdx] = useState<number>(-1);
   const [editingPriceIdx, setEditingPriceIdx] = useState<number>(-1);
   const [editingPriceVal, setEditingPriceVal] = useState<string>('');
+  const [editingSubtotalIdx, setEditingSubtotalIdx] = useState<number>(-1);
+  const [editingSubtotalVal, setEditingSubtotalVal] = useState<string>('');
 
   // DOM Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
   const totalEditInputRef = useRef<HTMLInputElement>(null);
   const priceEditInputRef = useRef<HTMLInputElement>(null);
+  const subtotalEditInputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const cartItemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -182,6 +185,36 @@ export default function POS() {
     setEditingPriceVal('');
   }, []);
 
+  // Start Line Subtotal Edit
+  const startEditSubtotal = useCallback((idx: number) => {
+    if (idx < 0 || idx >= cart.length) return;
+    const line = cart[idx];
+    if (line.is_bogo_free) return;
+    const currentSubtotal = Math.max(0, (line.qty * line.price) - line.discount_amount);
+    setEditingSubtotalIdx(idx);
+    setEditingSubtotalVal(currentSubtotal.toString());
+    setSelectedCartIdx(idx);
+    setTimeout(() => subtotalEditInputRef.current?.focus(), 50);
+  }, [cart]);
+
+  const commitSubtotalEdit = useCallback(() => {
+    const newSubtotal = parseFloat(editingSubtotalVal);
+    if (!isNaN(newSubtotal) && newSubtotal >= 0 && editingSubtotalIdx >= 0 && editingSubtotalIdx < cart.length) {
+      const line = cart[editingSubtotalIdx];
+      const targetQty = line.qty > 0 ? line.qty : 1;
+      const newUnitPrice = newSubtotal / targetQty;
+      setCart(prev => prev.map((l, i) => i === editingSubtotalIdx ? { ...l, price: newUnitPrice, discount_amount: 0 } : l));
+      setCustomGrandTotal(null);
+    }
+    setEditingSubtotalIdx(-1);
+    setEditingSubtotalVal('');
+  }, [editingSubtotalVal, editingSubtotalIdx, cart]);
+
+  const cancelSubtotalEdit = useCallback(() => {
+    setEditingSubtotalIdx(-1);
+    setEditingSubtotalVal('');
+  }, []);
+
   // Start Grand Total Price Override
   const startEditGrandTotal = useCallback(() => {
     setIsEditingTotal(true);
@@ -225,6 +258,13 @@ export default function POS() {
         return;
       }
 
+      // Handle Line Item Subtotal Edit Mode
+      if (editingSubtotalIdx >= 0) {
+        if (e.key === 'Enter') { e.preventDefault(); commitSubtotalEdit(); }
+        if (e.key === 'Escape') { e.preventDefault(); cancelSubtotalEdit(); }
+        return;
+      }
+
       // F8 or Alt+T: Toggle Grand Total Override
       if (e.key === 'F8' || (e.altKey && (e.key === 't' || e.key === 'T'))) {
         e.preventDefault();
@@ -234,13 +274,25 @@ export default function POS() {
         return;
       }
 
-      // Alt+H: Edit price of selected cart line
+      // Alt+H: Edit unit price of selected cart line
       if (e.altKey && (e.key === 'h' || e.key === 'H')) {
         e.preventDefault();
         if (!isInModal && selectedCartIdx >= 0) {
           startEditPrice(selectedCartIdx);
         } else if (!isInModal && cart.length > 0) {
           startEditPrice(cart.length - 1);
+          setSelectedCartIdx(cart.length - 1);
+        }
+        return;
+      }
+
+      // Alt+S: Edit subtotal of selected cart line
+      if (e.altKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        if (!isInModal && selectedCartIdx >= 0) {
+          startEditSubtotal(selectedCartIdx);
+        } else if (!isInModal && cart.length > 0) {
+          startEditSubtotal(cart.length - 1);
           setSelectedCartIdx(cart.length - 1);
         }
         return;
@@ -336,8 +388,9 @@ export default function POS() {
     return () => window.removeEventListener('keydown', handleKeydown);
   }, [
     cart, holds, showPayment, showCustomerPicker, receiptSaleId, showHistory, 
-    search, selectedCartIdx, editingPriceIdx, editingPriceVal, isEditingTotal, 
-    customTotalInput, startEditPrice, commitPriceEdit, cancelPriceEdit, 
+    search, selectedCartIdx, editingPriceIdx, editingPriceVal, editingSubtotalIdx, 
+    editingSubtotalVal, isEditingTotal, customTotalInput, startEditPrice, commitPriceEdit, 
+    cancelPriceEdit, startEditSubtotal, commitSubtotalEdit, cancelSubtotalEdit, 
     startEditGrandTotal, commitGrandTotalEdit, cancelGrandTotalEdit
   ]);
 
@@ -763,7 +816,8 @@ export default function POS() {
             ['F3', 'Pilih Pelanggan'],
             ['F4', 'Tahan Nota'],
             ['F8 / Alt+T', 'Ubah Total'],
-            ['Alt+H', 'Edit Harga Item'],
+            ['Alt+H', 'Edit Harga'],
+            ['Alt+S', 'Edit Subtotal'],
             ['F7', 'Riwayat Nota'],
             ['End', 'Bayar'],
           ].map(([key, label]) => (
@@ -852,6 +906,7 @@ export default function POS() {
             cart.map((l, idx) => {
               const isSelected = selectedCartIdx === idx;
               const isEditingPrice = editingPriceIdx === idx;
+              const isEditingSubtotal = editingSubtotalIdx === idx;
               return (
                 <div
                   key={`${l.item_id}-${idx}`}
@@ -945,12 +1000,55 @@ export default function POS() {
 
                   {/* Subtotal & Accessible Quantity Steppers */}
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Subtotal</span>
-                      <span className="font-black text-xs sm:text-sm text-brand font-mono">
-                        Rp {((l.qty * l.price) - l.discount_amount).toLocaleString('id-ID')}
-                      </span>
-                    </div>
+                    {isEditingSubtotal ? (
+                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                        <span className="text-[11px] font-bold text-slate-400">Rp</span>
+                        <input
+                          ref={subtotalEditInputRef}
+                          type="number"
+                          value={editingSubtotalVal}
+                          onChange={e => setEditingSubtotalVal(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitSubtotalEdit(); }
+                            if (e.key === 'Escape') { e.preventDefault(); cancelSubtotalEdit(); }
+                          }}
+                          className="w-24 text-xs font-bold px-2 py-1 border-2 border-brand rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white outline-none"
+                          autoFocus
+                        />
+                        <button
+                          onClick={e => { e.stopPropagation(); commitSubtotalEdit(); }}
+                          className="p-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg cursor-pointer"
+                          title="Simpan Subtotal"
+                        >
+                          <Check size={13} />
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); cancelSubtotalEdit(); }}
+                          className="p-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-rose-500 hover:text-white rounded-lg cursor-pointer"
+                          title="Batal"
+                        >
+                          <XIcon size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={e => {
+                          if (!l.is_bogo_free) {
+                            e.stopPropagation();
+                            startEditSubtotal(idx);
+                          }
+                        }}
+                        className={`group/subtotal flex flex-col ${!l.is_bogo_free ? 'cursor-pointer' : ''}`}
+                        title="Klik untuk ubah subtotal item ini"
+                      >
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block group-hover/subtotal:text-brand transition-colors">
+                          Subtotal {!l.is_bogo_free && <Edit3 size={9} className="inline ml-0.5 opacity-60 group-hover/subtotal:opacity-100 text-brand" />}
+                        </span>
+                        <span className="font-black text-xs sm:text-sm text-brand font-mono group-hover/subtotal:underline">
+                          Rp {((l.qty * l.price) - l.discount_amount).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    )}
 
                     {!l.is_bogo_free && (
                       <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">

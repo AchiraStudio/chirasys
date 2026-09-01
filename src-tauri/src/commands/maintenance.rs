@@ -45,9 +45,12 @@ pub async fn export_database(state: State<'_, AppState>, target_path: String) ->
 }
 
 #[tauri::command]
-pub async fn open_devtools(_webview: tauri::WebviewWindow) -> Result<(), String> {
-    #[cfg(debug_assertions)]
-    _webview.open_devtools();
+pub async fn open_devtools(webview: tauri::WebviewWindow) -> Result<(), String> {
+    if webview.is_devtools_open() {
+        webview.close_devtools();
+    } else {
+        webview.open_devtools();
+    }
     Ok(())
 }
 

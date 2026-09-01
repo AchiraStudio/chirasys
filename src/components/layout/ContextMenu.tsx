@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Copy, Navigation, RefreshCw, ClipboardPaste, Code2 } from 'lucide-react';
-import { useAuthStore } from '../../store/AuthStore';
 import { invoke } from '@tauri-apps/api/core';
 
 export default function ContextMenu() {
   const [show, setShow] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
@@ -84,31 +81,20 @@ export default function ContextMenu() {
         <Navigation size={14} className="text-slate-400 -rotate-90" /> Go Back
       </button>
 
-      {isAdmin && (
-        <>
-        <div className="h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
-          <button
-            onClick={async () => {
-              setShow(false);
-              // Try Tauri v2 devtools API first
-              try {
-                await invoke('open_devtools');
-              } catch {
-                try {
-                  // Fallback: simulate F12
-                  const ev = new KeyboardEvent('keydown', { key: 'F12', keyCode: 123, bubbles: true });
-                  document.dispatchEvent(ev);
-                } catch (e2) {
-                  console.log('Open DevTools manually with F12 or Shift+Right-click');
-                }
-              }
-            }}
-            className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
-          >
-            <Code2 size={14} /> Inspect Element
-          </button>
-        </>
-      )}
+      <div className="h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
+      <button
+        onClick={async () => {
+          setShow(false);
+          try {
+            await invoke('open_devtools');
+          } catch (err) {
+            console.error('Failed to open devtools:', err);
+          }
+        }}
+        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors cursor-pointer"
+      >
+        <Code2 size={14} /> Inspect Element
+      </button>
     </div>
   );
 }
