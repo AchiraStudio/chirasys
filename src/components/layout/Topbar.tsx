@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sun, Moon, Bell, Search, Cloud, CloudOff, RefreshCw, ZoomIn, ZoomOut, Sparkles, Radio } from 'lucide-react';
+import { Sun, Moon, Cloud, CloudOff, RefreshCw, ZoomIn, ZoomOut, Sparkles, Radio } from 'lucide-react';
 import { useTheme } from '../ThemeProvider';
 import { useSyncStore } from '../../store/SyncStore';
 import { useZoomStore } from '../../store/ZoomStore';
@@ -56,21 +56,8 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
 
       <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
 
-        {/* Global Search Bar */}
-        <div className="hidden md:flex items-center bg-slate-100/80 dark:bg-slate-900/80 rounded-full px-4 py-2 border border-slate-200 dark:border-slate-800 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all shadow-inner">
-          <Search size={16} className="text-slate-500 mr-2" />
-          <input
-            type="text"
-            placeholder="Search transactions, items..."
-            className="bg-transparent border-none outline-none text-sm w-56 text-slate-900 dark:text-white placeholder-slate-500 focus:ring-0"
-          />
-          <kbd className="hidden lg:inline-block ml-2 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md">
-            ⌘K
-          </kbd>
-        </div>
-
         {/* LAN Mesh Status */}
-        <div className="hidden lg:flex items-center text-xs font-semibold" title={`LAN Mesh: ${lanPeerCount} perangkat terdeteksi di jaringan lokal`}>
+        <div className="hidden sm:flex items-center text-xs font-semibold" title={`LAN Mesh: ${lanPeerCount} perangkat terdeteksi di jaringan lokal`}>
           <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800/60">
             <Radio size={13} className={lanPeerCount > 1 ? "animate-pulse text-emerald-500" : "text-indigo-500"} />
             <span>LAN ({lanPeerCount})</span>
@@ -78,7 +65,7 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
         </div>
 
         {/* Sync Status */}
-        <div className="hidden md:flex items-center text-xs font-semibold" title={lastSyncTime ? `Last sync: ${lastSyncTime.toLocaleTimeString('id-ID')}` : 'Syncing...'}>
+        <div className="hidden sm:flex items-center text-xs font-semibold" title={lastSyncTime ? `Last sync: ${lastSyncTime.toLocaleTimeString('id-ID')}` : 'Syncing...'}>
           {status === 'connected' ? (
             <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-full">
               <Cloud size={14} /> Online
@@ -95,12 +82,6 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
         </div>
 
         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
-
-        {/* Notification Bell */}
-        <button className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
-          <Bell size={20} />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-[#09090b]"></span>
-        </button>
 
         {/* Zoom Controls */}
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full p-1">

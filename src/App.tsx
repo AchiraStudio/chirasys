@@ -43,6 +43,8 @@ function MainContent({
     case 'pos':
       return <POS />;
     case 'inventory':
+    case 'opname':
+    case 'stock-opname':
       return (
         <InventoryPage
           refreshTrigger={refreshTrigger}
@@ -61,6 +63,9 @@ function MainContent({
     case 'customers':
       return <CustomerPromoPage />;
     case 'reports':
+    case 'laporan-penjualan':
+    case 'laporan-item':
+    case 'laporan-metode-pembayaran':
       return <ReportsAccountingPage />;
     case 'settings':
       return <Settings />;
@@ -302,7 +307,7 @@ export default function App() {
         />
         <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50 dark:bg-[#0B0F19]">
           <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
-          <div className={`flex-1 min-h-0 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-4 sm:p-6 lg:p-8'}`}>
+          <div className={`flex-1 min-h-0 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-3 sm:p-4 lg:p-5'}`}>
             <MainContent
               activeMenu={activeMenu}
               setActiveMenu={setActiveMenu}

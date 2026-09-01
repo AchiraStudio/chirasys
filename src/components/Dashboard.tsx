@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp, ShoppingCart, Sparkles, PackageCheck,
   ArrowRight, RefreshCw, Plus, Store, CheckCircle2, ChevronRight,
-  CreditCard, Banknote, Smartphone, ArrowRightLeft, FileSpreadsheet, Eye
+  CreditCard, Banknote, Smartphone, ArrowRightLeft, FileSpreadsheet, Eye, BarChart3
 } from 'lucide-react';
 import {
   getLowStockAlerts, LowStockAlert, getSalesSummary, SalesSummaryRow,
@@ -170,13 +170,13 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
   }, [weeklySummary]);
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar min-h-0 flex flex-col gap-6 animate-in fade-in duration-300 w-full max-w-7xl mx-auto pb-10 pr-1">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar min-h-0 flex flex-col gap-5 animate-in fade-in duration-300 w-full pb-8 pr-1">
       
       {/* ─── 1. EXECUTIVE HEADER ────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-white/70 dark:bg-[#0B0F19]/80 backdrop-blur-md p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-white/70 dark:bg-[#0B0F19]/80 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
               Executive Overview
             </h1>
             <span className="bg-brand/10 text-brand text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5">
@@ -227,7 +227,7 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
           <button
             onClick={() => fetchDashboardData(true)}
             disabled={refreshing}
-            className="p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all disabled:opacity-50"
+            className="p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all disabled:opacity-50 cursor-pointer"
             title="Muat ulang data"
           >
             <RefreshCw size={16} className={refreshing ? 'animate-spin text-brand' : ''} />
@@ -236,7 +236,7 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
       </div>
 
       {/* ─── 2. CORE FINANCIAL KPI CARDS ─────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         
         {/* Total Revenue */}
         <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-white to-transparent dark:from-emerald-500/15 dark:via-[#0B0F19] dark:to-[#0B0F19] p-5 rounded-3xl border border-emerald-500/20 dark:border-emerald-500/20 shadow-sm flex flex-col justify-between group hover:border-emerald-500/40 transition-all">
@@ -313,8 +313,8 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
       </div>
 
       {/* ─── 3. QUICK ACTION SHORTCUTS ──────────────────────────────────── */}
-      <div className="bg-white/80 dark:bg-[#0B0F19]/90 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider pl-2">
+      <div className="bg-white/80 dark:bg-[#0B0F19]/90 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-3 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">
           <Store size={16} className="text-brand" /> Pintasan Cepat:
         </div>
 
@@ -341,14 +341,14 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
           </button>
 
           <button
-            onClick={() => setActiveMenu('opname')}
+            onClick={() => setActiveMenu('inventory')}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer"
           >
             <FileSpreadsheet size={14} className="text-amber-500" /> Stok Opname
           </button>
 
           <button
-            onClick={() => setActiveMenu('laporan-penjualan')}
+            onClick={() => setActiveMenu('reports')}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer"
           >
             <TrendingUp size={14} className="text-purple-500" /> Laporan Penjualan
@@ -357,14 +357,14 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
       </div>
 
       {/* ─── 4. MAIN ANALYTICS GRID (2 COLUMNS) ─────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         
         {/* ─── LEFT COLUMN (7 Cols): Trend & Recent Transactions & Top Items ─── */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-7 space-y-5">
           
           {/* 7-Day Revenue Mini Chart */}
-          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm">
+            <div className="flex justify-between items-center mb-5">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Tren Penjualan 7 Hari Terakhir</h3>
                 <p className="text-xs text-slate-500">Aktivitas omzet dan jumlah transaksi harian</p>
@@ -373,7 +373,10 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
             </div>
 
             {weeklySummary.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400">Belum ada data penjualan dalam 7 hari terakhir.</div>
+              <div className="py-6 text-center text-xs text-slate-400 flex flex-col items-center justify-center gap-2">
+                <BarChart3 size={28} className="text-slate-300 dark:text-slate-700" />
+                <span>Belum ada data penjualan dalam 7 hari terakhir. Mulai transaksi melalui Kasir POS.</span>
+              </div>
             ) : (
               <div className="flex items-end justify-between gap-3 h-36 pt-4 px-2">
                 {weeklySummary.map((day, idx) => {
@@ -403,7 +406,7 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
 
           {/* Recent Transactions Table */}
           <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
               <div>
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Transaksi Kasir Terkini</h3>
                 <p className="text-xs text-slate-500">Struk penjualan terakhir yang diproses</p>
@@ -417,7 +420,10 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
             </div>
 
             {sales.length === 0 ? (
-              <div className="p-10 text-center text-slate-400 text-xs">Belum ada transaksi tercatat.</div>
+              <div className="py-8 px-6 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+                <ShoppingCart size={24} className="text-slate-300 dark:text-slate-700" />
+                <span>Belum ada transaksi tercatat. Tekan Kasir POS untuk membuat transaksi baru.</span>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
@@ -463,14 +469,14 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
           </div>
 
           {/* Top Selling Products Leaderboard */}
-          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-4">
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Top 5 Produk Terlaris</h3>
                 <p className="text-xs text-slate-500">Barang paling diminati berdasarkan volume penjualan</p>
               </div>
               <button
-                onClick={() => setActiveMenu('laporan-item')}
+                onClick={() => setActiveMenu('reports')}
                 className="text-xs font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
               >
                 Semua Produk <ChevronRight size={14} />
@@ -478,7 +484,7 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
             </div>
 
             {topItems.length === 0 ? (
-              <p className="text-center text-xs text-slate-400 py-6">Belum ada data barang terjual pada periode ini.</p>
+              <p className="text-center text-xs text-slate-400 py-4">Belum ada data barang terjual pada periode ini.</p>
             ) : (
               <div className="space-y-3">
                 {topItems.map((item, idx) => {
@@ -514,13 +520,13 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
         </div>
 
         {/* ─── RIGHT COLUMN (5 Cols): Contained Alerts Center & Payment Methods ─── */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-5 space-y-5">
           
           {/* Contained Alerts Center (NO ENDLESS SCROLL!) */}
-          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col max-h-[460px]">
+          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 sm:p-6 flex flex-col max-h-[460px]">
             
             {/* Header & Tabs */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -533,7 +539,7 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
               <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
                 <button
                   onClick={() => setAlertTab('lowStock')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     alertTab === 'lowStock'
                       ? 'bg-white dark:bg-slate-800 text-rose-600 shadow-sm'
                       : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -543,7 +549,7 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
                 </button>
                 <button
                   onClick={() => setAlertTab('expiring')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     alertTab === 'expiring'
                       ? 'bg-white dark:bg-slate-800 text-amber-600 shadow-sm'
                       : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -558,8 +564,8 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
             <div className="flex-1 overflow-y-auto custom-scrollbar pt-3 space-y-2.5 pr-1">
               {alertTab === 'lowStock' ? (
                 lowStockAlerts.length === 0 ? (
-                  <div className="py-12 text-center flex flex-col items-center justify-center">
-                    <CheckCircle2 size={36} className="text-emerald-500 mb-2 opacity-80" />
+                  <div className="py-6 text-center flex flex-col items-center justify-center">
+                    <CheckCircle2 size={32} className="text-emerald-500 mb-1.5 opacity-80" />
                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Semua stok dalam batas aman!</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Tidak ada barang di bawah batas minimum.</p>
                   </div>
@@ -581,8 +587,8 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
                 )
               ) : (
                 expiringAlerts.length === 0 ? (
-                  <div className="py-12 text-center flex flex-col items-center justify-center">
-                    <CheckCircle2 size={36} className="text-emerald-500 mb-2 opacity-80" />
+                  <div className="py-6 text-center flex flex-col items-center justify-center">
+                    <CheckCircle2 size={32} className="text-emerald-500 mb-1.5 opacity-80" />
                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Tidak ada obat mendekati expired!</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Semua batch dalam masa berlaku &gt; 90 hari.</p>
                   </div>
@@ -617,14 +623,14 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
           </div>
 
           {/* Payment Method Distribution */}
-          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-4">
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Metode Pembayaran</h3>
                 <p className="text-xs text-slate-500">Distribusi kas masuk periode ini</p>
               </div>
               <button
-                onClick={() => setActiveMenu('laporan-metode-pembayaran')}
+                onClick={() => setActiveMenu('reports')}
                 className="text-xs font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
               >
                 Detail <ChevronRight size={14} />
@@ -632,7 +638,7 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
             </div>
 
             {paymentMethods.length === 0 ? (
-              <p className="text-center text-xs text-slate-400 py-6">Belum ada pembayaran masuk pada periode ini.</p>
+              <p className="text-center text-xs text-slate-400 py-4">Belum ada pembayaran masuk pada periode ini.</p>
             ) : (
               <div className="space-y-3">
                 {paymentMethods.map(pm => {
