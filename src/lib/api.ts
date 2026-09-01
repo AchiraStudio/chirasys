@@ -385,8 +385,36 @@ export interface LanStatus {
   auto_connect: boolean;
   paired_parent_ip?: string;
   paired_parent_port?: number;
+  paired_parent_name?: string;
+  last_sync_time?: string;
+  last_sync_status?: string;
+  last_sync_error?: string;
   peers_count: number;
   is_server_running: boolean;
+}
+
+export interface LanConnectionTestResult {
+  success: boolean;
+  latency_ms: number;
+  ip_address: string;
+  http_port: number;
+  device_id: string;
+  device_name: string;
+  role: string;
+  workspace_id: string;
+  items_count: number;
+  version: string;
+  server_time: string;
+  error?: string;
+}
+
+export interface LanSyncResult {
+  success: boolean;
+  pushed_count: number;
+  pulled_count: number;
+  latency_ms: number;
+  message: string;
+  synced_at: string;
 }
 
 export const getLanStatus = async (): Promise<LanStatus> => invoke('get_lan_status');
@@ -394,6 +422,13 @@ export const getLanPeers = async (): Promise<LanPeer[]> => invoke('get_lan_peers
 export const setLanRole = async (role: 'parent' | 'child'): Promise<void> => invoke('set_lan_role', { role });
 export const setLanDeviceName = async (name: string): Promise<void> => invoke('set_lan_device_name', { name });
 export const setLanAutoConnect = async (enabled: boolean): Promise<void> => invoke('set_lan_auto_connect', { enabled });
+export const testLanConnection = async (ip: string, port?: number): Promise<LanConnectionTestResult> =>
+  invoke('test_lan_connection', { ip, port: port || null });
+export const connectLanParent = async (parentIp: string, parentPort?: number, parentName?: string): Promise<LanConnectionTestResult> =>
+  invoke('connect_lan_parent', { parentIp, parentPort: parentPort || null, parentName: parentName || null });
+export const disconnectLanParent = async (): Promise<void> => invoke('disconnect_lan_parent');
+export const triggerLanSyncNow = async (): Promise<LanSyncResult> => invoke('trigger_lan_sync_now');
 export const cloneFromParent = async (parentIp: string, parentPort?: number): Promise<number> =>
-  invoke('clone_from_parent', { parentIp, parentPort });
+  invoke('clone_from_parent', { parentIp, parentPort: parentPort || null });
+
 

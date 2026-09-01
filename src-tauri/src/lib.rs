@@ -205,6 +205,10 @@ pub fn run() {
             commands::lan::set_lan_role,
             commands::lan::set_lan_device_name,
             commands::lan::set_lan_auto_connect,
+            commands::lan::connect_lan_parent,
+            commands::lan::disconnect_lan_parent,
+            commands::lan::test_lan_connection,
+            commands::lan::trigger_lan_sync_now,
             commands::lan::clone_from_parent,
         ])
         .run(tauri::generate_context!())

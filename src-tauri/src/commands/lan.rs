@@ -14,7 +14,7 @@ use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr, UdpSocket},
     sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Emitter};
 use tokio::sync::RwLock;
@@ -22,6 +22,41 @@ use tower_http::cors::CorsLayer;
 
 const UDP_DISCOVERY_PORT: u16 = 3698;
 const DEFAULT_HTTP_PORT: u16 = 3699;
+
+pub const SNAPSHOT_TABLES: &[&str] = &[
+    "role_default_permissions",
+    "users",
+    "categories",
+    "brands",
+    "items",
+    "item_units",
+    "item_prices",
+    "item_price_tiers",
+    "customers",
+    "suppliers",
+    "promos",
+    "promo_bogo_rules",
+    "promo_tiers",
+    "promo_bundle_items",
+    "accounts",
+    "journal_entries",
+    "journal_lines",
+    "purchase_orders",
+    "po_lines",
+    "purchases",
+    "purchase_lines",
+    "purchase_payments",
+    "purchase_returns",
+    "purchase_return_lines",
+    "sales",
+    "sale_lines",
+    "sale_payments",
+    "sale_returns",
+    "sale_return_lines",
+    "stock_opname",
+    "stock_opname_lines",
+    "stock_ledger",
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LanPeer {
@@ -46,6 +81,10 @@ pub struct LanStatus {
     pub auto_connect: bool,
     pub paired_parent_ip: Option<String>,
     pub paired_parent_port: Option<u16>,
+    pub paired_parent_name: Option<String>,
+    pub last_sync_time: Option<String>,
+    pub last_sync_status: Option<String>,
+    pub last_sync_error: Option<String>,
     pub peers_count: usize,
     pub is_server_running: bool,
 }
@@ -67,21 +106,7 @@ pub struct DatabaseSnapshot {
     pub device_id: String,
     pub device_name: String,
     pub workspace_id: String,
-    pub categories: Vec<serde_json::Value>,
-    pub brands: Vec<serde_json::Value>,
-    pub items: Vec<serde_json::Value>,
-    pub item_units: Vec<serde_json::Value>,
-    pub item_prices: Vec<serde_json::Value>,
-    pub item_price_tiers: Vec<serde_json::Value>,
-    pub customers: Vec<serde_json::Value>,
-    pub suppliers: Vec<serde_json::Value>,
-    pub promos: Vec<serde_json::Value>,
-    pub promo_bogo_rules: Vec<serde_json::Value>,
-    pub promo_tiers: Vec<serde_json::Value>,
-    pub promo_bundle_items: Vec<serde_json::Value>,
-    pub accounts: Vec<serde_json::Value>,
-    pub stock_ledger: Vec<serde_json::Value>,
-    pub role_default_permissions: Vec<serde_json::Value>,
+    pub tables: HashMap<String, Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,6 +120,32 @@ pub struct PushQueueRequest {
 pub struct PullQueueResponse {
     pub items: Vec<serde_json::Value>,
     pub latest_timestamp: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LanConnectionTestResult {
+    pub success: bool,
+    pub latency_ms: u64,
+    pub ip_address: String,
+    pub http_port: u16,
+    pub device_id: String,
+    pub device_name: String,
+    pub role: String,
+    pub workspace_id: String,
+    pub items_count: i64,
+    pub version: String,
+    pub server_time: String,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LanSyncResult {
+    pub success: bool,
+    pub pushed_count: usize,
+    pub pulled_count: usize,
+    pub latency_ms: u64,
+    pub message: String,
+    pub synced_at: String,
 }
 
 pub type PeerRegistry = Arc<RwLock<HashMap<String, LanPeer>>>;
@@ -124,7 +175,6 @@ pub fn get_local_ip() -> String {
 }
 
 pub fn get_device_unique_id() -> String {
-    // Generate or fetch a stable device identifier
     let hostname = std::env::var("COMPUTERNAME")
         .or_else(|_| std::env::var("HOSTNAME"))
         .unwrap_or_else(|_| "chirasys_node".to_string());
@@ -196,6 +246,11 @@ async fn handle_lan_info(AxumState(ctx): AxumState<ServerContext>) -> Json<serde
         .await
         .unwrap_or(0);
 
+    let sales_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sales WHERE deleted_at IS NULL")
+        .fetch_one(&ctx.pool)
+        .await
+        .unwrap_or(0);
+
     Json(serde_json::json!({
         "app": "chirasys",
         "version": "1.0.0",
@@ -204,6 +259,7 @@ async fn handle_lan_info(AxumState(ctx): AxumState<ServerContext>) -> Json<serde
         "role": role,
         "workspace_id": workspace_id,
         "items_count": items_count,
+        "sales_count": sales_count,
         "timestamp": chrono::Utc::now().to_rfc3339()
     }))
 }
@@ -223,10 +279,11 @@ async fn handle_export_snapshot(
         .unwrap_or_default()
         .unwrap_or_else(|| "Parent Server".to_string());
 
-    // Helper macro / closure to query table rows as generic JSON values
-    async fn fetch_table_json(pool: &SqlitePool, table: &str) -> Vec<serde_json::Value> {
+    let mut tables = HashMap::new();
+
+    for &table in SNAPSHOT_TABLES {
         let sql = format!("SELECT * FROM {}", table);
-        let rows = sqlx::query(&sql).fetch_all(pool).await.unwrap_or_default();
+        let rows = sqlx::query(&sql).fetch_all(&ctx.pool).await.unwrap_or_default();
         let mut list = Vec::new();
         for r in rows {
             let mut obj = serde_json::Map::new();
@@ -247,45 +304,15 @@ async fn handle_export_snapshot(
             }
             list.push(serde_json::Value::Object(obj));
         }
-        list
+        tables.insert(table.to_string(), list);
     }
-
-    let categories = fetch_table_json(&ctx.pool, "categories").await;
-    let brands = fetch_table_json(&ctx.pool, "brands").await;
-    let items = fetch_table_json(&ctx.pool, "items").await;
-    let item_units = fetch_table_json(&ctx.pool, "item_units").await;
-    let item_prices = fetch_table_json(&ctx.pool, "item_prices").await;
-    let item_price_tiers = fetch_table_json(&ctx.pool, "item_price_tiers").await;
-    let customers = fetch_table_json(&ctx.pool, "customers").await;
-    let suppliers = fetch_table_json(&ctx.pool, "suppliers").await;
-    let promos = fetch_table_json(&ctx.pool, "promos").await;
-    let promo_bogo_rules = fetch_table_json(&ctx.pool, "promo_bogo_rules").await;
-    let promo_tiers = fetch_table_json(&ctx.pool, "promo_tiers").await;
-    let promo_bundle_items = fetch_table_json(&ctx.pool, "promo_bundle_items").await;
-    let accounts = fetch_table_json(&ctx.pool, "accounts").await;
-    let stock_ledger = fetch_table_json(&ctx.pool, "stock_ledger").await;
-    let role_default_permissions = fetch_table_json(&ctx.pool, "role_default_permissions").await;
 
     Ok(Json(DatabaseSnapshot {
         timestamp: chrono::Utc::now().to_rfc3339(),
         device_id: get_device_unique_id(),
         device_name,
         workspace_id,
-        categories,
-        brands,
-        items,
-        item_units,
-        item_prices,
-        item_price_tiers,
-        customers,
-        suppliers,
-        promos,
-        promo_bogo_rules,
-        promo_tiers,
-        promo_bundle_items,
-        accounts,
-        stock_ledger,
-        role_default_permissions,
+        tables,
     }))
 }
 
@@ -307,7 +334,9 @@ async fn handle_queue_push(
         }
     }
 
-    let _ = ctx.app_handle.emit("chirasys:sync", ());
+    if applied_count > 0 {
+        let _ = ctx.app_handle.emit("chirasys:sync", ());
+    }
 
     Ok(Json(serde_json::json!({
         "status": "ok",
@@ -439,7 +468,6 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
         loop {
             tokio::time::sleep(Duration::from_millis(200)).await;
 
-            // Non-blocking read from UDP socket
             while let Ok((amt, src)) = socket.recv_from(&mut buf) {
                 if let Ok(packet) = serde_json::from_slice::<LanBeaconPacket>(&buf[..amt]) {
                     if packet.app == "chirasys" {
@@ -491,7 +519,7 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
         }
     });
 
-    // Task C: Background LAN Sync Loop (If child has auto_connect enabled, syncs delta with discovered parent)
+    // Task C: Background LAN Sync Loop
     tauri::async_runtime::spawn(async move {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
@@ -507,6 +535,15 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
                 .unwrap_or_default()
                 .unwrap_or_else(|| "child".to_string());
 
+            if role != "child" {
+                continue;
+            }
+
+            let paired_parent_ip: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_ip' AND value != ''")
+                .fetch_optional(&pool)
+                .await
+                .unwrap_or(None);
+
             let auto_connect_str: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_auto_connect'")
                 .fetch_optional(&pool)
                 .await
@@ -515,95 +552,149 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
 
             let auto_connect = auto_connect_str != "false" && auto_connect_str != "0";
 
-            if role == "child" && auto_connect {
-                // Find online parent in peer registry
-                let parent_opt = {
-                    let peers = PEER_REGISTRY.read().await;
-                    peers.values().find(|p| p.role == "parent" && !p.is_self).cloned()
-                };
-
-                if let Some(parent) = parent_opt {
-                    // Push un-synced queue to Parent
-                    let pending_rows = sqlx::query(
-                        "SELECT id, table_name, record_id, operation, payload FROM sync_queue WHERE synced_at IS NULL AND retry_count < 5 LIMIT 50"
-                    )
-                    .fetch_all(&pool)
+            let target_parent: Option<(String, u16, String)> = if let Some(ip) = paired_parent_ip {
+                let port_str: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_port'")
+                    .fetch_optional(&pool)
                     .await
+                    .unwrap_or_default()
+                    .unwrap_or_else(|| "3699".to_string());
+                let port: u16 = port_str.parse().unwrap_or(DEFAULT_HTTP_PORT);
+                let ws_id: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'workspace_id'")
+                    .fetch_optional(&pool)
+                    .await
+                    .unwrap_or_default()
                     .unwrap_or_default();
+                Some((ip, port, ws_id))
+            } else if auto_connect {
+                let peers = PEER_REGISTRY.read().await;
+                peers.values().find(|p| p.role == "parent" && !p.is_self).map(|p| (p.ip_address.clone(), p.http_port, p.workspace_id.clone()))
+            } else {
+                None
+            };
 
-                    if !pending_rows.is_empty() {
-                        let mut items = Vec::new();
-                        let mut ids_to_mark = Vec::new();
-                        for r in pending_rows {
-                            let q_id: String = r.get("id");
-                            let t_name: String = r.get("table_name");
-                            let p_str: String = r.get("payload");
-                            let p_json: serde_json::Value = serde_json::from_str(&p_str).unwrap_or(serde_json::Value::Null);
+            if let Some((parent_ip, parent_port, parent_ws_id)) = target_parent {
+                let mut sync_success = true;
+                let mut sync_error_msg = None;
 
-                            ids_to_mark.push(q_id);
-                            items.push(serde_json::json!({
-                                "table_name": t_name,
-                                "payload": p_json
-                            }));
-                        }
+                // Push un-synced queue to Parent
+                let pending_rows = sqlx::query(
+                    "SELECT id, table_name, record_id, operation, payload FROM sync_queue WHERE synced_at IS NULL AND retry_count < 5 LIMIT 50"
+                )
+                .fetch_all(&pool)
+                .await
+                .unwrap_or_default();
 
-                        let push_url = format!("http://{}:{}/api/lan/queue/push", parent.ip_address, parent.http_port);
-                        let push_payload = PushQueueRequest {
-                            device_id: get_device_unique_id(),
-                            workspace_id: parent.workspace_id.clone(),
-                            items,
-                        };
+                if !pending_rows.is_empty() {
+                    let mut items = Vec::new();
+                    let mut ids_to_mark = Vec::new();
+                    for r in pending_rows {
+                        let q_id: String = r.get("id");
+                        let t_name: String = r.get("table_name");
+                        let p_str: String = r.get("payload");
+                        let p_json: serde_json::Value = serde_json::from_str(&p_str).unwrap_or(serde_json::Value::Null);
 
-                        if let Ok(res) = client.post(&push_url).json(&push_payload).send().await {
-                            if res.status().is_success() {
-                                for q_id in ids_to_mark {
-                                    let now_ts = chrono::Utc::now().to_rfc3339();
-                                    let _ = sqlx::query("UPDATE sync_queue SET synced_at = ? WHERE id = ?")
-                                        .bind(&now_ts)
-                                        .bind(&q_id)
-                                        .execute(&pool)
-                                        .await;
-                                }
-                            }
-                        }
+                        ids_to_mark.push(q_id);
+                        items.push(serde_json::json!({
+                            "table_name": t_name,
+                            "payload": p_json
+                        }));
                     }
 
-                    // Pull latest queue from Parent
-                    let last_pull_ts: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_last_pull_at'")
-                        .fetch_optional(&pool)
-                        .await
-                        .unwrap_or_default()
-                        .unwrap_or_else(|| "2000-01-01T00:00:00Z".to_string());
+                    let push_url = format!("http://{}:{}/api/lan/queue/push", parent_ip, parent_port);
+                    let push_payload = PushQueueRequest {
+                        device_id: get_device_unique_id(),
+                        workspace_id: parent_ws_id,
+                        items,
+                    };
 
-                    let pull_url = format!("http://{}:{}/api/lan/queue/pull?since={}", parent.ip_address, parent.http_port, last_pull_ts);
-                    if let Ok(res) = client.get(&pull_url).send().await {
-                        if res.status().is_success() {
-                            if let Ok(data) = res.json::<PullQueueResponse>().await {
-                                let mut pulled_any = false;
-                                for item in data.items {
-                                    if let (Some(t_name), Some(row_data)) = (
-                                        item.get("table_name").and_then(|v| v.as_str()),
-                                        item.get("payload"),
-                                    ) {
-                                        if crate::commands::sync::apply_cloud_sync(&pool, t_name, row_data).await.is_ok() {
-                                            pulled_any = true;
-                                        }
+                    match client.post(&push_url).json(&push_payload).send().await {
+                        Ok(res) if res.status().is_success() => {
+                            let now_ts = chrono::Utc::now().to_rfc3339();
+                            for q_id in ids_to_mark {
+                                let _ = sqlx::query("UPDATE sync_queue SET synced_at = ? WHERE id = ?")
+                                    .bind(&now_ts)
+                                    .bind(&q_id)
+                                    .execute(&pool)
+                                    .await;
+                            }
+                        }
+                        Ok(res) => {
+                            sync_success = false;
+                            sync_error_msg = Some(format!("HTTP Push Error: {}", res.status()));
+                        }
+                        Err(e) => {
+                            sync_success = false;
+                            sync_error_msg = Some(format!("Network Push Error: {}", e));
+                        }
+                    }
+                }
+
+                // Pull latest queue from Parent
+                let last_pull_ts: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_last_pull_at'")
+                    .fetch_optional(&pool)
+                    .await
+                    .unwrap_or_default()
+                    .unwrap_or_else(|| "2000-01-01T00:00:00Z".to_string());
+
+                let pull_url = format!("http://{}:{}/api/lan/queue/pull?since={}", parent_ip, parent_port, last_pull_ts);
+                match client.get(&pull_url).send().await {
+                    Ok(res) if res.status().is_success() => {
+                        if let Ok(data) = res.json::<PullQueueResponse>().await {
+                            let mut pulled_any = false;
+                            for item in data.items {
+                                if let (Some(t_name), Some(row_data)) = (
+                                    item.get("table_name").and_then(|v| v.as_str()),
+                                    item.get("payload"),
+                                ) {
+                                    if crate::commands::sync::apply_cloud_sync(&pool, t_name, row_data).await.is_ok() {
+                                        pulled_any = true;
                                     }
                                 }
+                            }
 
-                                if data.latest_timestamp > last_pull_ts {
-                                    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_pull_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-                                        .bind(&data.latest_timestamp)
-                                        .execute(&pool)
-                                        .await;
-                                }
+                            if data.latest_timestamp > last_pull_ts {
+                                let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_pull_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+                                    .bind(&data.latest_timestamp)
+                                    .execute(&pool)
+                                    .await;
+                            }
 
-                                if pulled_any {
-                                    let _ = app_handle.emit("chirasys:sync", ());
-                                }
+                            if pulled_any {
+                                let _ = app_handle.emit("chirasys:sync", ());
                             }
                         }
                     }
+                    Ok(res) => {
+                        sync_success = false;
+                        sync_error_msg = Some(format!("HTTP Pull Error: {}", res.status()));
+                    }
+                    Err(e) => {
+                        sync_success = false;
+                        sync_error_msg = Some(format!("Network Pull Error: {}", e));
+                    }
+                }
+
+                let now_ts = chrono::Utc::now().to_rfc3339();
+                let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_time', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+                    .bind(&now_ts)
+                    .execute(&pool)
+                    .await;
+
+                let status_val = if sync_success { "ok" } else { "error" };
+                let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_status', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+                    .bind(status_val)
+                    .execute(&pool)
+                    .await;
+
+                if let Some(err) = sync_error_msg {
+                    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_error', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+                        .bind(&err)
+                        .execute(&pool)
+                        .await;
+                } else {
+                    let _ = sqlx::query("DELETE FROM global_settings WHERE key = 'lan_last_sync_error'")
+                        .execute(&pool)
+                        .await;
                 }
             }
         }
@@ -636,7 +727,38 @@ pub async fn get_lan_status(state: tauri::State<'_, crate::AppState>) -> Result<
 
     let auto_connect = auto_connect_str != "false" && auto_connect_str != "0";
 
-    let paired_parent_ip: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_ip'")
+    let paired_parent_ip: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_ip' AND value != ''")
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .flatten();
+
+    let paired_parent_port: Option<u16> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_port'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .and_then(|s: String| s.parse().ok())
+        .or(Some(DEFAULT_HTTP_PORT));
+
+    let paired_parent_name: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_name'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .flatten();
+
+    let last_sync_time: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_last_sync_time'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .flatten();
+
+    let last_sync_status: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_last_sync_status'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .flatten();
+
+    let last_sync_error: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_last_sync_error'")
         .fetch_optional(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?
@@ -655,16 +777,35 @@ pub async fn get_lan_status(state: tauri::State<'_, crate::AppState>) -> Result<
         http_port: DEFAULT_HTTP_PORT,
         auto_connect,
         paired_parent_ip,
-        paired_parent_port: Some(DEFAULT_HTTP_PORT),
+        paired_parent_port,
+        paired_parent_name,
+        last_sync_time,
+        last_sync_status,
+        last_sync_error,
         peers_count,
         is_server_running: true,
     })
 }
 
 #[tauri::command]
-pub async fn get_lan_peers() -> Result<Vec<LanPeer>, String> {
+pub async fn get_lan_peers(state: tauri::State<'_, crate::AppState>) -> Result<Vec<LanPeer>, String> {
+    let paired_parent_ip: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_ip' AND value != ''")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None);
+
     let peers = PEER_REGISTRY.read().await;
-    Ok(peers.values().cloned().collect())
+    let mut list = Vec::new();
+    for p in peers.values() {
+        let mut cloned = p.clone();
+        if let Some(ref pip) = paired_parent_ip {
+            if &cloned.ip_address == pip {
+                cloned.is_paired = true;
+            }
+        }
+        list.push(cloned);
+    }
+    Ok(list)
 }
 
 #[tauri::command]
@@ -707,6 +848,315 @@ pub async fn set_lan_auto_connect(enabled: bool, state: tauri::State<'_, crate::
     Ok(())
 }
 
+#[tauri::command]
+pub async fn test_lan_connection(
+    ip: String,
+    port: Option<u16>,
+) -> Result<LanConnectionTestResult, String> {
+    let port = port.unwrap_or(DEFAULT_HTTP_PORT);
+    let trimmed_ip = ip.trim();
+    let url = format!("http://{}:{}/api/lan/info", trimmed_ip, port);
+    let start_time = Instant::now();
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    match client.get(&url).send().await {
+        Ok(res) if res.status().is_success() => {
+            let latency_ms = start_time.elapsed().as_millis() as u64;
+            if let Ok(info) = res.json::<serde_json::Value>().await {
+                Ok(LanConnectionTestResult {
+                    success: true,
+                    latency_ms,
+                    ip_address: trimmed_ip.to_string(),
+                    http_port: port,
+                    device_id: info.get("device_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    device_name: info.get("device_name").and_then(|v| v.as_str()).unwrap_or("Server").to_string(),
+                    role: info.get("role").and_then(|v| v.as_str()).unwrap_or("parent").to_string(),
+                    workspace_id: info.get("workspace_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    items_count: info.get("items_count").and_then(|v| v.as_i64()).unwrap_or(0),
+                    version: info.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string(),
+                    server_time: info.get("timestamp").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    error: None,
+                })
+            } else {
+                Ok(LanConnectionTestResult {
+                    success: false,
+                    latency_ms: start_time.elapsed().as_millis() as u64,
+                    ip_address: trimmed_ip.to_string(),
+                    http_port: port,
+                    device_id: "".to_string(),
+                    device_name: "".to_string(),
+                    role: "".to_string(),
+                    workspace_id: "".to_string(),
+                    items_count: 0,
+                    version: "".to_string(),
+                    server_time: "".to_string(),
+                    error: Some("Format JSON dari Perangkat Induk tidak sesuai".to_string()),
+                })
+            }
+        }
+        Ok(res) => {
+            Ok(LanConnectionTestResult {
+                success: false,
+                latency_ms: start_time.elapsed().as_millis() as u64,
+                ip_address: trimmed_ip.to_string(),
+                http_port: port,
+                device_id: "".to_string(),
+                device_name: "".to_string(),
+                role: "".to_string(),
+                workspace_id: "".to_string(),
+                items_count: 0,
+                version: "".to_string(),
+                server_time: "".to_string(),
+                error: Some(format!("Server merespons status HTTP {}", res.status())),
+            })
+        }
+        Err(e) => {
+            Ok(LanConnectionTestResult {
+                success: false,
+                latency_ms: start_time.elapsed().as_millis() as u64,
+                ip_address: trimmed_ip.to_string(),
+                http_port: port,
+                device_id: "".to_string(),
+                device_name: "".to_string(),
+                role: "".to_string(),
+                workspace_id: "".to_string(),
+                items_count: 0,
+                version: "".to_string(),
+                server_time: "".to_string(),
+                error: Some(format!("Gagal terhubung: {}", e)),
+            })
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn connect_lan_parent(
+    parent_ip: String,
+    parent_port: Option<u16>,
+    parent_name: Option<String>,
+    app_handle: AppHandle,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<LanConnectionTestResult, String> {
+    let port = parent_port.unwrap_or(DEFAULT_HTTP_PORT);
+    let trimmed_ip = parent_ip.trim().to_string();
+
+    let test_res = test_lan_connection(trimmed_ip.clone(), Some(port)).await?;
+    if !test_res.success {
+        return Err(test_res.error.unwrap_or_else(|| "Gagal terhubung ke Perangkat Induk.".to_string()));
+    }
+
+    let name = parent_name.unwrap_or_else(|| test_res.device_name.clone());
+
+    sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_ip', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&trimmed_ip)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_port', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(port.to_string())
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&name)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !test_res.workspace_id.is_empty() {
+        sqlx::query("INSERT INTO global_settings (key, value) VALUES ('workspace_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+            .bind(&test_res.workspace_id)
+            .execute(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    let _ = app_handle.emit("chirasys:lan_status_updated", ());
+    Ok(test_res)
+}
+
+#[tauri::command]
+pub async fn disconnect_lan_parent(
+    app_handle: AppHandle,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<(), String> {
+    for key in &["lan_paired_parent_ip", "lan_paired_parent_port", "lan_paired_parent_name"] {
+        let _ = sqlx::query("DELETE FROM global_settings WHERE key = ?")
+            .bind(key)
+            .execute(&state.db_pool)
+            .await;
+    }
+
+    // Disable auto-connect so it doesn't immediately reconnect
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_auto_connect', 'false') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .execute(&state.db_pool)
+        .await;
+
+    let _ = app_handle.emit("chirasys:lan_status_updated", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn trigger_lan_sync_now(
+    app_handle: AppHandle,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<LanSyncResult, String> {
+    let pool = &state.db_pool;
+    let paired_parent_ip: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_ip' AND value != ''")
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .flatten();
+
+    let (parent_ip, parent_port, parent_ws_id) = if let Some(ip) = paired_parent_ip {
+        let port_str: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_port'")
+            .fetch_optional(pool)
+            .await
+            .unwrap_or_default()
+            .unwrap_or_else(|| "3699".to_string());
+        let port: u16 = port_str.parse().unwrap_or(DEFAULT_HTTP_PORT);
+        let ws_id: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'workspace_id'")
+            .fetch_optional(pool)
+            .await
+            .unwrap_or_default()
+            .unwrap_or_default();
+        (ip, port, ws_id)
+    } else {
+        let peers = PEER_REGISTRY.read().await;
+        if let Some(p) = peers.values().find(|p| p.role == "parent" && !p.is_self) {
+            (p.ip_address.clone(), p.http_port, p.workspace_id.clone())
+        } else {
+            return Err("Tidak ada Perangkat Induk yang terhubung atau terdeteksi di jaringan.".to_string());
+        }
+    };
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let start_time = Instant::now();
+    let mut pushed_count = 0;
+    let mut pulled_count = 0;
+
+    // 1. Push pending queue
+    let pending_rows = sqlx::query(
+        "SELECT id, table_name, record_id, operation, payload FROM sync_queue WHERE synced_at IS NULL AND retry_count < 5 LIMIT 100"
+    )
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+
+    if !pending_rows.is_empty() {
+        let mut items = Vec::new();
+        let mut ids_to_mark = Vec::new();
+        for r in pending_rows {
+            let q_id: String = r.get("id");
+            let t_name: String = r.get("table_name");
+            let p_str: String = r.get("payload");
+            let p_json: serde_json::Value = serde_json::from_str(&p_str).unwrap_or(serde_json::Value::Null);
+
+            ids_to_mark.push(q_id);
+            items.push(serde_json::json!({
+                "table_name": t_name,
+                "payload": p_json
+            }));
+        }
+
+        let push_url = format!("http://{}:{}/api/lan/queue/push", parent_ip, parent_port);
+        let push_payload = PushQueueRequest {
+            device_id: get_device_unique_id(),
+            workspace_id: parent_ws_id,
+            items,
+        };
+
+        let res = client.post(&push_url).json(&push_payload).send().await
+            .map_err(|e| format!("Gagal mengirim data ke Induk: {}", e))?;
+
+        if res.status().is_success() {
+            let now_ts = chrono::Utc::now().to_rfc3339();
+            pushed_count = ids_to_mark.len();
+            for q_id in ids_to_mark {
+                let _ = sqlx::query("UPDATE sync_queue SET synced_at = ? WHERE id = ?")
+                    .bind(&now_ts)
+                    .bind(&q_id)
+                    .execute(pool)
+                    .await;
+            }
+        } else {
+            return Err(format!("Perangkat Induk menolak push data (HTTP {})", res.status()));
+        }
+    }
+
+    // 2. Pull latest delta
+    let last_pull_ts: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_last_pull_at'")
+        .fetch_optional(pool)
+        .await
+        .unwrap_or_default()
+        .unwrap_or_else(|| "2000-01-01T00:00:00Z".to_string());
+
+    let pull_url = format!("http://{}:{}/api/lan/queue/pull?since={}", parent_ip, parent_port, last_pull_ts);
+    let res = client.get(&pull_url).send().await
+        .map_err(|e| format!("Gagal mengambil data dari Induk: {}", e))?;
+
+    if res.status().is_success() {
+        if let Ok(data) = res.json::<PullQueueResponse>().await {
+            for item in &data.items {
+                if let (Some(t_name), Some(row_data)) = (
+                    item.get("table_name").and_then(|v| v.as_str()),
+                    item.get("payload"),
+                ) {
+                    if crate::commands::sync::apply_cloud_sync(pool, t_name, row_data).await.is_ok() {
+                        pulled_count += 1;
+                    }
+                }
+            }
+
+            if data.latest_timestamp > last_pull_ts {
+                let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_pull_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+                    .bind(&data.latest_timestamp)
+                    .execute(pool)
+                    .await;
+            }
+        }
+    }
+
+    let latency_ms = start_time.elapsed().as_millis() as u64;
+    let synced_at = chrono::Utc::now().to_rfc3339();
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_time', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&synced_at)
+        .execute(pool)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_status', 'ok') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .execute(pool)
+        .await;
+
+    let _ = sqlx::query("DELETE FROM global_settings WHERE key = 'lan_last_sync_error'")
+        .execute(pool)
+        .await;
+
+    if pushed_count > 0 || pulled_count > 0 {
+        let _ = app_handle.emit("chirasys:sync", ());
+    }
+
+    Ok(LanSyncResult {
+        success: true,
+        pushed_count,
+        pulled_count,
+        latency_ms,
+        message: format!("Sinkronisasi berhasil: {} terkirim, {} diterima ({} ms)", pushed_count, pulled_count, latency_ms),
+        synced_at,
+    })
+}
+
 /// OVERWRITE & CLONE DATABASE FROM PARENT MACHINE
 #[tauri::command]
 pub async fn clone_from_parent(
@@ -716,12 +1166,13 @@ pub async fn clone_from_parent(
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<usize, String> {
     let port = parent_port.unwrap_or(DEFAULT_HTTP_PORT);
+    let trimmed_ip = parent_ip.trim();
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
         .build()
         .map_err(|e| e.to_string())?;
 
-    let export_url = format!("http://{}:{}/api/lan/export_snapshot", parent_ip, port);
+    let export_url = format!("http://{}:{}/api/lan/export_snapshot", trimmed_ip, port);
     println!("📥 [LAN Clone] Downloading base database from Parent at {}", export_url);
 
     let res = client
@@ -731,7 +1182,7 @@ pub async fn clone_from_parent(
         .map_err(|e| format!("Gagal menghubungi Perangkat Induk ({}): {}", export_url, e))?;
 
     if !res.status().is_success() {
-        return Err(format!("Perangkat Induk mengembalikan status error: {}", res.status()));
+        return Err(format!("Perangkat Induk mengembalikan status error HTTP {}", res.status()));
     }
 
     let snapshot: DatabaseSnapshot = res
@@ -748,74 +1199,53 @@ pub async fn clone_from_parent(
     // Disable foreign key enforcement during full atomic hydration
     let _ = sqlx::query("PRAGMA foreign_keys = OFF;").execute(&mut *tx).await;
 
-    // Helper macro to hydrate table rows
-    async fn replace_table_rows(
-        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-        table: &str,
-        rows: &[serde_json::Value],
-    ) -> Result<usize, String> {
-        // Clear local table
-        let clear_sql = format!("DELETE FROM {}", table);
-        sqlx::query(&clear_sql).execute(&mut **tx).await.map_err(|e| e.to_string())?;
+    for &table in SNAPSHOT_TABLES {
+        if let Some(rows) = snapshot.tables.get(table) {
+            let clear_sql = format!("DELETE FROM {}", table);
+            let _ = sqlx::query(&clear_sql).execute(&mut *tx).await;
 
-        let mut count = 0;
-        for r in rows {
-            if let Some(obj) = r.as_object() {
-                let columns: Vec<String> = obj.keys().cloned().collect();
-                if columns.is_empty() {
-                    continue;
-                }
-                let placeholders = vec!["?"; columns.len()].join(", ");
-                let insert_sql = format!(
-                    "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
-                    table,
-                    columns.join(", "),
-                    placeholders
-                );
+            for r in rows {
+                if let Some(obj) = r.as_object() {
+                    let columns: Vec<String> = obj.keys().cloned().collect();
+                    if columns.is_empty() {
+                        continue;
+                    }
+                    let placeholders = vec!["?"; columns.len()].join(", ");
+                    let insert_sql = format!(
+                        "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
+                        table,
+                        columns.join(", "),
+                        placeholders
+                    );
 
-                let mut q = sqlx::query(&insert_sql);
-                for col in &columns {
-                    match &obj[col] {
-                        serde_json::Value::Null => q = q.bind(None::<String>),
-                        serde_json::Value::Bool(b) => q = q.bind(if *b { 1 } else { 0 }),
-                        serde_json::Value::Number(n) => {
-                            if let Some(i) = n.as_i64() {
-                                q = q.bind(i);
-                            } else if let Some(f) = n.as_f64() {
-                                q = q.bind(f);
-                            } else {
-                                q = q.bind(n.to_string());
+                    let mut q = sqlx::query(&insert_sql);
+                    for col in &columns {
+                        match &obj[col] {
+                            serde_json::Value::Null => q = q.bind(None::<String>),
+                            serde_json::Value::Bool(b) => q = q.bind(if *b { 1 } else { 0 }),
+                            serde_json::Value::Number(n) => {
+                                if let Some(i) = n.as_i64() {
+                                    q = q.bind(i);
+                                } else if let Some(f) = n.as_f64() {
+                                    q = q.bind(f);
+                                } else {
+                                    q = q.bind(n.to_string());
+                                }
                             }
+                            serde_json::Value::String(s) => q = q.bind(s),
+                            other => q = q.bind(other.to_string()),
                         }
-                        serde_json::Value::String(s) => q = q.bind(s),
-                        other => q = q.bind(other.to_string()),
+                    }
+
+                    if q.execute(&mut *tx).await.is_ok() {
+                        total_records_imported += 1;
                     }
                 }
-
-                q.execute(&mut **tx).await.map_err(|e| e.to_string())?;
-                count += 1;
             }
         }
-        Ok(count)
     }
 
-    total_records_imported += replace_table_rows(&mut tx, "categories", &snapshot.categories).await?;
-    total_records_imported += replace_table_rows(&mut tx, "brands", &snapshot.brands).await?;
-    total_records_imported += replace_table_rows(&mut tx, "items", &snapshot.items).await?;
-    total_records_imported += replace_table_rows(&mut tx, "item_units", &snapshot.item_units).await?;
-    total_records_imported += replace_table_rows(&mut tx, "item_prices", &snapshot.item_prices).await?;
-    total_records_imported += replace_table_rows(&mut tx, "item_price_tiers", &snapshot.item_price_tiers).await?;
-    total_records_imported += replace_table_rows(&mut tx, "customers", &snapshot.customers).await?;
-    total_records_imported += replace_table_rows(&mut tx, "suppliers", &snapshot.suppliers).await?;
-    total_records_imported += replace_table_rows(&mut tx, "promos", &snapshot.promos).await?;
-    total_records_imported += replace_table_rows(&mut tx, "promo_bogo_rules", &snapshot.promo_bogo_rules).await?;
-    total_records_imported += replace_table_rows(&mut tx, "promo_tiers", &snapshot.promo_tiers).await?;
-    total_records_imported += replace_table_rows(&mut tx, "promo_bundle_items", &snapshot.promo_bundle_items).await?;
-    total_records_imported += replace_table_rows(&mut tx, "accounts", &snapshot.accounts).await?;
-    total_records_imported += replace_table_rows(&mut tx, "stock_ledger", &snapshot.stock_ledger).await?;
-    total_records_imported += replace_table_rows(&mut tx, "role_default_permissions", &snapshot.role_default_permissions).await?;
-
-    // Record pairing and workspace info
+    // Record pairing, parent name, and workspace info
     if !snapshot.workspace_id.is_empty() {
         let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('workspace_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
             .bind(&snapshot.workspace_id)
@@ -824,7 +1254,17 @@ pub async fn clone_from_parent(
     }
 
     let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_ip', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .bind(&parent_ip)
+        .bind(trimmed_ip)
+        .execute(&mut *tx)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_port', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(port.to_string())
+        .execute(&mut *tx)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&snapshot.device_name)
         .execute(&mut *tx)
         .await;
 
@@ -833,14 +1273,24 @@ pub async fn clone_from_parent(
         .execute(&mut *tx)
         .await;
 
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_time', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&snapshot.timestamp)
+        .execute(&mut *tx)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_status', 'ok') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .execute(&mut *tx)
+        .await;
+
     // Re-enable foreign keys and commit
     let _ = sqlx::query("PRAGMA foreign_keys = ON;").execute(&mut *tx).await;
     tx.commit().await.map_err(|e| e.to_string())?;
 
-    println!("✅ [LAN Clone] Successfully imported {} records from Parent ({}).", total_records_imported, parent_ip);
+    println!("✅ [LAN Clone] Successfully imported {} records from Parent ({}).", total_records_imported, trimmed_ip);
 
-    // Notify UI to refresh state
+    // Notify UI to refresh all states
     let _ = app_handle.emit("chirasys:sync", ());
+    let _ = app_handle.emit("chirasys:lan_status_updated", ());
 
     Ok(total_records_imported)
 }
