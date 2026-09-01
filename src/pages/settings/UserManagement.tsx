@@ -308,6 +308,25 @@ export default function UserManagement() {
   );
 }
 
+function WorkspaceSelect({ value, onChange, workspaces }: { value: string; onChange: (val: string) => void; workspaces: WorkspaceListInfo[] }) {
+  return (
+    <div>
+      <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+      >
+        <option value="">— Tidak di-assign ke workspace —</option>
+        {workspaces.map(ws => (
+          <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
+        ))}
+      </select>
+      <p className="text-[10px] text-slate-400 mt-1">Pilih workspace agar user otomatis terhubung saat login.</p>
+    </div>
+  );
+}
+
 function AddStaffModal({ currentWorkspaceId, onClose, onSuccess }: { currentWorkspaceId?: string | null; onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -332,8 +351,11 @@ function AddStaffModal({ currentWorkspaceId, onClose, onSuccess }: { currentWork
       await invoke('create_user', { name: name.trim(), username: username.trim(), password, role, workspaceId: workspaceId || null });
       onSuccess();
       onClose();
-    } catch (e: any) { setError(e.toString()); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      setError(e.toString());
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -399,20 +421,11 @@ function AddStaffModal({ currentWorkspaceId, onClose, onSuccess }: { currentWork
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
-          <select
-            value={workspaceId}
-            onChange={e => setWorkspaceId(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">— Tidak di-assign ke workspace —</option>
-            {workspaces.map(ws => (
-              <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
-            ))}
-          </select>
-          <p className="text-[10px] text-slate-400 mt-1">Pilih workspace agar user otomatis terhubung saat login.</p>
-        </div>
+        <WorkspaceSelect
+          value={workspaceId}
+          onChange={setWorkspaceId}
+          workspaces={workspaces}
+        />
 
         <div className="flex gap-3 pt-3">
           <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
@@ -521,18 +534,11 @@ function EditUserModal({ user, workspaces, onClose, onSuccess }: { user: UserRow
           </select>
         </div>
 
-        <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
-          <select
-            value={workspaceId} onChange={e => setWorkspaceId(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">— Tidak di-assign ke workspace —</option>
-            {workspaces.map(ws => (
-              <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
-            ))}
-          </select>
-        </div>
+        <WorkspaceSelect
+          value={workspaceId}
+          onChange={setWorkspaceId}
+          workspaces={workspaces}
+        />
 
         <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
           <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Reset Password (Opsional)</label>

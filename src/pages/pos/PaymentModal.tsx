@@ -162,6 +162,28 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
         setAmount(activeMethod, resolved.toString());
     };
 
+    const handleSelectMethod = (methodKey: MethodKey) => {
+        if (methodKey === activeMethod) return;
+
+        const filledMethods = PAYMENT_METHODS.filter(
+            m => evaluateValue(amounts[m.key], lastResolvedAmounts.current[m.key]) > 0
+        );
+
+        // If only 1 method (e.g. the default cash) was filled, transfer the amount to the new method
+        if (filledMethods.length <= 1) {
+            const currentTotal = netTotal > 0 ? netTotal : total;
+            setAmounts({
+                cash: '', transfer: '', debit: '', credit: '', qris: '',
+                [methodKey]: currentTotal.toString(),
+            });
+            lastResolvedAmounts.current = {
+                cash: 0, transfer: 0, debit: 0, credit: 0, qris: 0,
+                [methodKey]: currentTotal,
+            };
+        }
+        setActiveMethod(methodKey);
+    };
+
     const handleClear = () => {
         lastResolvedAmounts.current[activeMethod] = 0;
         setAmount(activeMethod, '');
@@ -237,7 +259,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                     return (
                                         <button
                                             key={method.key}
-                                            onClick={() => setActiveMethod(method.key)}
+                                            onClick={() => handleSelectMethod(method.key)}
                                             className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center gap-2 border transition-all text-center group cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand ${
                                                 isActive 
                                                     ? 'bg-brand/10 border-brand text-brand shadow-sm shadow-brand/10' 

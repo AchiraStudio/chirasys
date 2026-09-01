@@ -22,6 +22,64 @@ import { Package, Loader2 } from 'lucide-react';
 import { useZoomStore } from './store/ZoomStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 
+interface MainContentProps {
+  activeMenu: string;
+  setActiveMenu: (menu: string) => void;
+  refreshTrigger: number;
+  setEditItemId: (id: string | null) => void;
+  setIsDrawerOpen: (open: boolean) => void;
+}
+
+function MainContent({
+  activeMenu,
+  setActiveMenu,
+  refreshTrigger,
+  setEditItemId,
+  setIsDrawerOpen,
+}: MainContentProps) {
+  switch (activeMenu) {
+    case 'dashboard':
+      return <Dashboard setActiveMenu={setActiveMenu} />;
+    case 'pos':
+      return <POS />;
+    case 'inventory':
+      return (
+        <InventoryPage
+          refreshTrigger={refreshTrigger}
+          onEditItem={(itemId: string) => {
+            setEditItemId(itemId);
+            setIsDrawerOpen(true);
+          }}
+          onAddItem={() => {
+            setEditItemId(null);
+            setIsDrawerOpen(true);
+          }}
+        />
+      );
+    case 'purchasing':
+      return <PurchasingPage />;
+    case 'customers':
+      return <CustomerPromoPage />;
+    case 'reports':
+      return <ReportsAccountingPage />;
+    case 'settings':
+      return <Settings />;
+    default:
+      return (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 p-16 text-center h-full flex flex-col items-center justify-center shadow-sm">
+          <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-full mb-6">
+            <Package size={48} className="text-slate-500" />
+          </div>
+          <h3 className="text-2xl font-bold tracking-tight">
+            {activeMenu.charAt(0).toUpperCase() + activeMenu.slice(1)} Module
+          </h3>
+          <p className="text-slate-600">Sedang dalam pengembangan.</p>
+        </div>
+      );
+  }
+}
+
+
 export default function App() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -244,39 +302,29 @@ export default function App() {
         />
         <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50 dark:bg-[#0B0F19]">
           <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
-          <div className={`flex-1 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-3 sm:p-4 lg:p-6'}`}>
-            {activeMenu === 'dashboard' ? <Dashboard setActiveMenu={setActiveMenu} /> :
-              activeMenu === 'pos' ? <POS /> :
-                activeMenu === 'inventory' ? (
-                  <InventoryPage
-                    refreshTrigger={refreshTrigger}
-                    onEditItem={(itemId) => {
-                      setEditItemId(itemId);
-                      setIsDrawerOpen(true);
-                    }}
-                    onAddItem={() => {
-                      setEditItemId(null);
-                      setIsDrawerOpen(true);
-                    }}
-                  />
-                ) :
-                  activeMenu === 'purchasing' ? <PurchasingPage /> :
-                    activeMenu === 'customers' ? <CustomerPromoPage /> :
-                      activeMenu === 'reports' ? <ReportsAccountingPage /> :
-                        activeMenu === 'settings' ? <Settings /> :
-                          (
-                            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 p-16 text-center h-full flex flex-col items-center justify-center shadow-sm">
-                              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-full mb-6"><Package size={48} className="text-slate-500" /></div>
-                              <h3 className="text-2xl font-bold tracking-tight">{activeMenu.charAt(0).toUpperCase() + activeMenu.slice(1)} Module</h3>
-                              <p className="text-slate-600">Sedang dalam pengembangan.</p>
-                            </div>
-                          )}
+          <div className={`flex-1 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-6 md:p-8'}`}>
+            <MainContent
+              activeMenu={activeMenu}
+              setActiveMenu={setActiveMenu}
+              refreshTrigger={refreshTrigger}
+              setEditItemId={setEditItemId}
+              setIsDrawerOpen={setIsDrawerOpen}
+            />
           </div>
-          <ItemDrawer isOpen={isDrawerOpen} onClose={() => { setIsDrawerOpen(false); setEditItemId(null); }} onItemAdded={() => setRefreshTrigger(prev => prev + 1)} editItemId={editItemId} />
-
-
-
-          <AIChat isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} branchId={user.branch_id || 'branch_001'} />
+          <ItemDrawer
+            isOpen={isDrawerOpen}
+            onClose={() => {
+              setIsDrawerOpen(false);
+              setEditItemId(null);
+            }}
+            onItemAdded={() => setRefreshTrigger(prev => prev + 1)}
+            editItemId={editItemId}
+          />
+          <AIChat
+            isOpen={isAIChatOpen}
+            onClose={() => setIsAIChatOpen(false)}
+            branchId={user.branch_id || 'branch_001'}
+          />
         </main>
       </div>
     </div>

@@ -14,3 +14,5 @@ pub mod suppliers;
 pub mod maintenance;
 pub mod admin;
 pub mod lan;
+pub mod ai;
+

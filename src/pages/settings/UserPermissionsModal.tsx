@@ -1,21 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Shield, 
-  Loader2, 
-  Check, 
-  RotateCcw, 
-  Search, 
-  CheckSquare, 
-  Square, 
-  ShoppingCart, 
-  Package, 
-  Truck, 
-  Users, 
-  FileText, 
-  Settings as SettingsIcon,
-  Sparkles,
-  AlertCircle,
-  X
+  Shield, Loader2, Check, RotateCcw, Search, CheckSquare, Square, AlertCircle, X, Sparkles
 } from 'lucide-react';
 import { 
   getPermissionDefinitions, 
@@ -25,21 +10,13 @@ import {
   UserPermissionsPayload
 } from '../../lib/api';
 import Modal from '../../components/ui/Modal';
+import PermissionCategoryList from './PermissionCategoryList';
 
 interface UserPermissionsModalProps {
   userId: string;
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const CATEGORY_ICONS: Record<string, any> = {
-  'Penjualan (POS)': ShoppingCart,
-  'Inventaris & Produk': Package,
-  'Pembelian & Pemasok': Truck,
-  'Pelanggan & Promo': Users,
-  'Laporan & Keuangan': FileText,
-  'Pengaturan & Sistem': SettingsIcon,
-};
 
 export default function UserPermissionsModal({ userId, onClose, onSuccess }: UserPermissionsModalProps) {
   const [loading, setLoading] = useState(true);
@@ -66,7 +43,6 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
         setUserData(userPerms);
         setIsCustom(userPerms.is_custom);
         
-        // If owner, grant all by default
         if (userPerms.role.toLowerCase() === 'owner') {
           setSelectedPerms(new Set(defs.map((d: PermissionDef) => d.key)));
         } else {
@@ -82,49 +58,26 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
     loadData();
   }, [userId]);
 
-  // Group definitions by category
-  const categories = useMemo(() => {
-    const groups: Record<string, PermissionDef[]> = {};
-    for (const def of definitions) {
-      if (!groups[def.category]) {
-        groups[def.category] = [];
-      }
-      if (!searchQuery || 
-          def.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-          def.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          def.description.toLowerCase().includes(searchQuery.toLowerCase())) {
-        groups[def.category].push(def);
-      }
-    }
-    return groups;
-  }, [definitions, searchQuery]);
-
   const handleToggle = (key: string) => {
-    if (userData?.role.toLowerCase() === 'owner') return; // Owner has all perms
-    if (!isCustom) setIsCustom(true);
-
-    const next = new Set(selectedPerms);
-    if (next.has(key)) {
-      next.delete(key);
-    } else {
-      next.add(key);
-    }
-    setSelectedPerms(next);
-  };
-
-  const handleToggleCategory = (categoryName: string) => {
     if (userData?.role.toLowerCase() === 'owner') return;
     if (!isCustom) setIsCustom(true);
 
-    const items = categories[categoryName] || [];
-    const allActive = items.every(i => selectedPerms.has(i.key));
     const next = new Set(selectedPerms);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setSelectedPerms(next);
+  };
 
-    if (allActive) {
-      items.forEach(i => next.delete(i.key));
-    } else {
-      items.forEach(i => next.add(i.key));
-    }
+  const handleToggleCategory = (categoryName: string, enable: boolean) => {
+    if (userData?.role.toLowerCase() === 'owner') return;
+    if (!isCustom) setIsCustom(true);
+
+    const next = new Set(selectedPerms);
+    const catItems = definitions.filter(d => d.category === categoryName);
+    catItems.forEach(d => {
+      if (enable) next.add(d.key);
+      else next.delete(d.key);
+    });
     setSelectedPerms(next);
   };
 
@@ -203,7 +156,7 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
               Batal
             </button>
@@ -211,17 +164,17 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
               type="button"
               disabled={loading || saving || isOwner}
               onClick={handleSave}
-              className="px-6 py-2.5 bg-brand hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand/25 transition-all active:scale-[0.98] flex items-center gap-2"
+              className="px-6 py-2.5 bg-brand hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand/25 transition-all active:scale-[0.98] flex items-center gap-2 cursor-pointer"
             >
               {saving ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Menyimpan...
+                  <span>Menyimpan...</span>
                 </>
               ) : (
                 <>
                   <Check size={16} />
-                  Simpan Hak Akses
+                  <span>Simpan Hak Akses</span>
                 </>
               )}
             </button>
@@ -229,92 +182,96 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
         </div>
       }
     >
-      {/* Content Body */}
       {loading ? (
-        <div className="py-28 flex flex-col items-center justify-center text-slate-500">
-          <Loader2 className="animate-spin text-brand mb-4" size={36} />
-          <p className="text-sm font-medium">Memuat konfigurasi hak akses...</p>
+        <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-500">
+          <Loader2 className="animate-spin text-brand" size={32} />
+          <p className="text-sm font-semibold">Memuat konfigurasi hak akses...</p>
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Status / Alert Banner */}
+          {/* Owner Notice or Mode Banner */}
           {isOwner ? (
-            <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50 flex items-center gap-3">
-              <Sparkles size={20} className="text-purple-600 dark:text-purple-400 shrink-0" />
-              <p className="text-xs text-purple-800 dark:text-purple-300 font-medium">
-                Pengguna ini memiliki peran <strong>Owner / Pemilik</strong> dan otomatis memiliki seluruh hak akses sistem tanpa batas.
+            <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/40 rounded-2xl flex items-center gap-3 text-purple-800 dark:text-purple-300">
+              <Sparkles size={20} className="shrink-0 text-purple-600" />
+              <p className="text-xs leading-relaxed">
+                Pengguna dengan peran <strong>Owner</strong> memiliki akses penuh tanpa batasan pada semua fitur sistem.
               </p>
             </div>
           ) : (
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full ${isCustom ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
-                <div>
-                  <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    Mode Hak Akses: {isCustom ? 'Kustom Khusus' : 'Default Role'}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {isCustom 
-                      ? 'Pengguna ini menggunakan pengaturan izin yang disesuaikan secara khusus.' 
-                      : `Izin mengikuti aturan baku peran "${userData?.role}". Ubah toggle untuk beralih ke mode kustom.`}
-                  </p>
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    Mode Hak Akses:
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                    isCustom 
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300' 
+                      : 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-300'
+                  }`}>
+                    {isCustom ? 'Kustom (Khusus)' : 'Bawaan Peran (Default)'}
+                  </span>
                 </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {isCustom 
+                    ? 'Pengguna ini memiliki izin yang disesuaikan secara manual.'
+                    : `Mengikuti izin standar untuk peran "${userData?.role}".`}
+                </p>
               </div>
 
               {isCustom && (
                 <button
                   type="button"
                   onClick={handleResetToDefault}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors self-start sm:self-auto shrink-0 shadow-sm"
+                  className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-brand hover:border-brand/40 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer shrink-0"
                 >
-                  <RotateCcw size={13} /> Reset ke Role
+                  <RotateCcw size={13} /> Reset ke Default Peran
                 </button>
               )}
             </div>
           )}
 
-          {/* Quick Actions & Search Bar */}
-          {!isOwner && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-              <div className="relative flex-1">
-                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari izin akses (contoh: harga, hapus, pos)..."
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold"
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
+          {/* Search & Bulk Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari izin akses..."
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
 
+            {!isOwner && (
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={handleSelectAll}
-                  className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <CheckSquare size={13} /> Pilih Semua
                 </button>
                 <button
                   type="button"
                   onClick={handleDeselectAll}
-                  className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Square size={13} /> Matikan Semua
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Error Message */}
           {errorMsg && (
             <div className="p-3.5 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" />
@@ -322,107 +279,15 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
             </div>
           )}
 
-          {/* Categories & Switches */}
-          <div className="space-y-6">
-            {Object.entries(categories).map(([catName, items]) => {
-              if (items.length === 0) return null;
-              const Icon = CATEGORY_ICONS[catName] || Shield;
-              const activeCount = items.filter(i => selectedPerms.has(i.key)).length;
-              const allActive = activeCount === items.length;
-
-              return (
-                <div 
-                  key={catName}
-                  className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm transition-colors"
-                >
-                  {/* Category Header */}
-                  <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-brand/10 text-brand">
-                        <Icon size={16} />
-                      </div>
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                        {catName}
-                      </h3>
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                        allActive 
-                          ? 'bg-brand/10 text-brand' 
-                          : activeCount > 0 
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' 
-                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                      }`}>
-                        {activeCount}/{items.length} Aktif
-                      </span>
-                    </div>
-
-                    {!isOwner && (
-                      <button
-                        type="button"
-                        onClick={() => handleToggleCategory(catName)}
-                        className="text-[11px] font-semibold text-brand hover:underline transition-all"
-                      >
-                        {allActive ? 'Matikan Bagian Ini' : 'Aktifkan Semua'}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Permission Items */}
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                    {items.map((def) => {
-                      const isChecked = selectedPerms.has(def.key);
-
-                      return (
-                        <div
-                          key={def.key}
-                          onClick={() => handleToggle(def.key)}
-                          className={`p-4 flex items-center justify-between gap-4 transition-colors cursor-pointer ${
-                            isChecked 
-                              ? 'bg-brand/[0.02] dark:bg-brand/[0.03] hover:bg-brand/[0.04]' 
-                              : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'
-                          }`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                {def.name}
-                              </p>
-                              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                                {def.key}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                              {def.description}
-                            </p>
-                          </div>
-
-                          {/* Switch Toggle */}
-                          <div className="shrink-0">
-                            <button
-                              type="button"
-                              disabled={isOwner}
-                              onClick={(e) => { e.stopPropagation(); handleToggle(def.key); }}
-                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                isChecked 
-                                  ? 'bg-brand' 
-                                  : 'bg-slate-200 dark:bg-slate-700'
-                              } ${isOwner ? 'opacity-70 cursor-not-allowed' : ''}`}
-                            >
-                              <span
-                                aria-hidden="true"
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                                  isChecked ? 'translate-x-5' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {/* Clean Permission Category List */}
+          <PermissionCategoryList
+            definitions={definitions}
+            selectedPerms={selectedPerms}
+            searchQuery={searchQuery}
+            onTogglePerm={handleToggle}
+            onToggleCategory={handleToggleCategory}
+            disabled={isOwner}
+          />
         </div>
       )}
     </Modal>

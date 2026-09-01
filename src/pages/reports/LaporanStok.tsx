@@ -1,10 +1,9 @@
-// src/pages/reports/LaporanStok.tsx
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Loader2, Package, RefreshCw } from 'lucide-react';
+import { Search, Loader2, Package, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { getStockValuation, StockValuationRow, exportStockExcel, getCategories, Category } from '../../lib/api';
 import { downloadCsv } from '../../lib/exportCsv';
 import { save } from '@tauri-apps/plugin-dialog';
-import { FileSpreadsheet } from 'lucide-react';
+import ReportHeader from '../../components/reports/ReportHeader';
 
 interface Props { onBack: () => void; }
 
@@ -46,6 +45,12 @@ export default function LaporanStok({ onBack }: Props) {
     }
   };
 
+  const handleExportCsv = () => {
+    const headers = ['#', 'Nama Item', 'SKU', 'Kategori', 'Satuan', 'Qty Saat Ini', 'HPP Rata-rata', 'Total Nilai'];
+    const rows = filtered.map((r, i) => [i + 1, r.item_name, r.sku, r.category_name || '-', r.unit_name || '-', r.current_qty, r.avg_hpp, r.total_value]);
+    downloadCsv('Laporan_Stok.csv', headers, rows);
+  };
+
   const filtered = data.filter(r => {
     const matchesSearch = r.item_name.toLowerCase().includes(search.toLowerCase()) || r.sku.toLowerCase().includes(search.toLowerCase());
     const matchesCat = !selectedCategory || r.category_name === selectedCategory;
@@ -56,20 +61,24 @@ export default function LaporanStok({ onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-300 h-full">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"><ArrowLeft size={20}/></button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Valuasi Stok</h1>
-            <p className="text-xs text-slate-500">Nilai inventaris berdasarkan HPP rata-rata</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+      <ReportHeader
+        title="Valuasi Stok"
+        subtitle="Nilai inventaris berdasarkan HPP rata-rata"
+        onBack={onBack}
+        onExportCsv={handleExportCsv}
+      >
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari item..."
-              className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari item..."
+              className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+            />
           </div>
+
           <select
             value={selectedCategory}
             onChange={e => setSelectedCategory(e.target.value)}
@@ -80,28 +89,24 @@ export default function LaporanStok({ onBack }: Props) {
               <option key={c.id} value={c.name}>{c.name}</option>
             ))}
           </select>
-          <button onClick={fetchData} className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-          <button 
-            onClick={() => {
-              const headers = ['Item', 'SKU', 'Kategori', 'Satuan', 'Stok', 'HPP Rata-rata', 'Nilai Total'];
-              const rows = filtered.map(r => [r.item_name, r.sku, r.category_name, r.unit_name, r.current_qty, r.avg_hpp, r.total_value]);
-              downloadCsv('Laporan_Stok.csv', headers, rows);
-            }}
-            className="px-4 py-2 bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-100 rounded-xl text-sm font-bold transition-colors border border-slate-200 dark:border-slate-700"
-          >
-            Export CSV
-          </button>
-          <button 
+
+          <button
             onClick={handleExportExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors border border-emerald-200"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors flex items-center gap-1.5"
           >
-            <FileSpreadsheet size={16} />
+            <FileSpreadsheet size={15} />
             Export Excel
           </button>
+
+          <button
+            onClick={fetchData}
+            className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
-      </div>
+      </ReportHeader>
 
       {/* Total Value Banner */}
       <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-6 text-white flex items-center justify-between">

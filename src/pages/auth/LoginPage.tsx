@@ -170,7 +170,10 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">Masuk ke ChiraSys</h1>
-          <p className="text-sm text-slate-500 mt-2 text-center">Modern Inventory & Cashier System</p>
+          <p className="text-sm text-slate-500 mt-2 text-center flex items-center justify-center gap-2">
+            <span>Modern Inventory & Cashier System</span>
+            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-brand/10 text-brand border border-brand/20">v1.2.0</span>
+          </p>
         </div>
 
         {/* Login Form */}

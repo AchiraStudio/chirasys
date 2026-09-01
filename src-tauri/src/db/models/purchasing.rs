@@ -50,7 +50,8 @@ pub struct PoLineInput {
 
 #[derive(Debug, Deserialize)]
 pub struct ReceiveLineInput {
-    pub po_line_id: String,
+    #[serde(default)]
+    pub po_line_id: Option<String>,
     pub item_id: String,
     pub unit_id: String,
     pub qty_received: f64,

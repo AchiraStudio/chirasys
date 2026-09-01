@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-file
 const fs = require('fs');
 let code = fs.readFileSync('src-tauri/src/commands/sync.rs', 'utf8');
 

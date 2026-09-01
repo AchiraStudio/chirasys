@@ -27,25 +27,20 @@ export default function PoDrawer({ isOpen, onClose, onSuccess, branchId }: PoDra
   
   const handleItemSelect = async (tempId: string, itemId: string) => {
     setLines(lines.map(l => l.tempId === tempId ? { ...l, item_id: itemId, unit_id: '' } : l));
-    
     if (!itemId) return;
-    if (!unitCache[itemId]) {
-      try {
-        const fullItem = await getItem(itemId);
-        setUnitCache(prev => ({ ...prev, [itemId]: fullItem.units }));
-        const baseUnit = fullItem.units.find(u => u.is_base) || fullItem.units[0];
-        if (baseUnit) {
-          setLines(curr => curr.map(l => l.tempId === tempId ? { ...l, unit_id: baseUnit.id, price: fullItem.item.avg_hpp || 0 } : l));
-        }
-      } catch (e) {
-        console.error("Failed to load units", e);
-      }
-    } else {
-      const units = unitCache[itemId];
-      const baseUnit = units.find(u => u.is_base) || units[0];
-      if (baseUnit) {
-        setLines(curr => curr.map(l => l.tempId === tempId ? { ...l, unit_id: baseUnit.id } : l));
-      }
+
+    let units = unitCache[itemId];
+    let defaultHpp = 0;
+    if (!units) {
+      const details = await getItem(itemId);
+      units = details.units;
+      defaultHpp = details.item.avg_hpp || 0;
+      setUnitCache(prev => ({ ...prev, [itemId]: details.units }));
+    }
+
+    const baseUnit = units?.find(u => u.is_base === 1) || units?.[0];
+    if (baseUnit) {
+      setLines(current => current.map(l => l.tempId === tempId ? { ...l, unit_id: baseUnit.id, price: l.price || defaultHpp } : l));
     }
   };
 

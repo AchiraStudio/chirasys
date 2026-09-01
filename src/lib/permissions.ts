@@ -25,7 +25,7 @@ export interface UserPermissionsPayload {
 /**
  * Check if a given user has a specific permission key.
  */
-export function hasPermission(user: UserInfo | null | undefined, key: string): boolean {
+function hasPermission(user: UserInfo | null | undefined, key: string): boolean {
   if (!user) return false;
 
   const roleLower = (user.role || '').toLowerCase();
@@ -54,14 +54,6 @@ export function hasPermission(user: UserInfo | null | undefined, key: string): b
   }
 
   return false;
-}
-
-/**
- * React hook to check a permission key against current logged-in user.
- */
-export function usePermission(key: string): boolean {
-  const user = useAuthStore((state) => state.user);
-  return hasPermission(user, key);
 }
 
 /**

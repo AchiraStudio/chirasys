@@ -1,19 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Sliders, 
-  Loader2, 
-  Check, 
-  Search, 
-  CheckSquare, 
-  Square, 
-  ShoppingCart, 
-  Package, 
-  Truck, 
-  Users, 
-  FileText, 
-  Settings as SettingsIcon,
-  AlertCircle,
-  X
+  Sliders, Loader2, Check, Search, CheckSquare, Square, AlertCircle, X
 } from 'lucide-react';
 import { 
   getPermissionDefinitions, 
@@ -23,20 +10,12 @@ import {
   RolePermissionItem
 } from '../../lib/api';
 import Modal from '../../components/ui/Modal';
+import PermissionCategoryList from './PermissionCategoryList';
 
 interface RoleDefaultsModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const CATEGORY_ICONS: Record<string, any> = {
-  'Penjualan (POS)': ShoppingCart,
-  'Inventaris & Produk': Package,
-  'Pembelian & Pemasok': Truck,
-  'Pelanggan & Promo': Users,
-  'Laporan & Keuangan': FileText,
-  'Pengaturan & Sistem': SettingsIcon,
-};
 
 const EDITABLE_ROLES = [
   { value: 'staff', label: 'Staff', desc: 'Kasir, operasional gudang, dan staf penjualan harian' },
@@ -65,16 +44,10 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
         ]);
         setDefinitions(defs);
 
-        const map: Record<string, Set<string>> = {
-          staff: new Set(),
-          admin: new Set(),
-        };
-
+        const map: Record<string, Set<string>> = { staff: new Set(), admin: new Set() };
         defaultsList.forEach((item: RolePermissionItem) => {
           const r = item.role.toLowerCase();
-          if (map[r]) {
-            map[r] = new Set(item.permissions);
-          }
+          if (map[r]) map[r] = new Set(item.permissions);
         });
 
         setRoleDefaults(map);
@@ -90,43 +63,20 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
 
   const currentPerms = roleDefaults[activeRole] || new Set<string>();
 
-  // Group definitions by category
-  const categories = useMemo(() => {
-    const groups: Record<string, PermissionDef[]> = {};
-    for (const def of definitions) {
-      if (!groups[def.category]) {
-        groups[def.category] = [];
-      }
-      if (!searchQuery || 
-          def.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-          def.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          def.description.toLowerCase().includes(searchQuery.toLowerCase())) {
-        groups[def.category].push(def);
-      }
-    }
-    return groups;
-  }, [definitions, searchQuery]);
-
   const handleToggle = (key: string) => {
     const next = new Set(currentPerms);
-    if (next.has(key)) {
-      next.delete(key);
-    } else {
-      next.add(key);
-    }
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
     setRoleDefaults(prev => ({ ...prev, [activeRole]: next }));
   };
 
-  const handleToggleCategory = (categoryName: string) => {
-    const items = categories[categoryName] || [];
-    const allActive = items.every(i => currentPerms.has(i.key));
+  const handleToggleCategory = (categoryName: string, enable: boolean) => {
     const next = new Set(currentPerms);
-
-    if (allActive) {
-      items.forEach(i => next.delete(i.key));
-    } else {
-      items.forEach(i => next.add(i.key));
-    }
+    const catItems = definitions.filter(d => d.category === categoryName);
+    catItems.forEach(d => {
+      if (enable) next.add(d.key);
+      else next.delete(d.key);
+    });
     setRoleDefaults(prev => ({ ...prev, [activeRole]: next }));
   };
 
@@ -195,17 +145,17 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
               type="button"
               disabled={loading || saving}
               onClick={handleSave}
-              className="px-6 py-2.5 bg-brand hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand/25 transition-all active:scale-[0.98] flex items-center gap-2"
+              className="px-6 py-2.5 bg-brand hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand/25 transition-all active:scale-[0.98] flex items-center gap-2 cursor-pointer"
             >
               {saving ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Menyimpan...
+                  <span>Menyimpan...</span>
                 </>
               ) : (
                 <>
                   <Check size={16} />
-                  Simpan Default Peran
+                  <span>Simpan Perubahan</span>
                 </>
               )}
             </button>
@@ -213,40 +163,49 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
         </div>
       }
     >
-      {/* Role Tab Selector */}
-      <div className="pb-5 mb-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center gap-2">
-        {EDITABLE_ROLES.map((r) => {
-          const isActive = activeRole === r.value;
-          return (
-            <button
-              key={r.value}
-              onClick={() => setActiveRole(r.value as any)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                isActive
-                  ? 'bg-brand text-white shadow-md shadow-brand/20'
-                  : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700'
-              }`}
-            >
-              <span>Peran: {r.label}</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
-                isActive ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-900 text-slate-500'
-              }`}>
-                {(roleDefaults[r.value]?.size || 0)} Izin
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Content Body */}
       {loading ? (
-        <div className="py-28 flex flex-col items-center justify-center text-slate-500">
-          <Loader2 className="animate-spin text-brand mb-4" size={36} />
-          <p className="text-sm font-medium">Memuat konfigurasi hak akses peran...</p>
+        <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-500">
+          <Loader2 className="animate-spin text-brand" size={32} />
+          <p className="text-sm font-semibold">Memuat aturan baku hak akses...</p>
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Quick Actions & Search Bar */}
+          {/* Role Tabs */}
+          <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-800">
+            {EDITABLE_ROLES.map((role) => {
+              const isSelected = activeRole === role.value;
+              const count = (roleDefaults[role.value] || new Set()).size;
+
+              return (
+                <button
+                  key={role.value}
+                  type="button"
+                  onClick={() => setActiveRole(role.value as any)}
+                  className={`p-4 rounded-xl text-left transition-all ${
+                    isSelected
+                      ? 'bg-white dark:bg-[#0B0F19] shadow-sm border border-slate-200/80 dark:border-slate-700 text-slate-900 dark:text-white'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-extrabold text-sm capitalize">{role.label}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                      isSelected 
+                        ? 'bg-brand/10 text-brand' 
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                    }`}>
+                      {count} Izin
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                    {role.desc}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search & Bulk Selection Toolbar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <div className="relative flex-1">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -260,7 +219,7 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
                 >
                   <X size={13} />
                 </button>
@@ -271,21 +230,20 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
               <button
                 type="button"
                 onClick={handleSelectAll}
-                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <CheckSquare size={13} /> Pilih Semua
               </button>
               <button
                 type="button"
                 onClick={handleDeselectAll}
-                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Square size={13} /> Matikan Semua
               </button>
             </div>
           </div>
 
-          {/* Error Message */}
           {errorMsg && (
             <div className="p-3.5 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" />
@@ -293,104 +251,14 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
             </div>
           )}
 
-          {/* Categories & Switches */}
-          <div className="space-y-6">
-            {Object.entries(categories).map(([catName, items]) => {
-              if (items.length === 0) return null;
-              const Icon = CATEGORY_ICONS[catName] || Sliders;
-              const activeCount = items.filter(i => currentPerms.has(i.key)).length;
-              const allActive = activeCount === items.length;
-
-              return (
-                <div 
-                  key={catName}
-                  className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm transition-colors"
-                >
-                  {/* Category Header */}
-                  <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-brand/10 text-brand">
-                        <Icon size={16} />
-                      </div>
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                        {catName}
-                      </h3>
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                        allActive 
-                          ? 'bg-brand/10 text-brand' 
-                          : activeCount > 0 
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' 
-                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                      }`}>
-                        {activeCount}/{items.length} Aktif
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggleCategory(catName)}
-                      className="text-[11px] font-semibold text-brand hover:underline transition-all"
-                    >
-                      {allActive ? 'Matikan Bagian Ini' : 'Aktifkan Semua'}
-                    </button>
-                  </div>
-
-                  {/* Permission Items */}
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                    {items.map((def) => {
-                      const isChecked = currentPerms.has(def.key);
-
-                      return (
-                        <div
-                          key={def.key}
-                          onClick={() => handleToggle(def.key)}
-                          className={`p-4 flex items-center justify-between gap-4 transition-colors cursor-pointer ${
-                            isChecked 
-                              ? 'bg-brand/[0.02] dark:bg-brand/[0.03] hover:bg-brand/[0.04]' 
-                              : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'
-                          }`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                {def.name}
-                              </p>
-                              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                                {def.key}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                              {def.description}
-                            </p>
-                          </div>
-
-                          {/* iOS Style Switch Toggle */}
-                          <div className="shrink-0">
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleToggle(def.key); }}
-                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                isChecked 
-                                  ? 'bg-brand' 
-                                  : 'bg-slate-200 dark:bg-slate-700'
-                              }`}
-                            >
-                              <span
-                                aria-hidden="true"
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                                  isChecked ? 'translate-x-5' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {/* Clean Reusable Category List */}
+          <PermissionCategoryList
+            definitions={definitions}
+            selectedPerms={currentPerms}
+            searchQuery={searchQuery}
+            onTogglePerm={handleToggle}
+            onToggleCategory={handleToggleCategory}
+          />
         </div>
       )}
     </Modal>

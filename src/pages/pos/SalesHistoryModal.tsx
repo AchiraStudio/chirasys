@@ -1,12 +1,15 @@
-// Force HMR reload
 import { useState, useEffect, useRef } from 'react';
-import { getSales, getSaleDetail, Sale, SaleDetail } from '../../lib/api';
-import { Loader2, Printer, RotateCcw, Trash2, AlertTriangle, FileText } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { getSales, Sale } from '../../lib/api';
+import { Loader2, Printer, RotateCcw, Trash2, FileText } from 'lucide-react';
 import ReceiptModal from './ReceiptModal';
 import SaleReturnModal from './SaleReturnModal';
-import { usePermissions } from '../../lib/permissions';
+import SaleDetailModal from '../../components/pos/SaleDetailModal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import Modal from '../../components/ui/Modal';
+import { usePermissions } from '../../lib/permissions';
+import { invoke } from '@tauri-apps/api/core';
+
+
 
 interface Props {
   isOpen: boolean;
@@ -208,123 +211,25 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
       )}
 
       {/* Delete Confirm Modal */}
-      {deleteConfirmId && (
-        <Modal
-          isOpen={true}
-          onClose={() => setDeleteConfirmId(null)}
-          size="sm"
-          title="Hapus Transaksi?"
-          subtitle="Tindakan ini tidak dapat dibatalkan."
-          icon={AlertTriangle}
-          iconBg="bg-rose-50 dark:bg-rose-500/10 text-rose-500"
-          footer={
-            <div className="flex gap-3 w-full">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDelete(deleteConfirmId)}
-                disabled={deleting}
-                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
-              >
-                {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                Ya, Hapus
-              </button>
-            </div>
-          }
-        >
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Transaksi <strong className="font-mono">{sales.find(s => s.id === deleteConfirmId)?.transaction_no}</strong> akan dihapus permanen.
+      <ConfirmModal
+        isOpen={Boolean(deleteConfirmId)}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+        title="Hapus Transaksi?"
+        message={
+          <p>
+            Transaksi{' '}
+            <strong className="font-mono">
+              {sales.find(s => s.id === deleteConfirmId)?.transaction_no}
+            </strong>{' '}
+            akan dihapus permanen.
           </p>
-        </Modal>
-      )}
+        }
+        loading={deleting}
+      />
 
       {receiptSaleId && <ReceiptModal saleId={receiptSaleId} onClose={() => setReceiptSaleId(null)} />}
       {returnSaleId && <SaleReturnModal saleId={returnSaleId} onClose={() => { setReturnSaleId(null); fetchSales(); }} />}
     </>
-  );
-}
-
-function SaleDetailModal({ saleId, onClose }: { saleId: string, onClose: () => void }) {
-  const [detail, setDetail] = useState<SaleDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getSaleDetail(saleId)
-      .then(d => setDetail(d))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [saleId]);
-
-  return (
-    <Modal
-      isOpen={true}
-      onClose={onClose}
-      size="2xl"
-      title="Detail Transaksi"
-      subtitle={detail ? `No: ${detail.sale.transaction_no}` : 'Memuat...'}
-      icon={FileText}
-    >
-      {loading ? (
-        <div className="flex justify-center py-10"><Loader2 size={32} className="animate-spin text-brand" /></div>
-      ) : detail ? (
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 uppercase font-semibold text-xs">
-                <tr>
-                  <th className="py-3 px-4 text-left">Item</th>
-                  <th className="py-3 px-4 text-center">Qty</th>
-                  <th className="py-3 px-4 text-right">Harga</th>
-                  <th className="py-3 px-4 text-right">Diskon</th>
-                  <th className="py-3 px-4 text-right">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {detail.lines.map(line => (
-                  <tr key={line.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                    <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
-                      {line.item_name || line.item_id}
-                      <span className="text-slate-400 ml-1">({line.unit_name || line.unit_id})</span>
-                    </td>
-                    <td className="py-3 px-4 text-center text-slate-700 dark:text-slate-300">{line.qty}</td>
-                    <td className="py-3 px-4 text-right text-slate-700 dark:text-slate-300">Rp {line.price.toLocaleString('id-ID')}</td>
-                    <td className="py-3 px-4 text-right text-amber-600 dark:text-amber-400">
-                      {line.discount_amount > 0 ? `-Rp ${line.discount_amount.toLocaleString('id-ID')}` : '-'}
-                    </td>
-                    <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">Rp {line.subtotal.toLocaleString('id-ID')}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-slate-50 dark:bg-slate-800/50 font-bold border-t border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
-                <tr>
-                  <td colSpan={4} className="py-3 px-4 text-right">Total Belanja</td>
-                  <td className="py-3 px-4 text-right text-brand">Rp {detail.sale.grand_total.toLocaleString('id-ID')}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Info Pembayaran</h4>
-            <div className="flex gap-4">
-              {detail.payments.map(p => (
-                <div key={p.id} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 px-4 py-2.5 rounded-xl flex items-center gap-3">
-                  <span className="text-xs font-bold text-slate-500 uppercase">{p.method}</span>
-                  <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">Rp {p.amount.toLocaleString('id-ID')}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="text-center py-10 text-slate-500">Gagal memuat detail transaksi.</div>
-      )}
-    </Modal>
   );
 }

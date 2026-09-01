@@ -1,5 +1,6 @@
 import { aiTools, executeTool } from './aiTools';
-import { useAuthStore } from '../store/AuthStore';
+import { useAuthStore, UserInfo } from '../store/AuthStore';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -9,21 +10,7 @@ export interface ChatMessage {
   name?: string;
 }
 
-/**
- * Send a chat completion request to OpenAI with the current conversation history.
- * If the model returns a tool call, we execute it locally and send the result back (recursive loop).
- */
-export async function sendChatRequest(messages: ChatMessage[], branchId: string): Promise<ChatMessage[]> {
-  const { user } = useAuthStore.getState();
-  if (!user) throw new Error('Not logged in');
-
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('OpenAI API Key is not configured in the .env file (VITE_OPENAI_API_KEY).');
-  }
-
-  // Inject system context if it's the first call and not already present
+function buildConversationPrompt(messages: ChatMessage[], user: UserInfo, branchId: string): ChatMessage[] {
   let conversation = [...messages];
   const hasSystem = conversation.some(m => m.role === 'system');
   if (!hasSystem) {
@@ -42,13 +29,28 @@ Aturan:
     });
   }
 
-  // Prune history to prevent token explosion (keep system prompt + last 10 messages)
   const systemMsg = conversation.find(m => m.role === 'system');
   const otherMsgs = conversation.filter(m => m.role !== 'system');
   const recentMsgs = otherMsgs.slice(-10);
-  conversation = systemMsg ? [systemMsg, ...recentMsgs] : recentMsgs;
+  return systemMsg ? [systemMsg, ...recentMsgs] : recentMsgs;
+}
 
+async function fetchChatCompletion(conversation: ChatMessage[], apiKey?: string): Promise<any> {
   try {
+    return await invoke('send_ai_chat_request', {
+      request: {
+        model: 'gpt-4o',
+        messages: conversation,
+        tools: aiTools,
+        tool_choice: 'auto',
+        api_key: apiKey || undefined,
+      }
+    });
+  } catch (tauriError: any) {
+    if (!apiKey) {
+      throw new Error('OpenAI API Key is not configured in the .env file (VITE_OPENAI_API_KEY). ' + (tauriError?.message || String(tauriError)));
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -56,7 +58,7 @@ Aturan:
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: conversation,
         tools: aiTools,
         tool_choice: 'auto'
@@ -68,58 +70,62 @@ Aturan:
       throw new Error(`OpenAI Error: ${response.status} ${errData.error?.message || response.statusText}`);
     }
 
-    const data = await response.json();
-    const assistantMessage = data.choices[0].message;
-    conversation.push(assistantMessage);
-
-    // If the model called tools, execute them and recurse
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      // Validate that all tool calls have unique IDs
-      const toolCallIds = assistantMessage.tool_calls.map((tc: any) => tc.id);
-      const uniqueIds = new Set(toolCallIds);
-      if (uniqueIds.size !== toolCallIds.length) {
-        throw new Error('Duplicate tool_call_id detected. Please retry.');
-      }
-
-      for (const toolCall of assistantMessage.tool_calls) {
-        if (toolCall.type === 'function') {
-          const functionName = toolCall.function.name;
-          const functionArgs = JSON.parse(toolCall.function.arguments || '{}');
-          
-          let result;
-          try {
-            result = await executeTool(functionName, functionArgs, {
-              branchId,
-              userId: user.id,
-              role: user.role
-            });
-          } catch (execError: any) {
-            result = { error: execError.message || String(execError) };
-          }
-
-          let contentStr = JSON.stringify(result);
-          // Truncate large tool output to prevent token limits
-          if (contentStr.length > 3000) {
-            contentStr = contentStr.substring(0, 3000) + '... (truncated)';
-          }
-
-          conversation.push({
-            role: 'tool',
-            tool_call_id: toolCall.id,
-            name: functionName,
-            content: contentStr
-          });
-        }
-      }
-      
-      return sendChatRequest(conversation, branchId);
-    }
-
-    // No more tool calls, return the final conversation
-    return conversation;
-
-  } catch (error: any) {
-    // Tangani error jaringan atau API
-    throw new Error(error.message || 'Terjadi kesalahan saat menghubungi AI.');
+    return await response.json();
   }
+}
+
+async function processToolCall(toolCall: any, user: UserInfo, branchId: string): Promise<ChatMessage> {
+  const functionName = toolCall.function.name;
+  const functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+  
+  let result;
+  try {
+    result = await executeTool(functionName, functionArgs, {
+      branchId,
+      userId: user.id,
+      role: user.role
+    });
+  } catch (execError: any) {
+    result = { error: execError.message || String(execError) };
+  }
+
+  let contentStr = JSON.stringify(result);
+  if (contentStr.length > 3000) {
+    contentStr = contentStr.substring(0, 3000) + '... (truncated)';
+  }
+
+  return {
+    role: 'tool',
+    tool_call_id: toolCall.id,
+    name: functionName,
+    content: contentStr
+  };
+}
+
+/**
+ * Send a chat completion request to OpenAI with the current conversation history.
+ * If the model returns a tool call, we execute it locally and send the result back (recursive loop).
+ */
+export async function sendChatRequest(messages: ChatMessage[], branchId: string): Promise<ChatMessage[]> {
+  const { user } = useAuthStore.getState();
+  if (!user) throw new Error('Not logged in');
+
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  let conversation = buildConversationPrompt(messages, user, branchId);
+
+  const data = await fetchChatCompletion(conversation, apiKey);
+  const assistantMessage = data.choices[0].message;
+  conversation.push(assistantMessage);
+
+  if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+    for (const toolCall of assistantMessage.tool_calls) {
+      if (toolCall.type === 'function') {
+        const toolMsg = await processToolCall(toolCall, user, branchId);
+        conversation.push(toolMsg);
+      }
+    }
+    return sendChatRequest(conversation, branchId);
+  }
+
+  return conversation;
 }

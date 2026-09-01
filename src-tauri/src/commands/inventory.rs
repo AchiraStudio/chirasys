@@ -50,7 +50,7 @@ pub async fn get_stock_overview(
     let mapped_rows = rows
         .into_iter()
         .map(|mut r| {
-            r.is_low_stock = r.current_qty <= r.min_stock;
+            r.is_low_stock = (r.min_stock > 0.0 && r.current_qty <= r.min_stock) || r.current_qty < 0.0;
             r
         })
         .collect();

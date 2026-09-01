@@ -29,7 +29,7 @@ pub async fn get_items_filtered(
                (SELECT id FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_id,
                (SELECT unit_name FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_name,
                (SELECT name FROM categories WHERE id = items.category_id) as category_name,
-               0.0 as avg_hpp
+               COALESCE((SELECT sl.hpp_value FROM stock_ledger sl WHERE sl.item_id = items.id AND sl.hpp_value IS NOT NULL AND sl.hpp_value > 0 ORDER BY sl.created_at DESC LIMIT 1), 0.0) as avg_hpp
         FROM items WHERE 1=1
     "#,
     );
@@ -157,7 +157,7 @@ pub async fn get_item(id: String, state: State<'_, AppState>) -> Result<ItemDeta
                (SELECT price FROM item_prices WHERE item_id = items.id AND customer_tier = 'regular' LIMIT 1) as price,
                (SELECT id FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_id,
                (SELECT unit_name FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_name,
-               0.0 as avg_hpp
+               COALESCE((SELECT sl.hpp_value FROM stock_ledger sl WHERE sl.item_id = items.id AND sl.hpp_value IS NOT NULL AND sl.hpp_value > 0 ORDER BY sl.created_at DESC LIMIT 1), 0.0) as avg_hpp
         FROM items WHERE id = ?
     "#;
     let item = sqlx::query_as::<_, Item>(query_str)
@@ -417,7 +417,7 @@ async fn get_item_by_id(id: &str, state: &State<'_, AppState>) -> Result<Item, S
                (SELECT price FROM item_prices WHERE item_id = items.id AND customer_tier = 'regular' LIMIT 1) as price,
                (SELECT id FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_id,
                (SELECT unit_name FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_name,
-               0.0 as avg_hpp
+               COALESCE((SELECT sl.hpp_value FROM stock_ledger sl WHERE sl.item_id = items.id AND sl.hpp_value IS NOT NULL AND sl.hpp_value > 0 ORDER BY sl.created_at DESC LIMIT 1), 0.0) as avg_hpp
         FROM items WHERE id = ?
     "#;
     sqlx::query_as::<_, Item>(query_str)

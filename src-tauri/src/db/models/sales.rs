@@ -16,6 +16,8 @@ pub struct Sale {
     pub price_type: String,
     pub notes: Option<String>,
     pub created_at: String,
+    #[sqlx(default)]
+    pub total_cogs: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]

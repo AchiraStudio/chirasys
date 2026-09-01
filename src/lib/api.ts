@@ -1,12 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 
 // --- Sales Types ---
-export interface Sale { id: string; transaction_no: string; branch_id: string; customer_id?: string; user_id?: string; total_amount: number; discount_amount: number; tax_amount: number; grand_total: number; status: string; price_type: 'retail' | 'wholesale'; notes?: string; created_at: string; }
+export interface Sale { id: string; transaction_no: string; branch_id: string; customer_id?: string; user_id?: string; total_amount: number; discount_amount: number; tax_amount: number; grand_total: number; status: string; price_type: 'retail' | 'wholesale'; notes?: string; created_at: string; total_cogs?: number; }
 export interface SaleLineInput { item_id: string; unit_id: string; qty: number; price_type: string; price: number; discount_amount: number; hpp_value: number; }
 export interface SalePaymentInput { amount: number; method: string; reference?: string; }
 export interface CreateSaleInput { branch_id: string; customer_id?: string; user_id?: string; total_amount: number; discount_amount: number; tax_amount: number; grand_total: number; price_type: string; notes?: string; lines: SaleLineInput[]; payments: SalePaymentInput[]; }
 export const createSale = async (input: CreateSaleInput): Promise<string> => invoke('create_sale', { input });
-export const getNextTransactionNo = async (branchId: string): Promise<string> => invoke('get_next_transaction_no', { branchId });
 export const getSales = async (branchId: string, customerId?: string): Promise<Sale[]> => invoke('get_sales', { branchId, customerId: customerId || null });
 
 export interface SaleLine { id: string; sale_id: string; item_id: string; item_name?: string; unit_id: string; unit_name?: string; qty: number; price_type: string; price: number; discount_amount: number; subtotal: number; hpp_value: number; notes?: string; }
@@ -67,7 +66,7 @@ export interface PoLine {
     price_estimate: number; 
 }
 export interface PoLineInput { item_id: string; unit_id: string; qty: number; price: number; }
-export interface ReceiveLineInput { po_line_id: string; item_id: string; unit_id: string; qty_received: number; price_per_unit: number; expiry_date?: string; batch_no?: string; }
+export interface ReceiveLineInput { po_line_id?: string; item_id: string; unit_id: string; qty_received: number; price_per_unit: number; expiry_date?: string; batch_no?: string; }
 export const cancelPurchaseOrder = async (id: string): Promise<void> => invoke('cancel_purchase_order', { id });
 
 export interface Purchase {
@@ -178,7 +177,6 @@ export const finalizeOpname = async (opnameId: string): Promise<void> => invoke(
 export const getSuppliers = async (search: string = '', activeOnly: boolean = false): Promise<Supplier[]> => invoke('get_suppliers', { search: search || null, activeOnly });
 export const addSupplier = async (name: string, contactPerson?: string, phone?: string, email?: string, address?: string, paymentTerms?: string, notes?: string): Promise<Supplier> => invoke('add_supplier', { name, contactPerson: contactPerson || null, phone: phone || null, email: email || null, address: address || null, paymentTerms: paymentTerms || null, notes: notes || null });
 export const updateSupplier = async (id: string, name: string, contactPerson?: string, phone?: string, email?: string, address?: string, paymentTerms?: string, notes?: string): Promise<Supplier> => invoke('update_supplier', { id, name, contactPerson: contactPerson || null, phone: phone || null, email: email || null, address: address || null, paymentTerms: paymentTerms || null, notes: notes || null });
-export const toggleSupplierActive = async (id: string): Promise<void> => invoke('toggle_supplier_active', { id });
 
 export const getCustomers = async (search: string = '', tier: string = '', activeOnly: boolean = false): Promise<Customer[]> => invoke('get_customers', { search: search || null, tier: tier || null, activeOnly });
 export const addCustomer = async (name: string, phone?: string, email?: string, address?: string, region?: string, customerTier: string = 'regular', notes?: string, membershipExpiry?: string): Promise<Customer> => invoke('add_customer', { name, phone: phone || null, email: email || null, address: address || null, region: region || null, customerTier, notes: notes || null, membershipExpiry: membershipExpiry || null });
@@ -190,6 +188,7 @@ export const getPurchaseOrders = async (branchId: string): Promise<PurchaseOrder
 export const getPoLines = async (poId: string): Promise<PoLine[]> => invoke('get_po_lines', { poId });
 export const createPurchaseOrder = async (branchId: string, supplierId: string, expectedDate: string | null, notes: string | null, lines: PoLineInput[]): Promise<string> => invoke('create_purchase_order', { branchId, supplierId, expectedDate, notes, lines });
 export const receiveGoods = async (poId: string, branchId: string, supplierId: string, invoiceNo: string | null, lines: ReceiveLineInput[]): Promise<string> => invoke('receive_goods', { poId, branchId, supplierId, invoiceNo, lines });
+export const receiveGoodsDirect = async (branchId: string, supplierId: string, invoiceNo: string | null, lines: ReceiveLineInput[]): Promise<string> => invoke('receive_goods_direct', { branchId, supplierId, invoiceNo, lines });
 
 export const getPurchases = async (branchId: string, supplierId?: string, status?: string): Promise<Purchase[]> =>
   invoke('get_purchases', { branchId, supplierId: supplierId || null, status: status || null });
@@ -235,15 +234,14 @@ export const cashIn = async (accountId: string, cashAccountId: string, amount: n
   invoke('cash_in', { accountId, cashAccountId, amount, description, branchId: branchId || null });
 export const cashOut = async (accountId: string, cashAccountId: string, amount: number, description: string, branchId?: string): Promise<string> =>
   invoke('cash_out', { accountId, cashAccountId, amount, description, branchId: branchId || null });
-// --- Phase 8 Banks & Settings ---
-export interface Bank { id: string; name: string; code: string; is_active: number; }
-export const getBanks = async (): Promise<Bank[]> => invoke('get_banks');
+// --- Phase 8 Settings ---
 export const getSettings = async (): Promise<{ key: string; value: string; description?: string }[]> => invoke('get_settings');
 export const setSetting = async (key: string, value: string): Promise<void> => invoke('set_setting', { key, value });
 
 // --- Phase 10: Excel Exports & Maintenance ---
 export const exportItemsExcel = async (filePath: string): Promise<string> => invoke('export_items_excel', { filePath });
 export const exportStockExcel = async (filePath: string): Promise<string> => invoke('export_stock_excel', { filePath });
+// fallow-ignore-next-line unused-export
 export const exportSalesExcel = async (filePath: string): Promise<string> => invoke('export_sales_excel', { filePath });
 export const optimizeDatabase = async (): Promise<string> => invoke('optimize_database');
 export const exportDatabase = async (targetPath: string): Promise<string> => invoke('export_database', { targetPath });
@@ -261,7 +259,7 @@ export interface DetectedPrinterInfo {
 export const listPrinters = async (): Promise<DetectedPrinterInfo[]> => invoke('list_printers');
 export const kickCashDrawer = async (printerName: string): Promise<string> => invoke('kick_cash_drawer', { printerName });
 export const printRawReceipt = async (printerName: string, bytes: number[]): Promise<string> => invoke('print_raw_receipt', { printerName, bytes });
-export const openCashDrawerLegacy = async (): Promise<string> => invoke('open_cash_drawer');
+
 
 // --- Phase 8 Report Types ---
 export interface SalesSummaryRow { period_label: string; transaction_count: number; total_revenue: number; total_discount: number; total_cogs: number; gross_profit: number; }
@@ -291,6 +289,103 @@ export const getPurchaseSummary = async (branchId: string, dateFrom: string, dat
 export const getCustomerReport = async (branchId: string, dateFrom: string, dateTo: string, limit: number = 20): Promise<CustomerReportRow[]> =>
   invoke('get_customer_report', { branchId, dateFrom, dateTo, limit });
 
+// --- Detailed Sales Reporting API (Overhaul) ---
+export interface SalesReportFilterInput {
+  branch_id: string;
+  date_from?: string;
+  date_to?: string;
+  tx_from?: string;
+  tx_to?: string;
+  customer_id?: string;
+  user_id?: string;
+  payment_method?: string;
+  category_id?: string;
+  price_type?: string;
+}
+
+export interface SalesRecapReportRow {
+  sale_id: string;
+  transaction_no: string;
+  created_at: string;
+  status: string;
+  price_type: string;
+  customer_name: string;
+  customer_tier: string;
+  cashier_name: string;
+  total_amount: number;
+  discount_amount: number;
+  tax_amount: number;
+  grand_total: number;
+  total_cogs: number;
+  gross_profit: number;
+  gross_margin: number;
+  payment_methods: string;
+  total_items: number;
+}
+
+export interface SalesLineReportRow {
+  sale_id: string;
+  transaction_no: string;
+  created_at: string;
+  status: string;
+  price_type: string;
+  customer_name: string;
+  cashier_name: string;
+  line_id: string;
+  item_id: string;
+  item_name: string;
+  sku: string;
+  category_name: string;
+  qty: number;
+  unit_name: string;
+  price: number;
+  line_discount: number;
+  subtotal: number;
+  hpp_value: number;
+  line_cogs: number;
+  line_profit: number;
+  payment_methods: string;
+}
+
+export interface CashierSalesReportRow {
+  user_id: string;
+  cashier_name: string;
+  role: string;
+  transaction_count: number;
+  total_cash: number;
+  total_non_cash: number;
+  total_revenue: number;
+  total_discount: number;
+  total_cogs: number;
+  gross_profit: number;
+}
+
+export interface DailySalesRecapRow {
+  date: string;
+  date_label: string;
+  transaction_count: number;
+  total_cash: number;
+  total_non_cash: number;
+  total_revenue: number;
+  total_discount: number;
+  total_cogs: number;
+  gross_profit: number;
+  gross_margin: number;
+}
+
+export const getSalesRecapReport = async (filter: SalesReportFilterInput): Promise<SalesRecapReportRow[]> =>
+  invoke('get_sales_recap_report', { filter });
+
+export const getDetailedSalesLines = async (filter: SalesReportFilterInput): Promise<SalesLineReportRow[]> =>
+  invoke('get_detailed_sales_lines', { filter });
+
+export const getSalesByCashierSummary = async (filter: SalesReportFilterInput): Promise<CashierSalesReportRow[]> =>
+  invoke('get_sales_by_cashier_summary', { filter });
+
+export const getDailySalesRecap = async (filter: SalesReportFilterInput): Promise<DailySalesRecapRow[]> =>
+  invoke('get_daily_sales_recap', { filter });
+
+
 // --- Phase 9 Excel Import ---
 export interface ImportResult { success: boolean; rows_imported: number; errors: string[]; }
 export const importItemsExcel = async (filePath: string): Promise<ImportResult> => invoke('import_items_excel', { filePath });
@@ -315,10 +410,7 @@ export interface SyncStatus {
   last_synced: string | null;
   auto_sync: boolean;
 }
-export const joinWorkspace = async (codeOrToken: string, password?: string): Promise<WorkspaceInfo> =>
-  invoke('join_workspace', { codeOrToken, password: password || null });
-export const createWorkspace = async (name: string, code: string): Promise<WorkspaceInfo> =>
-  invoke('create_workspace', { name, code });
+// fallow-ignore-next-line unused-export
 export const createWorkspaceInvite = async (role: string, email?: string): Promise<string> =>
   invoke('create_workspace_invite', { role, email: email || null });
 export const getSyncStatus = async (): Promise<SyncStatus> =>
@@ -340,6 +432,7 @@ export const sysadminGetWorkspaces = async (): Promise<WorkspaceListInfo[]> =>
   invoke('sysadmin_get_workspaces');
 export const sysadminCreateWorkspace = async (name: string, code: string): Promise<WorkspaceInfo> =>
   invoke('sysadmin_create_workspace', { name, code });
+// fallow-ignore-next-line unused-export
 export const sysadminCreateWorkspaceInvite = async (workspaceId: string, role: string): Promise<string> =>
   invoke('sysadmin_create_workspace_invite', { workspaceId, role });
 export const sysadminUpdateWorkspacePassword = async (workspaceId: string, password?: string): Promise<void> =>

@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-file
 const fs = require('fs');
 
 const code = `

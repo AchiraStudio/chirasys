@@ -372,6 +372,9 @@ export default function Settings() {
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-brand/10 text-brand border border-brand/20 flex items-center gap-1.5">
               <SettingsIcon size={13} /> Control Panel
             </span>
+            <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+              v1.2.0
+            </span>
             {syncStatus?.workspace_name && (
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
                 <Globe size={13} /> {syncStatus.workspace_name}

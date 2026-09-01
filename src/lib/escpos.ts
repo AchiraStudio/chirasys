@@ -18,6 +18,7 @@ export class EscPosBuilder {
   }
 
   /** Select character font (0 = Font A, 1 = Font B) */
+  // fallow-ignore-next-line unused-class-member
   font(n: 0 | 1) {
     this.bytes.push(0x1b, 0x4d, n);
     return this;
@@ -36,7 +37,7 @@ export class EscPosBuilder {
     return this;
   }
 
-  /** Set text size multiplier (1 to 8) */
+  // fallow-ignore-next-line unused-class-member
   size(width: number, height: number) {
     const w = Math.max(1, Math.min(8, width)) - 1;
     const h = Math.max(1, Math.min(8, height)) - 1;

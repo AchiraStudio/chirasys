@@ -155,12 +155,14 @@ pub async fn receive_goods(
         .bind(&purchase_id).bind(new_hpp).bind(&line.expiry_date).bind(&line.batch_no).bind(&notes)
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
-        sqlx::query("UPDATE po_lines SET qty_received = qty_received + ? WHERE id = ?")
-            .bind(line.qty_received)
-            .bind(&line.po_line_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| e.to_string())?;
+        if let Some(ref po_line_id) = line.po_line_id {
+            sqlx::query("UPDATE po_lines SET qty_received = qty_received + ? WHERE id = ?")
+                .bind(line.qty_received)
+                .bind(po_line_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
     }
 
     let unfulfilled_lines: i64 = sqlx::query_scalar(
@@ -197,6 +199,113 @@ pub async fn receive_goods(
                 &purchase_id,
                 Some(&branch_id),
                 &format!("Penerimaan Barang PO {}", po_id),
+                vec![
+                    (inv_id.as_str(), total_amount, 0.0, None),
+                    (ap_id.as_str(), 0.0, total_amount, None),
+                ]
+            ).await?;
+        }
+    }
+
+    tx.commit().await.map_err(|e| e.to_string())?;
+
+    Ok(purchase_id)
+}
+
+#[tauri::command]
+pub async fn receive_goods_direct(
+    branch_id: String,
+    supplier_id: String,
+    invoice_no: Option<String>,
+    lines: Vec<ReceiveLineInput>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    if lines.is_empty() {
+        return Err("Harus memasukkan minimal 1 item pembelian.".to_string());
+    }
+
+    let purchase_id = Uuid::new_v4().to_string();
+    let mut total_amount = 0.0;
+
+    for line in &lines {
+        total_amount += line.qty_received * line.price_per_unit;
+    }
+
+    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+
+    sqlx::query("INSERT INTO purchases (id, po_id, branch_id, supplier_id, invoice_no, total_amount, status) VALUES (?, NULL, ?, ?, ?, ?, 'unpaid')")
+        .bind(&purchase_id).bind(&branch_id).bind(&supplier_id).bind(&invoice_no).bind(total_amount)
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+
+    for line in lines {
+        if line.qty_received <= 0.0 {
+            continue;
+        }
+
+        let line_id = Uuid::new_v4().to_string();
+
+        sqlx::query("INSERT INTO purchase_lines (id, purchase_id, item_id, unit_id, qty_received, price_per_unit, expiry_date, batch_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(&line_id).bind(&purchase_id).bind(&line.item_id).bind(&line.unit_id).bind(line.qty_received).bind(line.price_per_unit).bind(&line.expiry_date).bind(&line.batch_no)
+            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+
+        let hpp_method: String = sqlx::query_scalar("SELECT value FROM system_settings WHERE key = 'hpp_method'")
+            .fetch_optional(&mut *tx)
+            .await
+            .unwrap_or(None)
+            .unwrap_or_else(|| "avg".to_string());
+
+        let new_hpp = if hpp_method == "avg" {
+            let (current_qty, last_hpp): (f64, f64) = sqlx::query_as::<_, (f64, f64)>(r#"
+                SELECT
+                    COALESCE(SUM(CASE direction WHEN 'in' THEN qty_change WHEN 'out' THEN -qty_change ELSE 0 END), 0),
+                    COALESCE((SELECT hpp_value FROM stock_ledger
+                               WHERE item_id = ? AND branch_id = ? AND hpp_value > 0
+                               ORDER BY created_at DESC LIMIT 1), 0)
+                FROM stock_ledger
+                WHERE item_id = ? AND branch_id = ? AND unit_id = ?
+            "#)
+            .bind(&line.item_id).bind(&branch_id)
+            .bind(&line.item_id).bind(&branch_id).bind(&line.unit_id)
+            .fetch_one(&mut *tx).await.unwrap_or((0.0, 0.0));
+
+            if current_qty + line.qty_received > 0.0 {
+                (current_qty * last_hpp + line.qty_received * line.price_per_unit)
+                    / (current_qty + line.qty_received)
+            } else {
+                line.price_per_unit
+            }
+        } else {
+            line.price_per_unit
+        };
+
+        let ledger_id = Uuid::new_v4().to_string();
+        let notes = format!(
+            "Penerimaan Langsung {}",
+            invoice_no.clone().unwrap_or_else(|| "N/A".to_string())
+        );
+        sqlx::query(
+            "INSERT INTO stock_ledger (id, item_id, unit_id, branch_id, qty_change, direction, source_type, source_id, hpp_value, expiry_date, batch_no, notes) 
+             VALUES (?, ?, ?, ?, ?, 'in', 'purchase', ?, ?, ?, ?, ?)"
+        )
+        .bind(&ledger_id).bind(&line.item_id).bind(&line.unit_id).bind(&branch_id).bind(line.qty_received)
+        .bind(&purchase_id).bind(new_hpp).bind(&line.expiry_date).bind(&line.batch_no).bind(&notes)
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    }
+
+    let inv_account_id: Option<String> = sqlx::query_scalar("SELECT id FROM accounts WHERE code = '1-1200'")
+        .fetch_optional(&mut *tx).await.map_err(|e| e.to_string())?;
+    let ap_account_id: Option<String> = sqlx::query_scalar("SELECT id FROM accounts WHERE code = '2-2000'")
+        .fetch_optional(&mut *tx).await.map_err(|e| e.to_string())?;
+
+    if let (Some(inv_id), Some(ap_id)) = (inv_account_id, ap_account_id) {
+        if total_amount > 0.0 {
+            let memo = format!("Penerimaan Langsung {}", invoice_no.clone().unwrap_or_else(|| "N/A".to_string()));
+            crate::commands::accounting::post_journal(
+                &mut tx,
+                "purchase",
+                &purchase_id,
+                Some(&branch_id),
+                &memo,
                 vec![
                     (inv_id.as_str(), total_amount, 0.0, None),
                     (ap_id.as_str(), 0.0, total_amount, None),

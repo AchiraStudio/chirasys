@@ -1,15 +1,14 @@
-// src/pages/reports/LaporanPembelian.tsx
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { getPurchaseSummary, PurchaseSummaryRow } from '../../lib/api';
+import ReportHeader from '../../components/reports/ReportHeader';
+import { getFirstOfMonthDateString, getTodayDateString } from './reportUtils';
 
 interface Props { onBack: () => void; }
-const today = () => new Date().toISOString().split('T')[0];
-const firstOfMonth = () => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; };
 
 export default function LaporanPembelian({ onBack }: Props) {
-  const [dateFrom, setDateFrom] = useState(firstOfMonth());
-  const [dateTo, setDateTo] = useState(today());
+  const [dateFrom, setDateFrom] = useState(getFirstOfMonthDateString());
+  const [dateTo, setDateTo] = useState(getTodayDateString());
   const [data, setData] = useState<PurchaseSummaryRow[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -27,21 +26,16 @@ export default function LaporanPembelian({ onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-300 h-full">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"><ArrowLeft size={20}/></button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Laporan Pembelian</h1>
-            <p className="text-xs text-slate-500">Ringkasan pembelian per pemasok</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" />
-          <span className="text-xs text-slate-500">–</span>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" />
-          <button onClick={fetchData} className="px-4 py-2 bg-brand text-white rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors">Tampilkan</button>
-        </div>
-      </div>
+      <ReportHeader
+        title="Laporan Pembelian"
+        subtitle="Ringkasan pembelian per pemasok"
+        onBack={onBack}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+        onFetch={fetchData}
+      />
 
       <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden">
         <div className="overflow-x-auto h-full">

@@ -4,6 +4,7 @@ import { getPurchaseOrders, getPurchases, PurchaseOrder, Purchase, cancelPurchas
 import { Loader2, Plus, FileText, CheckCircle2, Clock, Inbox, X } from 'lucide-react';
 import PoDrawer from './PoDrawer';
 import ReceiveDrawer from './ReceiveDrawer';
+import DirectReceiveModal from './DirectReceiveModal';
 import PurchaseDetail from './PurchaseDetail';
 
 export default function PurchasingDashboard() {
@@ -15,6 +16,7 @@ export default function PurchasingDashboard() {
   const [supplierFilter, setSupplierFilter] = useState('');
 
   const [isPoDrawerOpen, setIsPoDrawerOpen] = useState(false);
+  const [isDirectReceiveOpen, setIsDirectReceiveOpen] = useState(false);
   const [receivePoId, setReceivePoId] = useState<string | null>(null);
   const [selectedPurchaseId, setSelectedPurchaseId] = useState<string | null>(null);
 
@@ -69,9 +71,13 @@ export default function PurchasingDashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Purchasing</h1>
           <p className="text-sm text-slate-600 mt-1">Manage supplier orders, received goods, and payments.</p>
         </div>
-        {view === 'po' && (
+        {view === 'po' ? (
           <button onClick={() => setIsPoDrawerOpen(true)} className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm hover:bg-blue-600 transition-colors">
             <Plus size={18} /> New Purchase Order
+          </button>
+        ) : (
+          <button onClick={() => setIsDirectReceiveOpen(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-colors">
+            <Plus size={18} /> Terima Barang Langsung (Tanpa PO)
           </button>
         )}
       </div>
@@ -203,9 +209,10 @@ export default function PurchasingDashboard() {
         </div>
       )}
 
-      {/* Drawers */}
+      {/* Drawers & Modals */}
       <PoDrawer isOpen={isPoDrawerOpen} onClose={() => setIsPoDrawerOpen(false)} onSuccess={refreshAll} branchId={DEFAULT_BRANCH_ID} />
       {receivePoId && <ReceiveDrawer isOpen={!!receivePoId} poId={receivePoId} branchId={DEFAULT_BRANCH_ID} onClose={() => setReceivePoId(null)} onSuccess={refreshAll} />}
+      <DirectReceiveModal isOpen={isDirectReceiveOpen} onClose={() => setIsDirectReceiveOpen(false)} onSuccess={refreshAll} branchId={DEFAULT_BRANCH_ID} />
     </div>
   );
 }

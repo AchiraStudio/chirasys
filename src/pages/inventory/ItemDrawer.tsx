@@ -157,47 +157,24 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
     setIsSubmitting(true);
     try {
       const cleanPayload = {
-        ...formData, barcode: formData.barcode.trim() || undefined, generic_name: formData.generic_name.trim() || undefined,
-        category_id: formData.category_id || undefined, brand_id: formData.brand_id || undefined, notes: undefined, wholesale_price: 0
+        ...formData, 
+        barcode: formData.barcode.trim() || undefined, 
+        generic_name: formData.generic_name.trim() || undefined,
+        category_id: formData.category_id || undefined, 
+        brand_id: formData.brand_id || undefined, 
+        notes: undefined, 
+        wholesale_price: 0
       };
 
       let targetItemId = editItemId;
 
       if (editItemId) {
         await updateItem(editItemId, cleanPayload);
-        const originalData = await getItem(editItemId);
-        const existingUnitIds = originalData.units.map(u => u.id);
-        const draftUnitIds = draftUnits.filter(u => u.savedId).map(u => u.savedId as string);
-
-        for (const id of existingUnitIds.filter(id => !draftUnitIds.includes(id))) await deleteItemUnit(id);
-
-        for (const unit of draftUnits) {
-          let savedUnitId = unit.savedId;
-          if (unit.savedId) {
-            await updateItemUnit(unit.savedId, unit.unit_name.trim(), unit.conversion, unit.is_base ? 1 : 0, unit.barcode?.trim());
-          } else {
-            const newU = await addItemUnit(editItemId, unit.unit_name.trim(), unit.conversion, unit.is_base ? 1 : 0, unit.barcode?.trim());
-            savedUnitId = newU.id;
-          }
-          const prices = draftPrices[unit.tempId];
-          if (prices && savedUnitId) {
-            await setItemPrice(editItemId, savedUnitId, 'regular', prices.regular);
-            await setItemPrice(editItemId, savedUnitId, 'member', prices.member || prices.regular);
-            await setItemPrice(editItemId, savedUnitId, 'vip', prices.vip || prices.regular);
-          }
-        }
+        await syncUnitsAndPrices(editItemId, true, draftUnits, draftPrices);
       } else {
         const newItem = await addItem(cleanPayload);
         targetItemId = newItem.id;
-        for (const unit of draftUnits) {
-          const savedUnit = await addItemUnit(newItem.id, unit.unit_name.trim(), unit.conversion, unit.is_base ? 1 : 0, unit.barcode?.trim());
-          const prices = draftPrices[unit.tempId];
-          if (prices) {
-            await setItemPrice(newItem.id, savedUnit.id, 'regular', prices.regular);
-            await setItemPrice(newItem.id, savedUnit.id, 'member', prices.member || prices.regular);
-            await setItemPrice(newItem.id, savedUnit.id, 'vip', prices.vip || prices.regular);
-          }
-        }
+        await syncUnitsAndPrices(newItem.id, false, draftUnits, draftPrices);
       }
 
       if (targetItemId && draftTiers.length > 0) {
@@ -213,6 +190,49 @@ export default function ItemDrawer({ isOpen, onClose, onItemAdded, editItemId }:
       setIsSubmitting(false);
     }
   };
+
+  async function syncUnitsAndPrices(
+    itemId: string,
+    isEdit: boolean,
+    units: DraftUnit[],
+    pricesMap: DraftPrices
+  ) {
+    if (isEdit) {
+      const originalData = await getItem(itemId);
+      const existingUnitIds = originalData.units.map(u => u.id);
+      const draftUnitIds = units.filter(u => u.savedId).map(u => u.savedId as string);
+
+      for (const id of existingUnitIds.filter(id => !draftUnitIds.includes(id))) {
+        await deleteItemUnit(id);
+      }
+
+      for (const unit of units) {
+        let savedUnitId = unit.savedId;
+        if (unit.savedId) {
+          await updateItemUnit(unit.savedId, unit.unit_name.trim(), unit.conversion, unit.is_base ? 1 : 0, unit.barcode?.trim());
+        } else {
+          const newU = await addItemUnit(itemId, unit.unit_name.trim(), unit.conversion, unit.is_base ? 1 : 0, unit.barcode?.trim());
+          savedUnitId = newU.id;
+        }
+        const prices = pricesMap[unit.tempId];
+        if (prices && savedUnitId) {
+          await setItemPrice(itemId, savedUnitId, 'regular', prices.regular);
+          await setItemPrice(itemId, savedUnitId, 'member', prices.member || prices.regular);
+          await setItemPrice(itemId, savedUnitId, 'vip', prices.vip || prices.regular);
+        }
+      }
+    } else {
+      for (const unit of units) {
+        const savedUnit = await addItemUnit(itemId, unit.unit_name.trim(), unit.conversion, unit.is_base ? 1 : 0, unit.barcode?.trim());
+        const prices = pricesMap[unit.tempId];
+        if (prices) {
+          await setItemPrice(itemId, savedUnit.id, 'regular', prices.regular);
+          await setItemPrice(itemId, savedUnit.id, 'member', prices.member || prices.regular);
+          await setItemPrice(itemId, savedUnit.id, 'vip', prices.vip || prices.regular);
+        }
+      }
+    }
+  }
 
   if (!isOpen) return null;
 

@@ -155,9 +155,9 @@ pub async fn create_sale(
         if hpp_method == "avg" {
             // Keep using the latest moving average from ledger or frontend
             let latest_hpp: Option<f64> = sqlx::query_scalar(
-                "SELECT hpp_value FROM stock_ledger WHERE item_id = ? AND branch_id = ? AND hpp_value > 0 ORDER BY created_at DESC LIMIT 1"
+                "SELECT hpp_value FROM stock_ledger WHERE item_id = ? AND hpp_value > 0 ORDER BY created_at DESC LIMIT 1"
             )
-            .bind(&line.item_id).bind(&input.branch_id)
+            .bind(&line.item_id)
             .fetch_optional(&mut *tx).await.unwrap_or(None);
             
             if let Some(h) = latest_hpp {
@@ -194,7 +194,13 @@ pub async fn create_sale(
             
             // If there's still qty_to_consume (selling more than we have layers for), use the last known cost for the remainder
             if qty_to_consume > 0.0 {
-                let fallback = if line_hpp_value > 0.0 { line_hpp_value } else { 0.0 };
+                let ledger_fallback: Option<f64> = sqlx::query_scalar(
+                    "SELECT hpp_value FROM stock_ledger WHERE item_id = ? AND hpp_value > 0 ORDER BY created_at DESC LIMIT 1"
+                )
+                .bind(&line.item_id)
+                .fetch_optional(&mut *tx).await.unwrap_or(None);
+
+                let fallback = ledger_fallback.unwrap_or(if line_hpp_value > 0.0 { line_hpp_value } else { 0.0 });
                 total_cost_for_line += qty_to_consume * fallback;
             }
 
@@ -325,15 +331,22 @@ pub async fn create_sale(
 
 #[tauri::command]
 pub async fn get_sales(branch_id: String, customer_id: Option<String>, state: State<'_, AppState>) -> Result<Vec<Sale>, String> {
+    let base_query = r#"
+        SELECT sales.*, 
+               COALESCE((SELECT SUM(qty * hpp_value) FROM sale_lines WHERE sale_id = sales.id), 0.0) as total_cogs
+        FROM sales
+    "#;
     if let Some(cid) = customer_id {
-        sqlx::query_as::<_, Sale>("SELECT * FROM sales WHERE branch_id = ? AND customer_id = ? ORDER BY created_at DESC")
+        let query = format!("{} WHERE branch_id = ? AND customer_id = ? ORDER BY created_at DESC", base_query);
+        sqlx::query_as::<_, Sale>(&query)
             .bind(&branch_id)
             .bind(&cid)
             .fetch_all(&state.db_pool)
             .await
             .map_err(|e| e.to_string())
     } else {
-        sqlx::query_as::<_, Sale>("SELECT * FROM sales WHERE branch_id = ? ORDER BY created_at DESC")
+        let query = format!("{} WHERE branch_id = ? ORDER BY created_at DESC", base_query);
+        sqlx::query_as::<_, Sale>(&query)
             .bind(&branch_id)
             .fetch_all(&state.db_pool)
             .await

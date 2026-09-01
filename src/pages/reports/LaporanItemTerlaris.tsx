@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { getTopSellingItems, TopItemRow, getCategories, Category } from '../../lib/api';
 import { downloadCsv } from '../../lib/exportCsv';
+import ReportHeader from '../../components/reports/ReportHeader';
+import { getFirstOfMonthDateString, getTodayDateString } from './reportUtils';
 
 interface Props { onBack: () => void; }
-const today = () => new Date().toISOString().split('T')[0];
-const firstOfMonth = () => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; };
 
 export default function LaporanItemTerlaris({ onBack }: Props) {
-  const [dateFrom, setDateFrom] = useState(firstOfMonth());
-  const [dateTo, setDateTo] = useState(today());
+  const [dateFrom, setDateFrom] = useState(getFirstOfMonthDateString());
+  const [dateTo, setDateTo] = useState(getTodayDateString());
   const [data, setData] = useState<TopItemRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -29,45 +29,38 @@ export default function LaporanItemTerlaris({ onBack }: Props) {
 
   const filteredData = data.filter(r => !selectedCategory || r.category_name === selectedCategory);
 
+  const handleExportCsv = () => {
+    const headers = ['#', 'Nama Item', 'SKU', 'Kategori', 'Qty Terjual', 'Total Penjualan', 'Total HPP', 'Margin (%)'];
+    const rows = filteredData.map((r, i) => [i + 1, r.item_name, r.sku, r.category_name, r.qty_sold, r.total_revenue, r.total_cogs, r.gross_margin.toFixed(1)]);
+    downloadCsv('Laporan_Item_Terlaris.csv', headers, rows);
+  };
+
   const MEDALS = ['🥇', '🥈', '🥉'];
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-300 h-full">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"><ArrowLeft size={20}/></button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Item Terlaris</h1>
-            <p className="text-xs text-slate-500">Peringkat produk berdasarkan revenue</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" />
-          <span className="text-xs text-slate-500">–</span>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand" />
-          <select
-            value={selectedCategory}
-            onChange={e => setSelectedCategory(e.target.value)}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">Semua Kategori</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.name}>{c.name}</option>
-            ))}
-          </select>
-          <button onClick={fetchData} className="px-4 py-2 bg-brand text-white rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors">Tampilkan</button>
-          <button 
-            onClick={() => {
-              const headers = ['#', 'Nama Item', 'SKU', 'Kategori', 'Qty Terjual', 'Total Penjualan', 'Total HPP', 'Margin (%)'];
-              const rows = filteredData.map((r, i) => [i + 1, r.item_name, r.sku, r.category_name, r.qty_sold, r.total_revenue, r.total_cogs, r.gross_margin.toFixed(1)]);
-              downloadCsv('Laporan_Item_Terlaris.csv', headers, rows);
-            }}
-            className="px-4 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors border border-emerald-200"
-          >
-            Export CSV
-          </button>
-        </div>
-      </div>
+      <ReportHeader
+        title="Item Terlaris"
+        subtitle="Peringkat produk berdasarkan revenue"
+        onBack={onBack}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+        onFetch={fetchData}
+        onExportCsv={handleExportCsv}
+      >
+        <select
+          value={selectedCategory}
+          onChange={e => setSelectedCategory(e.target.value)}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand"
+        >
+          <option value="">Semua Kategori</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.name}>{c.name}</option>
+          ))}
+        </select>
+      </ReportHeader>
 
       <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden">
         <div className="overflow-x-auto h-full">

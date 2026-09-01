@@ -108,6 +108,7 @@ pub fn run() {
             commands::purchasing::get_po_lines,
             commands::purchasing::create_purchase_order,
             commands::purchasing::receive_goods,
+            commands::purchasing::receive_goods_direct,
             commands::purchasing::cancel_purchase_order,
             commands::purchasing::add_purchase_payment, // ADDED
             commands::purchasing::create_purchase_return, // ADDED
@@ -151,6 +152,10 @@ pub fn run() {
             commands::reports::get_outstanding_payables,
             commands::reports::get_purchase_summary,
             commands::reports::get_customer_report,
+            commands::reports::get_sales_recap_report,
+            commands::reports::get_detailed_sales_lines,
+            commands::reports::get_sales_by_cashier_summary,
+            commands::reports::get_daily_sales_recap,
             // Phase 9 - Excel Import/Export
             commands::excel::import_items_excel,
             commands::excel::export_items_excel,
@@ -198,7 +203,6 @@ pub fn run() {
             commands::maintenance::kick_cash_drawer,
             commands::maintenance::print_raw_receipt,
             commands::admin::reset_db_specific,
-
             // Phase 11 - Local Network (LAN) Offline Discovery & Sync
             commands::lan::get_lan_status,
             commands::lan::get_lan_peers,
@@ -210,6 +214,9 @@ pub fn run() {
             commands::lan::test_lan_connection,
             commands::lan::trigger_lan_sync_now,
             commands::lan::clone_from_parent,
+
+            // AI Native Request
+            commands::ai::send_ai_chat_request,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

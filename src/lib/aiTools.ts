@@ -360,7 +360,7 @@ export const aiTools = [
   }
 ];
 
-export const TOOL_ROLE_REQUIREMENTS: Record<string, string[]> = {
+const TOOL_ROLE_REQUIREMENTS: Record<string, string[]> = {
   search_items: ['owner', 'admin', 'staff', 'sysadmin'],
   get_stock_overview: ['owner', 'admin', 'staff', 'sysadmin'],
   adjust_stock: ['owner', 'admin', 'sysadmin'],
@@ -380,6 +380,38 @@ export const TOOL_ROLE_REQUIREMENTS: Record<string, string[]> = {
   set_item_quantity_tiers: ['owner', 'admin', 'sysadmin'],
   get_item_quantity_tiers: ['owner', 'admin', 'staff', 'sysadmin'],
 };
+
+async function handleCreatePromo(args: any) {
+  if (!args.name) throw new Error('Nama promo wajib diisi.');
+  if (!args.promo_type) throw new Error('Tipe promo wajib diisi.');
+
+  if (args.promo_type === 'bundle') {
+    if (!args.bundle_items || args.bundle_items.length === 0) {
+      throw new Error('Untuk promo bundle, Anda harus menentukan daftar item (bundle_items).');
+    }
+    if ((!args.discount_percent || args.discount_percent === 0) && (!args.discount_value || args.discount_value === 0)) {
+      throw new Error('Anda harus menentukan diskon (persentase atau nilai tetap) untuk bundle.');
+    }
+    args.applies_to = 'item';
+    args.item_id = undefined;
+  }
+
+  return await api.createPromo({
+    name: args.name,
+    promo_type: args.promo_type,
+    min_qty: args.min_qty || 1,
+    discount_percent: args.discount_percent || 0,
+    discount_value: args.discount_value || 0,
+    applies_to: args.applies_to || 'item',
+    item_id: args.item_id,
+    member_only: 0,
+    stack_rule: args.stack_rule || 'best_only',
+    priority: args.priority || 0,
+    bogo_rules: args.bogo_rules || [],
+    tiers: args.tiers || [],
+    bundle_items: args.bundle_items || [],
+  });
+}
 
 export async function executeTool(name: string, args: any, context: { branchId: string; userId: string; role: string }) {
   // Enforce strict role check
@@ -418,50 +450,8 @@ export async function executeTool(name: string, args: any, context: { branchId: 
         return await api.updateItemWholesalePrice(args.item_id, args.price);
       case 'get_sales_summary':
         return await api.getSalesSummary(context.branchId, args.date_from, args.date_to);
-      
-      case 'create_promo': {
-        if (!args.name) throw new Error('Nama promo wajib diisi.');
-        if (!args.promo_type) throw new Error('Tipe promo wajib diisi.');
-
-        // For bundle: validate bundle_items and discount
-        if (args.promo_type === 'bundle') {
-          if (!args.bundle_items || args.bundle_items.length === 0) {
-            throw new Error('Untuk promo bundle, Anda harus menentukan daftar item (bundle_items).');
-          }
-          if ((!args.discount_percent || args.discount_percent === 0) && (!args.discount_value || args.discount_value === 0)) {
-            throw new Error('Anda harus menentukan diskon (persentase atau nilai tetap) untuk bundle.');
-          }
-          // Bundle always applies_to='item', clear any single item_id
-          args.applies_to = 'item';
-          // For bundle, item_id should NOT be set (the items are in bundle_items)
-          args.item_id = undefined;
-        }
-
-        // Default values
-        if (!args.min_qty) args.min_qty = 1;
-        if (!args.applies_to) args.applies_to = 'item';
-        if (!args.stack_rule) args.stack_rule = 'best_only';
-        if (!args.priority) args.priority = 0;
-        if (!args.bogo_rules) args.bogo_rules = [];
-        if (!args.tiers) args.tiers = [];
-        if (!args.bundle_items) args.bundle_items = [];
-
-        return await api.createPromo({
-          name: args.name,
-          promo_type: args.promo_type,
-          min_qty: args.min_qty,
-          discount_percent: args.discount_percent || 0,
-          discount_value: args.discount_value || 0,
-          applies_to: args.applies_to,
-          item_id: args.item_id,
-          member_only: 0,
-          stack_rule: args.stack_rule,
-          priority: args.priority,
-          bogo_rules: args.bogo_rules,
-          tiers: args.tiers,
-          bundle_items: args.bundle_items
-        });
-      }
+      case 'create_promo':
+        return await handleCreatePromo(args);
 
       case 'add_customer':
         return await api.addCustomer(args.name, args.phone, undefined, undefined, undefined, args.customer_tier);

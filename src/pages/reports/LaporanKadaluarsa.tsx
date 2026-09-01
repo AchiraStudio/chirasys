@@ -1,7 +1,7 @@
-// src/pages/reports/LaporanKadaluarsa.tsx
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { getExpiringItems, ExpiringItemRow } from '../../lib/api';
+import ReportHeader from '../../components/reports/ReportHeader';
 
 interface Props { onBack: () => void; }
 
@@ -31,22 +31,26 @@ export default function LaporanKadaluarsa({ onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-300 h-full">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"><ArrowLeft size={20}/></button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Hampir Kadaluarsa</h1>
-            <p className="text-xs text-slate-500">Produk yang akan expired dalam waktu dekat</p>
-          </div>
-        </div>
+      <ReportHeader
+        title="Hampir Kadaluarsa"
+        subtitle="Produk yang akan expired dalam waktu dekat"
+        onBack={onBack}
+      >
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500 font-medium">Dalam</span>
-          <select value={daysAhead} onChange={e => setDaysAhead(Number(e.target.value))}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none">
-            {[7, 14, 30, 60, 90].map(d => <option key={d} value={d}>{d} hari</option>)}
+          <select
+            value={daysAhead}
+            onChange={(e) => setDaysAhead(Number(e.target.value))}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+          >
+            {[7, 14, 30, 60, 90].map((d) => (
+              <option key={d} value={d}>
+                {d} hari
+              </option>
+            ))}
           </select>
         </div>
-      </div>
+      </ReportHeader>
 
       {/* Alert Banners */}
       {(critical > 0 || urgent > 0) && (

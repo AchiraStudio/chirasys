@@ -112,6 +112,14 @@ pub async fn create_promo(
         }
     }
 
+    // Validasi target
+    if input.applies_to == "item" && input.promo_type != "bundle" && input.item_id.is_none() {
+        return Err("Untuk promo yang diterapkan ke item, Anda harus memilih item target.".to_string());
+    }
+    if input.applies_to == "category" && input.category_id.is_none() {
+        return Err("Untuk promo yang diterapkan ke kategori, Anda harus memilih kategori target.".to_string());
+    }
+
     // ─── LANJUTKAN TRANSAKSI ──────────────────────────────────
     let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
 
@@ -256,9 +264,14 @@ pub async fn update_promo(
         }
     }
 
-    if input.applies_to == "item" && input.item_id.is_none() {
+    if input.applies_to == "item" && input.promo_type != "bundle" && input.item_id.is_none() {
         return Err(
             "Untuk promo yang diterapkan ke item, Anda harus menentukan item_id.".to_string(),
+        );
+    }
+    if input.applies_to == "category" && input.category_id.is_none() {
+        return Err(
+            "Untuk promo yang diterapkan ke kategori, Anda harus memilih kategori target.".to_string(),
         );
     }
 

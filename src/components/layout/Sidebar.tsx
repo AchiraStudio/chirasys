@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, LogOut, Truck, RefreshCw, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { 
+  LayoutDashboard, Package, ShoppingCart, Users, Settings, 
+  FileText, LogOut, Truck, RefreshCw, PanelLeftClose, PanelLeftOpen 
+} from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
 import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../ui/ConfirmModal';
-
 import { usePermissions } from '../../lib/permissions';
 
 interface SidebarProps {
@@ -13,6 +15,11 @@ interface SidebarProps {
   onOpenAIChat?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+}
+
+interface SyncEventPayload {
+  percent: number;
+  table_name: string;
 }
 
 export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false, onToggleCollapse }: SidebarProps) {
@@ -31,7 +38,6 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
   const { user, token, clearAuth } = useAuthStore();
 
   useEffect(() => {
-    // Load company/branch name from settings
     getSettings()
       .then((settings) => {
         const co = settings.find(s => s.key === 'company_name');
@@ -41,7 +47,6 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
       })
       .catch(() => {});
 
-    // Only check low stock if user has inventory access
     if (can('inventory.view') || can('items.view')) {
       getLowStockAlerts('branch_001')
         .then(alerts => setLowStockCount(alerts.length))
@@ -49,7 +54,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
     }
 
     getSyncStatus()
-      .then(s => setSyncStatus(s))
+      .then(setSyncStatus)
       .catch(() => {});
   }, [user]);
 
@@ -57,33 +62,24 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
     let unlistenPush: () => void;
     let unlistenPull: () => void;
 
-    listen<{ current: number; total: number; percent: number; table_name: string }>('sync-push-progress', (event) => {
-      const { percent, table_name } = event.payload;
-      const rounded = Math.min(100, Math.max(0, Math.round(percent)));
+    const handleProgress = (type: 'push' | 'pull', payload: SyncEventPayload) => {
+      const rounded = Math.min(100, Math.max(0, Math.round(payload.percent)));
       setBgSyncProgress({
         active: true,
-        type: 'push',
+        type,
         percent: rounded,
-        table_name,
+        table_name: payload.table_name,
       });
       if (rounded >= 100) {
         setTimeout(() => setBgSyncProgress(null), 2500);
       }
-    }).then((fn) => { unlistenPush = fn; });
+    };
 
-    listen<{ current: number; total: number; percent: number; table_name: string }>('sync-pull-progress', (event) => {
-      const { percent, table_name } = event.payload;
-      const rounded = Math.min(100, Math.max(0, Math.round(percent)));
-      setBgSyncProgress({
-        active: true,
-        type: 'pull',
-        percent: rounded,
-        table_name,
-      });
-      if (rounded >= 100) {
-        setTimeout(() => setBgSyncProgress(null), 2500);
-      }
-    }).then((fn) => { unlistenPull = fn; });
+    listen<SyncEventPayload>('sync-push-progress', (e) => handleProgress('push', e.payload))
+      .then(fn => { unlistenPush = fn; });
+
+    listen<SyncEventPayload>('sync-pull-progress', (e) => handleProgress('pull', e.payload))
+      .then(fn => { unlistenPull = fn; });
 
     return () => {
       if (unlistenPush) unlistenPush();
@@ -96,26 +92,21 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
     clearAuth();
   };
 
-  const allMenuItems = [
-    { id: 'dashboard',    icon: LayoutDashboard, label: 'Overview',            permission: () => true },
-    { id: 'pos',          icon: ShoppingCart,    label: 'Kasir & POS',         permission: () => can('sales.create') },
-    { id: 'inventory',    icon: Package,         label: 'Inventaris & Produk', badge: lowStockCount > 0 ? lowStockCount : null, permission: () => can('items.view') || can('inventory.view') },
-    { id: 'purchasing',   icon: Truck,           label: 'Pembelian & Pemasok', permission: () => can('purchasing.view') || can('purchasing.create') },
-    { id: 'customers',    icon: Users,           label: 'Pelanggan & Promosi', permission: () => can('crm.customers') || can('promos.manage') },
-    { id: 'reports',      icon: FileText,        label: 'Laporan & Akuntansi', permission: () => can('reports.view') || can('accounting.manage') },
-    { id: 'settings',     icon: Settings,        label: 'Pengaturan',          permission: () => can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') },
-  ];
+  const menuItems = [
+    { id: 'dashboard',    icon: LayoutDashboard, label: 'Overview',            show: true },
+    { id: 'pos',          icon: ShoppingCart,    label: 'Kasir & POS',         show: can('sales.create') },
+    { id: 'inventory',    icon: Package,         label: 'Inventaris & Produk', show: can('items.view') || can('inventory.view'), badge: lowStockCount > 0 ? lowStockCount : null },
+    { id: 'purchasing',   icon: Truck,           label: 'Pembelian & Pemasok', show: can('purchasing.view') || can('purchasing.create') },
+    { id: 'customers',    icon: Users,           label: 'Pelanggan & Promosi', show: can('crm.customers') || can('promos.manage') },
+    { id: 'reports',      icon: FileText,        label: 'Laporan & Akuntansi', show: can('reports.view') || can('accounting.manage') },
+    { id: 'settings',     icon: Settings,        label: 'Pengaturan',          show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') },
+  ].filter(item => item.show);
 
-  const menuItems = allMenuItems.filter(item => item.permission());
-
-  // Display role label nicely
   const roleLabel = () => {
-    switch (user?.role) {
-      case 'owner': return 'Owner';
-      case 'admin': return 'Admin';
-      case 'staff': return 'Staff';
-      default: return user?.role ?? 'Staff';
-    }
+    const r = user?.role?.toLowerCase();
+    if (r === 'owner') return 'Owner';
+    if (r === 'admin') return 'Admin';
+    return 'Staff';
   };
 
   return (
@@ -125,7 +116,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
           isCollapsed ? 'w-16' : 'w-64'
         } bg-white dark:bg-[#0B0F19] flex flex-col h-full shrink-0 border-r border-slate-200 dark:border-slate-800/60 z-20 transition-all duration-300 select-none`}
       >
-        {/* Brand & Branch / Collapse Toggle Header */}
+        {/* Brand & Branch Header */}
         <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4 justify-between'} border-b border-slate-200 dark:border-slate-800/60 transition-colors mt-2`}>
           <div className="flex items-center min-w-0">
             <div className="w-8 h-8 rounded-lg overflow-hidden bg-white shadow-sm flex items-center justify-center p-1 shrink-0">
@@ -133,7 +124,10 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
             </div>
             {!isCollapsed && (
               <div className="ml-3 min-w-0">
-                <h1 className="text-sm leading-tight text-slate-900 dark:text-slate-100 font-semibold truncate">{companyName}</h1>
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-sm leading-tight text-slate-900 dark:text-slate-100 font-semibold truncate">{companyName}</h1>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-brand/10 text-brand rounded-md border border-brand/20">v1.2</span>
+                </div>
                 <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mt-0.5 truncate">{branchName}</p>
               </div>
             )}
@@ -151,7 +145,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
           )}
         </div>
         
-        {/* Navigation */}
+        {/* Navigation List */}
         <nav className={`flex-1 py-4 flex flex-col gap-1.5 ${isCollapsed ? 'px-2 items-center' : 'px-3'} overflow-y-auto custom-scrollbar`}>
           {!isCollapsed && (
             <p className="px-3 text-[10px] font-semibold text-slate-500 dark:text-slate-500/80 uppercase tracking-wider mb-1">
@@ -189,7 +183,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
                   </span>
                 )}
                 
-                {/* Dynamic Badge */}
+                {/* Badge */}
                 {item.badge !== null && item.badge !== undefined && (
                   isCollapsed ? (
                     <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white dark:border-slate-900" />
@@ -208,9 +202,8 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
           })}
         </nav>
 
-        {/* User Profile Footer */}
+        {/* User Profile & Sync Footer */}
         <div className={`mt-auto ${isCollapsed ? 'mx-1 mb-2 items-center' : 'mx-3 mb-3'} flex flex-col gap-1.5`}>
-          {/* Background Sync Progress Bar */}
           {bgSyncProgress?.active && (
             <div 
               title={`Cloud Sync (${bgSyncProgress.type === 'push' ? 'Push' : 'Pull'}): ${bgSyncProgress.percent}% - ${bgSyncProgress.table_name}`}

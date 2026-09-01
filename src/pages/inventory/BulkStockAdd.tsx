@@ -127,7 +127,7 @@ export default function BulkStockAdd({ isOpen, onClose, branchId, onSuccess }: B
           item_id: i.id,
           unit_id: i.base_unit_id,
           qty_change: qtys[i.id],
-          hpp_value: hpps[i.id] || i.avg_hpp || i.price || 0,
+          hpp_value: hpps[i.id] !== undefined ? hpps[i.id] : (i.avg_hpp || 0),
           batch_no: batchNos[i.id] || null,
           expiry_date: expiryDate || null,
           notes: 'Bulk Stock Addition',
@@ -318,7 +318,7 @@ export default function BulkStockAdd({ isOpen, onClose, branchId, onSuccess }: B
                       <input 
                         type="number"
                         min="0"
-                        value={hpps[item.id] !== undefined ? hpps[item.id] : (item.avg_hpp || item.price || '')}
+                        value={hpps[item.id] !== undefined ? hpps[item.id] : (item.avg_hpp || '')}
                         onChange={e => setHpps({...hpps, [item.id]: Number(e.target.value)})}
                         className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-brand outline-none dark:text-white"
                         placeholder="Cost"

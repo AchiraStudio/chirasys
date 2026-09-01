@@ -401,3 +401,419 @@ pub async fn get_customer_report(
         .await
         .map_err(|e| e.to_string())
 }
+
+// ============================================================
+// COMPREHENSIVE DETAILED SALES REPORTS (OVERHAUL)
+// ============================================================
+
+#[derive(Debug, Deserialize)]
+pub struct SalesReportFilter {
+    pub branch_id: String,
+    pub date_from: Option<String>,
+    pub date_to: Option<String>,
+    pub tx_from: Option<String>,
+    pub tx_to: Option<String>,
+    pub customer_id: Option<String>,
+    pub user_id: Option<String>,
+    pub payment_method: Option<String>,
+    pub category_id: Option<String>,
+    pub price_type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct SalesRecapReportRow {
+    pub sale_id: String,
+    pub transaction_no: String,
+    pub created_at: String,
+    pub status: String,
+    pub price_type: String,
+    pub customer_name: String,
+    pub customer_tier: String,
+    pub cashier_name: String,
+    pub total_amount: f64,
+    pub discount_amount: f64,
+    pub tax_amount: f64,
+    pub grand_total: f64,
+    pub total_cogs: f64,
+    pub gross_profit: f64,
+    pub gross_margin: f64,
+    pub payment_methods: String,
+    pub total_items: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct SalesLineReportRow {
+    pub sale_id: String,
+    pub transaction_no: String,
+    pub created_at: String,
+    pub status: String,
+    pub price_type: String,
+    pub customer_name: String,
+    pub cashier_name: String,
+    pub line_id: String,
+    pub item_id: String,
+    pub item_name: String,
+    pub sku: String,
+    pub category_name: String,
+    pub qty: f64,
+    pub unit_name: String,
+    pub price: f64,
+    pub line_discount: f64,
+    pub subtotal: f64,
+    pub hpp_value: f64,
+    pub line_cogs: f64,
+    pub line_profit: f64,
+    pub payment_methods: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct CashierSalesReportRow {
+    pub user_id: String,
+    pub cashier_name: String,
+    pub role: String,
+    pub transaction_count: i64,
+    pub total_cash: f64,
+    pub total_non_cash: f64,
+    pub total_revenue: f64,
+    pub total_discount: f64,
+    pub total_cogs: f64,
+    pub gross_profit: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct DailySalesRecapRow {
+    pub date: String,
+    pub date_label: String,
+    pub transaction_count: i64,
+    pub total_cash: f64,
+    pub total_non_cash: f64,
+    pub total_revenue: f64,
+    pub total_discount: f64,
+    pub total_cogs: f64,
+    pub gross_profit: f64,
+    pub gross_margin: f64,
+}
+
+/// Laporan Penjualan Rekap (per Faktur / Nota)
+#[tauri::command]
+pub async fn get_sales_recap_report(
+    filter: SalesReportFilter,
+    state: State<'_, AppState>,
+) -> Result<Vec<SalesRecapReportRow>, String> {
+    let mut query = String::from(r#"
+        SELECT
+            s.id AS sale_id,
+            s.transaction_no,
+            s.created_at,
+            s.status,
+            s.price_type,
+            COALESCE(c.name, 'Pelanggan Umum') AS customer_name,
+            COALESCE(c.customer_tier, 'regular') AS customer_tier,
+            COALESCE(u.name, u.username, 'Kasir') AS cashier_name,
+            s.total_amount,
+            s.discount_amount,
+            s.tax_amount,
+            s.grand_total,
+            COALESCE(cogs.total_cogs, 0.0) AS total_cogs,
+            (s.grand_total - COALESCE(cogs.total_cogs, 0.0)) AS gross_profit,
+            CASE 
+                WHEN s.grand_total > 0 THEN ROUND(((s.grand_total - COALESCE(cogs.total_cogs, 0.0)) / s.grand_total) * 100.0, 1)
+                ELSE 0.0 
+            END AS gross_margin,
+            COALESCE((
+                SELECT GROUP_CONCAT(DISTINCT method) FROM sale_payments WHERE sale_id = s.id
+            ), 'cash') AS payment_methods,
+            COALESCE(cogs.total_items, 0.0) AS total_items
+        FROM sales s
+        LEFT JOIN customers c ON s.customer_id = c.id
+        LEFT JOIN users u ON s.user_id = u.id
+        LEFT JOIN (
+            SELECT sale_id, SUM(qty * hpp_value) AS total_cogs, SUM(qty) AS total_items
+            FROM sale_lines
+            GROUP BY sale_id
+        ) cogs ON cogs.sale_id = s.id
+        WHERE s.branch_id = ?
+          AND s.status = 'completed'
+    "#);
+
+    if let Some(ref from) = filter.date_from {
+        if !from.trim().is_empty() {
+            query.push_str(&format!(" AND s.created_at >= '{}'", from.replace("'", "''")));
+        }
+    }
+    if let Some(ref to) = filter.date_to {
+        if !to.trim().is_empty() {
+            query.push_str(&format!(" AND s.created_at <= '{}'", to.replace("'", "''")));
+        }
+    }
+    if let Some(ref tx_from) = filter.tx_from {
+        if !tx_from.trim().is_empty() {
+            query.push_str(&format!(" AND s.transaction_no >= '{}'", tx_from.replace("'", "''")));
+        }
+    }
+    if let Some(ref tx_to) = filter.tx_to {
+        if !tx_to.trim().is_empty() {
+            query.push_str(&format!(" AND s.transaction_no <= '{}'", tx_to.replace("'", "''")));
+        }
+    }
+    if let Some(ref cust_id) = filter.customer_id {
+        if !cust_id.trim().is_empty() {
+            query.push_str(&format!(" AND s.customer_id = '{}'", cust_id.replace("'", "''")));
+        }
+    }
+    if let Some(ref uid) = filter.user_id {
+        if !uid.trim().is_empty() {
+            query.push_str(&format!(" AND s.user_id = '{}'", uid.replace("'", "''")));
+        }
+    }
+    if let Some(ref method) = filter.payment_method {
+        if !method.trim().is_empty() && method != "all" {
+            query.push_str(&format!(" AND EXISTS (SELECT 1 FROM sale_payments sp WHERE sp.sale_id = s.id AND sp.method = '{}')", method.replace("'", "''")));
+        }
+    }
+    if let Some(ref p_type) = filter.price_type {
+        if !p_type.trim().is_empty() && p_type != "all" {
+            query.push_str(&format!(" AND s.price_type = '{}'", p_type.replace("'", "''")));
+        }
+    }
+
+    query.push_str(" ORDER BY s.created_at DESC");
+
+    sqlx::query_as::<_, SalesRecapReportRow>(&query)
+        .bind(&filter.branch_id)
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Laporan Penjualan Detail (Rincian Item per Baris Penjualan)
+#[tauri::command]
+pub async fn get_detailed_sales_lines(
+    filter: SalesReportFilter,
+    state: State<'_, AppState>,
+) -> Result<Vec<SalesLineReportRow>, String> {
+    let mut query = String::from(r#"
+        SELECT
+            s.id AS sale_id,
+            s.transaction_no,
+            s.created_at,
+            s.status,
+            s.price_type,
+            COALESCE(c.name, 'Pelanggan Umum') AS customer_name,
+            COALESCE(u.name, u.username, 'Kasir') AS cashier_name,
+            sl.id AS line_id,
+            sl.item_id,
+            COALESCE(i.name, sl.item_id) AS item_name,
+            COALESCE(i.sku, '-') AS sku,
+            COALESCE(cat.name, 'Umum') AS category_name,
+            sl.qty,
+            COALESCE(iu.unit_name, sl.unit_id) AS unit_name,
+            sl.price,
+            sl.discount_amount AS line_discount,
+            sl.subtotal,
+            sl.hpp_value,
+            (sl.qty * sl.hpp_value) AS line_cogs,
+            (sl.subtotal - (sl.qty * sl.hpp_value)) AS line_profit,
+            COALESCE((
+                SELECT GROUP_CONCAT(DISTINCT method) FROM sale_payments WHERE sale_id = s.id
+            ), 'cash') AS payment_methods
+        FROM sales s
+        JOIN sale_lines sl ON sl.sale_id = s.id
+        LEFT JOIN items i ON sl.item_id = i.id
+        LEFT JOIN item_units iu ON sl.unit_id = iu.id
+        LEFT JOIN categories cat ON i.category_id = cat.id
+        LEFT JOIN customers c ON s.customer_id = c.id
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.branch_id = ?
+          AND s.status = 'completed'
+    "#);
+
+    if let Some(ref from) = filter.date_from {
+        if !from.trim().is_empty() {
+            query.push_str(&format!(" AND s.created_at >= '{}'", from.replace("'", "''")));
+        }
+    }
+    if let Some(ref to) = filter.date_to {
+        if !to.trim().is_empty() {
+            query.push_str(&format!(" AND s.created_at <= '{}'", to.replace("'", "''")));
+        }
+    }
+    if let Some(ref tx_from) = filter.tx_from {
+        if !tx_from.trim().is_empty() {
+            query.push_str(&format!(" AND s.transaction_no >= '{}'", tx_from.replace("'", "''")));
+        }
+    }
+    if let Some(ref tx_to) = filter.tx_to {
+        if !tx_to.trim().is_empty() {
+            query.push_str(&format!(" AND s.transaction_no <= '{}'", tx_to.replace("'", "''")));
+        }
+    }
+    if let Some(ref cust_id) = filter.customer_id {
+        if !cust_id.trim().is_empty() {
+            query.push_str(&format!(" AND s.customer_id = '{}'", cust_id.replace("'", "''")));
+        }
+    }
+    if let Some(ref uid) = filter.user_id {
+        if !uid.trim().is_empty() {
+            query.push_str(&format!(" AND s.user_id = '{}'", uid.replace("'", "''")));
+        }
+    }
+    if let Some(ref cat_id) = filter.category_id {
+        if !cat_id.trim().is_empty() {
+            query.push_str(&format!(" AND i.category_id = '{}'", cat_id.replace("'", "''")));
+        }
+    }
+    if let Some(ref method) = filter.payment_method {
+        if !method.trim().is_empty() && method != "all" {
+            query.push_str(&format!(" AND EXISTS (SELECT 1 FROM sale_payments sp WHERE sp.sale_id = s.id AND sp.method = '{}')", method.replace("'", "''")));
+        }
+    }
+
+    query.push_str(" ORDER BY s.created_at DESC, sl.id ASC");
+
+    sqlx::query_as::<_, SalesLineReportRow>(&query)
+        .bind(&filter.branch_id)
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Laporan Jual Per Kasir / User
+#[tauri::command]
+pub async fn get_sales_by_cashier_summary(
+    filter: SalesReportFilter,
+    state: State<'_, AppState>,
+) -> Result<Vec<CashierSalesReportRow>, String> {
+    let mut query = String::from(r#"
+        SELECT
+            COALESCE(u.id, 'unknown') AS user_id,
+            COALESCE(u.name, u.username, 'Kasir Umum') AS cashier_name,
+            COALESCE(u.role, 'cashier') AS role,
+            COUNT(DISTINCT s.id) AS transaction_count,
+            COALESCE(SUM(sp_cash.cash_amt), 0.0) AS total_cash,
+            COALESCE(SUM(sp_noncash.noncash_amt), 0.0) AS total_non_cash,
+            COALESCE(SUM(s.grand_total), 0.0) AS total_revenue,
+            COALESCE(SUM(s.discount_amount), 0.0) AS total_discount,
+            COALESCE(SUM(sl_cogs.cogs_amt), 0.0) AS total_cogs,
+            COALESCE(SUM(s.grand_total), 0.0) - COALESCE(SUM(sl_cogs.cogs_amt), 0.0) AS gross_profit
+        FROM sales s
+        LEFT JOIN users u ON s.user_id = u.id
+        LEFT JOIN (
+            SELECT sale_id, SUM(amount) AS cash_amt
+            FROM sale_payments
+            WHERE method = 'cash'
+            GROUP BY sale_id
+        ) sp_cash ON sp_cash.sale_id = s.id
+        LEFT JOIN (
+            SELECT sale_id, SUM(amount) AS noncash_amt
+            FROM sale_payments
+            WHERE method != 'cash'
+            GROUP BY sale_id
+        ) sp_noncash ON sp_noncash.sale_id = s.id
+        LEFT JOIN (
+            SELECT sale_id, SUM(qty * hpp_value) AS cogs_amt
+            FROM sale_lines
+            GROUP BY sale_id
+        ) sl_cogs ON sl_cogs.sale_id = s.id
+        WHERE s.branch_id = ?
+          AND s.status = 'completed'
+    "#);
+
+    if let Some(ref from) = filter.date_from {
+        if !from.trim().is_empty() {
+            query.push_str(&format!(" AND s.created_at >= '{}'", from.replace("'", "''")));
+        }
+    }
+    if let Some(ref to) = filter.date_to {
+        if !to.trim().is_empty() {
+            query.push_str(&format!(" AND s.created_at <= '{}'", to.replace("'", "''")));
+        }
+    }
+    if let Some(ref uid) = filter.user_id {
+        if !uid.trim().is_empty() {
+            query.push_str(&format!(" AND s.user_id = '{}'", uid.replace("'", "''")));
+        }
+    }
+
+    query.push_str(" GROUP BY s.user_id ORDER BY total_revenue DESC");
+
+    sqlx::query_as::<_, CashierSalesReportRow>(&query)
+        .bind(&filter.branch_id)
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Laporan Penjualan Harian
+#[tauri::command]
+pub async fn get_daily_sales_recap(
+    filter: SalesReportFilter,
+    state: State<'_, AppState>,
+) -> Result<Vec<DailySalesRecapRow>, String> {
+    let mut query = String::from(r#"
+        SELECT
+            strftime('%Y-%m-%d', s.created_at) AS date,
+            strftime('%d/%m/%Y', s.created_at) AS date_label,
+            COUNT(DISTINCT s.id) AS transaction_count,
+            COALESCE(SUM(sp_cash.cash_amt), 0.0) AS total_cash,
+            COALESCE(SUM(sp_noncash.noncash_amt), 0.0) AS total_non_cash,
+            COALESCE(SUM(s.grand_total), 0.0) AS total_revenue,
+            COALESCE(SUM(s.discount_amount), 0.0) AS total_discount,
+            COALESCE(SUM(sl_cogs.cogs_amt), 0.0) AS total_cogs,
+            COALESCE(SUM(s.grand_total), 0.0) - COALESCE(SUM(sl_cogs.cogs_amt), 0.0) AS gross_profit,
+            CASE 
+                WHEN SUM(s.grand_total) > 0 THEN ROUND(((SUM(s.grand_total) - COALESCE(SUM(sl_cogs.cogs_amt), 0.0)) / SUM(s.grand_total)) * 100.0, 1)
+                ELSE 0.0 
+            END AS gross_margin
+        FROM sales s
+        LEFT JOIN (
+            SELECT sale_id, SUM(amount) AS cash_amt
+            FROM sale_payments
+            WHERE method = 'cash'
+            GROUP BY sale_id
+        ) sp_cash ON sp_cash.sale_id = s.id
+        LEFT JOIN (
+            SELECT sale_id, SUM(amount) AS noncash_amt
+            FROM sale_payments
+            WHERE method != 'cash'
+            GROUP BY sale_id
+        ) sp_noncash ON sp_noncash.sale_id = s.id
+        LEFT JOIN (
+            SELECT sale_id, SUM(qty * hpp_value) AS cogs_amt
+            FROM sale_lines
+            GROUP BY sale_id
+        ) sl_cogs ON sl_cogs.sale_id = s.id
+        WHERE s.branch_id = ?
+          AND s.status = 'completed'
+    "#);
+
+    if let Some(ref from) = filter.date_from {
+        if !from.trim().is_empty() {
+            query.push_str(&format!(" AND s.created_at >= '{}'", from.replace("'", "''")));
+        }
+    }
+    if let Some(ref to) = filter.date_to {
+        if !to.trim().is_empty() {
+            query.push_str(&format!(" AND s.created_at <= '{}'", to.replace("'", "''")));
+        }
+    }
+    if let Some(ref cust_id) = filter.customer_id {
+        if !cust_id.trim().is_empty() {
+            query.push_str(&format!(" AND s.customer_id = '{}'", cust_id.replace("'", "''")));
+        }
+    }
+    if let Some(ref uid) = filter.user_id {
+        if !uid.trim().is_empty() {
+            query.push_str(&format!(" AND s.user_id = '{}'", uid.replace("'", "''")));
+        }
+    }
+
+    query.push_str(" GROUP BY strftime('%Y-%m-%d', s.created_at) ORDER BY date DESC");
+
+    sqlx::query_as::<_, DailySalesRecapRow>(&query)
+        .bind(&filter.branch_id)
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
