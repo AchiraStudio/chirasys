@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 #[tauri::command]
 pub async fn get_brands(state: State<'_, AppState>) -> Result<Vec<Brand>, String> {
-    let brands = sqlx::query_as::<_, Brand>("SELECT * FROM brands ORDER BY name ASC")
+    let brands = sqlx::query_as::<_, Brand>("SELECT * FROM brands WHERE name IS NOT NULL AND TRIM(name) != '' GROUP BY UPPER(TRIM(name)) ORDER BY name ASC")
         .fetch_all(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -201,7 +201,7 @@ pub async fn discover_potential_brands(state: State<'_, AppState>) -> Result<Vec
 
 #[tauri::command]
 pub async fn get_categories(state: State<'_, AppState>) -> Result<Vec<Category>, String> {
-    let categories = sqlx::query_as::<_, Category>("SELECT * FROM categories ORDER BY name ASC")
+    let categories = sqlx::query_as::<_, Category>("SELECT * FROM categories WHERE name IS NOT NULL AND TRIM(name) != '' GROUP BY UPPER(TRIM(name)) ORDER BY name ASC")
         .fetch_all(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;

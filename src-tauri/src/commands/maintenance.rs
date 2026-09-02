@@ -150,18 +150,41 @@ mod winspool {
         fn StartPagePrinter(h_printer: usize) -> i32;
         fn EndPagePrinter(h_printer: usize) -> i32;
         fn WritePrinter(h_printer: usize, p_buf: *const std::ffi::c_void, buf_size: u32, p_written: *mut u32) -> i32;
+        fn GetDefaultPrinterA(p_printer_name: *mut i8, pcch_buffer: *mut u32) -> i32;
+    }
+
+    pub fn get_default_printer() -> Option<String> {
+        let mut size: u32 = 0;
+        unsafe {
+            GetDefaultPrinterA(ptr::null_mut(), &mut size);
+            if size == 0 {
+                return None;
+            }
+            let mut buf = vec![0u8; size as usize];
+            if GetDefaultPrinterA(buf.as_mut_ptr() as *mut i8, &mut size) != 0 {
+                let null_pos = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+                return String::from_utf8(buf[..null_pos].to_vec()).ok();
+            }
+        }
+        None
     }
 
     pub unsafe fn send_bytes_to_printer(printer_name: &str, bytes: &[u8], doc_title: &str) -> Result<(), String> {
         let _guard = SPOOLER_LOCK.lock().map_err(|e| e.to_string())?;
 
-        let c_printer_name = CString::new(printer_name).map_err(|e| e.to_string())?;
+        let resolved_name = if printer_name.trim().is_empty() {
+            get_default_printer().ok_or_else(|| "Tidak ada printer default yang terpasang di sistem".to_string())?
+        } else {
+            printer_name.to_string()
+        };
+
+        let c_printer_name = CString::new(resolved_name.as_str()).map_err(|e| e.to_string())?;
         let c_doc_name = CString::new(doc_title).map_err(|e| e.to_string())?;
         let c_data_type = CString::new("RAW").map_err(|e| e.to_string())?;
 
         let mut h_printer: usize = 0;
         if OpenPrinterA(c_printer_name.as_ptr(), &mut h_printer, ptr::null()) == 0 {
-            return Err(format!("Failed to open printer '{}' (Check printer name or connection)", printer_name));
+            return Err(format!("Gagal membuka printer '{}' (Periksa kabel atau koneksi printer)", resolved_name));
         }
 
         let doc_info = DocInfoA {
@@ -172,13 +195,13 @@ mod winspool {
 
         if StartDocPrinterA(h_printer, 1, &doc_info) == 0 {
             ClosePrinter(h_printer);
-            return Err("Failed to start printer document".to_string());
+            return Err("Gagal memulai dokumen printer".to_string());
         }
 
         if StartPagePrinter(h_printer) == 0 {
             EndDocPrinter(h_printer);
             ClosePrinter(h_printer);
-            return Err("Failed to start printer page".to_string());
+            return Err("Gagal memulai halaman printer".to_string());
         }
 
         let mut written: u32 = 0;
@@ -189,7 +212,7 @@ mod winspool {
         ClosePrinter(h_printer);
 
         if success == 0 || written == 0 {
-            Err("Failed to write bytes to printer".to_string())
+            Err("Gagal mengirim perintah byte ke printer".to_string())
         } else {
             Ok(())
         }
@@ -201,9 +224,13 @@ mod winspool {
 pub async fn kick_cash_drawer(printer_name: String) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        // HPRT TP806 / Standard ESC/POS cash drawer kick: ESC p <pin> <on-time> <off-time>
-        // Raw bytes: 27, 112, 0, 25, 250 (0x1B 0x70 0x00 0x19 0xFA)
-        let kick_bytes: [u8; 5] = [27, 112, 0, 25, 250];
+        // Standard ESC/POS cash drawer kick pulses:
+        // Pin 2 (Drawer 1): ESC p 0 25 250 -> 27, 112, 0, 25, 250
+        // Pin 5 (Drawer 2): ESC p 1 25 250 -> 27, 112, 1, 25, 250
+        let kick_bytes: [u8; 10] = [
+            27, 112, 0, 25, 250,
+            27, 112, 1, 25, 250,
+        ];
         unsafe {
             winspool::send_bytes_to_printer(&printer_name, &kick_bytes, "Cash Drawer Kick")?;
         }
@@ -218,7 +245,7 @@ pub async fn kick_cash_drawer(printer_name: String) -> Result<String, String> {
             .args([
                 "-c",
                 &format!(
-                    r#"printf '\x1b\x70\x00\x19\xfa' > {}"#,
+                    r#"printf '\x1b\x70\x00\x19\xfa\x1b\x70\x01\x19\xfa' > {}"#,
                     printer_name
                 ),
             ])

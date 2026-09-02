@@ -202,6 +202,8 @@ pub async fn start_lan_http_server(pool: SqlitePool, app_handle: AppHandle, port
         .route("/api/lan/export_snapshot", get(handle_export_snapshot))
         .route("/api/lan/queue/push", post(handle_queue_push))
         .route("/api/lan/queue/pull", get(handle_queue_pull))
+        .route("/api/lan/remote/kick_drawer", post(handle_remote_kick_drawer))
+        .route("/api/lan/remote/print_receipt", post(handle_remote_print_receipt))
         .layer(CorsLayer::permissive())
         .with_state(ctx);
 
@@ -394,6 +396,39 @@ async fn handle_queue_pull(
         items,
         latest_timestamp,
     }))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteKickDrawerRequest {
+    pub printer_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemotePrintReceiptRequest {
+    pub printer_name: Option<String>,
+    pub bytes: Vec<u8>,
+}
+
+async fn handle_remote_kick_drawer(
+    AxumState(_ctx): AxumState<ServerContext>,
+    Json(payload): Json<RemoteKickDrawerRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let printer = payload.printer_name.unwrap_or_default();
+    match crate::commands::maintenance::kick_cash_drawer(printer).await {
+        Ok(msg) => Ok(Json(serde_json::json!({ "success": true, "message": msg }))),
+        Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err)),
+    }
+}
+
+async fn handle_remote_print_receipt(
+    AxumState(_ctx): AxumState<ServerContext>,
+    Json(payload): Json<RemotePrintReceiptRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let printer = payload.printer_name.unwrap_or_default();
+    match crate::commands::maintenance::print_raw_receipt(printer, payload.bytes).await {
+        Ok(msg) => Ok(Json(serde_json::json!({ "success": true, "message": msg }))),
+        Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err)),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1293,4 +1328,82 @@ pub async fn clone_from_parent(
     let _ = app_handle.emit("chirasys:lan_status_updated", ());
 
     Ok(total_records_imported)
+}
+
+#[tauri::command]
+pub async fn lan_remote_kick_drawer(
+    printer_name: Option<String>,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<String, String> {
+    let paired_parent_ip: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_ip' AND value != ''")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None);
+
+    let paired_parent_port: u16 = sqlx::query_scalar::<_, String>("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_port'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_HTTP_PORT);
+
+    if let Some(parent_ip) = paired_parent_ip {
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(3))
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let url = format!("http://{}:{}/api/lan/remote/kick_drawer", parent_ip, paired_parent_port);
+        let payload = RemoteKickDrawerRequest { printer_name: printer_name.clone() };
+
+        if let Ok(res) = client.post(&url).json(&payload).send().await {
+            if res.status().is_success() {
+                return Ok("Laci kasir server utama berhasil dibuka via LAN!".to_string());
+            }
+        }
+    }
+
+    // Fallback to local
+    crate::commands::maintenance::kick_cash_drawer(printer_name.unwrap_or_default()).await
+}
+
+#[tauri::command]
+pub async fn lan_remote_print_receipt(
+    printer_name: Option<String>,
+    bytes: Vec<u8>,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<String, String> {
+    let paired_parent_ip: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_ip' AND value != ''")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None);
+
+    let paired_parent_port: u16 = sqlx::query_scalar::<_, String>("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_port'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_HTTP_PORT);
+
+    if let Some(parent_ip) = paired_parent_ip {
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let url = format!("http://{}:{}/api/lan/remote/print_receipt", parent_ip, paired_parent_port);
+        let payload = RemotePrintReceiptRequest {
+            printer_name: printer_name.clone(),
+            bytes: bytes.clone(),
+        };
+
+        if let Ok(res) = client.post(&url).json(&payload).send().await {
+            if res.status().is_success() {
+                return Ok("Struk berhasil dikirim dan dicetak pada server utama via LAN!".to_string());
+            }
+        }
+    }
+
+    // Fallback to local
+    crate::commands::maintenance::print_raw_receipt(printer_name.unwrap_or_default(), bytes).await
 }

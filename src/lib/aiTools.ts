@@ -277,14 +277,19 @@ export const aiTools = [
           barcode: { type: 'string', description: 'Barcode string if available' },
           generic_name: { type: 'string', description: 'Generic or chemical name' },
           category_id: { type: 'string', description: 'Category ID if known' },
+          category_name: { type: 'string', description: 'Category name (e.g. OBAT BEBAS, ALKES). Auto-created if new.' },
           brand_id: { type: 'string', description: 'Brand ID if known' },
+          brand_name: { type: 'string', description: 'Brand/Merk name (e.g. KALBE, SANBE). Auto-created if new.' },
+          cost_price: { type: 'number', description: 'Purchase / buy price / modal HPP (e.g. 4500)' },
+          price: { type: 'number', description: 'Retail selling price (optional)' },
+          wholesale_price: { type: 'number', description: 'Wholesale price' },
+          rack_location: { type: 'string', description: 'Rack / shelf storage location (e.g. R01, A-3)' },
+          item_type: { type: 'string', description: 'Item type (e.g. INV for inventory, NON for service)' },
           min_stock: { type: 'number', description: 'Minimum stock alert threshold' },
           has_expiry: { type: 'number', description: '1 if item has expiry dates, 0 otherwise' },
           requires_prescription: { type: 'number', description: '1 if prescription required, 0 otherwise' },
           notes: { type: 'string', description: 'Additional notes' },
-          wholesale_price: { type: 'number', description: 'Wholesale price' },
           base_unit_name: { type: 'string', description: 'Base unit name (e.g. Pcs, Box, Botol). Default is Pcs.' },
-          price: { type: 'number', description: 'Retail selling price (optional)' },
           initial_stock: { type: 'number', description: 'Initial stock quantity (optional)' }
         },
         required: ['name', 'sku']
@@ -295,7 +300,7 @@ export const aiTools = [
     type: 'function',
     function: {
       name: 'update_item',
-      description: 'Update details of an existing item/product in inventory (name, SKU, barcode, category, brand, min_stock, notes, etc.).',
+      description: 'Update ANY and ALL details of an existing item/product in inventory (name, SKU, barcode, generic_name, cost_price/HPP modal, price/harga jual, wholesale_price, rack_location, item_type, category, brand, min_stock, expiry tracking, notes, etc.).',
       parameters: {
         type: 'object',
         properties: {
@@ -304,14 +309,49 @@ export const aiTools = [
           sku: { type: 'string', description: 'New SKU code' },
           barcode: { type: 'string', description: 'New barcode' },
           generic_name: { type: 'string', description: 'New generic/chemical name' },
+          cost_price: { type: 'number', description: 'New purchase / buy price / modal HPP in Rupiah' },
+          price: { type: 'number', description: 'New retail selling price for regular tier' },
+          wholesale_price: { type: 'number', description: 'New wholesale price' },
+          rack_location: { type: 'string', description: 'New rack/shelf location (e.g. R01, B-2)' },
+          item_type: { type: 'string', description: 'New item type (e.g. INV or NON)' },
           category_id: { type: 'string', description: 'New Category ID' },
+          category_name: { type: 'string', description: 'Category name (e.g. OBAT BEBAS, ALKES). Automatically matched or created.' },
           brand_id: { type: 'string', description: 'New Brand ID' },
+          brand_name: { type: 'string', description: 'Brand/Merk name (e.g. KALBE, SANBE). Automatically matched or created.' },
           min_stock: { type: 'number', description: 'New minimum stock threshold' },
           has_expiry: { type: 'number', description: '1 if tracks expiry, 0 if not' },
           requires_prescription: { type: 'number', description: '1 if prescription required, 0 if not' },
           notes: { type: 'string', description: 'Updated notes' },
-          wholesale_price: { type: 'number', description: 'New wholesale price' },
           hpp_method: { type: 'string', enum: ['avg', 'fifo', 'lifo'], description: 'HPP valuation method' }
+        },
+        required: ['id']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_item_cost_price',
+      description: 'Quickly update the cost price (harga pokok / modal HPP / harga beli) for an item.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item_id: { type: 'string', description: 'Item ID' },
+          cost_price: { type: 'number', description: 'New cost/buy price in Rupiah' }
+        },
+        required: ['item_id', 'cost_price']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_item_details',
+      description: 'Get all details and complete information for an item (SKU, name, cost_price/HPP, retail prices, units, stock, batches, rack_location, category, brand).',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Item ID' }
         },
         required: ['id']
       }
@@ -363,10 +403,12 @@ export const aiTools = [
 const TOOL_ROLE_REQUIREMENTS: Record<string, string[]> = {
   search_items: ['owner', 'admin', 'staff', 'sysadmin'],
   get_stock_overview: ['owner', 'admin', 'staff', 'sysadmin'],
+  get_item_details: ['owner', 'admin', 'staff', 'sysadmin'],
   adjust_stock: ['owner', 'admin', 'sysadmin'],
   bulk_stock_opname: ['owner', 'admin', 'sysadmin'],
   update_item_retail_price: ['owner', 'admin', 'sysadmin'],
   update_item_wholesale_price: ['owner', 'admin', 'sysadmin'],
+  update_item_cost_price: ['owner', 'admin', 'sysadmin'],
   get_sales_summary: ['owner', 'admin', 'staff', 'sysadmin'],
   create_promo: ['owner', 'admin', 'sysadmin'],
   delete_promo: ['owner', 'admin', 'sysadmin'],
@@ -481,17 +523,48 @@ export async function executeTool(name: string, args: any, context: { branchId: 
           // fallback to avg
         }
 
+        // Auto-resolve Category if category_name is passed
+        let targetCategoryId = args.category_id || '';
+        if (!targetCategoryId && args.category_name && args.category_name.trim()) {
+          const catNameUpper = args.category_name.trim().toUpperCase();
+          const categories = await api.getCategories();
+          const matched = categories.find(c => c.name.trim().toUpperCase() === catNameUpper);
+          if (matched) {
+            targetCategoryId = matched.id;
+          } else {
+            const newCat = await api.addCategory(catNameUpper);
+            targetCategoryId = newCat.id;
+          }
+        }
+
+        // Auto-resolve Brand if brand_name is passed
+        let targetBrandId = args.brand_id || '';
+        if (!targetBrandId && args.brand_name && args.brand_name.trim()) {
+          const brandNameUpper = args.brand_name.trim().toUpperCase();
+          const brands = await api.getBrands();
+          const matched = brands.find(b => b.name.trim().toUpperCase() === brandNameUpper);
+          if (matched) {
+            targetBrandId = matched.id;
+          } else {
+            const newBrand = await api.addBrand(brandNameUpper);
+            targetBrandId = newBrand.id;
+          }
+        }
+
         const newItem = await api.addItem({
           sku: args.sku,
           barcode: args.barcode || '',
           name: args.name,
           generic_name: args.generic_name || '',
-          category_id: args.category_id || '',
-          brand_id: args.brand_id || '',
+          category_id: targetCategoryId,
+          brand_id: targetBrandId,
           hpp_method: hppMethod,
           min_stock: args.min_stock || 0,
           has_expiry: args.has_expiry ? 1 : 0,
           requires_prescription: args.requires_prescription ? 1 : 0,
+          cost_price: args.cost_price !== undefined ? Number(args.cost_price) : 0,
+          rack_location: args.rack_location || '',
+          item_type: args.item_type || 'INV',
           notes: args.notes || '',
           wholesale_price: args.wholesale_price || 0,
         });
@@ -507,7 +580,7 @@ export async function executeTool(name: string, args: any, context: { branchId: 
 
         // Set initial stock if provided
         if (args.initial_stock && args.initial_stock > 0) {
-          await api.setInitialStock(newItem.id, unit.id, context.branchId, args.initial_stock, 0, 'Initial stock via AI');
+          await api.setInitialStock(newItem.id, unit.id, context.branchId, args.initial_stock, args.cost_price || 0, 'Initial stock via AI');
         }
 
         return {
@@ -515,7 +588,7 @@ export async function executeTool(name: string, args: any, context: { branchId: 
           item: newItem,
           unit,
           hpp_method_used: hppMethod,
-          message: `Berhasil menambahkan produk '${newItem.name}' dengan SKU ${newItem.sku} (Metode HPP: ${hppMethod.toUpperCase()}).`
+          message: `Berhasil menambahkan produk '${newItem.name}' dengan SKU ${newItem.sku} (Harga Pokok: Rp ${(args.cost_price || 0).toLocaleString('id-ID')}).`
         };
       }
       case 'update_item': {
@@ -524,26 +597,88 @@ export async function executeTool(name: string, args: any, context: { branchId: 
         if (!itemDetail || !itemDetail.item) throw new Error(`Produk dengan ID ${args.id} tidak ditemukan.`);
 
         const curr = itemDetail.item;
+
+        // Auto-resolve Category
+        let targetCategoryId = args.category_id !== undefined ? args.category_id : curr.category_id;
+        if (args.category_name && args.category_name.trim()) {
+          const catNameUpper = args.category_name.trim().toUpperCase();
+          const categories = await api.getCategories();
+          const matched = categories.find(c => c.name.trim().toUpperCase() === catNameUpper);
+          if (matched) {
+            targetCategoryId = matched.id;
+          } else {
+            const newCat = await api.addCategory(catNameUpper);
+            targetCategoryId = newCat.id;
+          }
+        }
+
+        // Auto-resolve Brand
+        let targetBrandId = args.brand_id !== undefined ? args.brand_id : curr.brand_id;
+        if (args.brand_name && args.brand_name.trim()) {
+          const brandNameUpper = args.brand_name.trim().toUpperCase();
+          const brands = await api.getBrands();
+          const matched = brands.find(b => b.name.trim().toUpperCase() === brandNameUpper);
+          if (matched) {
+            targetBrandId = matched.id;
+          } else {
+            const newBrand = await api.addBrand(brandNameUpper);
+            targetBrandId = newBrand.id;
+          }
+        }
+
+        const newCostPrice = args.cost_price !== undefined ? Number(args.cost_price) : curr.cost_price;
+
         const updatedItem = await api.updateItem(args.id, {
           sku: args.sku !== undefined ? args.sku : curr.sku,
           barcode: args.barcode !== undefined ? args.barcode : (curr.barcode || ''),
           name: args.name !== undefined ? args.name : curr.name,
           generic_name: args.generic_name !== undefined ? args.generic_name : (curr.generic_name || ''),
-          category_id: args.category_id !== undefined ? args.category_id : (curr.category_id || ''),
-          brand_id: args.brand_id !== undefined ? args.brand_id : (curr.brand_id || ''),
+          category_id: targetCategoryId || '',
+          brand_id: targetBrandId || '',
           hpp_method: args.hpp_method !== undefined ? args.hpp_method : curr.hpp_method,
           min_stock: args.min_stock !== undefined ? args.min_stock : curr.min_stock,
           has_expiry: args.has_expiry !== undefined ? (args.has_expiry ? 1 : 0) : curr.has_expiry,
           requires_prescription: args.requires_prescription !== undefined ? (args.requires_prescription ? 1 : 0) : curr.requires_prescription,
+          cost_price: newCostPrice,
+          rack_location: args.rack_location !== undefined ? args.rack_location : (curr.rack_location || ''),
+          item_type: args.item_type !== undefined ? args.item_type : (curr.item_type || 'INV'),
           notes: args.notes !== undefined ? args.notes : (curr.notes || ''),
           wholesale_price: args.wholesale_price !== undefined ? args.wholesale_price : (curr.wholesale_price || 0)
         });
+
+        // If cost_price explicitly updated, sync via setItemCostPrice as well
+        if (args.cost_price !== undefined) {
+          await api.setItemCostPrice(args.id, Number(args.cost_price));
+        }
+
+        // If retail price updated
+        if (args.price !== undefined) {
+          const baseUnit = itemDetail.units.find(u => u.is_base === 1) || itemDetail.units[0];
+          if (baseUnit) {
+            await api.setItemPrice(args.id, baseUnit.id, 'regular', Number(args.price));
+          }
+        }
 
         return {
           success: true,
           item: updatedItem,
           message: `Berhasil memperbarui data produk '${updatedItem.name}' (SKU: ${updatedItem.sku}).`
         };
+      }
+      case 'update_item_cost_price': {
+        if (!args.item_id) throw new Error('item_id wajib diisi.');
+        if (args.cost_price === undefined) throw new Error('cost_price wajib diisi.');
+        await api.setItemCostPrice(args.item_id, Number(args.cost_price));
+        return {
+          success: true,
+          item_id: args.item_id,
+          cost_price: Number(args.cost_price),
+          message: `Harga pokok (HPP modal) berhasil diubah menjadi Rp ${Number(args.cost_price).toLocaleString('id-ID')}.`
+        };
+      }
+      case 'get_item_details': {
+        if (!args.id) throw new Error('ID produk wajib diisi.');
+        return await api.getItem(args.id);
       }
       case 'set_item_quantity_tiers':
         return await api.saveItemPriceTiers(args.item_id, args.unit_id || null, args.tiers || []);

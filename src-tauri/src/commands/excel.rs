@@ -39,10 +39,8 @@ pub async fn import_items_excel(
             None => return Err("Excel file has no header row".to_string()),
         };
 
-        // Normalize header: lowercase + underscores
-        let normalize = |s: &str| s.trim().to_lowercase().replace(' ', "_");
-
-        let mut col_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        // Normalize header: lowercase + alphanumeric/underscore
+        let normalize = |s: &str| {
         for (i, cell) in header_row.iter().enumerate() {
             if let Data::String(s) = cell {
                 col_map.insert(normalize(s), i);
@@ -86,33 +84,31 @@ pub async fn import_items_excel(
             None
         };
 
-        let col_sku      = find_col(&["kode_item", "sku", "kode"]);
-        let col_barcode  = find_col(&["barcode", "kode_barcode"]);
-        let col_name     = find_col(&["nama_item", "nama", "name"]);
-        let col_jenis    = find_col(&["jenis", "jenis_item"]);
-        let col_merek    = find_col(&["merek", "brand", "merk"]);
+        let col_sku      = find_col(&["kode_item", "sku", "kode", "kode_item__sku_"]);
+        let col_barcode  = find_col(&["barcode", "kode_barcode", "barcode___ean"]);
+        let col_name     = find_col(&["nama_item", "nama", "name", "nama_item___obat"]);
+        let col_jenis    = find_col(&["jenis", "jenis_item", "jenis___nama_generik", "kandungan"]);
+        let col_merek    = find_col(&["merek", "brand", "merk", "merek___brand"]);
         let col_kategori = find_col(&["kategori", "category", "kategori_item"]);
-        let col_rak      = find_col(&["rak", "rack", "lokasi"]);
-        let col_tipe     = find_col(&["tipe_item", "tipe", "type"]);
-        let col_konversi = find_col(&["konversi", "conversion"]);
-        let col_satuan   = find_col(&["satuan", "unit", "unit_name"]);
-        let col_hpp      = find_col(&["harga_pokok", "hpp", "cost_price"]);
-        let col_jml_1    = find_col(&["jml_1", "jml1", "jumlah_1"]);
-        let col_harga_1  = find_col(&["harga_jml_1", "hargajml1", "harga_1", "harga_jual"]);
+        let col_rak      = find_col(&["rak", "rack", "lokasi", "lokasi_rak"]);
+        let col_harga_1  = find_col(&["harga_jml_1", "hargajml1", "harga_1", "harga_jual", "harga_jual_retail", "harga_jual_retail__regular_"]);
         let col_jml_2    = find_col(&["jml_2", "jml2", "jumlah_2"]);
-        let col_harga_2  = find_col(&["harga_jml_2", "hargajml2", "harga_2"]);
         let col_jml_3    = find_col(&["jml_3", "jml3", "jumlah_3"]);
         let col_harga_3  = find_col(&["harga_jml_3", "hargajml3", "harga_3"]);
         let col_jml_4    = find_col(&["jml_4", "jml4", "jumlah_4"]);
         let col_harga_4  = find_col(&["harga_jml_4", "hargajml4", "harga_4"]);
-        let col_notes    = find_col(&["keterangan", "notes", "catatan"]);
-
-        if col_sku.is_none() {
             return Err("Kolom 'Kode Item' atau 'SKU' tidak ditemukan di header Excel.".to_string());
         }
-        if col_name.is_none() {
             return Err("Kolom 'Nama Item' atau 'Nama' tidak ditemukan di header Excel.".to_string());
         }
+
+        // Cache existing categories & brands to prevent duplicates and speed up import
+        let existing_categories: Vec<(String, String)> = sqlx::query_as("SELECT id, UPPER(TRIM(name)) FROM categories WHERE name IS NOT NULL AND TRIM(name) != ''")
+            .fetch_all(&state.db_pool).await.unwrap_or_default();
+        let mut category_cache: std::collections::HashMap<String, String> = existing_categories.into_iter().map(|(id, name)| (name, id)).collect();
+        let existing_brands: Vec<(String, String)> = sqlx::query_as("SELECT id, UPPER(TRIM(name)) FROM brands WHERE name IS NOT NULL AND TRIM(name) != ''")
+            .fetch_all(&state.db_pool).await.unwrap_or_default();
+        let mut brand_cache: std::collections::HashMap<String, String> = existing_brands.into_iter().map(|(id, name)| (name, id)).collect();
 
         for (row_idx, row) in row_iter.enumerate() {
             if row.is_empty() {
@@ -167,43 +163,35 @@ pub async fn import_items_excel(
                 merek = String::new();
             }
 
-            // 1. Resolve Category
+            // 1. Resolve Category (Normalized & Cached)
             let mut category_id: Option<String> = None;
-            if !kategori.trim().is_empty() {
-                let cat_res = sqlx::query("SELECT id FROM categories WHERE name = ?")
-                    .bind(&kategori)
-                    .fetch_optional(&state.db_pool)
-                    .await
-                    .unwrap_or(None);
-
-                if let Some(r) = cat_res {
-                    category_id = Some(r.get::<String, _>("id"));
+            let cat_normalized = kategori.trim().to_uppercase();
+            if !cat_normalized.is_empty() {
+                if let Some(id) = category_cache.get(&cat_normalized) {
+                    category_id = Some(id.clone());
                 } else {
                     let new_id = Uuid::new_v4().to_string();
                     let _ = sqlx::query("INSERT INTO categories (id, name) VALUES (?, ?)")
-                        .bind(&new_id).bind(&kategori)
+                        .bind(&new_id).bind(&cat_normalized)
                         .execute(&state.db_pool).await;
+                    category_cache.insert(cat_normalized, new_id.clone());
                     category_id = Some(new_id);
                 }
             }
 
-            // 2. Resolve Brand
+            // 2. Resolve Brand (Normalized & Cached)
             let mut brand_id: Option<String> = None;
-            if !merek.trim().is_empty() {
-                let brand_res = sqlx::query("SELECT id FROM brands WHERE name = ?")
-                    .bind(&merek)
-                    .fetch_optional(&state.db_pool)
-                    .await
-                    .unwrap_or(None);
-
-                if let Some(r) = brand_res {
-                    brand_id = Some(r.get::<String, _>("id"));
+            let brand_normalized = merek.trim().to_uppercase();
+            if !brand_normalized.is_empty() {
+                if let Some(id) = brand_cache.get(&brand_normalized) {
+                    brand_id = Some(id.clone());
                 } else {
                     let new_id = Uuid::new_v4().to_string();
                     let _ = sqlx::query("INSERT INTO brands (id, name) VALUES (?, ?)")
-                        .bind(&new_id).bind(&merek)
+                        .bind(&new_id).bind(&brand_normalized)
                         .execute(&state.db_pool)
                         .await;
+                    brand_cache.insert(brand_normalized, new_id.clone());
                     brand_id = Some(new_id);
                 }
             }
@@ -330,7 +318,7 @@ pub async fn export_items_excel(
 ) -> Result<String, String> {
     use rust_xlsxwriter::{Workbook, Format, Color};
 
-    // Fetch items with cost_price, rack_location, item_type and unit
+    // Fetch comprehensive item information including stock, customer tier prices, and metadata
     let items = sqlx::query(
         "SELECT 
             i.id,
@@ -342,137 +330,114 @@ pub async fn export_items_excel(
             c.name as category_name,
             i.rack_location,
             i.item_type,
-            u.conversion,
-            u.unit_name,
+            i.min_stock,
+            i.has_expiry,
+            i.is_active,
+            i.hpp_method,
             i.cost_price,
+            i.wholesale_price,
             i.notes,
-            i.is_active
-        FROM items i
-        LEFT JOIN categories c ON i.category_id = c.id
-        LEFT JOIN brands b ON i.brand_id = b.id
-        LEFT JOIN item_units u ON u.item_id = i.id AND u.is_base = 1
-        ORDER BY i.name ASC"
-    )
-    .fetch_all(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
+            u.unit_name,
+            u.conversion,
+            COALESCE((
+                SELECT SUM(
+                    CASE sl.direction 
+                        WHEN 'in' THEN sl.qty_change 
+                        WHEN 'out' THEN -sl.qty_change 
+                        ELSE 0 
+            (
+                WHERE item_id = i.id AND customer_tier = 'regular' 
+                LIMIT 1
+        .set_font_color(Color::White);
 
-    let mut workbook = Workbook::new();
-    let worksheet = workbook.add_worksheet();
-    worksheet.set_name("Daftar Item").map_err(|e| e.to_string())?;
-
-    let header_format = Format::new().set_bold().set_background_color(Color::RGB(0xD9E1F2));
     let money_format = Format::new().set_num_format("#,##0.00");
     let qty_format = Format::new().set_num_format("#,##0.00");
 
     let headers = [
-        "Kode Item", "Barcode", "Nama Item", "Jenis", "Merek", "Kategori", "Rak", "Tipe Item",
-        "Konversi", "Satuan", "Harga Pokok", "Jml 1", "Harga Jml 1", "Jml 2", "Harga Jml 2",
-        "Jml 3", "Harga Jml 3", "Jml 4", "Harga Jml 4", "Keterangan"
-    ];
-
-    for (col, header) in headers.iter().enumerate() {
-        worksheet.write_string_with_format(0, col as u16, *header, &header_format).map_err(|e| e.to_string())?;
-    }
-
-    for (row, item) in items.iter().enumerate() {
-        let row_idx = (row + 1) as u32;
-        let item_id: String = item.try_get("id").unwrap_or_default();
-        let sku: String = item.try_get("sku").unwrap_or_default();
-        let barcode: Option<String> = item.try_get("barcode").unwrap_or(None);
-        let name: String = item.try_get("name").unwrap_or_default();
-        let generic_name: Option<String> = item.try_get("generic_name").unwrap_or(None);
-        let brand: Option<String> = item.try_get("brand_name").unwrap_or(None);
-        let category: Option<String> = item.try_get("category_name").unwrap_or(None);
-        let rack: Option<String> = item.try_get("rack_location").unwrap_or(None);
-        let item_type: Option<String> = item.try_get("item_type").unwrap_or(None);
-        let conversion: f64 = item.try_get("conversion").unwrap_or(1.0);
-        let unit: Option<String> = item.try_get("unit_name").unwrap_or(None);
+        "Kode Item",
+        "Barcode",
+        "Nama Item",
+        "Jenis",
+        "Merek",
+        "Kategori",
+        "Rak",
+        "Satuan",
+        "Konversi",
+        "Harga Member",
+        "Harga VIP",
+        "Harga Grosir",
+        "Jml 1",
+        "Harga Jml 1",
+        "Jml 2",
+        "Harga Jml 2",
         let cost_price: f64 = item.try_get("cost_price").unwrap_or(0.0);
+        let regular_price: f64 = item.try_get("regular_price").unwrap_or(0.0);
+        let member_price: f64 = item.try_get("member_price").unwrap_or(0.0);
+        let vip_price: f64 = item.try_get("vip_price").unwrap_or(0.0);
+        let wholesale_price: f64 = item.try_get("wholesale_price").unwrap_or(0.0);
+        let has_expiry: i64 = item.try_get("has_expiry").unwrap_or(0);
+        let requires_prescription: i64 = item.try_get("requires_prescription").unwrap_or(0);
+        let is_active: i64 = item.try_get("is_active").unwrap_or(1);
         let notes: Option<String> = item.try_get("notes").unwrap_or(None);
 
-        // Fetch up to 4 tiers
+        // Fetch up to 4 quantity tiers
         let tiers = sqlx::query(
             "SELECT max_qty, price FROM item_price_tiers WHERE item_id = ? ORDER BY tier_level ASC LIMIT 4"
         )
         .bind(&item_id)
         .fetch_all(&state.db_pool)
         .await
-        .unwrap_or_default();
 
         let t1_qty = tiers.get(0).map(|t| t.try_get::<f64, _>("max_qty").unwrap_or(0.0)).unwrap_or(0.0);
-        let t1_price = tiers.get(0).map(|t| t.try_get::<f64, _>("price").unwrap_or(0.0)).unwrap_or(0.0);
-
-        let t2_qty = tiers.get(1).map(|t| t.try_get::<f64, _>("max_qty").unwrap_or(0.0)).unwrap_or(0.0);
         let t2_price = tiers.get(1).map(|t| t.try_get::<f64, _>("price").unwrap_or(0.0)).unwrap_or(0.0);
-
-        let t3_qty = tiers.get(2).map(|t| t.try_get::<f64, _>("max_qty").unwrap_or(0.0)).unwrap_or(0.0);
-        let t3_price = tiers.get(2).map(|t| t.try_get::<f64, _>("price").unwrap_or(0.0)).unwrap_or(0.0);
-
-        let t4_qty = tiers.get(3).map(|t| t.try_get::<f64, _>("max_qty").unwrap_or(0.0)).unwrap_or(0.0);
-        let t4_price = tiers.get(3).map(|t| t.try_get::<f64, _>("price").unwrap_or(0.0)).unwrap_or(0.0);
-
         worksheet.write_string(row_idx, 0, &sku).map_err(|e| e.to_string())?;
         worksheet.write_string(row_idx, 1, &barcode.unwrap_or_default()).map_err(|e| e.to_string())?;
         worksheet.write_string(row_idx, 2, &name).map_err(|e| e.to_string())?;
-        worksheet.write_string(row_idx, 3, &generic_name.unwrap_or_default()).map_err(|e| e.to_string())?;
         worksheet.write_string(row_idx, 4, &brand.unwrap_or_default()).map_err(|e| e.to_string())?;
         worksheet.write_string(row_idx, 5, &category.unwrap_or_default()).map_err(|e| e.to_string())?;
         worksheet.write_string(row_idx, 6, &rack.unwrap_or_default()).map_err(|e| e.to_string())?;
         worksheet.write_string(row_idx, 7, &item_type.unwrap_or_else(|| "INV".to_string())).map_err(|e| e.to_string())?;
-        worksheet.write_number_with_format(row_idx, 8, conversion, &qty_format).map_err(|e| e.to_string())?;
-        worksheet.write_string(row_idx, 9, &unit.unwrap_or_else(|| "PCS".to_string())).map_err(|e| e.to_string())?;
-        worksheet.write_number_with_format(row_idx, 10, cost_price, &money_format).map_err(|e| e.to_string())?;
+        worksheet.write_string(row_idx, 8, &unit.unwrap_or_else(|| "PCS".to_string())).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 9, conversion, &qty_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 10, current_stock, &qty_format).map_err(|e| e.to_string())?;
+        worksheet.write_number(row_idx, 11, min_stock as f64).map_err(|e| e.to_string())?;
+        worksheet.write_string(row_idx, 12, &hpp_method.unwrap_or_else(|| "AVG".to_string()).to_uppercase()).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 13, cost_price, &money_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 14, regular_price, &money_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 15, member_price, &money_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 16, vip_price, &money_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 17, wholesale_price, &money_format).map_err(|e| e.to_string())?;
 
-        worksheet.write_number_with_format(row_idx, 11, t1_qty, &qty_format).map_err(|e| e.to_string())?;
-        worksheet.write_number_with_format(row_idx, 12, t1_price, &money_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 18, t1_qty, &qty_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 19, t1_price, &money_format).map_err(|e| e.to_string())?;
 
-        worksheet.write_number_with_format(row_idx, 13, t2_qty, &qty_format).map_err(|e| e.to_string())?;
-        worksheet.write_number_with_format(row_idx, 14, t2_price, &money_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 20, t2_qty, &qty_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 21, t2_price, &money_format).map_err(|e| e.to_string())?;
 
-        worksheet.write_number_with_format(row_idx, 15, t3_qty, &qty_format).map_err(|e| e.to_string())?;
-        worksheet.write_number_with_format(row_idx, 16, t3_price, &money_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 22, t3_qty, &qty_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 23, t3_price, &money_format).map_err(|e| e.to_string())?;
 
-        worksheet.write_number_with_format(row_idx, 17, t4_qty, &qty_format).map_err(|e| e.to_string())?;
-        worksheet.write_number_with_format(row_idx, 18, t4_price, &money_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 24, t4_qty, &qty_format).map_err(|e| e.to_string())?;
+        worksheet.write_number_with_format(row_idx, 25, t4_price, &money_format).map_err(|e| e.to_string())?;
 
-        worksheet.write_string(row_idx, 19, &notes.unwrap_or_default()).map_err(|e| e.to_string())?;
-    }
-
-    worksheet.autofit();
-    workbook.save(file_path).map_err(|e| e.to_string())?;
-
-    Ok("Export success".to_string())
-}
-
-#[tauri::command]
-pub async fn export_stock_excel(
+        worksheet.write_string(row_idx, 26, if has_expiry == 1 { "YA" } else { "TIDAK" }).map_err(|e| e.to_string())?;
+        worksheet.write_string(row_idx, 27, if requires_prescription == 1 { "YA" } else { "TIDAK" }).map_err(|e| e.to_string())?;
+        worksheet.write_string(row_idx, 28, if is_active == 1 { "AKTIF" } else { "NONAKTIF" }).map_err(|e| e.to_string())?;
+        worksheet.write_string(row_idx, 29, &notes.unwrap_or_default()).map_err(|e| e.to_string())?;
     file_path: String,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<String, String> {
-    use rust_xlsxwriter::{Workbook, Format, Color};
-
     // 1. Fetch data
     let stock_data = sqlx::query(
         "SELECT 
-            i.sku,
-            i.name,
             c.name as category_name,
             u.unit_name,
             sl.batch_no,
-            sl.expiry_date,
-            SUM(CASE sl.direction WHEN 'in' THEN sl.qty_change WHEN 'out' THEN -sl.qty_change ELSE 0 END) as current_qty
         FROM items i
         LEFT JOIN categories c ON i.category_id = c.id
         LEFT JOIN item_units u ON u.item_id = i.id AND u.is_base = 1
-        JOIN stock_ledger sl ON sl.item_id = i.id AND sl.unit_id = u.id
-        GROUP BY i.id, sl.batch_no, sl.expiry_date
         HAVING current_qty > 0
         ORDER BY i.name ASC, sl.expiry_date ASC"
-    )
-    .fetch_all(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
 
     let mut workbook = Workbook::new();
     let worksheet = workbook.add_worksheet();

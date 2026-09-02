@@ -136,10 +136,42 @@ export const deleteCategory = async (id: string): Promise<void> => invoke('delet
 
 export const getItemsFiltered = async (search: string = '', categoryId: string = '', brandId: string = '', activeOnly: boolean = false, page: number = 1, perPage: number = 20, sortBy: string = 'name', sortOrder: string = 'asc'): Promise<PaginatedItems> => invoke('get_items_filtered', { search: search.trim() || null, categoryId: categoryId || null, brandId: brandId || null, activeOnly, page, perPage, sortBy: sortBy || null, sortOrder: sortOrder || null });
 export const getItem = async (id: string): Promise<ItemDetailData> => invoke('get_item', { id });
-export const addItem = async (payload: Omit<Item, 'id' | 'created_at' | 'is_active'>): Promise<Item> => invoke('add_item', { sku: payload.sku, barcode: payload.barcode, name: payload.name, genericName: payload.generic_name, categoryId: payload.category_id, brandId: payload.brand_id, hppMethod: payload.hpp_method, minStock: payload.min_stock, hasExpiry: payload.has_expiry, requiresPrescription: payload.requires_prescription, notes: payload.notes });
-export const updateItem = async (id: string, payload: Omit<Item, 'id' | 'created_at' | 'is_active'>): Promise<Item> => invoke('update_item', { id, sku: payload.sku, barcode: payload.barcode, name: payload.name, genericName: payload.generic_name, categoryId: payload.category_id, brandId: payload.brand_id, hppMethod: payload.hpp_method, minStock: payload.min_stock, hasExpiry: payload.has_expiry, requiresPrescription: payload.requires_prescription, notes: payload.notes });
+export const addItem = async (payload: Omit<Item, 'id' | 'created_at' | 'is_active'>): Promise<Item> => invoke('add_item', { 
+  sku: payload.sku, 
+  barcode: payload.barcode || null, 
+  name: payload.name, 
+  genericName: payload.generic_name || null, 
+  categoryId: payload.category_id || null, 
+  brandId: payload.brand_id || null, 
+  hppMethod: payload.hpp_method || 'avg', 
+  minStock: payload.min_stock || 0, 
+  hasExpiry: payload.has_expiry || 0, 
+  requiresPrescription: payload.requires_prescription || 0, 
+  costPrice: payload.cost_price !== undefined ? payload.cost_price : null,
+  rackLocation: payload.rack_location || null,
+  itemType: payload.item_type || null,
+  notes: payload.notes || null 
+});
+export const updateItem = async (id: string, payload: Omit<Item, 'id' | 'created_at' | 'is_active'>): Promise<Item> => invoke('update_item', { 
+  id, 
+  sku: payload.sku, 
+  barcode: payload.barcode || null, 
+  name: payload.name, 
+  genericName: payload.generic_name || null, 
+  categoryId: payload.category_id || null, 
+  brandId: payload.brand_id || null, 
+  hppMethod: payload.hpp_method || 'avg', 
+  minStock: payload.min_stock || 0, 
+  hasExpiry: payload.has_expiry || 0, 
+  requiresPrescription: payload.requires_prescription || 0, 
+  costPrice: payload.cost_price !== undefined ? payload.cost_price : null,
+  rackLocation: payload.rack_location || null,
+  itemType: payload.item_type || null,
+  notes: payload.notes || null 
+});
 export const toggleItemActive = async (id: string): Promise<void> => invoke('toggle_item_active', { id });
 export const deleteItem = async (id: string): Promise<void> => invoke('delete_item', { id });
+export const setItemCostPrice = async (id: string, costPrice: number): Promise<void> => invoke('set_item_cost_price', { id, costPrice });
 export const addItemUnit = async (itemId: string, unitName: string, conversion: number, isBase: number, barcode?: string): Promise<ItemUnit> => invoke('add_item_unit', { itemId, unitName, conversion, isBase, barcode: barcode || null });
 export const updateItemUnit = async (id: string, unitName: string, conversion: number, isBase: number, barcode?: string): Promise<ItemUnit> => invoke('update_item_unit', { id, unitName, conversion, isBase, barcode: barcode || null });
 export const deleteItemUnit = async (id: string): Promise<void> => invoke('delete_item_unit', { id });
@@ -239,10 +271,26 @@ export const getSettings = async (): Promise<{ key: string; value: string; descr
 export const setSetting = async (key: string, value: string): Promise<void> => invoke('set_setting', { key, value });
 
 // --- Phase 10: Excel Exports & Maintenance ---
+export interface ParsedReceiveItem {
+  item_id: string;
+  sku: string;
+  item_name: string;
+  unit_id: string;
+  unit_name: string;
+  qty_received: number;
+  price_per_unit: number;
+  batch_no: string;
+  expiry_date: string;
+  matched: boolean;
+  note?: string;
+}
+
 export const exportItemsExcel = async (filePath: string): Promise<string> => invoke('export_items_excel', { filePath });
 export const exportStockExcel = async (filePath: string): Promise<string> => invoke('export_stock_excel', { filePath });
 // fallow-ignore-next-line unused-export
 export const exportSalesExcel = async (filePath: string): Promise<string> => invoke('export_sales_excel', { filePath });
+export const exportReceiveTemplate = async (filePath: string): Promise<string> => invoke('export_receive_template', { filePath });
+export const parseReceiveExcel = async (filePath: string): Promise<ParsedReceiveItem[]> => invoke('parse_receive_excel', { filePath });
 export const optimizeDatabase = async (): Promise<string> => invoke('optimize_database');
 export const exportDatabase = async (targetPath: string): Promise<string> => invoke('export_database', { targetPath });
 export const resetDbSpecific = async (target: string): Promise<string> => invoke('reset_db_specific', { target });
@@ -257,8 +305,24 @@ export interface DetectedPrinterInfo {
   Default: boolean;
 }
 export const listPrinters = async (): Promise<DetectedPrinterInfo[]> => invoke('list_printers');
-export const kickCashDrawer = async (printerName: string): Promise<string> => invoke('kick_cash_drawer', { printerName });
-export const printRawReceipt = async (printerName: string, bytes: number[]): Promise<string> => invoke('print_raw_receipt', { printerName, bytes });
+export const kickCashDrawer = async (printerName: string = ''): Promise<string> => {
+  try {
+    return await invoke('lan_remote_kick_drawer', { printerName: printerName || null });
+  } catch {
+    return await invoke('kick_cash_drawer', { printerName });
+  }
+};
+export const printRawReceipt = async (printerName: string = '', bytes: number[]): Promise<string> => {
+  try {
+    return await invoke('lan_remote_print_receipt', { printerName: printerName || null, bytes });
+  } catch {
+    return await invoke('print_raw_receipt', { printerName, bytes });
+  }
+};
+export const lanRemoteKickDrawer = async (printerName?: string): Promise<string> =>
+  invoke('lan_remote_kick_drawer', { printerName: printerName || null });
+export const lanRemotePrintReceipt = async (printerName: string | undefined, bytes: number[]): Promise<string> =>
+  invoke('lan_remote_print_receipt', { printerName: printerName || null, bytes });
 
 
 // --- Phase 8 Report Types ---

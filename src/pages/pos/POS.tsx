@@ -300,10 +300,13 @@ export default function POS() {
 
       switch (e.key) {
         case 'F1':
-        case 'F2':
           e.preventDefault();
           searchInputRef.current?.focus();
           searchInputRef.current?.select();
+          break;
+        case 'F2':
+          e.preventDefault();
+          kickCashDrawer('').catch(err => console.error('Cash drawer kick failed:', err));
           break;
         case 'F3':
           e.preventDefault();
@@ -695,7 +698,7 @@ export default function POS() {
           >
             Semua Produk
           </button>
-          {categories.map(cat => (
+          {Array.from(new Map(categories.map(c => [c.name.trim().toUpperCase(), c])).values()).map(cat => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
@@ -812,7 +815,8 @@ export default function POS() {
         {/* Accessible Keyboard Hint Bar */}
         <div className="py-2.5 px-4 bg-slate-50/90 dark:bg-slate-950/80 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500 font-medium shrink-0">
           {[
-            ['F1 / F2', 'Cari Barang'],
+            ['F1', 'Cari Barang'],
+            ['F2', 'Buka Laci'],
             ['F3', 'Pilih Pelanggan'],
             ['F4', 'Tahan Nota'],
             ['F8 / Alt+T', 'Ubah Total'],

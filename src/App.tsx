@@ -14,7 +14,7 @@ import Settings from './pages/settings/Settings';
 import LoginPage from './pages/auth/LoginPage';
 import ContextMenu from './components/layout/ContextMenu';
 import { useAuthStore } from './store/AuthStore';
-import { getCurrentUser, getSettings, kickCashDrawer, getSyncStatus } from './lib/api';
+import { getCurrentUser, kickCashDrawer, getSyncStatus } from './lib/api';
 import { supabase } from './lib/supabase';
 import { invoke } from '@tauri-apps/api/core';
 import { useSyncStore } from './store/SyncStore';
@@ -139,21 +139,12 @@ export default function App() {
         }
       }
 
-      // Global Shortcut for Cash Drawer (Alt + C)
-      if (e.altKey && e.key.toLowerCase() === 'c') {
+      // Global Shortcut for Cash Drawer (F2 or Alt + C) - Instant 0-lag kick
+      if (e.key === 'F2' || (e.altKey && e.key.toLowerCase() === 'c')) {
         e.preventDefault();
-        try {
-          const data = await getSettings();
-          const pName = data.find((s: any) => s.key === 'printer_name')?.value;
-          if (pName) {
-            console.log(`[Global Shortcut] Kicking cash drawer on printer: ${pName}`);
-            await kickCashDrawer(pName);
-          } else {
-            console.warn('[Global Shortcut] No printer configured for cash drawer kick.');
-          }
-        } catch (err) {
-          console.error('[Global Shortcut] Failed to kick cash drawer:', err);
-        }
+        kickCashDrawer('').catch(err => {
+          console.error('[Global Shortcut F2] Failed to kick cash drawer:', err);
+        });
       }
     };
     window.addEventListener('keydown', handleKeyDown);

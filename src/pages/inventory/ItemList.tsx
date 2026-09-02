@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Loader2, Eye, Trash2, Edit, Upload, Download, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel, getCategories, Category, setItemPrice } from '../../lib/api';
+import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel, getCategories, Category, setItemPrice, setItemCostPrice } from '../../lib/api';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import TourGuide from '../../components/ui/TourGuide';
@@ -197,7 +197,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-lg px-3.5 py-2 outline-none focus:ring-2 focus:ring-brand/20"
           >
             <option value="">Semua Kategori</option>
-            {categories.map((c) => (
+            {Array.from(new Map(categories.map(c => [c.name.trim().toUpperCase(), c])).values()).map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
@@ -280,9 +280,37 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                     )}
                   </td>
                   
-                  {/* Harga Pokok (Cost Price) */}
-                  <td className="py-4 px-6 text-right font-mono text-xs font-semibold text-slate-600 dark:text-slate-400">
-                    Rp {(item.cost_price || 0).toLocaleString('id-ID')}
+                  {/* Harga Pokok (Cost / Buy Price) - Inline Editable */}
+                  <td className="py-3 px-6 text-right">
+                    {can('items.change_price') ? (
+                      <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-brand/30" title="Harga Beli / Pokok Modal (HPP)">
+                        <span className="text-xs text-slate-400 font-bold mr-1">Rp</span>
+                        <input
+                          type="number"
+                          defaultValue={item.cost_price || 0}
+                          onBlur={async (e) => {
+                            const val = parseFloat(e.target.value);
+                            if (isNaN(val) || val === item.cost_price) return;
+                            try {
+                              await setItemCostPrice(item.id, val);
+                              item.cost_price = val;
+                            } catch (err) {
+                              alert('Gagal update harga pokok: ' + err);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-800 dark:text-slate-200 focus:ring-0 p-0 text-right font-mono"
+                        />
+                      </div>
+                    ) : (
+                      <span className="font-mono text-xs font-semibold text-slate-600 dark:text-slate-400">
+                        Rp {(item.cost_price || 0).toLocaleString('id-ID')}
+                      </span>
+                    )}
                   </td>
 
                   {/* Inline Retail Price Input */}

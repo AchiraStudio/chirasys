@@ -157,6 +157,7 @@ pub async fn get_item(id: String, state: State<'_, AppState>) -> Result<ItemDeta
                (SELECT price FROM item_prices WHERE item_id = items.id AND customer_tier = 'regular' LIMIT 1) as price,
                (SELECT id FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_id,
                (SELECT unit_name FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_name,
+               (SELECT name FROM categories WHERE id = items.category_id) as category_name,
                COALESCE((SELECT sl.hpp_value FROM stock_ledger sl WHERE sl.item_id = items.id AND sl.hpp_value IS NOT NULL AND sl.hpp_value > 0 ORDER BY sl.created_at DESC LIMIT 1), 0.0) as avg_hpp
         FROM items WHERE id = ?
     "#;
@@ -226,17 +227,23 @@ pub async fn add_item(
     min_stock: f64,
     has_expiry: i32,
     requires_prescription: i32,
+    cost_price: Option<f64>,
+    rack_location: Option<String>,
+    item_type: Option<String>,
     notes: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Item, String> {
     let id = Uuid::new_v4().to_string();
+    let cost_val = cost_price.unwrap_or(0.0);
+    let rack_val = rack_location.unwrap_or_default();
+    let type_val = item_type.unwrap_or_else(|| "INV".to_string());
     sqlx::query(
-        r#"INSERT INTO items (id, sku, barcode, name, generic_name, category_id, brand_id, hpp_method, min_stock, has_expiry, requires_prescription, notes, is_active) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"#
+        r#"INSERT INTO items (id, sku, barcode, name, generic_name, category_id, brand_id, hpp_method, min_stock, has_expiry, requires_prescription, cost_price, rack_location, item_type, notes, is_active) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"#
     )
     .bind(&id).bind(&sku).bind(&barcode).bind(&name).bind(&generic_name)
     .bind(&category_id).bind(&brand_id).bind(&hpp_method).bind(min_stock)
-    .bind(has_expiry).bind(requires_prescription).bind(&notes)
+    .bind(has_expiry).bind(requires_prescription).bind(cost_val).bind(&rack_val).bind(&type_val).bind(&notes)
     .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
     get_item_by_id(&id, &state).await
@@ -255,19 +262,40 @@ pub async fn update_item(
     min_stock: f64,
     has_expiry: i32,
     requires_prescription: i32,
+    cost_price: Option<f64>,
+    rack_location: Option<String>,
+    item_type: Option<String>,
     notes: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Item, String> {
+    let cost_val = cost_price.unwrap_or(0.0);
+    let rack_val = rack_location.unwrap_or_default();
+    let type_val = item_type.unwrap_or_else(|| "INV".to_string());
     sqlx::query(
         r#"UPDATE items SET sku=?, barcode=?, name=?, generic_name=?, category_id=?, brand_id=?, 
-           hpp_method=?, min_stock=?, has_expiry=?, requires_prescription=?, notes=?, updated_at=datetime('now') WHERE id=?"#
+           hpp_method=?, min_stock=?, has_expiry=?, requires_prescription=?, cost_price=?, rack_location=?, item_type=?, notes=?, updated_at=datetime('now') WHERE id=?"#
     )
     .bind(&sku).bind(&barcode).bind(&name).bind(&generic_name).bind(&category_id)
     .bind(&brand_id).bind(&hpp_method).bind(min_stock).bind(has_expiry)
-    .bind(requires_prescription).bind(&notes).bind(&id)
+    .bind(requires_prescription).bind(cost_val).bind(&rack_val).bind(&type_val).bind(&notes).bind(&id)
     .execute(&state.db_pool).await.map_err(|e| e.to_string())?;
 
     get_item_by_id(&id, &state).await
+}
+
+#[tauri::command]
+pub async fn set_item_cost_price(
+    id: String,
+    cost_price: f64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    sqlx::query("UPDATE items SET cost_price = ?, updated_at = datetime('now') WHERE id = ?")
+        .bind(cost_price)
+        .bind(&id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -417,6 +445,7 @@ async fn get_item_by_id(id: &str, state: &State<'_, AppState>) -> Result<Item, S
                (SELECT price FROM item_prices WHERE item_id = items.id AND customer_tier = 'regular' LIMIT 1) as price,
                (SELECT id FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_id,
                (SELECT unit_name FROM item_units WHERE item_id = items.id AND is_base = 1 LIMIT 1) as base_unit_name,
+               (SELECT name FROM categories WHERE id = items.category_id) as category_name,
                COALESCE((SELECT sl.hpp_value FROM stock_ledger sl WHERE sl.item_id = items.id AND sl.hpp_value IS NOT NULL AND sl.hpp_value > 0 ORDER BY sl.created_at DESC LIMIT 1), 0.0) as avg_hpp
         FROM items WHERE id = ?
     "#;

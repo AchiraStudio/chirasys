@@ -4,44 +4,88 @@ use chrono::Local;
 use tauri::State;
 use uuid::Uuid;
 
+pub async fn generate_unique_transaction_no(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    branch_id: &str,
+) -> Result<String, String> {
+    // 1. Determine monthly period identifier e.g. "202609" and short format "2609"
+    let date_str = Local::now().format("%Y%m").to_string();
+    let display_date = Local::now().format("%y%m").to_string();
+
+    // 2. Fetch current counter for this branch and month, or initialize
+    let mut counter: i64 = match sqlx::query_scalar::<_, i64>(
+        "SELECT counter FROM transaction_counters WHERE branch_id = ? AND date_str = ?"
+    )
+    .bind(branch_id)
+    .bind(&date_str)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())? {
+        Some(c) => c,
+        None => 0,
+    };
+
+    // 3. Increment and verify uniqueness against existing sales
+    loop {
+        counter += 1;
+        let candidate_no = format!("{:04}/KSR/{}", counter, display_date);
+
+        let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM sales WHERE transaction_no = ?")
+            .bind(&candidate_no)
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if exists.is_none() {
+            // Update counter in transaction_counters table
+            sqlx::query(
+                "INSERT INTO transaction_counters (branch_id, date_str, counter) VALUES (?, ?, ?)
+                 ON CONFLICT(branch_id, date_str) DO UPDATE SET counter = excluded.counter"
+            )
+            .bind(branch_id)
+            .bind(&date_str)
+            .bind(counter)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+            return Ok(candidate_no);
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn get_next_transaction_no(
     branch_id: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let date_str = Local::now().format("%Y%m%d").to_string();
     let display_date = Local::now().format("%y%m").to_string();
+    let date_str = Local::now().format("%Y%m").to_string();
 
-    // Using an explicit transaction to ensure atomic increment or INSERT OR REPLACE
-    let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
-
-    // SQLite 3.35+ supports RETURNING
-    let current: Option<i64> = sqlx::query_scalar(
-        "UPDATE transaction_counters SET counter = counter + 1 WHERE branch_id = ? AND date_str = ? RETURNING counter"
+    let mut counter: i64 = sqlx::query_scalar(
+        "SELECT counter FROM transaction_counters WHERE branch_id = ? AND date_str = ?"
     )
     .bind(&branch_id)
     .bind(&date_str)
-    .fetch_optional(&mut *tx).await.map_err(|e| e.to_string())?;
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .unwrap_or(0);
 
-    let counter = if let Some(c) = current {
-        c
-    } else {
-        // If not found, insert 1
-        sqlx::query(
-            "INSERT INTO transaction_counters (branch_id, date_str, counter) VALUES (?, ?, 1)",
-        )
-        .bind(&branch_id)
-        .bind(&date_str)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| e.to_string())?;
-        1
-    };
+    // Preview next available number without committing
+    loop {
+        counter += 1;
+        let candidate_no = format!("{:04}/KSR/{}", counter, display_date);
+        let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM sales WHERE transaction_no = ?")
+            .bind(&candidate_no)
+            .fetch_optional(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
-    tx.commit().await.map_err(|e| e.to_string())?;
-
-    // Format: 0001/KSR/2605
-    Ok(format!("{:04}/KSR/{}", counter, display_date))
+        if exists.is_none() {
+            return Ok(candidate_no);
+        }
+    }
 }
 
 #[tauri::command]
@@ -52,28 +96,7 @@ pub async fn create_sale(
     let mut tx = state.db_pool.begin().await.map_err(|e| e.to_string())?;
 
     let sale_id = Uuid::new_v4().to_string();
-
-    // Get transaction number within this transaction to be safe?
-    // We can do it inline to avoid dropping the `tx` reference
-    let date_str = Local::now().format("%Y%m%d").to_string();
-    let display_date = Local::now().format("%y%m").to_string();
-    let current: Option<i64> = sqlx::query_scalar("UPDATE transaction_counters SET counter = counter + 1 WHERE branch_id = ? AND date_str = ? RETURNING counter")
-        .bind(&input.branch_id).bind(&date_str)
-        .fetch_optional(&mut *tx).await.map_err(|e| e.to_string())?;
-    let counter = if let Some(c) = current {
-        c
-    } else {
-        sqlx::query(
-            "INSERT INTO transaction_counters (branch_id, date_str, counter) VALUES (?, ?, 1)",
-        )
-        .bind(&input.branch_id)
-        .bind(&date_str)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| e.to_string())?;
-        1
-    };
-    let transaction_no = format!("{:04}/KSR/{}", counter, display_date);
+    let transaction_no = generate_unique_transaction_no(&mut tx, &input.branch_id).await?;
 
     // Call discount engine for double-checking and applying promos
     let lines_for_discount = input

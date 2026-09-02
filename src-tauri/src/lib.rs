@@ -82,6 +82,7 @@ pub fn run() {
             commands::items::update_item_unit,
             commands::items::delete_item_unit,
             commands::items::set_item_price,
+            commands::items::set_item_cost_price,
             commands::items::update_item_wholesale_price,
             commands::items::save_item_price_tiers,
             commands::items::get_item_price_tiers,
@@ -161,6 +162,8 @@ pub fn run() {
             commands::excel::export_items_excel,
             commands::excel::export_stock_excel,
             commands::excel::export_sales_excel,
+            commands::excel::export_receive_template,
+            commands::excel::parse_receive_excel,
 
             // Phase 9 - Auth
             commands::auth::login,
@@ -214,6 +217,8 @@ pub fn run() {
             commands::lan::test_lan_connection,
             commands::lan::trigger_lan_sync_now,
             commands::lan::clone_from_parent,
+            commands::lan::lan_remote_kick_drawer,
+            commands::lan::lan_remote_print_receipt,
 
             // AI Native Request
             commands::ai::send_ai_chat_request,
