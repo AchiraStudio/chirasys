@@ -1,7 +1,7 @@
 // Force HMR reload
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Users, Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders } from 'lucide-react';
+import { Users, Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders, Cloud } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import Modal from '../../components/ui/Modal';
@@ -102,11 +102,16 @@ export default function UserManagement() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Users className="text-brand" /> Manajemen Pengguna & Hak Akses
-          </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            Kelola akun pengguna, batasan akses per peran, dan kustomisasi toggle izin per staff.
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <Users className="text-brand" /> Manajemen Pengguna & Hak Akses
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[10px] font-black uppercase flex items-center gap-1 shadow-2xs">
+              <Cloud size={12} className="text-emerald-500" /> Supabase Cloud
+            </span>
+          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Kelola akun pengguna langsung di Supabase Cloud, batasan akses per peran, dan kustomisasi toggle izin per staff.
           </p>
         </div>
 

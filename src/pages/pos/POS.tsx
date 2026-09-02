@@ -132,6 +132,16 @@ export default function POS() {
     return () => clearTimeout(timer);
   }, [fetchItems]);
 
+  // Real-time synchronization listener (updates items without page reload)
+  useEffect(() => {
+    const handleSync = () => {
+      fetchItems();
+      getCategories().then(setCategories).catch(console.error);
+    };
+    window.addEventListener('chirasys:sync', handleSync);
+    return () => window.removeEventListener('chirasys:sync', handleSync);
+  }, [fetchItems]);
+
   // Hardware Barcode Scanner Hook
   useBarcodeScanner(async (barcode) => {
     if (showPayment || showCustomerPicker || receiptSaleId || showHistory) return;
@@ -743,9 +753,15 @@ export default function POS() {
                       <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-lg truncate max-w-[120px]">
                         {item.sku}
                       </span>
-                      {item.min_stock > 0 && (
-                        <span className="text-[9px] font-extrabold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-full shrink-0">
-                          Tersedia
+                      {item.current_stock !== undefined && (
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 font-mono ${
+                          item.current_stock > 0
+                            ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
+                            : item.current_stock === 0
+                            ? 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                            : 'text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800/40 font-black'
+                        }`}>
+                          Stok: {item.current_stock}
                         </span>
                       )}
                     </div>
@@ -781,6 +797,7 @@ export default function POS() {
                     <th className="py-2.5 px-4">SKU</th>
                     <th className="py-2.5 px-4">Nama Produk</th>
                     <th className="py-2.5 px-3">Kategori</th>
+                    <th className="py-2.5 px-3 text-center">Stok</th>
                     <th className="py-2.5 px-4 text-right">Harga</th>
                     <th className="py-2.5 px-3 text-center">Aksi</th>
                   </tr>
@@ -797,9 +814,22 @@ export default function POS() {
                         <td className="py-2.5 px-4 font-mono font-bold text-slate-500 text-[11px]">{item.sku}</td>
                         <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-white">{item.name}</td>
                         <td className="py-2.5 px-3 text-slate-400 text-[11px]">{item.category_name || '-'}</td>
+                        <td className="py-2.5 px-3 text-center">
+                          {item.current_stock !== undefined ? (
+                            <span className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-bold ${
+                              item.current_stock > 0
+                                ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                : item.current_stock === 0
+                                ? 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300'
+                                : 'text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400 font-black'
+                            }`}>
+                              {item.current_stock}
+                            </span>
+                          ) : '-'}
+                        </td>
                         <td className="py-2.5 px-4 text-right font-black text-brand font-mono">Rp {activePrice.toLocaleString('id-ID')}</td>
                         <td className="py-2.5 px-3 text-center">
-                          <button className="px-2 py-1 bg-brand text-white rounded-lg font-bold text-[10px] shadow-xs">
+                          <button className="px-2 py-1 bg-brand text-white rounded-lg font-bold text-[10px] shadow-xs cursor-pointer">
                             + Tambah
                           </button>
                         </td>

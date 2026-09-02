@@ -209,11 +209,13 @@ pub fn run() {
             // Phase 11 - Local Network (LAN) Offline Discovery & Sync
             commands::lan::get_lan_status,
             commands::lan::get_lan_peers,
+            commands::lan::scan_lan_subnet,
             commands::lan::set_lan_role,
             commands::lan::set_lan_device_name,
             commands::lan::set_lan_auto_connect,
             commands::lan::connect_lan_parent,
             commands::lan::disconnect_lan_parent,
+            commands::lan::parent_request_connect_child,
             commands::lan::test_lan_connection,
             commands::lan::trigger_lan_sync_now,
             commands::lan::clone_from_parent,

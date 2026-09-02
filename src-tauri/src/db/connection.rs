@@ -145,6 +145,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/055_sync_users_and_permissions.sql"), 55),
         (include_str!("./migrations/056_openai_settings.sql"), 56),
         (include_str!("./migrations/057_disable_auto_sync.sql"), 57),
+        (include_str!("./migrations/058_staff_lan_permission.sql"), 58),
     ];
 
     for (sql, version) in migrations {

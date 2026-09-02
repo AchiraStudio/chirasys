@@ -131,6 +131,7 @@ pub fn get_system_permission_definitions() -> Vec<PermissionDef> {
         PermissionDef { key: "settings.hardware".into(), name: "Pengaturan Printer & Hardware".into(), description: "Konfigurasi printer thermal dan ukuran kertas".into(), category: "Pengaturan & Sistem".into() },
         PermissionDef { key: "settings.users".into(), name: "Manajemen Akun & Hak Akses".into(), description: "Menambah user, ubah password, dan atur hak akses".into(), category: "Pengaturan & Sistem".into() },
         PermissionDef { key: "settings.database".into(), name: "Database & Sinkronisasi Cloud".into(), description: "Optimasi, ekspor database, dan sinkronisasi workspace".into(), category: "Pengaturan & Sistem".into() },
+        PermissionDef { key: "settings.lan".into(), name: "Jaringan Lokal & Sync LAN".into(), description: "Menghubungkan terminal kasir anak ke induk (LAN Sync)".into(), category: "Pengaturan & Sistem".into() },
     ]
 }
 
@@ -175,13 +176,13 @@ pub async fn resolve_effective_permissions(
             "purchasing.view".into(), "purchasing.create".into(), "purchasing.receive".into(), "purchasing.payment".into(), "purchasing.return".into(),
             "crm.customers".into(), "crm.suppliers".into(), "promos.manage".into(),
             "reports.view".into(), "reports.export".into(), "accounting.manage".into(),
-            "settings.general".into(), "settings.hardware".into(), "settings.users".into(),
+            "settings.general".into(), "settings.hardware".into(), "settings.users".into(), "settings.lan".into(),
         ])
     } else {
         (false, vec![
             "sales.create".into(), "sales.return".into(), "sales.cash_drawer".into(),
             "items.view".into(), "inventory.view".into(), "purchasing.view".into(),
-            "crm.customers".into(),
+            "crm.customers".into(), "settings.lan".into(),
         ])
     }
 }
@@ -192,94 +193,82 @@ pub async fn resolve_effective_permissions(
 
 #[tauri::command]
 pub async fn login(username: String, password_guess: String, state: State<'_, AppState>) -> Result<LoginResponse, String> {
-    let user_res = sqlx::query("SELECT id, name, username, password_hash, role, permissions, branch_id, avatar_color, active, workspace_id FROM users WHERE username = ?")
-        .bind(&username)
-        .fetch_optional(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let trimmed_username = username.trim().to_string();
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
 
-    let row = if let Some(r) = user_res {
-        r
-    } else {
-        // Fallback: Check Supabase cloud if user exists in cloud workspace
-        let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
+    // 1. PRIMARY: Fetch and synchronize user from Supabase Cloud first
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
 
-        if !supabase_url.is_empty() && !supabase_key.is_empty() {
-            let client = reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(10))
-                .build()
-                .unwrap_or_else(|_| reqwest::Client::new());
+        let url = format!("{}/rest/v1/users?username=eq.{}&limit=1", supabase_url, trimmed_username);
+        if let Ok(res) = client.get(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .send()
+            .await
+        {
+            if res.status().is_success() {
+                if let Ok(cloud_users) = res.json::<Vec<serde_json::Value>>().await {
+                    if let Some(cloud_user) = cloud_users.first() {
+                        // Apply cloud user to local DB
+                        let _ = crate::commands::sync::apply_cloud_sync(&state.db_pool, "users", cloud_user).await;
 
-            let url = format!("{}/rest/v1/users?username=eq.{}&limit=1", supabase_url, username.trim());
-            let cloud_user_res = client.get(&url)
-                .header("apikey", &supabase_key)
-                .header("Authorization", format!("Bearer {}", &supabase_key))
-                .send()
-                .await;
+                        // If user has a workspace_id, configure it locally if not yet configured
+                        if let Some(ws_id) = cloud_user.get("workspace_id").and_then(|v| v.as_str()) {
+                            let local_ws: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''")
+                                .fetch_optional(&state.db_pool)
+                                .await
+                                .unwrap_or(None);
 
-            if let Ok(res) = cloud_user_res {
-                if res.status().is_success() {
-                    if let Ok(cloud_users) = res.json::<Vec<serde_json::Value>>().await {
-                        if let Some(cloud_user) = cloud_users.first() {
-                            // Apply cloud user to local DB
-                            let _ = crate::commands::sync::apply_cloud_sync(&state.db_pool, "users", cloud_user).await;
-
-                            // If local workspace_id is empty and cloud user has workspace_id, configure it
-                            if let Some(ws_id) = cloud_user.get("workspace_id").and_then(|v| v.as_str()) {
-                                let local_ws: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''")
-                                    .fetch_optional(&state.db_pool)
+                            if local_ws.is_none() {
+                                let ws_url = format!("{}/rest/v1/workspaces?id=eq.{}&limit=1", supabase_url, ws_id);
+                                if let Ok(ws_res) = client.get(&ws_url)
+                                    .header("apikey", &supabase_key)
+                                    .header("Authorization", format!("Bearer {}", &supabase_key))
+                                    .send()
                                     .await
-                                    .unwrap_or(None);
-
-                                if local_ws.is_none() {
-                                    let ws_url = format!("{}/rest/v1/workspaces?id=eq.{}&limit=1", supabase_url, ws_id);
-                                    if let Ok(ws_res) = client.get(&ws_url)
-                                        .header("apikey", &supabase_key)
-                                        .header("Authorization", format!("Bearer {}", &supabase_key))
-                                        .send()
-                                        .await
-                                    {
-                                        if let Ok(workspaces) = ws_res.json::<Vec<serde_json::Value>>().await {
-                                            if let Some(ws) = workspaces.first() {
-                                                let ws_name = ws.get("name").and_then(|v| v.as_str()).unwrap_or("Cloud Workspace");
-                                                let ws_code = ws.get("code").and_then(|v| v.as_str()).unwrap_or("");
-                                                for (k, v) in [("workspace_id", ws_id), ("workspace_name", ws_name), ("workspace_code", ws_code)] {
-                                                    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-                                                        .bind(k).bind(v)
-                                                        .execute(&state.db_pool).await;
-                                                }
+                                {
+                                    if let Ok(workspaces) = ws_res.json::<Vec<serde_json::Value>>().await {
+                                        if let Some(ws) = workspaces.first() {
+                                            let ws_name = ws.get("name").and_then(|v| v.as_str()).unwrap_or("Cloud Workspace");
+                                            let ws_code = ws.get("code").and_then(|v| v.as_str()).unwrap_or("");
+                                            for (k, v) in [("workspace_id", ws_id), ("workspace_name", ws_name), ("workspace_code", ws_code)] {
+                                                let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+                                                    .bind(k).bind(v)
+                                                    .execute(&state.db_pool).await;
                                             }
                                         }
                                     }
                                 }
                             }
-
-                            // Re-fetch from local DB
-                            sqlx::query("SELECT id, name, username, password_hash, role, permissions, branch_id, avatar_color, active, workspace_id FROM users WHERE username = ?")
-                                .bind(&username)
-                                .fetch_optional(&state.db_pool)
-                                .await
-                                .map_err(|e| e.to_string())?
-                        } else {
-                            None
                         }
-                    } else {
-                        None
                     }
-                } else {
-                    None
                 }
-            } else {
-                None
             }
+        }
+    }
+
+    // 2. Query user from local SQLite (which now has latest cloud data if online)
+    let user_res = sqlx::query("SELECT id, name, username, password_hash, role, permissions, branch_id, avatar_color, active, workspace_id FROM users WHERE username = ?")
+        .bind(&trimmed_username)
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let row = user_res.ok_or_else(|| {
+        if !supabase_url.is_empty() {
+            "Username tidak ditemukan di akun Cloud Supabase atau lokal.".to_string()
         } else {
-            None
-        }.ok_or_else(|| "Username tidak ditemukan.".to_string())?
-    };
+            "Username tidak ditemukan.".to_string()
+        }
+    })?;
 
     let is_active = row.get::<bool, _>("active");
     if !is_active {
-        return Err("Akun ini telah dinonaktifkan.".to_string());
+        return Err("Akun ini telah dinonaktifkan di Cloud / Sistem.".to_string());
     }
 
     let stored_hash = row.get::<String, _>("password_hash");
@@ -416,6 +405,69 @@ pub struct UserRow {
 
 #[tauri::command]
 pub async fn get_users(state: State<'_, AppState>) -> Result<Vec<UserRow>, String> {
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
+    let local_ws: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None);
+
+    // 1. PRIMARY: Fetch from Supabase Cloud directly
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let url = if let Some(ref ws_id) = local_ws {
+            format!("{}/rest/v1/users?workspace_id=eq.{}&order=name.asc", supabase_url, ws_id)
+        } else {
+            format!("{}/rest/v1/users?order=name.asc", supabase_url)
+        };
+
+        if let Ok(res) = client.get(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .send()
+            .await
+        {
+            if res.status().is_success() {
+                if let Ok(cloud_users) = res.json::<Vec<serde_json::Value>>().await {
+                    let mut users = Vec::new();
+                    for cu in cloud_users {
+                        // Apply cloud user to local DB cache
+                        let _ = crate::commands::sync::apply_cloud_sync(&state.db_pool, "users", &cu).await;
+
+                        let id = cu.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                        let username = cu.get("username").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                        let name = cu.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                        let role = cu.get("role").and_then(|v| v.as_str()).unwrap_or("staff").to_string();
+                        let is_active = cu.get("active").and_then(|v| v.as_bool()).unwrap_or(true);
+                        let created_at = cu.get("created_at").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                        let workspace_id = cu.get("workspace_id").and_then(|v| v.as_str()).map(|s| s.to_string());
+                        let permissions = cu.get("permissions").map(|p| {
+                            if p.is_string() { p.as_str().unwrap().to_string() } else { p.to_string() }
+                        });
+                        let is_custom = permissions.as_ref().map(|p| !p.is_empty() && p != "default" && p != "[]").unwrap_or(false);
+
+                        users.push(UserRow {
+                            id,
+                            username,
+                            name,
+                            role,
+                            is_active,
+                            created_at,
+                            workspace_id,
+                            permissions,
+                            is_custom_perms: is_custom,
+                        });
+                    }
+                    return Ok(users);
+                }
+            }
+        }
+    }
+
+    // 2. OFFLINE FALLBACK: Read from local SQLite
     let rows = sqlx::query(
         r#"SELECT id, username, name, role, active AS is_active, created_at, workspace_id, permissions FROM users ORDER BY name ASC"#
     )
@@ -453,14 +505,8 @@ pub async fn create_user(
     workspace_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<UserRow, String> {
-    let existing: Option<(String,)> = sqlx::query_as("SELECT id FROM users WHERE username = ?")
-        .bind(&username)
-        .fetch_optional(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    if existing.is_some() {
-        return Err("Username sudah digunakan.".to_string());
-    }
+    let trimmed_username = username.trim().to_string();
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
 
     let resolved_workspace_id = match workspace_id {
         Some(w) if !w.trim().is_empty() => Some(w),
@@ -472,17 +518,78 @@ pub async fn create_user(
         }
     };
 
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new());
+
+    // 1. Direct Cloud Validation & Creation
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let check_url = format!("{}/rest/v1/users?username=eq.{}&limit=1", supabase_url, trimmed_username);
+        if let Ok(res) = client.get(&check_url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .send()
+            .await
+        {
+            if res.status().is_success() {
+                if let Ok(cloud_users) = res.json::<Vec<serde_json::Value>>().await {
+                    if !cloud_users.is_empty() {
+                        return Err("Username sudah digunakan di Supabase Cloud.".to_string());
+                    }
+                }
+            }
+        }
+    }
+
     let id = Uuid::new_v4().to_string();
     let password_hash = hash(&password, DEFAULT_COST).map_err(|e| e.to_string())?;
     let colors = ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#EC4899"];
     let avatar_color = colors[id.len() % colors.len()];
     let created_at_ts = Utc::now().to_rfc3339();
 
+    let cloud_payload = serde_json::json!({
+        "id": id,
+        "username": trimmed_username,
+        "password_hash": password_hash,
+        "name": name,
+        "role": role,
+        "permissions": "default",
+        "avatar_color": avatar_color,
+        "active": true,
+        "workspace_id": resolved_workspace_id,
+        "created_at": created_at_ts,
+        "updated_at": created_at_ts,
+        "updated_by": "user"
+    });
+
+    // POST directly to Supabase Cloud
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let insert_url = format!("{}/rest/v1/users", supabase_url);
+        let post_res = client.post(&insert_url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .header("Prefer", "resolution=merge-duplicates,return=minimal")
+            .json(&cloud_payload)
+            .send()
+            .await;
+
+        if let Ok(res) = post_res {
+            if !res.status().is_success() {
+                let err_text = res.text().await.unwrap_or_default();
+                return Err(format!("Gagal membuat akun di Supabase Cloud: {}", err_text));
+            }
+        } else if let Err(e) = post_res {
+            return Err(format!("Koneksi ke Supabase Cloud gagal: {}", e));
+        }
+    }
+
+    // Save to local cache
     sqlx::query(
-        "INSERT INTO users (id, username, password_hash, name, role, permissions, avatar_color, active, workspace_id, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, 'default', ?, 1, ?, ?, ?, 'user')"
+        "INSERT INTO users (id, username, password_hash, name, role, permissions, avatar_color, active, workspace_id, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, 'default', ?, 1, ?, ?, ?, 'user') ON CONFLICT(id) DO UPDATE SET username=excluded.username, name=excluded.name, role=excluded.role, password_hash=excluded.password_hash"
     )
     .bind(&id)
-    .bind(&username)
+    .bind(&trimmed_username)
     .bind(&password_hash)
     .bind(&name)
     .bind(&role)
@@ -492,21 +599,20 @@ pub async fn create_user(
     .bind(&created_at_ts)
     .execute(&state.db_pool)
     .await
-    .map_err(|e| format!("Gagal membuat pengguna: {}", e))?;
+    .map_err(|e| format!("Gagal menyimpan cache pengguna: {}", e))?;
 
-    let created_at: (String,) = sqlx::query_as("SELECT created_at FROM users WHERE id = ?")
-        .bind(&id)
-        .fetch_one(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let pool_clone = state.db_pool.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::commands::sync::trigger_auto_push(&pool_clone).await;
+    });
 
     Ok(UserRow {
         id,
-        username,
+        username: trimmed_username,
         name,
         role,
         is_active: true,
-        created_at: created_at.0,
+        created_at: created_at_ts,
         workspace_id: resolved_workspace_id,
         permissions: Some("default".to_string()),
         is_custom_perms: false,
@@ -515,23 +621,96 @@ pub async fn create_user(
 
 #[tauri::command]
 pub async fn toggle_user_active(id: String, state: State<'_, AppState>) -> Result<(), String> {
-    sqlx::query("UPDATE users SET active = NOT active, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
+    let is_currently_active: bool = sqlx::query_scalar("SELECT active FROM users WHERE id = ?")
+        .bind(&id)
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None)
+        .unwrap_or(true);
+
+    let next_active = !is_currently_active;
+    let now_ts = Utc::now().to_rfc3339();
+
+    // 1. Direct Cloud Patch
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let url = format!("{}/rest/v1/users?id=eq.{}", supabase_url, id.trim());
+        let _ = client.patch(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .header("Prefer", "return=minimal")
+            .json(&serde_json::json!({
+                "active": next_active,
+                "updated_at": now_ts,
+                "updated_by": "user"
+            }))
+            .send()
+            .await;
+    }
+
+    // 2. Local SQLite update
+    sqlx::query("UPDATE users SET active = ?, updated_at = ?, updated_by = 'user' WHERE id = ?")
+        .bind(next_active)
+        .bind(&now_ts)
         .bind(&id)
         .execute(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    let pool_clone = state.db_pool.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::commands::sync::trigger_auto_push(&pool_clone).await;
+    });
+
     Ok(())
 }
 
 #[tauri::command]
 pub async fn reset_user_password(id: String, new_password: String, state: State<'_, AppState>) -> Result<(), String> {
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
     let new_hash = hash(&new_password, DEFAULT_COST).map_err(|e| e.to_string())?;
-    sqlx::query("UPDATE users SET password_hash = ?, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
-        .bind(new_hash)
+    let now_ts = Utc::now().to_rfc3339();
+
+    // 1. Direct Cloud Patch
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let url = format!("{}/rest/v1/users?id=eq.{}", supabase_url, id.trim());
+        let _ = client.patch(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .header("Prefer", "return=minimal")
+            .json(&serde_json::json!({
+                "password_hash": new_hash,
+                "updated_at": now_ts,
+                "updated_by": "user"
+            }))
+            .send()
+            .await;
+    }
+
+    // 2. Local SQLite update
+    sqlx::query("UPDATE users SET password_hash = ?, updated_at = ?, updated_by = 'user' WHERE id = ?")
+        .bind(&new_hash)
+        .bind(&now_ts)
         .bind(&id)
         .execute(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    let pool_clone = state.db_pool.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::commands::sync::trigger_auto_push(&pool_clone).await;
+    });
+
     Ok(())
 }
 
@@ -544,30 +723,81 @@ pub async fn update_user(
     workspace_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let existing: Option<(String,)> = sqlx::query_as("SELECT id FROM users WHERE username = ? AND id != ?")
-        .bind(&username)
-        .bind(&id)
-        .fetch_optional(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    if existing.is_some() {
-        return Err("Username sudah digunakan.".to_string());
+    let trimmed_username = username.trim().to_string();
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
+    let now_ts = Utc::now().to_rfc3339();
+
+    // 1. Direct Cloud Patch
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let url = format!("{}/rest/v1/users?id=eq.{}", supabase_url, id.trim());
+        let patch_res = client.patch(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .header("Prefer", "return=minimal")
+            .json(&serde_json::json!({
+                "name": name,
+                "username": trimmed_username,
+                "role": role,
+                "workspace_id": workspace_id,
+                "updated_at": now_ts,
+                "updated_by": "user"
+            }))
+            .send()
+            .await;
+
+        if let Ok(res) = patch_res {
+            if !res.status().is_success() {
+                let err_text = res.text().await.unwrap_or_default();
+                return Err(format!("Gagal memperbarui pengguna di Supabase Cloud: {}", err_text));
+            }
+        }
     }
 
-    sqlx::query("UPDATE users SET name = ?, username = ?, role = ?, workspace_id = ?, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
+    // 2. Local SQLite update
+    sqlx::query("UPDATE users SET name = ?, username = ?, role = ?, workspace_id = ?, updated_at = ?, updated_by = 'user' WHERE id = ?")
         .bind(&name)
-        .bind(&username)
+        .bind(&trimmed_username)
         .bind(&role)
         .bind(&workspace_id)
+        .bind(&now_ts)
         .bind(&id)
         .execute(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    let pool_clone = state.db_pool.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::commands::sync::trigger_auto_push(&pool_clone).await;
+    });
+
     Ok(())
 }
 
 #[tauri::command]
 pub async fn delete_user(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
+
+    // 1. Direct Cloud Delete
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let url = format!("{}/rest/v1/users?id=eq.{}", supabase_url, id.trim());
+        let _ = client.delete(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .send()
+            .await;
+    }
+
+    // 2. Local SQLite delete
     sqlx::query("DELETE FROM users WHERE id = ?")
         .bind(&id)
         .execute(&state.db_pool)
@@ -579,6 +809,12 @@ pub async fn delete_user(id: String, state: State<'_, AppState>) -> Result<(), S
                 e.to_string()
             }
         })?;
+
+    let pool_clone = state.db_pool.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::commands::sync::trigger_auto_push(&pool_clone).await;
+    });
+
     Ok(())
 }
 
@@ -588,12 +824,44 @@ pub async fn assign_user_workspace(
     workspace_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    sqlx::query("UPDATE users SET workspace_id = ?, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
+    let now_ts = Utc::now().to_rfc3339();
+
+    // 1. Direct Cloud Patch
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let url = format!("{}/rest/v1/users?id=eq.{}", supabase_url, user_id.trim());
+        let _ = client.patch(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .header("Prefer", "return=minimal")
+            .json(&serde_json::json!({
+                "workspace_id": workspace_id,
+                "updated_at": now_ts,
+                "updated_by": "user"
+            }))
+            .send()
+            .await;
+    }
+
+    // 2. Local SQLite update
+    sqlx::query("UPDATE users SET workspace_id = ?, updated_at = ?, updated_by = 'user' WHERE id = ?")
         .bind(&workspace_id)
+        .bind(&now_ts)
         .bind(&user_id)
         .execute(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    let pool_clone = state.db_pool.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::commands::sync::trigger_auto_push(&pool_clone).await;
+    });
+
     Ok(())
 }
 
@@ -608,6 +876,50 @@ pub fn get_permission_definitions() -> Vec<PermissionDef> {
 
 #[tauri::command]
 pub async fn get_role_default_permissions(state: State<'_, AppState>) -> Result<Vec<RolePermissionItem>, String> {
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
+
+    // 1. Primary: Fetch from Supabase Cloud
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let url = format!("{}/rest/v1/role_default_permissions?order=role.asc", supabase_url);
+        if let Ok(res) = client.get(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .send()
+            .await
+        {
+            if res.status().is_success() {
+                if let Ok(cloud_roles) = res.json::<Vec<serde_json::Value>>().await {
+                    let mut list = Vec::new();
+                    for cr in cloud_roles {
+                        let _ = crate::commands::sync::apply_cloud_sync(&state.db_pool, "role_default_permissions", &cr).await;
+
+                        let role = cr.get("role").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                        let permissions = cr.get("permissions").and_then(|v| {
+                            if v.is_array() {
+                                serde_json::from_value::<Vec<String>>(v.clone()).ok()
+                            } else if let Some(s) = v.as_str() {
+                                serde_json::from_str::<Vec<String>>(s).ok()
+                            } else {
+                                None
+                            }
+                        }).unwrap_or_default();
+
+                        list.push(RolePermissionItem { role, permissions });
+                    }
+                    if !list.is_empty() {
+                        return Ok(list);
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Offline fallback
     let rows = sqlx::query("SELECT role, permissions FROM role_default_permissions ORDER BY role ASC")
         .fetch_all(&state.db_pool)
         .await
@@ -629,18 +941,49 @@ pub async fn update_role_default_permissions(
     permissions: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
     let perms_json = serde_json::to_string(&permissions).map_err(|e| e.to_string())?;
     let role_lower = role.to_lowercase();
+    let now_ts = Utc::now().to_rfc3339();
 
+    // 1. Direct Cloud Upsert
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let url = format!("{}/rest/v1/role_default_permissions", supabase_url);
+        let _ = client.post(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .header("Prefer", "resolution=merge-duplicates,return=minimal")
+            .json(&serde_json::json!({
+                "role": role_lower,
+                "permissions": permissions,
+                "updated_at": now_ts,
+                "updated_by": "user"
+            }))
+            .send()
+            .await;
+    }
+
+    // 2. Local SQLite upsert
     sqlx::query(
-        "INSERT INTO role_default_permissions (role, permissions, updated_at, updated_by) VALUES (?, ?, datetime('now'), 'user')
-         ON CONFLICT(role) DO UPDATE SET permissions = excluded.permissions, updated_at = datetime('now'), updated_by = 'user'"
+        "INSERT INTO role_default_permissions (role, permissions, updated_at, updated_by) VALUES (?, ?, ?, 'user')
+         ON CONFLICT(role) DO UPDATE SET permissions = excluded.permissions, updated_at = excluded.updated_at, updated_by = 'user'"
     )
     .bind(&role_lower)
     .bind(&perms_json)
+    .bind(&now_ts)
     .execute(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?;
+
+    let pool_clone = state.db_pool.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::commands::sync::trigger_auto_push(&pool_clone).await;
+    });
 
     Ok(())
 }
@@ -680,18 +1023,48 @@ pub async fn update_user_permissions(
     permissions: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
     let perms_val = if is_custom {
         serde_json::to_string(&permissions).map_err(|e| e.to_string())?
     } else {
         "default".to_string()
     };
+    let now_ts = Utc::now().to_rfc3339();
 
-    sqlx::query("UPDATE users SET permissions = ?, updated_at = datetime('now'), updated_by = 'user' WHERE id = ?")
+    // 1. Direct Cloud Patch
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let url = format!("{}/rest/v1/users?id=eq.{}", supabase_url, user_id.trim());
+        let _ = client.patch(&url)
+            .header("apikey", &supabase_key)
+            .header("Authorization", format!("Bearer {}", &supabase_key))
+            .header("Prefer", "return=minimal")
+            .json(&serde_json::json!({
+                "permissions": perms_val,
+                "updated_at": now_ts,
+                "updated_by": "user"
+            }))
+            .send()
+            .await;
+    }
+
+    // 2. Local SQLite update
+    sqlx::query("UPDATE users SET permissions = ?, updated_at = ?, updated_by = 'user' WHERE id = ?")
         .bind(&perms_val)
+        .bind(&now_ts)
         .bind(&user_id)
         .execute(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    let pool_clone = state.db_pool.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::commands::sync::trigger_auto_push(&pool_clone).await;
+    });
 
     Ok(())
 }

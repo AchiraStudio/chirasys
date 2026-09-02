@@ -734,6 +734,29 @@ pub async fn trigger_sync_push(
     Ok(total_synced)
 }
 
+pub async fn trigger_auto_push(pool: &SqlitePool) {
+    let (supabase_url, supabase_key) = get_supabase_credentials();
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return;
+    }
+
+    let workspace_id: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
+    )
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some(ws_id) = workspace_id {
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .unwrap_or_else(|_| Client::new());
+
+        let _ = process_sync_queue(pool, &client, &supabase_url, &supabase_key, &ws_id).await;
+    }
+}
+
 #[tauri::command]
 pub async fn trigger_sync_pull(
     app: tauri::AppHandle,

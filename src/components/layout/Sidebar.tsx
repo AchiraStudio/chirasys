@@ -99,7 +99,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
     { id: 'purchasing',   icon: Truck,           label: 'Penerimaan & Pemasok', show: can('purchasing.view') || can('purchasing.create') },
     { id: 'customers',    icon: Users,           label: 'Pelanggan & Promosi', show: can('crm.customers') || can('promos.manage') },
     { id: 'reports',      icon: FileText,        label: 'Laporan & Akuntansi', show: can('reports.view') || can('accounting.manage') },
-    { id: 'settings',     icon: Settings,        label: 'Pengaturan',          show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') },
+    { id: 'settings',     icon: Settings,        label: 'Pengaturan',          show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') || can('settings.lan') },
   ].filter(item => item.show);
 
   const roleLabel = () => {

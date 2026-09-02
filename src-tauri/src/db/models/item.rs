@@ -30,6 +30,7 @@ pub struct Item {
     pub base_unit_name: Option<String>,
     pub category_name: Option<String>,
     pub avg_hpp: Option<f64>,
+    pub current_stock: Option<f64>,
     #[sqlx(skip)]
     pub price_tiers: Option<Vec<ItemPriceTier>>,
 }

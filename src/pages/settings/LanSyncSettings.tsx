@@ -21,11 +21,13 @@ import {
 import {
   getLanStatus,
   getLanPeers,
+  scanLanSubnet,
   setLanRole,
   setLanDeviceName,
   setLanAutoConnect,
   connectLanParent,
   disconnectLanParent,
+  parentRequestConnectChild,
   testLanConnection,
   triggerLanSyncNow,
   cloneFromParent,
@@ -41,6 +43,8 @@ export default function LanSyncSettings() {
   const [status, setStatus] = useState<LanStatus | null>(null);
   const [peers, setPeers] = useState<LanPeer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isScanningSubnet, setIsScanningSubnet] = useState(false);
+  const [parentConnectingChild, setParentConnectingChild] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
@@ -69,6 +73,18 @@ export default function LanSyncSettings() {
   const [isCloning, setIsCloning] = useState(false);
   const [cloneResult, setCloneResult] = useState<string | null>(null);
   const [cloneError, setCloneError] = useState<string | null>(null);
+
+  const handleScanSubnet = async () => {
+    setIsScanningSubnet(true);
+    try {
+      const p = await scanLanSubnet();
+      setPeers(p);
+    } catch (err) {
+      console.error('Failed to scan subnet:', err);
+    } finally {
+      setIsScanningSubnet(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -158,15 +174,25 @@ export default function LanSyncSettings() {
       const res = await connectLanParent(peer.ip_address, peer.http_port, peer.device_name);
       if (res.success) {
         await loadData();
-        // If this child might be empty, offer to clone database
-        setTargetParentToClone({
-          ip: peer.ip_address,
-          port: peer.http_port,
-          name: peer.device_name
-        });
+        // Trigger initial real-time sync in background immediately
+        triggerLanSyncNow().catch(console.error);
+        alert(`Berhasil terhubung ke Server Induk (${peer.device_name})! Data barang dan transaksi akan otomatis tersinkronisasi secara real-time.`);
       }
     } catch (err: any) {
       alert(`Gagal menghubungkan: ${typeof err === 'string' ? err : 'Error koneksi'}`);
+    }
+  };
+
+  const handleParentRequestConnectChild = async (peer: LanPeer) => {
+    setParentConnectingChild(peer.device_id);
+    try {
+      const msg = await parentRequestConnectChild(peer.ip_address, peer.http_port);
+      alert(msg);
+      await loadData();
+    } catch (err: any) {
+      alert(`Gagal menghubungkan kasir: ${typeof err === 'string' ? err : 'Error koneksi'}`);
+    } finally {
+      setParentConnectingChild(null);
     }
   };
 
@@ -218,11 +244,9 @@ export default function LanSyncSettings() {
       const res = await connectLanParent(manualIp.trim(), port);
       if (res.success) {
         await loadData();
-        setTargetParentToClone({
-          ip: manualIp.trim(),
-          port: port,
-          name: res.device_name || 'Server Induk'
-        });
+        // Trigger initial real-time sync in background immediately
+        triggerLanSyncNow().catch(console.error);
+        alert(`Berhasil terhubung ke Server Induk (${res.device_name || manualIp})! Data barang dan transaksi akan otomatis tersinkronisasi secara real-time.`);
       }
     } catch (err: any) {
       alert(`Gagal menghubungkan: ${typeof err === 'string' ? err : 'Koneksi gagal'}`);
@@ -318,6 +342,7 @@ export default function LanSyncSettings() {
   }
 
   const isChild = status?.role === 'child';
+  const isParent = status?.role === 'parent';
   const isConnected = isChild && !!status?.paired_parent_ip;
 
   return (
@@ -621,27 +646,51 @@ export default function LanSyncSettings() {
 
       {/* Discovered LAN Peers Radar Table */}
       <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden flex flex-col">
-        <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/30">
+        <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/30">
           <div>
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Radio size={16} className="text-emerald-500 animate-pulse" /> Radar Perangkat Terdeteksi di Jaringan ({peers.length})
             </h3>
             <p className="text-xs text-slate-500">Mendeteksi komputer lain yang membuka aplikasi ChiraSys di jaringan Wi-Fi/LAN ini.</p>
           </div>
-          <button
-            onClick={loadData}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-xs"
-          >
-            <RefreshCw size={12} /> Pindai Ulang
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleScanSubnet}
+              disabled={isScanningSubnet}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand text-white text-xs font-extrabold hover:bg-brand/90 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              title="Pindai subnet IP lokal secara aktif (memotong blokade UDP/Wi-Fi router)"
+            >
+              {isScanningSubnet ? <Loader2 size={12} className="animate-spin" /> : <Radio size={12} />}
+              <span>{isScanningSubnet ? 'Memindai IP...' : 'Pindai Subnet IP'}</span>
+            </button>
+            <button
+              onClick={loadData}
+              disabled={isScanningSubnet}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
+            >
+              <RefreshCw size={12} /> Pindai Ulang
+            </button>
+          </div>
         </div>
 
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {peers.length === 0 ? (
-            <div className="py-12 text-center text-slate-400">
-              <Wifi size={28} className="mx-auto mb-2 opacity-40" />
-              <p className="text-xs font-bold">Belum ada perangkat lain yang terdeteksi secara otomatis.</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Pastikan komputer lain membuka aplikasi ChiraSys dan berada di Wi-Fi yang sama, atau gunakan input IP Manual di bawah.</p>
+            <div className="py-12 text-center text-slate-400 p-6">
+              <Wifi size={32} className="mx-auto mb-2 opacity-40 text-brand" />
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Belum ada perangkat lain yang terdeteksi di radar.</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
+                Pastikan komputer induk membuka aplikasi ChiraSys. Klik tombol <strong>Pindai Subnet IP</strong> untuk memindai seluruh IP lokal, atau masukkan IP manual di bawah.
+              </p>
+              <div className="mt-4 flex items-center justify-center gap-3">
+                <button
+                  onClick={handleScanSubnet}
+                  disabled={isScanningSubnet}
+                  className="btn-primary text-xs px-4 py-2 flex items-center gap-2"
+                >
+                  {isScanningSubnet ? <Loader2 size={14} className="animate-spin" /> : <Radio size={14} />}
+                  {isScanningSubnet ? 'Sedang Memindai Subnet Jaringan...' : 'Pindai Subnet Jaringan Sekarang'}
+                </button>
+              </div>
             </div>
           ) : (
             peers.map((peer) => {
@@ -698,28 +747,28 @@ export default function LanSyncSettings() {
                     {/* Ping Test Button */}
                     <button
                       onClick={() => handleOpenDiagnostics(peer.ip_address, peer.http_port, peer.device_name)}
-                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 transition-colors"
+                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 transition-colors cursor-pointer"
                       title="Uji koneksi ping & diagnostik"
                     >
                       <Terminal size={12} /> Uji Ping
                     </button>
 
-                    {/* If we are Child and peer is Parent */}
-                    {isChild && isParentPeer && !peer.is_self && (
+                    {/* If we are Child and peer is not self */}
+                    {isChild && !peer.is_self && (
                       <>
                         {isPairedWithThis ? (
                           <button
                             onClick={handleDisconnect}
-                            className="px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-1 hover:bg-rose-100 transition-colors"
+                            className="px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-1 hover:bg-rose-100 transition-colors cursor-pointer"
                           >
                             <Unplug size={12} /> Putuskan
                           </button>
                         ) : (
                           <button
                             onClick={() => handleConnectPeer(peer)}
-                            className="px-3.5 py-1.5 rounded-xl bg-brand text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs hover:bg-brand/90 transition-all active:scale-95"
+                            className="px-4 py-2 rounded-xl bg-brand text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-brand/20 hover:bg-brand/90 transition-all active:scale-95 cursor-pointer"
                           >
-                            <Zap size={13} /> Hubungkan ke Induk Ini
+                            <Zap size={14} className="text-yellow-300 fill-yellow-300" /> Hubungkan ke Induk Ini
                           </button>
                         )}
 
@@ -729,11 +778,24 @@ export default function LanSyncSettings() {
                             port: peer.http_port,
                             name: peer.device_name
                           })}
-                          className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                          className="px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                         >
                           <DownloadCloud size={13} /> Salin Database
                         </button>
                       </>
+                    )}
+
+                    {/* If we are Parent and peer is not self (Child terminal) */}
+                    {isParent && !peer.is_self && (
+                      <button
+                        onClick={() => handleParentRequestConnectChild(peer)}
+                        disabled={parentConnectingChild === peer.device_id}
+                        className="px-4 py-2 rounded-xl bg-brand text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-brand/20 hover:bg-brand/90 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                        title="Kirim instruksi ke komputer kasir klien agar otomatis terhubung ke Server Induk ini"
+                      >
+                        <Zap size={14} className="text-yellow-300 fill-yellow-300" />
+                        {parentConnectingChild === peer.device_id ? 'Menghubungkan...' : 'Hubungkan Kasir Klien Ini'}
+                      </button>
                     )}
                   </div>
                 </div>

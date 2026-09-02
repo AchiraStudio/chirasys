@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, Settings as SettingsIcon, Globe, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown, Network } from 'lucide-react';
-import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData } from '../../lib/api';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, Settings as SettingsIcon, Globe, RefreshCw, Wifi, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown, Network, Link2, Zap } from 'lucide-react';
+import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, joinWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData } from '../../lib/api';
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
@@ -113,7 +113,14 @@ export default function Settings() {
   const [successMsg, setSuccessMsg] = useState('');
   const [configs, setConfigs] = useState<{key: string, value: string, description?: string}[]>([]);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'system' | 'users' | 'sync' | 'lan' | 'hardware'>('system');
+  const [activeTab, setActiveTab] = useState<'system' | 'users' | 'sync' | 'lan' | 'hardware'>(() => {
+    if (can('settings.general')) return 'system';
+    if (can('settings.lan')) return 'lan';
+    if (can('settings.hardware')) return 'hardware';
+    if (can('settings.database')) return 'sync';
+    if (can('settings.users') || isAdmin) return 'users';
+    return 'lan';
+  });
 
   // Profile settings
   const [companyName, setCompanyName] = useState('');
@@ -142,6 +149,46 @@ export default function Settings() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [isPushing, setIsPushing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
+
+  // Manual Workspace Join state
+  const [joinCode, setJoinCode] = useState('');
+  const [joinPassword, setJoinPassword] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [showSwitchWorkspace, setShowSwitchWorkspace] = useState(false);
+
+  useEffect(() => {
+    // If user lacks general settings, redirect to allowed tab
+    if (activeTab === 'system' && !can('settings.general')) {
+      if (can('settings.lan')) setActiveTab('lan');
+      else if (can('settings.hardware')) setActiveTab('hardware');
+      else if (can('settings.database')) setActiveTab('sync');
+      else if (can('settings.users') || isAdmin) setActiveTab('users');
+    }
+  }, [can, isAdmin, activeTab]);
+
+  const handleJoinWorkspace = async () => {
+    const trimmedCode = joinCode.trim();
+    if (!trimmedCode) {
+      setJoinError('Silakan masukkan Kode Workspace atau Token Undangan.');
+      return;
+    }
+    setIsJoining(true);
+    setJoinError(null);
+    try {
+      const ws = await joinWorkspace(trimmedCode, joinPassword.trim() || undefined);
+      setSuccessMsg(`Berhasil terhubung ke Workspace: ${ws.name} (${ws.code})`);
+      setJoinCode('');
+      setJoinPassword('');
+      setShowSwitchWorkspace(false);
+      await loadSyncStatus();
+      setTimeout(() => setSuccessMsg(''), 6000);
+    } catch (err: any) {
+      setJoinError(err.message || String(err));
+    } finally {
+      setIsJoining(false);
+    }
+  };
 
   const handleManualPush = async () => {
     setIsPushing(true);
@@ -585,21 +632,141 @@ export default function Settings() {
                   </div>
                 </>
               ) : (
-                <div className="flex flex-col items-center gap-3 py-12 text-center">
-                  <WifiOff size={40} className="text-slate-300 dark:text-slate-600" />
-                  <p className="text-sm font-bold text-slate-600 dark:text-slate-400">Belum terhubung ke Workspace Cloud.</p>
-                  <p className="text-xs text-slate-400 max-w-sm">Gunakan kode workspace pada layar login untuk menghubungkan toko Anda ke cloud.</p>
+                <div className="space-y-4">
+                  <div className="bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-brand/10 text-brand rounded-xl">
+                        <Link2 size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Hubungkan ke Workspace Cloud</h3>
+                        <p className="text-xs text-slate-500">Masukkan Kode Workspace (misal: <code>WS-XXXX</code>) atau Token Undangan untuk menghubungkan toko ini ke cloud Supabase.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                          Kode Workspace / Token Undangan <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={joinCode}
+                          onChange={(e) => setJoinCode(e.target.value)}
+                          placeholder="Contoh: WS-ABC123 atau Token"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono font-bold focus:border-brand outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                          Password Workspace (Opsional)
+                        </label>
+                        <input
+                          type="password"
+                          value={joinPassword}
+                          onChange={(e) => setJoinPassword(e.target.value)}
+                          placeholder="Kosongkan jika tanpa sandi"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:border-brand outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {joinError && (
+                      <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl flex items-center gap-2 text-rose-600 dark:text-rose-400 text-xs font-bold">
+                        <AlertTriangle size={15} className="shrink-0" />
+                        <span>{joinError}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end">
+                      <button
+                        onClick={handleJoinWorkspace}
+                        disabled={isJoining || !joinCode.trim()}
+                        className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                      >
+                        {isJoining ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                        {isJoining ? 'Menghubungkan ke Cloud...' : 'Hubungkan Sekarang'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
 
             {isAdmin && syncStatus?.workspace_id && (
-              <button
-                onClick={handleLeaveWorkspace}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-rose-200 dark:border-rose-900/50 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs font-extrabold transition-all cursor-pointer"
-              >
-                <LogOut size={16} /> Putuskan Koneksi Workspace
-              </button>
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => setShowSwitchWorkspace(!showSwitchWorkspace)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Link2 size={15} /> Ganti / Pindah Workspace
+                </button>
+                <button
+                  onClick={handleLeaveWorkspace}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-rose-200 dark:border-rose-900/50 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs font-extrabold transition-all cursor-pointer"
+                >
+                  <LogOut size={15} /> Putuskan Koneksi Workspace
+                </button>
+              </div>
+            )}
+
+            {showSwitchWorkspace && syncStatus?.workspace_id && (
+              <div className="bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Link2 size={16} className="text-brand" />
+                  <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">Pindah ke Workspace Cloud Lain</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                      Kode Workspace / Token Baru
+                    </label>
+                    <input
+                      type="text"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value)}
+                      placeholder="Contoh: WS-XYZ999"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono font-bold focus:border-brand outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                      Password (Opsional)
+                    </label>
+                    <input
+                      type="password"
+                      value={joinPassword}
+                      onChange={(e) => setJoinPassword(e.target.value)}
+                      placeholder="Sandi jika ada"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:border-brand outline-none"
+                    />
+                  </div>
+                </div>
+
+                {joinError && (
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl flex items-center gap-2 text-rose-600 dark:text-rose-400 text-xs font-bold">
+                    <AlertTriangle size={15} className="shrink-0" />
+                    <span>{joinError}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setShowSwitchWorkspace(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleJoinWorkspace}
+                    disabled={isJoining || !joinCode.trim()}
+                    className="px-5 py-2 rounded-xl bg-brand text-white text-xs font-extrabold flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isJoining ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                    {isJoining ? 'Menghubungkan...' : 'Hubungkan ke Workspace Baru'}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

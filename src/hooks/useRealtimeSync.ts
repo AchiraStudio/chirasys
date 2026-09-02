@@ -11,18 +11,23 @@ import { listen } from '@tauri-apps/api/event';
  */
 export function useRealtimeSync() {
   useEffect(() => {
-    console.log('🔌 useRealtimeSync: listening for sync-received events…');
+    console.log('🔌 useRealtimeSync: listening for sync & lan events…');
 
-    const unlistenPromise = listen<string>('sync-received', (event) => {
+    const unlistens: (() => void)[] = [];
+
+    listen<string>('sync-received', (event) => {
       const table = event.payload;
       console.log(`🔄 Cloud sync received for table: ${table}`);
+      window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { table, source: 'cloud' } }));
+    }).then(unsub => unlistens.push(unsub));
 
-      // Dispatch a browser-native CustomEvent so any subscriber can react
-      window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { table } }));
-    });
+    listen('chirasys:sync', () => {
+      console.log('🔄 LAN sync updated database');
+      window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { source: 'lan' } }));
+    }).then(unsub => unlistens.push(unsub));
 
     return () => {
-      unlistenPromise.then(unlisten => unlisten());
+      unlistens.forEach(unsub => unsub());
     };
   }, []);
 }

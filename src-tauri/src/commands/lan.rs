@@ -204,6 +204,7 @@ pub async fn start_lan_http_server(pool: SqlitePool, app_handle: AppHandle, port
         .route("/api/lan/queue/pull", get(handle_queue_pull))
         .route("/api/lan/remote/kick_drawer", post(handle_remote_kick_drawer))
         .route("/api/lan/remote/print_receipt", post(handle_remote_print_receipt))
+        .route("/api/lan/pair_with_parent", post(handle_pair_with_parent))
         .layer(CorsLayer::permissive())
         .with_state(ctx);
 
@@ -410,10 +411,16 @@ pub struct RemotePrintReceiptRequest {
 }
 
 async fn handle_remote_kick_drawer(
-    AxumState(_ctx): AxumState<ServerContext>,
+    AxumState(ctx): AxumState<ServerContext>,
     Json(payload): Json<RemoteKickDrawerRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let printer = payload.printer_name.unwrap_or_default();
+    let mut printer = payload.printer_name.unwrap_or_default();
+    if printer.is_empty() || printer.starts_with("LAN") || printer.starts_with("[LAN]") {
+        if let Ok(Some(saved_p)) = sqlx::query_scalar::<_, String>("SELECT value FROM global_settings WHERE key = 'printer_name'")
+            .fetch_optional(&ctx.pool).await {
+            printer = saved_p;
+        }
+    }
     match crate::commands::maintenance::kick_cash_drawer(printer).await {
         Ok(msg) => Ok(Json(serde_json::json!({ "success": true, "message": msg }))),
         Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err)),
@@ -421,14 +428,67 @@ async fn handle_remote_kick_drawer(
 }
 
 async fn handle_remote_print_receipt(
-    AxumState(_ctx): AxumState<ServerContext>,
+    AxumState(ctx): AxumState<ServerContext>,
     Json(payload): Json<RemotePrintReceiptRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let printer = payload.printer_name.unwrap_or_default();
+    let mut printer = payload.printer_name.unwrap_or_default();
+    if printer.is_empty() || printer.starts_with("LAN") || printer.starts_with("[LAN]") {
+        if let Ok(Some(saved_p)) = sqlx::query_scalar::<_, String>("SELECT value FROM global_settings WHERE key = 'printer_name'")
+            .fetch_optional(&ctx.pool).await {
+            printer = saved_p;
+        }
+    }
     match crate::commands::maintenance::print_raw_receipt(printer, payload.bytes).await {
         Ok(msg) => Ok(Json(serde_json::json!({ "success": true, "message": msg }))),
         Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err)),
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PairWithParentRequest {
+    pub parent_ip: String,
+    pub parent_port: Option<u16>,
+    pub parent_name: Option<String>,
+    pub workspace_id: Option<String>,
+}
+
+async fn handle_pair_with_parent(
+    AxumState(ctx): AxumState<ServerContext>,
+    Json(payload): Json<PairWithParentRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let port = payload.parent_port.unwrap_or(DEFAULT_HTTP_PORT);
+    let name = payload.parent_name.unwrap_or_else(|| "Server Induk".to_string());
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_ip', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&payload.parent_ip)
+        .execute(&ctx.pool)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_port', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(port.to_string())
+        .execute(&ctx.pool)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&name)
+        .execute(&ctx.pool)
+        .await;
+
+    if let Some(ref ws) = payload.workspace_id {
+        if !ws.is_empty() {
+            let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('workspace_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+                .bind(ws)
+                .execute(&ctx.pool)
+                .await;
+        }
+    }
+
+    let _ = ctx.app_handle.emit("chirasys:lan_status_updated", ());
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Terminal kasir klien berhasil dihubungkan ke Server Induk!"
+    })))
 }
 
 // ---------------------------------------------------------------------------
@@ -476,8 +536,16 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
             if let Ok(bytes) = serde_json::to_vec(&packet) {
                 if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
                     let _ = socket.set_broadcast(true);
-                    let target = format!("255.255.255.255:{}", UDP_DISCOVERY_PORT);
-                    let _ = socket.send_to(&bytes, target);
+                    let target_global = format!("255.255.255.255:{}", UDP_DISCOVERY_PORT);
+                    let _ = socket.send_to(&bytes, &target_global);
+
+                    // Also broadcast on local subnet if IPv4
+                    let local_ip_str = get_local_ip();
+                    let parts: Vec<&str> = local_ip_str.split('.').collect();
+                    if parts.len() == 4 {
+                        let target_subnet = format!("{}.{}.{}.255:{}", parts[0], parts[1], parts[2], UDP_DISCOVERY_PORT);
+                        let _ = socket.send_to(&bytes, &target_subnet);
+                    }
                 }
             }
         }
@@ -562,7 +630,7 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
             .unwrap_or_else(|_| reqwest::Client::new());
 
         loop {
-            tokio::time::sleep(Duration::from_secs(5)).await;
+            tokio::time::sleep(Duration::from_secs(2)).await;
 
             let role: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_role'")
                 .fetch_optional(&pool)
@@ -829,18 +897,122 @@ pub async fn get_lan_peers(state: tauri::State<'_, crate::AppState>) -> Result<V
         .await
         .unwrap_or(None);
 
+    let paired_parent_port: u16 = sqlx::query_scalar::<_, String>("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_port'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_HTTP_PORT);
+
+    let paired_parent_name: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_name'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None)
+        .unwrap_or_else(|| "Server Induk".to_string());
+
     let peers = PEER_REGISTRY.read().await;
     let mut list = Vec::new();
+    let mut found_paired = false;
+
     for p in peers.values() {
         let mut cloned = p.clone();
         if let Some(ref pip) = paired_parent_ip {
             if &cloned.ip_address == pip {
                 cloned.is_paired = true;
+                found_paired = true;
             }
         }
         list.push(cloned);
     }
+
+    // If paired parent is configured in settings but not yet discovered in memory, include it
+    if let Some(ref pip) = paired_parent_ip {
+        if !found_paired {
+            list.push(LanPeer {
+                device_id: format!("paired_{}", pip.replace('.', "_")),
+                device_name: paired_parent_name,
+                role: "parent".to_string(),
+                ip_address: pip.clone(),
+                http_port: paired_parent_port,
+                workspace_id: "".to_string(),
+                last_seen: now_epoch_secs(),
+                is_self: false,
+                is_paired: true,
+            });
+        }
+    }
+
     Ok(list)
+}
+
+#[tauri::command]
+pub async fn scan_lan_subnet(
+    app_handle: AppHandle,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<Vec<LanPeer>, String> {
+    let local_ip_str = get_local_ip();
+    let parts: Vec<&str> = local_ip_str.split('.').collect();
+    if parts.len() != 4 {
+        return get_lan_peers(state).await;
+    }
+
+    let subnet_prefix = format!("{}.{}.{}.", parts[0], parts[1], parts[2]);
+    let self_id = get_device_unique_id();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(650))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut join_set = tokio::task::JoinSet::new();
+
+    for host in 1..=254 {
+        let ip = format!("{}{}", subnet_prefix, host);
+        let client_clone = client.clone();
+        join_set.spawn(async move {
+            let url = format!("http://{}:{}/api/lan/info", ip, DEFAULT_HTTP_PORT);
+            if let Ok(res) = client_clone.get(&url).send().await {
+                if res.status().is_success() {
+                    if let Ok(info) = res.json::<serde_json::Value>().await {
+                        if info.get("app").and_then(|v| v.as_str()) == Some("chirasys") {
+                            let dev_id = info.get("device_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let dev_name = info.get("device_name").and_then(|v| v.as_str()).unwrap_or("Server").to_string();
+                            let role = info.get("role").and_then(|v| v.as_str()).unwrap_or("parent").to_string();
+                            let ws_id = info.get("workspace_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let port = info.get("http_port").and_then(|v| v.as_u64()).unwrap_or(DEFAULT_HTTP_PORT as u64) as u16;
+                            return Some(LanPeer {
+                                device_id: dev_id,
+                                device_name: dev_name,
+                                role,
+                                ip_address: ip,
+                                http_port: port,
+                                workspace_id: ws_id,
+                                last_seen: now_epoch_secs(),
+                                is_self: false,
+                                is_paired: false,
+                            });
+                        }
+                    }
+                }
+            }
+            None
+        });
+    }
+
+    while let Some(res) = join_set.join_next().await {
+        if let Ok(Some(mut peer)) = res {
+            peer.is_self = peer.device_id == self_id;
+            let mut peers = PEER_REGISTRY.write().await;
+            peers.insert(peer.device_id.clone(), peer);
+        }
+    }
+
+    let peers_list = {
+        let peers = PEER_REGISTRY.read().await;
+        peers.values().cloned().collect::<Vec<_>>()
+    };
+    let _ = app_handle.emit("chirasys:lan_peers_updated", &peers_list);
+
+    get_lan_peers(state).await
 }
 
 #[tauri::command]
@@ -1035,6 +1207,49 @@ pub async fn disconnect_lan_parent(
 
     let _ = app_handle.emit("chirasys:lan_status_updated", ());
     Ok(())
+}
+
+#[tauri::command]
+pub async fn parent_request_connect_child(
+    child_ip: String,
+    child_port: Option<u16>,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<String, String> {
+    let port = child_port.unwrap_or(DEFAULT_HTTP_PORT);
+    let parent_ip = get_local_ip();
+    let parent_name: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_device_name'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or_default()
+        .unwrap_or_else(|| "Server Induk".to_string());
+
+    let workspace_id: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'workspace_id'")
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or_default()
+        .unwrap_or_default();
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(4))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let url = format!("http://{}:{}/api/lan/pair_with_parent", child_ip.trim(), port);
+    let payload = serde_json::json!({
+        "parent_ip": parent_ip,
+        "parent_port": DEFAULT_HTTP_PORT,
+        "parent_name": parent_name,
+        "workspace_id": workspace_id,
+    });
+
+    let res = client.post(&url).json(&payload).send().await
+        .map_err(|e| format!("Gagal mengirim perintah koneksi ke kasir klien: {}", e))?;
+
+    if res.status().is_success() {
+        Ok("Berhasil menghubungkan kasir klien ke Server Induk ini!".to_string())
+    } else {
+        Err(format!("Kasir klien merespons dengan status {}", res.status()))
+    }
 }
 
 #[tauri::command]
@@ -1236,8 +1451,10 @@ pub async fn clone_from_parent(
 
     for &table in SNAPSHOT_TABLES {
         if let Some(rows) = snapshot.tables.get(table) {
-            let clear_sql = format!("DELETE FROM {}", table);
-            let _ = sqlx::query(&clear_sql).execute(&mut *tx).await;
+            if table != "users" && table != "role_default_permissions" {
+                let clear_sql = format!("DELETE FROM {}", table);
+                let _ = sqlx::query(&clear_sql).execute(&mut *tx).await;
+            }
 
             for r in rows {
                 if let Some(obj) = r.as_object() {
@@ -1246,12 +1463,20 @@ pub async fn clone_from_parent(
                         continue;
                     }
                     let placeholders = vec!["?"; columns.len()].join(", ");
-                    let insert_sql = format!(
-                        "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
-                        table,
-                        columns.join(", "),
-                        placeholders
-                    );
+                    let insert_sql = if table == "users" {
+                        format!(
+                            "INSERT OR IGNORE INTO users ({}) VALUES ({})",
+                            columns.join(", "),
+                            placeholders
+                        )
+                    } else {
+                        format!(
+                            "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
+                            table,
+                            columns.join(", "),
+                            placeholders
+                        )
+                    };
 
                     let mut q = sqlx::query(&insert_sql);
                     for col in &columns {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Printer, RefreshCw, CheckCircle2, Cpu, Barcode, Zap, Sliders, Play, X, Check, Monitor, WifiOff, AlertTriangle } from 'lucide-react';
-import { getSettings, setSetting, listPrinters, kickCashDrawer, printRawReceipt, DetectedPrinterInfo } from '../../lib/api';
+import { Printer, RefreshCw, CheckCircle2, Cpu, Barcode, Zap, Sliders, Play, X, Check, Monitor, WifiOff, AlertTriangle, Network, Server } from 'lucide-react';
+import { getSettings, setSetting, listPrinters, kickCashDrawer, printRawReceipt, DetectedPrinterInfo, getLanStatus, LanStatus } from '../../lib/api';
 import { EscPosBuilder } from '../../lib/escpos';
 
 export default function HardwareSettings() {
@@ -9,6 +9,8 @@ export default function HardwareSettings() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [drawerLoading, setDrawerLoading] = useState(false);
+  const [lanStatus, setLanStatus] = useState<LanStatus | null>(null);
+  const [isTestingLan, setIsTestingLan] = useState(false);
 
   // Hardware config state (mirrored from DB via get_settings)
   const [selectedPrinter, setSelectedPrinter] = useState('');
@@ -75,12 +77,35 @@ export default function HardwareSettings() {
     setPrintersLoading(true);
     setPrintersError('');
     try {
-      const printers = await listPrinters();
-      setDetectedPrinters(printers);
+      const [printers, lan] = await Promise.all([
+        listPrinters().catch(() => []),
+        getLanStatus().catch(() => null),
+      ]);
 
-      // Auto-select the default printer if nothing is saved yet
-      if (!selectedPrinter && printers.length > 0) {
-        const defaultPrinter = printers.find(p => p.Default) ?? printers[0];
+      setLanStatus(lan);
+
+      let allPrinters = [...printers];
+
+      // If LAN parent is paired or child mode is enabled, add LAN Printer option
+      if (lan?.paired_parent_ip || lan?.role === 'child') {
+        const lanPrinterName = `[LAN] Printer & Laci Server Induk (${lan.paired_parent_name || lan.paired_parent_ip || 'Server'})`;
+        const exists = allPrinters.some(p => p.Name.startsWith('[LAN]'));
+        if (!exists) {
+          allPrinters.unshift({
+            Name: lanPrinterName,
+            DriverName: 'LAN Remote Spooler',
+            PortName: 'LAN:3699',
+            Default: false,
+            PrinterStatus: 0,
+          });
+        }
+      }
+
+      setDetectedPrinters(allPrinters);
+
+      // Auto-select printer if nothing is saved yet
+      if (!selectedPrinter && allPrinters.length > 0) {
+        const defaultPrinter = allPrinters.find(p => p.Default) ?? allPrinters[0];
         setSelectedPrinter(defaultPrinter.Name);
         setSelectedPrinterPort(defaultPrinter.PortName);
       }
@@ -468,6 +493,101 @@ export default function HardwareSettings() {
                     </button>
                   );
                 })}
+              </div>
+            )}
+          </div>
+
+          {/* Perangkat Hardware Jaringan Lokal (LAN) */}
+          <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 space-y-4 shadow-sm">
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-xl">
+                <Network size={18} />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm">Perangkat LAN (Printer & Laci Server Induk)</h3>
+                <p className="text-xs text-slate-500">Cetak struk & buka laci melalui komputer server utama di jaringan</p>
+              </div>
+            </div>
+
+            {lanStatus?.paired_parent_ip ? (
+              <div className="space-y-3">
+                <div className="p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                      <Server size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">
+                        {lanStatus.paired_parent_name || 'Server Induk Kasir'}
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-mono">
+                        IP: {lanStatus.paired_parent_ip}:{lanStatus.paired_parent_port || 3699}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Terhubung
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsTestingLan(true);
+                      try {
+                        const msg = await kickCashDrawer(`[LAN] ${lanStatus.paired_parent_ip}`);
+                        setSuccessMsg(`🔔 LAN Laci: ${msg}`);
+                        setTimeout(() => setSuccessMsg(''), 4000);
+                      } catch (err: any) {
+                        setErrorMsg(`Gagal buka laci via LAN: ${err?.message || err}`);
+                      } finally {
+                        setIsTestingLan(false);
+                      }
+                    }}
+                    disabled={isTestingLan}
+                    className="flex-1 py-2.5 px-3 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Zap size={13} /> Uji Buka Laci via LAN
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsTestingLan(true);
+                      try {
+                        const builder = new EscPosBuilder();
+                        builder.align('center');
+                        builder.bold(true).textLine('CHIRASYS - LAN TEST').bold(false);
+                        builder.textLine('Uji coba cetak struk via LAN');
+                        builder.textLine('Terminal Kasir Anak -> Server Induk');
+                        builder.feed(3);
+                        if (autoCutPaper) builder.cut();
+
+                        await printRawReceipt(`[LAN] ${lanStatus.paired_parent_ip}`, builder.build());
+                        setSuccessMsg('Struk uji coba berhasil dikirim dan dicetak pada printer Server Induk!');
+                        setTimeout(() => setSuccessMsg(''), 4000);
+                      } catch (err: any) {
+                        setErrorMsg(`Gagal cetak via LAN: ${err?.message || err}`);
+                      } finally {
+                        setIsTestingLan(false);
+                      }
+                    }}
+                    disabled={isTestingLan}
+                    className="flex-1 py-2.5 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Play size={13} className="text-brand" /> Uji Cetak via LAN
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-center space-y-2">
+                <Network size={24} className="mx-auto text-slate-400" />
+                <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                  {lanStatus?.role === 'parent'
+                    ? 'Komputer ini disetel sebagai Server Induk. Printer fisik di komputer ini siap menerima cetak dari komputer klien.'
+                    : 'Belum terhubung ke Server Induk. Buka tab "Jaringan Lokal (LAN)" untuk menghubungkan terminal ini ke komputer induk.'}
+                </p>
               </div>
             )}
           </div>

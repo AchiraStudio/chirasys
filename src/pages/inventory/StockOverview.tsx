@@ -218,11 +218,15 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                   >
                     <td className="py-3 px-6 font-bold text-slate-900 dark:text-white">
                       {row.item_name}
-                      {row.is_low_stock && (
-                        <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-normal">
-                          Needs replenishment
+                      {row.current_qty < 0 ? (
+                        <span className="text-[10px] text-rose-600 dark:text-rose-400 block font-black">
+                          Stok Minus (Defisit {Math.abs(row.current_qty)})
                         </span>
-                      )}
+                      ) : row.is_low_stock ? (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-normal">
+                          Perlu Restock
+                        </span>
+                      ) : null}
                     </td>
                     <td className="py-3 px-6 font-mono text-xs text-slate-600">{row.sku}</td>
                     <td className="py-3 px-6">
@@ -236,8 +240,20 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
                     </td>
                     <td className="py-3 px-6 text-center text-slate-600 dark:text-slate-300">{row.unit_name || '-'}</td>
                     <td className="py-3 px-6 text-right font-mono text-slate-600">{row.min_stock}</td>
-                    <td className={`py-3 px-6 text-right font-mono font-bold ${row.is_low_stock ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
-                      {row.current_qty}
+                    <td className={`py-3 px-6 text-right font-mono font-bold ${
+                      row.current_qty < 0
+                        ? 'text-rose-600 dark:text-rose-400 font-black'
+                        : row.is_low_stock
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-slate-900 dark:text-white'
+                    }`}>
+                      {row.current_qty < 0 ? (
+                        <span className="px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/50">
+                          {row.current_qty}
+                        </span>
+                      ) : (
+                        row.current_qty
+                      )}
                     </td>
                     <td className="py-3 px-6">
                       <div className="flex items-center justify-center gap-1">
