@@ -81,8 +81,7 @@ pub fn spawn_sync_worker(pool: SqlitePool) {
             .fetch_optional(&pool)
             .await
             .unwrap_or(None)
-            .unwrap_or_else(|| "true".to_string());
-
+            .unwrap_or_else(|| "false".to_string());
             if auto_sync == "false" || auto_sync == "0" {
                 sleep(Duration::from_secs(10)).await;
                 continue;
@@ -169,7 +168,7 @@ async fn process_sync_queue(
                 map.insert("updated_at".to_string(), serde_json::Value::String(now_iso.clone()));
             }
 
-            if table_name == "item_prices" {
+            if table_name == "item_prices" || table_name == "sale_lines" || table_name == "journal_lines" {
                 map.remove("created_at");
             } else {
                 let need_created = match map.get("created_at") {
@@ -180,6 +179,10 @@ async fn process_sync_queue(
                 if need_created {
                     map.insert("created_at".to_string(), serde_json::Value::String(now_iso));
                 }
+            }
+
+            if table_name == "stock_ledger" {
+                map.remove("source_id");
             }
 
             if table_name == "sales" {
@@ -658,9 +661,9 @@ pub async fn get_sync_status(state: tauri::State<'_, crate::AppState>) -> Result
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?
-    .unwrap_or_else(|| "true".to_string());
+    .unwrap_or_else(|| "false".to_string());
 
-    let auto_sync = auto_sync_str != "false" && auto_sync_str != "0";
+    let auto_sync = auto_sync_str == "true" || auto_sync_str == "1";
 
     Ok(SyncStatus { workspace_id, workspace_name, workspace_code, pending_count, failed_count, last_synced, auto_sync })
 }
@@ -2073,11 +2076,10 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
             .fetch_optional(&pool)
             .await
             .unwrap_or(None)
-            .unwrap_or_else(|| "true".to_string());
+            .unwrap_or_else(|| "false".to_string());
 
             if auto_sync == "false" || auto_sync == "0" {
                 tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-                continue;
             }
 
             // Read last_pull_at cursor

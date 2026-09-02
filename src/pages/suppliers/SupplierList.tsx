@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getSuppliers, Supplier } from '../../lib/api';
-import { Loader2, Plus, Building2, Edit2, Search, Phone, Mail, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
+import { Loader2, Plus, Building2, Edit2, Search, Phone, CreditCard } from 'lucide-react';
 import SupplierDrawer from './SupplierDrawer';
 
 export default function SupplierList() {

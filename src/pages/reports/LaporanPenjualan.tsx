@@ -2,29 +2,43 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, Loader2, TrendingUp, ShoppingCart, Tag, DollarSign, 
   FileText, Filter, Printer, Download, Eye, Search,
-  RefreshCw, BarChart3
+  RefreshCw, BarChart3, CreditCard, Banknote, Smartphone, ArrowRightLeft,
+  ChevronRight
 } from 'lucide-react';
 import { 
   getSalesRecapReport, getDetailedSalesLines, getSalesByCashierSummary, getDailySalesRecap,
-  getTopSellingItems, getCustomers, getUsers, getCategories,
+  getTopSellingItems, getSalesByPaymentMethod, getCustomers, getUsers, getCategories,
   SalesRecapReportRow, SalesLineReportRow, CashierSalesReportRow, DailySalesRecapRow,
-  Customer, Category, TopItemRow
+  PaymentMethodRow, Customer, Category, TopItemRow
 } from '../../lib/api';
 import { downloadCsv } from '../../lib/exportCsv';
 import SaleDetailModal from '../../components/pos/SaleDetailModal';
 import PrintReportModal from '../../components/reports/PrintReportModal';
 import { useAuthStore } from '../../store/AuthStore';
 
-interface Props { onBack: () => void; }
+interface Props { 
+  onBack: () => void; 
+  initialSubtype?: ReportSubtype;
+}
 
-type ReportSubtype = 'recap' | 'detailed' | 'daily' | 'customer' | 'cashier' | 'product_margin';
+export type ReportSubtype = 'recap' | 'detailed' | 'daily' | 'payment_methods' | 'customer' | 'cashier' | 'product_margin';
 
-export default function LaporanPenjualan({ onBack }: Props) {
+export const METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; badgeBg: string; textCol: string }> = {
+  cash:     { label: 'Tunai (Cash)',       icon: Banknote,      color: 'bg-emerald-500', badgeBg: 'bg-emerald-50 dark:bg-emerald-950/40', textCol: 'text-emerald-700 dark:text-emerald-300' },
+  transfer: { label: 'Transfer Bank',      icon: ArrowRightLeft, color: 'bg-blue-500',    badgeBg: 'bg-blue-50 dark:bg-blue-950/40',    textCol: 'text-blue-700 dark:text-blue-300' },
+  debit:    { label: 'Kartu Debit / EDC',  icon: CreditCard,    color: 'bg-indigo-500',  badgeBg: 'bg-indigo-50 dark:bg-indigo-950/40',textCol: 'text-indigo-700 dark:text-indigo-300' },
+  credit:   { label: 'Kartu Kredit',       icon: CreditCard,    color: 'bg-purple-500',  badgeBg: 'bg-purple-50 dark:bg-purple-950/40',textCol: 'text-purple-700 dark:text-purple-300' },
+  qris:     { label: 'QRIS / E-Wallet',    icon: Smartphone,    color: 'bg-amber-500',   badgeBg: 'bg-amber-50 dark:bg-amber-950/40',  textCol: 'text-amber-700 dark:text-amber-300' },
+  card:     { label: 'Kartu EDC',          icon: CreditCard,    color: 'bg-indigo-500',  badgeBg: 'bg-indigo-50 dark:bg-indigo-950/40',textCol: 'text-indigo-700 dark:text-indigo-300' },
+  tempo:    { label: 'Tempo / Piutang',    icon: FileText,      color: 'bg-rose-500',    badgeBg: 'bg-rose-50 dark:bg-rose-950/40',    textCol: 'text-rose-700 dark:text-rose-300' },
+};
+
+export default function LaporanPenjualan({ onBack, initialSubtype = 'recap' }: Props) {
   const { user } = useAuthStore();
   const branchId = user?.branch_id || 'branch_001';
 
   // Sub-report selection
-  const [activeSubtype, setActiveSubtype] = useState<ReportSubtype>('recap');
+  const [activeSubtype, setActiveSubtype] = useState<ReportSubtype>(initialSubtype);
 
   // Filter States
   const [presetPeriod, setPresetPeriod] = useState<string>('month');
@@ -57,6 +71,7 @@ export default function LaporanPenjualan({ onBack }: Props) {
   const [recapData, setRecapData] = useState<SalesRecapReportRow[]>([]);
   const [detailedData, setDetailedData] = useState<SalesLineReportRow[]>([]);
   const [dailyData, setDailyData] = useState<DailySalesRecapRow[]>([]);
+  const [paymentMethodData, setPaymentMethodData] = useState<PaymentMethodRow[]>([]);
   const [cashierData, setCashierData] = useState<CashierSalesReportRow[]>([]);
   const [productMarginData, setProductMarginData] = useState<TopItemRow[]>([]);
 
@@ -92,6 +107,11 @@ export default function LaporanPenjualan({ onBack }: Props) {
       last7.setDate(last7.getDate() - 6);
       setDateFrom(`${last7.getFullYear()}-${pad(last7.getMonth() + 1)}-${pad(last7.getDate())}`);
       setDateTo(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+    } else if (preset === '30days') {
+      const last30 = new Date();
+      last30.setDate(last30.getDate() - 29);
+      setDateFrom(`${last30.getFullYear()}-${pad(last30.getMonth() + 1)}-${pad(last30.getDate())}`);
+      setDateTo(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
     } else if (preset === 'month') {
       setDateFrom(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`);
       setDateTo(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
@@ -100,6 +120,12 @@ export default function LaporanPenjualan({ onBack }: Props) {
       const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
       setDateFrom(`${firstDayLastMonth.getFullYear()}-${pad(firstDayLastMonth.getMonth() + 1)}-01`);
       setDateTo(`${lastDayLastMonth.getFullYear()}-${pad(lastDayLastMonth.getMonth() + 1)}-${pad(lastDayLastMonth.getDate())}`);
+    } else if (preset === 'this_year') {
+      setDateFrom(`${now.getFullYear()}-01-01`);
+      setDateTo(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+    } else if (preset === 'all') {
+      setDateFrom('2020-01-01');
+      setDateTo(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
     }
   };
 
@@ -120,6 +146,11 @@ export default function LaporanPenjualan({ onBack }: Props) {
     };
 
     try {
+      // Always fetch payment methods breakdown for the timeframe
+      getSalesByPaymentMethod(branchId, dateFrom, dateTo)
+        .then(setPaymentMethodData)
+        .catch(console.error);
+
       if (activeSubtype === 'recap' || activeSubtype === 'customer') {
         const data = await getSalesRecapReport(filter);
         setRecapData(data);
@@ -214,6 +245,16 @@ export default function LaporanPenjualan({ onBack }: Props) {
         r.cashier_name, r.role, r.transaction_count, r.total_cash, r.total_non_cash, r.total_revenue, r.gross_profit
       ]);
       downloadCsv(filename, headers, rows);
+    } else if (activeSubtype === 'payment_methods') {
+      const totalAll = paymentMethodData.reduce((acc, curr) => acc + curr.total_amount, 0);
+      const headers = ['#', 'Metode Pembayaran', 'Jumlah Transaksi', 'Total Nominal (Rp)', 'Rata-rata per Transaksi (Rp)', 'Kontribusi (%)'];
+      const rows = paymentMethodData.map((r, i) => {
+        const m = METHOD_CONFIG[r.method.toLowerCase()]?.label || r.method.toUpperCase();
+        const pct = totalAll > 0 ? ((r.total_amount / totalAll) * 100).toFixed(1) : '0';
+        const avg = r.transaction_count > 0 ? Math.round(r.total_amount / r.transaction_count) : 0;
+        return [i + 1, m, r.transaction_count, r.total_amount, avg, `${pct}%`];
+      });
+      downloadCsv(filename, headers, rows);
     } else if (activeSubtype === 'customer') {
       const headers = ['Nama Pelanggan', 'Tier', 'Jumlah Transaksi', 'Total Belanja', 'Rata-rata Nota', 'Total Profit'];
       const rows = customerGrouped.map(r => [
@@ -232,6 +273,7 @@ export default function LaporanPenjualan({ onBack }: Props) {
   const SUB_REPORTS = [
     { id: 'recap', label: 'Laporan Penjualan Rekap', desc: 'Ringkasan per Nota Faktur Penjualan' },
     { id: 'detailed', label: 'Laporan Penjualan Detail', desc: 'Rincian setiap baris obat/item terjual' },
+    { id: 'payment_methods', label: 'Distribusi Metode Pembayaran', desc: 'Rincian omset per metode: Tunai, QRIS, Transfer, Debit, dll' },
     { id: 'daily', label: 'Laporan Penjualan Harian', desc: 'Agregasi omset, tunai vs non-tunai harian' },
     { id: 'customer', label: 'Laporan Jual Per Pelanggan', desc: 'Frekuensi & total belanja per pelanggan' },
     { id: 'cashier', label: 'Laporan Jual Per Kasir', desc: 'Rekap shift kasir & penerimaan laci kasir' },
@@ -255,7 +297,7 @@ export default function LaporanPenjualan({ onBack }: Props) {
               Laporan Penjualan & Analisis Transaksi
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Pantau arus kas masuk, laba kotor, dan rincian transaksi kasir secara terperinci
+              Pantau arus kas masuk, distribusi metode pembayaran, laba kotor, dan rincian transaksi kasir
             </p>
           </div>
         </div>
@@ -355,6 +397,81 @@ export default function LaporanPenjualan({ onBack }: Props) {
         </div>
       </div>
 
+      {/* Interactive Quick Payment Method Distribution Bar */}
+      <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CreditCard size={16} className="text-brand" />
+            <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+              Distribusi Metode Pembayaran
+            </span>
+            <span className="text-[11px] text-slate-400 font-medium">
+              ({paymentMethodData.reduce((acc, curr) => acc + curr.transaction_count, 0)} transaksi pada periode terpilih)
+            </span>
+          </div>
+          <button
+            onClick={() => setActiveSubtype('payment_methods')}
+            className="text-xs font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            Buka Laporan Metode Pembayaran <ChevronRight size={14} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+          {paymentMethodData.length === 0 ? (
+            <div className="col-span-full text-center py-2 text-xs text-slate-400">
+              Belum ada transaksi pembayaran pada rentang tanggal ini.
+            </div>
+          ) : (
+            paymentMethodData.map(p => {
+              const m = METHOD_CONFIG[p.method.toLowerCase()] || { 
+                label: p.method.toUpperCase(), 
+                icon: CreditCard, 
+                color: 'bg-slate-500', 
+                badgeBg: 'bg-slate-100 dark:bg-slate-800', 
+                textCol: 'text-slate-700 dark:text-slate-300' 
+              };
+              const Icon = m.icon;
+              const totalAll = paymentMethodData.reduce((acc, curr) => acc + curr.total_amount, 0);
+              const pct = totalAll > 0 ? (p.total_amount / totalAll) * 100 : 0;
+
+              return (
+                <div
+                  key={p.method}
+                  onClick={() => {
+                    setSelectedPaymentMethod(p.method);
+                    setActiveSubtype('recap');
+                  }}
+                  className="p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/80 hover:border-brand/50 hover:bg-slate-100/80 dark:hover:bg-slate-900 transition-all cursor-pointer group"
+                  title={`Klik untuk memfilter faktur dengan cara bayar ${m.label}`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-6 h-6 rounded-lg ${m.color} flex items-center justify-center shrink-0`}>
+                        <Icon size={12} className="text-white" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate max-w-[80px]">
+                        {m.label}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-500">
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="text-sm font-black text-slate-900 dark:text-white truncate">
+                    Rp {p.total_amount.toLocaleString('id-ID')}
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1 font-semibold">
+                    <span>{p.transaction_count} Nota</span>
+                    <span className="text-[9px] text-brand opacity-0 group-hover:opacity-100 transition-opacity font-bold">Filter →</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
       {/* Main Layout: Left Filter Panel + Right Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0">
         {/* Left Filter & Sub-Report Panel (4 cols) */}
@@ -398,23 +515,26 @@ export default function LaporanPenjualan({ onBack }: Props) {
 
             {/* Period Quick Presets */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">Preset Periode</label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">Preset Periode Waktu</label>
+              <div className="grid grid-cols-4 gap-1.5">
                 {[
                   { id: 'today', label: 'Hari Ini' },
                   { id: 'yesterday', label: 'Kemarin' },
                   { id: '7days', label: '7 Hari' },
+                  { id: '30days', label: '30 Hari' },
                   { id: 'month', label: 'Bulan Ini' },
                   { id: 'last_month', label: 'Bulan Lalu' },
+                  { id: 'this_year', label: 'Tahun Ini' },
+                  { id: 'all', label: 'Semua' },
                 ].map(p => (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() => applyPreset(p.id)}
-                    className={`px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                    className={`px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all text-center cursor-pointer ${
                       presetPeriod === p.id 
-                        ? 'bg-brand/10 text-brand border border-brand/30' 
-                        : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+                        ? 'bg-brand text-white shadow-sm' 
+                        : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
                     {p.label}
@@ -706,7 +826,131 @@ export default function LaporanPenjualan({ onBack }: Props) {
               </table>
             )}
 
-            {/* 3. PENJUALAN HARIAN */}
+            {/* 3. DISTRIBUSI METODE PEMBAYARAN */}
+            {activeSubtype === 'payment_methods' && (
+              <div className="p-5 flex flex-col gap-6">
+                {paymentMethodData.length === 0 ? (
+                  <div className="text-center py-20 text-slate-400">
+                    Tidak ada data transaksi pembayaran pada periode ini.
+                  </div>
+                ) : (
+                  <>
+                    {/* Method Distribution Cards Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {paymentMethodData.map(r => {
+                        const m = METHOD_CONFIG[r.method.toLowerCase()] || { 
+                          label: r.method.toUpperCase(), 
+                          icon: CreditCard, 
+                          color: 'bg-slate-500', 
+                          badgeBg: 'bg-slate-100 dark:bg-slate-800', 
+                          textCol: 'text-slate-700 dark:text-slate-300' 
+                        };
+                        const Icon = m.icon;
+                        const totalAll = paymentMethodData.reduce((acc, curr) => acc + curr.total_amount, 0);
+                        const pct = totalAll > 0 ? (r.total_amount / totalAll * 100) : 0;
+                        const avgPerNota = r.transaction_count > 0 ? Math.round(r.total_amount / r.transaction_count) : 0;
+
+                        return (
+                          <div key={r.method} className="bg-slate-50/60 dark:bg-[#080B12] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 flex flex-col justify-between shadow-sm">
+                            <div>
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-11 h-11 rounded-2xl ${m.color} flex items-center justify-center shadow-md shadow-slate-900/10`}>
+                                    <Icon size={20} className="text-white"/>
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-slate-900 dark:text-white text-sm">{m.label}</p>
+                                    <p className="text-xs text-slate-500">{r.transaction_count} transaksi faktur</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-base font-extrabold text-slate-900 dark:text-white">
+                                    Rp {r.total_amount.toLocaleString('id-ID')}
+                                  </p>
+                                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/10 text-brand mt-0.5">
+                                    {pct.toFixed(1)}% Kontribusi
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-3">
+                                <div 
+                                  className={`h-full ${m.color} rounded-full transition-all duration-500`} 
+                                  style={{ width: `${pct}%` }} 
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[11px] text-slate-500">
+                              <span>Rata-rata per Nota:</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-200">
+                                Rp {avgPerNota.toLocaleString('id-ID')}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Detailed Table for Payment Methods */}
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-slate-100/70 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500">
+                          <tr>
+                            <th className="py-3 px-4">#</th>
+                            <th className="py-3 px-4">Metode Pembayaran</th>
+                            <th className="py-3 px-4 text-center">Jumlah Nota</th>
+                            <th className="py-3 px-4 text-right">Rata-rata Nota</th>
+                            <th className="py-3 px-4 text-right">Total Penerimaan (Omset)</th>
+                            <th className="py-3 px-4 text-center">Porsi (%)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                          {paymentMethodData.map((row, idx) => {
+                            const m = METHOD_CONFIG[row.method.toLowerCase()] || { 
+                              label: row.method.toUpperCase(), 
+                              icon: CreditCard, 
+                              color: 'bg-slate-500', 
+                              badgeBg: 'bg-slate-100 dark:bg-slate-800', 
+                              textCol: 'text-slate-700 dark:text-slate-300' 
+                            };
+                            const totalAll = paymentMethodData.reduce((acc, curr) => acc + curr.total_amount, 0);
+                            const pct = totalAll > 0 ? (row.total_amount / totalAll * 100) : 0;
+                            const avgPerNota = row.transaction_count > 0 ? Math.round(row.total_amount / row.transaction_count) : 0;
+
+                            return (
+                              <tr key={row.method} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition-colors">
+                                <td className="py-3 px-4 font-mono text-slate-400 font-bold">{idx + 1}</td>
+                                <td className="py-3 px-4">
+                                  <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span className={`w-2.5 h-2.5 rounded-full ${m.color}`}></span>
+                                    {m.label}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-center font-bold text-slate-800 dark:text-slate-200">
+                                  {row.transaction_count}
+                                </td>
+                                <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-400 font-medium">
+                                  Rp {avgPerNota.toLocaleString('id-ID')}
+                                </td>
+                                <td className="py-3 px-4 text-right font-black text-slate-900 dark:text-white">
+                                  Rp {row.total_amount.toLocaleString('id-ID')}
+                                </td>
+                                <td className="py-3 px-4 text-center font-bold text-brand">
+                                  {pct.toFixed(1)}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* 4. PENJUALAN HARIAN */}
             {activeSubtype === 'daily' && (
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 sticky top-0 z-10">

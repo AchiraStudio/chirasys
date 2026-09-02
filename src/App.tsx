@@ -180,7 +180,7 @@ export default function App() {
       setStatus('connecting');
 
       let workspaceId = '';
-      let autoSync = true;
+      let autoSync = false;
       try {
         const syncStatus = await getSyncStatus();
         workspaceId = syncStatus.workspace_id;

@@ -151,6 +151,65 @@ pub async fn delete_account(id: String, state: State<'_, AppState>) -> Result<()
     Ok(())
 }
 
+pub async fn generate_unique_journal_entry_no(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    branch_id: Option<&str>,
+) -> Result<String, String> {
+    // 1. Resolve a valid branch_id
+    let branch_str = match branch_id {
+        Some(b) if !b.is_empty() => b.to_string(),
+        _ => {
+            let default_b: Option<String> = sqlx::query_scalar("SELECT id FROM branches LIMIT 1")
+                .fetch_optional(&mut **tx)
+                .await
+                .unwrap_or(None);
+            default_b.unwrap_or_else(|| "main".to_string())
+        }
+    };
+
+    let date_str = format!("JV_{}", Local::now().format("%Y%m"));
+    let display_date = Local::now().format("%y%m").to_string();
+
+    let mut counter: i64 = match sqlx::query_scalar::<_, i64>(
+        "SELECT counter FROM transaction_counters WHERE branch_id = ? AND date_str = ?"
+    )
+    .bind(&branch_str)
+    .bind(&date_str)
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())? {
+        Some(c) => c,
+        None => 0,
+    };
+
+    loop {
+        counter += 1;
+        let candidate_no = format!("{:04}/JV/{}", counter, display_date);
+
+        let exists: Option<i64> = sqlx::query_scalar("SELECT 1 FROM journal_entries WHERE entry_no = ?")
+            .bind(&candidate_no)
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if exists.is_none() {
+            // Update counter in transaction_counters table
+            sqlx::query(
+                "INSERT INTO transaction_counters (branch_id, date_str, counter) VALUES (?, ?, ?)
+                 ON CONFLICT(branch_id, date_str) DO UPDATE SET counter = excluded.counter"
+            )
+            .bind(&branch_str)
+            .bind(&date_str)
+            .bind(counter)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+            return Ok(candidate_no);
+        }
+    }
+}
+
 // ==========================================
 // INTERNAL POSTING (Used by other modules)
 // ==========================================
@@ -163,34 +222,7 @@ pub(crate) async fn post_journal(
     description: &str,
     lines: Vec<(&str, f64, f64, Option<&str>)>, // (account_id, debit, credit, notes)
 ) -> Result<String, String> {
-    // Auto-generate entry_no
-    let date_str = Local::now().format("%Y%m%d").to_string();
-    let display_date = Local::now().format("%y%m").to_string();
-
-    let branch_for_counter = branch_id.unwrap_or("branch_001");
-    // We reuse transaction_counters for 'JV'
-    let current: Option<i64> = sqlx::query_scalar(
-        "UPDATE transaction_counters SET counter = counter + 1 WHERE branch_id = ? AND date_str = ? RETURNING counter"
-    )
-    .bind(branch_for_counter)
-    .bind(&date_str)
-    .fetch_optional(&mut **tx).await.map_err(|e| e.to_string())?;
-
-    let counter = if let Some(c) = current {
-        c
-    } else {
-        sqlx::query(
-            "INSERT INTO transaction_counters (branch_id, date_str, counter) VALUES (?, ?, 1)",
-        )
-        .bind(branch_for_counter)
-        .bind(&date_str)
-        .execute(&mut **tx)
-        .await
-        .map_err(|e| e.to_string())?;
-        1
-    };
-
-    let entry_no = format!("{:04}/JV/{}", counter, display_date);
+    let entry_no = generate_unique_journal_entry_no(tx, branch_id).await?;
     let entry_id = Uuid::new_v4().to_string();
     let date_iso = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 

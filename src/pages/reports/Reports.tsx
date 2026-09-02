@@ -151,6 +151,9 @@ export default function Reports() {
   const [activeReport, setActiveReport] = useState<string | null>(null);
 
   if (activeReport) {
+    if (activeReport === 'metode-bayar') {
+      return <LaporanPenjualan onBack={() => setActiveReport(null)} initialSubtype="payment_methods" />;
+    }
     const Component = COMPONENTS[activeReport];
     return Component ? <Component onBack={() => setActiveReport(null)} /> : null;
   }
