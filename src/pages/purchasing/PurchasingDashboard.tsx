@@ -11,7 +11,7 @@ export default function PurchasingDashboard() {
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'po' | 'purchases'>('po');
+  const [view] = useState<'po' | 'purchases'>('purchases');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierFilter, setSupplierFilter] = useState('');
 
@@ -68,21 +68,22 @@ export default function PurchasingDashboard() {
     <div className="flex flex-col gap-6 animate-in fade-in h-full">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Purchasing</h1>
-          <p className="text-sm text-slate-600 mt-1">Manage supplier orders, received goods, and payments.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Penerimaan Barang (Receive Goods)</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Riwayat penerimaan barang masuk dan pencatatan faktur pembelian pemasok.</p>
         </div>
         {view === 'po' ? (
-          <button onClick={() => setIsPoDrawerOpen(true)} className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm hover:bg-blue-600 transition-colors">
+          <button onClick={() => setIsPoDrawerOpen(true)} className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm hover:bg-blue-600 transition-colors cursor-pointer">
             <Plus size={18} /> New Purchase Order
           </button>
         ) : (
-          <button onClick={() => setIsDirectReceiveOpen(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-colors">
-            <Plus size={18} /> Terima Barang Langsung (Tanpa PO)
+          <button onClick={() => setIsDirectReceiveOpen(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-colors cursor-pointer">
+            <Plus size={18} /> Terima Barang Masuk
           </button>
         )}
       </div>
 
-      {/* View Tabs */}
+      {/* View Tabs - Purchase Orders tab commented out for now */}
+      {/*
       <div className="flex gap-2">
         <button
           onClick={() => setView('po')}
@@ -94,9 +95,10 @@ export default function PurchasingDashboard() {
           onClick={() => setView('purchases')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${view === 'purchases' ? 'bg-brand text-white' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
         >
-          Received Goods
+          Penerimaan Barang (Receive Goods)
         </button>
       </div>
+      */}
 
       {view === 'po' ? (
         <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden flex flex-col">

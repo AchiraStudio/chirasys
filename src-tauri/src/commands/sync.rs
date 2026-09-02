@@ -2080,6 +2080,7 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
 
             if auto_sync == "false" || auto_sync == "0" {
                 tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                continue;
             }
 
             // Read last_pull_at cursor

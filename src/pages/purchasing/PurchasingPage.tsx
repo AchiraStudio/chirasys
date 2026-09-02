@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { ShoppingBag, Truck } from 'lucide-react';
+import { PackageCheck, Truck } from 'lucide-react';
 import PurchasingDashboard from './PurchasingDashboard';
 import SupplierList from '../suppliers/SupplierList';
 
 export default function PurchasingPage() {
-  const [activeTab, setActiveTab] = useState<'po' | 'suppliers'>('po');
+  const [activeTab, setActiveTab] = useState<'receive' | 'suppliers'>('receive');
 
   const tabs = [
-    { id: 'po', label: 'Pembelian (PO)', icon: ShoppingBag },
+    // { id: 'po', label: 'Purchase Orders (PO)', icon: ShoppingBag },
+    { id: 'receive', label: 'Penerimaan Barang (Receive Goods)', icon: PackageCheck },
     { id: 'suppliers', label: 'Data Pemasok (Suppliers)', icon: Truck },
   ];
 
@@ -39,7 +40,7 @@ export default function PurchasingPage() {
 
       {/* Tab Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {activeTab === 'po' && <PurchasingDashboard />}
+        {activeTab === 'receive' && <PurchasingDashboard />}
         {activeTab === 'suppliers' && <SupplierList />}
       </div>
     </div>

@@ -96,7 +96,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
     { id: 'dashboard',    icon: LayoutDashboard, label: 'Overview',            show: true },
     { id: 'pos',          icon: ShoppingCart,    label: 'Kasir & POS',         show: can('sales.create') },
     { id: 'inventory',    icon: Package,         label: 'Inventaris & Produk', show: can('items.view') || can('inventory.view'), badge: lowStockCount > 0 ? lowStockCount : null },
-    { id: 'purchasing',   icon: Truck,           label: 'Pembelian & Pemasok', show: can('purchasing.view') || can('purchasing.create') },
+    { id: 'purchasing',   icon: Truck,           label: 'Penerimaan & Pemasok', show: can('purchasing.view') || can('purchasing.create') },
     { id: 'customers',    icon: Users,           label: 'Pelanggan & Promosi', show: can('crm.customers') || can('promos.manage') },
     { id: 'reports',      icon: FileText,        label: 'Laporan & Akuntansi', show: can('reports.view') || can('accounting.manage') },
     { id: 'settings',     icon: Settings,        label: 'Pengaturan',          show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') },
