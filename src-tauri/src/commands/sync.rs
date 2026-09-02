@@ -1983,6 +1983,15 @@ pub async fn apply_cloud_sync(pool: &SqlitePool, table_name: &str, payload: &ser
             let updated_at = payload.get("updated_at").and_then(|v| v.as_str());
             let deleted_at = payload.get("deleted_at").and_then(|v| v.as_str());
             
+            // Clean up any stale local user with identical username but different id
+            if let (Some(uname), Some(uid)) = (username, id) {
+                let _ = sqlx::query("DELETE FROM users WHERE LOWER(username) = LOWER(?) AND id != ?")
+                    .bind(uname)
+                    .bind(uid)
+                    .execute(pool)
+                    .await;
+            }
+
             let _ = sqlx::query(
                 "INSERT INTO users (id, branch_id, name, username, password_hash, role, permissions, active, last_login, avatar_color, workspace_id, created_at, updated_at, deleted_at, updated_by)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system_sync')

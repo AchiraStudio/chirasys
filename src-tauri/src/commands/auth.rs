@@ -523,7 +523,20 @@ pub async fn create_user(
         .build()
         .unwrap_or_else(|_| reqwest::Client::new());
 
-    // 1. Direct Cloud Validation & Creation
+    // 1. Local Duplicate Validation
+    let local_exists: Option<String> = sqlx::query_scalar(
+        "SELECT username FROM users WHERE LOWER(username) = LOWER(?)"
+    )
+    .bind(&trimmed_username)
+    .fetch_optional(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    if local_exists.is_some() {
+        return Err(format!("Username '{}' sudah digunakan. Silakan gunakan username lain.", trimmed_username));
+    }
+
+    // 2. Direct Cloud Validation & Creation
     if !supabase_url.is_empty() && !supabase_key.is_empty() {
         let check_url = format!("{}/rest/v1/users?username=eq.{}&limit=1", supabase_url, trimmed_username);
         if let Ok(res) = client.get(&check_url)
@@ -535,7 +548,7 @@ pub async fn create_user(
             if res.status().is_success() {
                 if let Ok(cloud_users) = res.json::<Vec<serde_json::Value>>().await {
                     if !cloud_users.is_empty() {
-                        return Err("Username sudah digunakan di Supabase Cloud.".to_string());
+                        return Err(format!("Username '{}' sudah digunakan di Supabase Cloud. Silakan gunakan username lain.", trimmed_username));
                     }
                 }
             }
@@ -599,7 +612,14 @@ pub async fn create_user(
     .bind(&created_at_ts)
     .execute(&state.db_pool)
     .await
-    .map_err(|e| format!("Gagal menyimpan cache pengguna: {}", e))?;
+    .map_err(|e| {
+        let err_str = e.to_string();
+        if err_str.contains("UNIQUE constraint failed: users.username") {
+            format!("Username '{}' sudah digunakan. Silakan gunakan username lain.", trimmed_username)
+        } else {
+            format!("Gagal menyimpan akun pengguna: {}", err_str)
+        }
+    })?;
 
     let pool_clone = state.db_pool.clone();
     tauri::async_runtime::spawn(async move {
@@ -758,6 +778,20 @@ pub async fn update_user(
         }
     }
 
+    // Check if username is taken by another user
+    let local_duplicate: Option<String> = sqlx::query_scalar(
+        "SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?"
+    )
+    .bind(&trimmed_username)
+    .bind(&id)
+    .fetch_optional(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    if local_duplicate.is_some() {
+        return Err(format!("Username '{}' sudah digunakan oleh pengguna lain.", trimmed_username));
+    }
+
     // 2. Local SQLite update
     sqlx::query("UPDATE users SET name = ?, username = ?, role = ?, workspace_id = ?, updated_at = ?, updated_by = 'user' WHERE id = ?")
         .bind(&name)
@@ -768,7 +802,14 @@ pub async fn update_user(
         .bind(&id)
         .execute(&state.db_pool)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            let err_str = e.to_string();
+            if err_str.contains("UNIQUE constraint failed: users.username") {
+                format!("Username '{}' sudah digunakan oleh pengguna lain.", trimmed_username)
+            } else {
+                format!("Gagal memperbarui pengguna: {}", err_str)
+            }
+        })?;
 
     let pool_clone = state.db_pool.clone();
     tauri::async_runtime::spawn(async move {

@@ -45,6 +45,7 @@ export default function LanSyncSettings() {
   const [loading, setLoading] = useState(true);
   const [isScanningSubnet, setIsScanningSubnet] = useState(false);
   const [parentConnectingChild, setParentConnectingChild] = useState<string | null>(null);
+  const [connectingPeer, setConnectingPeer] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
@@ -170,16 +171,17 @@ export default function LanSyncSettings() {
   };
 
   const handleConnectPeer = async (peer: LanPeer) => {
+    setConnectingPeer(peer.device_id);
     try {
       const res = await connectLanParent(peer.ip_address, peer.http_port, peer.device_name);
       if (res.success) {
         await loadData();
-        // Trigger initial real-time sync in background immediately
-        triggerLanSyncNow().catch(console.error);
-        alert(`Berhasil terhubung ke Server Induk (${peer.device_name})! Data barang dan transaksi akan otomatis tersinkronisasi secara real-time.`);
+        alert(`✅ Berhasil terhubung ke "${peer.device_name}"!\n\nData barang, harga, dan stok sedang disalin otomatis dari Server Induk. Halaman utama akan diperbarui dalam beberapa detik.`);
       }
     } catch (err: any) {
-      alert(`Gagal menghubungkan: ${typeof err === 'string' ? err : 'Error koneksi'}`);
+      alert(`❌ Gagal menghubungkan ke "${peer.device_name}":\n${typeof err === 'string' ? err : 'Periksa koneksi jaringan dan pastikan kedua perangkat terhubung di Wi-Fi yang sama.'}`);
+    } finally {
+      setConnectingPeer(null);
     }
   };
 
@@ -766,9 +768,14 @@ export default function LanSyncSettings() {
                         ) : (
                           <button
                             onClick={() => handleConnectPeer(peer)}
-                            className="px-4 py-2 rounded-xl bg-brand text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-brand/20 hover:bg-brand/90 transition-all active:scale-95 cursor-pointer"
+                            disabled={connectingPeer === peer.device_id}
+                            className="px-4 py-2 rounded-xl bg-brand text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-brand/20 hover:bg-brand/90 transition-all active:scale-95 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            <Zap size={14} className="text-yellow-300 fill-yellow-300" /> Hubungkan ke Induk Ini
+                            {connectingPeer === peer.device_id ? (
+                              <><Loader2 size={14} className="animate-spin" /> Menghubungkan &amp; Menyalin Data...</>
+                            ) : (
+                              <><Zap size={14} className="text-yellow-300 fill-yellow-300" /> Hubungkan ke Induk Ini</>
+                            )}
                           </button>
                         )}
 

@@ -24,6 +24,7 @@ const UDP_DISCOVERY_PORT: u16 = 3698;
 const DEFAULT_HTTP_PORT: u16 = 3699;
 
 pub const SNAPSHOT_TABLES: &[&str] = &[
+    "branches",
     "role_default_permissions",
     "users",
     "categories",
@@ -54,6 +55,7 @@ pub const SNAPSHOT_TABLES: &[&str] = &[
     "sale_returns",
     "sale_return_lines",
     "stock_opname",
+    "stock_opnames",
     "stock_opname_lines",
     "stock_ledger",
 ];
@@ -485,6 +487,20 @@ async fn handle_pair_with_parent(
 
     let _ = ctx.app_handle.emit("chirasys:lan_status_updated", ());
 
+    // Auto-hydrate from parent if child DB is empty
+    let pool_clone = ctx.pool.clone();
+    let app_handle_clone = ctx.app_handle.clone();
+    let parent_ip = payload.parent_ip.clone();
+    tauri::async_runtime::spawn(async move {
+        let local_items: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE deleted_at IS NULL")
+            .fetch_one(&pool_clone)
+            .await
+            .unwrap_or(0);
+        if local_items == 0 {
+            let _ = clone_from_parent_internal(&pool_clone, &app_handle_clone, &parent_ip, port).await;
+        }
+    });
+
     Ok(Json(serde_json::json!({
         "success": true,
         "message": "Terminal kasir klien berhasil dihubungkan ke Server Induk!"
@@ -498,7 +514,8 @@ async fn handle_pair_with_parent(
 pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle) {
     let device_id = get_device_unique_id();
     let pool_clone = pool.clone();
-    let app_handle_clone = app_handle.clone();
+    let app_handle_listener = app_handle.clone();
+    let app_handle_sync = app_handle.clone();
 
     // Task A: UDP Broadcaster (Beacons every 3 seconds)
     tauri::async_runtime::spawn(async move {
@@ -617,7 +634,7 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
                     let peers = PEER_REGISTRY.read().await;
                     peers.values().cloned().collect::<Vec<_>>()
                 };
-                let _ = app_handle_clone.emit("chirasys:lan_peers_updated", peers_list);
+                let _ = app_handle_listener.emit("chirasys:lan_peers_updated", peers_list);
             }
         }
     });
@@ -678,6 +695,17 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
             if let Some((parent_ip, parent_port, parent_ws_id)) = target_parent {
                 let mut sync_success = true;
                 let mut sync_error_msg = None;
+
+                // Check if child database is empty, automatically hydrate snapshot from parent
+                let local_items: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE deleted_at IS NULL")
+                    .fetch_one(&pool)
+                    .await
+                    .unwrap_or(0);
+
+                if local_items == 0 {
+                    println!("📥 [LAN Worker] Local database is empty, automatically hydrating snapshot from Parent at {}:{}...", parent_ip, parent_port);
+                    let _ = clone_from_parent_internal(&pool, &app_handle_sync, &parent_ip, parent_port).await;
+                }
 
                 // Push un-synced queue to Parent
                 let pending_rows = sqlx::query(
@@ -763,7 +791,7 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
                             }
 
                             if pulled_any {
-                                let _ = app_handle.emit("chirasys:sync", ());
+                                let _ = app_handle_sync.emit("chirasys:sync", ());
                             }
                         }
                     }
@@ -1184,7 +1212,20 @@ pub async fn connect_lan_parent(
             .map_err(|e| e.to_string())?;
     }
 
+    // AUTOMATIC INITIAL HYDRATION:
+    // If local database has 0 items or parent has data, immediately download snapshot
+    let local_items_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE deleted_at IS NULL")
+        .fetch_one(&state.db_pool)
+        .await
+        .unwrap_or(0);
+
+    if local_items_count == 0 || test_res.items_count > local_items_count {
+        println!("📥 [LAN Connect] Auto-hydrating database from Parent (Parent items: {}, Local items: {})...", test_res.items_count, local_items_count);
+        let _ = clone_from_parent_internal(&state.db_pool, &app_handle, &trimmed_ip, port).await;
+    }
+
     let _ = app_handle.emit("chirasys:lan_status_updated", ());
+    let _ = app_handle.emit("chirasys:sync", ());
     Ok(test_res)
 }
 
@@ -1252,6 +1293,158 @@ pub async fn parent_request_connect_child(
     }
 }
 
+pub async fn clone_from_parent_internal(
+    pool: &SqlitePool,
+    app_handle: &AppHandle,
+    parent_ip: &str,
+    port: u16,
+) -> Result<usize, String> {
+    let trimmed_ip = parent_ip.trim();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let export_url = format!("http://{}:{}/api/lan/export_snapshot", trimmed_ip, port);
+    println!("📥 [LAN Sync/Clone] Downloading full snapshot from Parent at {}", export_url);
+
+    let res = client
+        .get(&export_url)
+        .send()
+        .await
+        .map_err(|e| format!("Gagal menghubungi Perangkat Induk ({}): {}", export_url, e))?;
+
+    if !res.status().is_success() {
+        return Err(format!("Perangkat Induk mengembalikan status error HTTP {}", res.status()));
+    }
+
+    let snapshot: DatabaseSnapshot = res
+        .json()
+        .await
+        .map_err(|e| format!("Gagal memproses snapshot dari Induk: {}", e))?;
+
+    let mut total_records_imported = 0;
+
+    // Execute within a transaction for atomicity and safety
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+
+    // Disable foreign key enforcement during full atomic hydration
+    let _ = sqlx::query("PRAGMA foreign_keys = OFF;").execute(&mut *tx).await;
+
+    for &table in SNAPSHOT_TABLES {
+        if let Some(rows) = snapshot.tables.get(table) {
+            // IMPORTANT: Never delete local users or role_default_permissions.
+            // Deleting users would log out the currently active session on the child device.
+            // We use INSERT OR IGNORE for users so local accounts are preserved.
+            let skip_delete = table == "users" || table == "role_default_permissions";
+            if !skip_delete {
+                let clear_sql = format!("DELETE FROM {}", table);
+                let _ = sqlx::query(&clear_sql).execute(&mut *tx).await;
+            }
+
+            for r in rows {
+                if let Some(obj) = r.as_object() {
+                    let columns: Vec<String> = obj.keys().cloned().collect();
+                    if columns.is_empty() {
+                        continue;
+                    }
+                    let placeholders = vec!["?"; columns.len()].join(", ");
+                    // Preserve local users & permissions — use IGNORE so existing local
+                    // accounts (including the currently logged-in user) are not overwritten.
+                    let insert_verb = if table == "users" || table == "role_default_permissions" {
+                        "INSERT OR IGNORE"
+                    } else {
+                        "INSERT OR REPLACE"
+                    };
+                    let insert_sql = format!(
+                        "{} INTO {} ({}) VALUES ({})",
+                        insert_verb,
+                        table,
+                        columns.join(", "),
+                        placeholders
+                    );
+
+                    let mut q = sqlx::query(&insert_sql);
+                    for col in &columns {
+                        match &obj[col] {
+                            serde_json::Value::Null => q = q.bind(None::<String>),
+                            serde_json::Value::Bool(b) => q = q.bind(if *b { 1 } else { 0 }),
+                            serde_json::Value::Number(n) => {
+                                if let Some(i) = n.as_i64() {
+                                    q = q.bind(i);
+                                } else if let Some(f) = n.as_f64() {
+                                    q = q.bind(f);
+                                } else {
+                                    q = q.bind(n.to_string());
+                                }
+                            }
+                            serde_json::Value::String(s) => q = q.bind(s),
+                            other => q = q.bind(other.to_string()),
+                        }
+                    }
+
+                    if q.execute(&mut *tx).await.is_ok() {
+                        total_records_imported += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // Record pairing, parent name, and workspace info
+    if !snapshot.workspace_id.is_empty() {
+        let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('workspace_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+            .bind(&snapshot.workspace_id)
+            .execute(&mut *tx)
+            .await;
+    }
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_ip', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(trimmed_ip)
+        .execute(&mut *tx)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_port', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(port.to_string())
+        .execute(&mut *tx)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&snapshot.device_name)
+        .execute(&mut *tx)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_pull_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&snapshot.timestamp)
+        .execute(&mut *tx)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_time', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&snapshot.timestamp)
+        .execute(&mut *tx)
+        .await;
+
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_status', 'ok') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .execute(&mut *tx)
+        .await;
+
+    let _ = sqlx::query("DELETE FROM global_settings WHERE key = 'lan_last_sync_error'")
+        .execute(&mut *tx)
+        .await;
+
+    // Re-enable foreign keys and commit
+    let _ = sqlx::query("PRAGMA foreign_keys = ON;").execute(&mut *tx).await;
+    tx.commit().await.map_err(|e| e.to_string())?;
+
+    println!("✅ [LAN Sync/Clone] Successfully imported {} records from Parent ({}).", total_records_imported, trimmed_ip);
+
+    // Notify UI to refresh all states
+    let _ = app_handle.emit("chirasys:sync", ());
+    let _ = app_handle.emit("chirasys:lan_status_updated", ());
+
+    Ok(total_records_imported)
+}
+
 #[tauri::command]
 pub async fn trigger_lan_sync_now(
     app_handle: AppHandle,
@@ -1294,6 +1487,18 @@ pub async fn trigger_lan_sync_now(
     let start_time = Instant::now();
     let mut pushed_count = 0;
     let mut pulled_count = 0;
+
+    // Check if local database is empty: perform initial snapshot import first
+    let local_items_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE deleted_at IS NULL")
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+
+    if local_items_count == 0 {
+        if let Ok(imported) = clone_from_parent_internal(pool, &app_handle, &parent_ip, parent_port).await {
+            pulled_count += imported;
+        }
+    }
 
     // 1. Push pending queue
     let pending_rows = sqlx::query(
@@ -1416,143 +1621,7 @@ pub async fn clone_from_parent(
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<usize, String> {
     let port = parent_port.unwrap_or(DEFAULT_HTTP_PORT);
-    let trimmed_ip = parent_ip.trim();
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let export_url = format!("http://{}:{}/api/lan/export_snapshot", trimmed_ip, port);
-    println!("📥 [LAN Clone] Downloading base database from Parent at {}", export_url);
-
-    let res = client
-        .get(&export_url)
-        .send()
-        .await
-        .map_err(|e| format!("Gagal menghubungi Perangkat Induk ({}): {}", export_url, e))?;
-
-    if !res.status().is_success() {
-        return Err(format!("Perangkat Induk mengembalikan status error HTTP {}", res.status()));
-    }
-
-    let snapshot: DatabaseSnapshot = res
-        .json()
-        .await
-        .map_err(|e| format!("Gagal memproses snapshot dari Induk: {}", e))?;
-
-    let pool = &state.db_pool;
-    let mut total_records_imported = 0;
-
-    // Execute within a transaction for atomicity and safety
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
-
-    // Disable foreign key enforcement during full atomic hydration
-    let _ = sqlx::query("PRAGMA foreign_keys = OFF;").execute(&mut *tx).await;
-
-    for &table in SNAPSHOT_TABLES {
-        if let Some(rows) = snapshot.tables.get(table) {
-            if table != "users" && table != "role_default_permissions" {
-                let clear_sql = format!("DELETE FROM {}", table);
-                let _ = sqlx::query(&clear_sql).execute(&mut *tx).await;
-            }
-
-            for r in rows {
-                if let Some(obj) = r.as_object() {
-                    let columns: Vec<String> = obj.keys().cloned().collect();
-                    if columns.is_empty() {
-                        continue;
-                    }
-                    let placeholders = vec!["?"; columns.len()].join(", ");
-                    let insert_sql = if table == "users" {
-                        format!(
-                            "INSERT OR IGNORE INTO users ({}) VALUES ({})",
-                            columns.join(", "),
-                            placeholders
-                        )
-                    } else {
-                        format!(
-                            "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
-                            table,
-                            columns.join(", "),
-                            placeholders
-                        )
-                    };
-
-                    let mut q = sqlx::query(&insert_sql);
-                    for col in &columns {
-                        match &obj[col] {
-                            serde_json::Value::Null => q = q.bind(None::<String>),
-                            serde_json::Value::Bool(b) => q = q.bind(if *b { 1 } else { 0 }),
-                            serde_json::Value::Number(n) => {
-                                if let Some(i) = n.as_i64() {
-                                    q = q.bind(i);
-                                } else if let Some(f) = n.as_f64() {
-                                    q = q.bind(f);
-                                } else {
-                                    q = q.bind(n.to_string());
-                                }
-                            }
-                            serde_json::Value::String(s) => q = q.bind(s),
-                            other => q = q.bind(other.to_string()),
-                        }
-                    }
-
-                    if q.execute(&mut *tx).await.is_ok() {
-                        total_records_imported += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    // Record pairing, parent name, and workspace info
-    if !snapshot.workspace_id.is_empty() {
-        let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('workspace_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-            .bind(&snapshot.workspace_id)
-            .execute(&mut *tx)
-            .await;
-    }
-
-    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_ip', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .bind(trimmed_ip)
-        .execute(&mut *tx)
-        .await;
-
-    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_port', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .bind(port.to_string())
-        .execute(&mut *tx)
-        .await;
-
-    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_paired_parent_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .bind(&snapshot.device_name)
-        .execute(&mut *tx)
-        .await;
-
-    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_pull_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .bind(&snapshot.timestamp)
-        .execute(&mut *tx)
-        .await;
-
-    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_time', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .bind(&snapshot.timestamp)
-        .execute(&mut *tx)
-        .await;
-
-    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('lan_last_sync_status', 'ok') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .execute(&mut *tx)
-        .await;
-
-    // Re-enable foreign keys and commit
-    let _ = sqlx::query("PRAGMA foreign_keys = ON;").execute(&mut *tx).await;
-    tx.commit().await.map_err(|e| e.to_string())?;
-
-    println!("✅ [LAN Clone] Successfully imported {} records from Parent ({}).", total_records_imported, trimmed_ip);
-
-    // Notify UI to refresh all states
-    let _ = app_handle.emit("chirasys:sync", ());
-    let _ = app_handle.emit("chirasys:lan_status_updated", ());
-
-    Ok(total_records_imported)
+    clone_from_parent_internal(&state.db_pool, &app_handle, &parent_ip, port).await
 }
 
 #[tauri::command]

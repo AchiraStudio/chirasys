@@ -26,6 +26,12 @@ export function useRealtimeSync() {
       window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { source: 'lan' } }));
     }).then(unsub => unlistens.push(unsub));
 
+    // Also refresh data when LAN status changes (e.g. after snapshot clone completes)
+    listen('chirasys:lan_status_updated', () => {
+      console.log('🔄 LAN status updated — refreshing data');
+      window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { source: 'lan_status' } }));
+    }).then(unsub => unlistens.push(unsub));
+
     return () => {
       unlistens.forEach(unsub => unsub());
     };
