@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Package, ShoppingCart, Users, Settings, 
-  FileText, LogOut, Truck, RefreshCw, PanelLeftClose, PanelLeftOpen 
+  FileText, LogOut, Truck, RefreshCw, PanelLeftClose, PanelLeftOpen,
+  CheckCircle2, AlertTriangle, Zap
 } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
-import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus } from '../../lib/api';
+import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus, LanSyncProgress } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../ui/ConfirmModal';
 import { usePermissions } from '../../lib/permissions';
@@ -29,6 +30,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
   const [companyName, setCompanyName] = useState('ChiraSys');
   const [branchName, setBranchName] = useState('Cabang Utama');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [lanSyncProgress, setLanSyncProgress] = useState<LanSyncProgress | null>(null);
   const [bgSyncProgress, setBgSyncProgress] = useState<{
     active: boolean;
     type: 'push' | 'pull';
@@ -81,9 +83,21 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
     listen<SyncEventPayload>('sync-pull-progress', (e) => handleProgress('pull', e.payload))
       .then(fn => { unlistenPull = fn; });
 
+    let unlistenLanProgress: () => void;
+    listen<LanSyncProgress>('chirasys:lan_sync_progress', (e) => {
+      const p = e.payload;
+      setLanSyncProgress(p);
+      if (!p.active && (p.stage === 'complete' || p.percent >= 100)) {
+        setTimeout(() => {
+          setLanSyncProgress(prev => (prev?.stage === 'complete' ? null : prev));
+        }, 4000);
+      }
+    }).then(fn => { unlistenLanProgress = fn; });
+
     return () => {
       if (unlistenPush) unlistenPush();
       if (unlistenPull) unlistenPull();
+      if (unlistenLanProgress) unlistenLanProgress();
     };
   }, []);
 
@@ -224,6 +238,62 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
                 <div
                   className="h-full bg-linear-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-300 shadow-xs"
                   style={{ width: `${bgSyncProgress.percent}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* LAN Sync Progress Bar (on top of workspace container) */}
+          {lanSyncProgress && (lanSyncProgress.active || lanSyncProgress.stage === 'complete' || lanSyncProgress.stage === 'error') && (
+            <div 
+              title={`LAN Sync: ${lanSyncProgress.message} (${lanSyncProgress.percent}%)`}
+              className={`${isCollapsed ? 'p-1.5 w-11 mx-auto' : 'px-3 py-2.5'} ${
+                lanSyncProgress.stage === 'error'
+                  ? 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-200/90 dark:border-rose-800/60'
+                  : lanSyncProgress.stage === 'complete'
+                  ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-200/90 dark:border-emerald-800/60'
+                  : 'bg-blue-50/90 dark:bg-blue-950/40 border-blue-200/90 dark:border-blue-800/60'
+              } border rounded-xl space-y-1.5 animate-in fade-in duration-200 shadow-xs`}
+            >
+              {!isCollapsed && (
+                <div className="flex items-center justify-between text-[11px] font-bold">
+                  <span className={`flex items-center gap-1.5 truncate mr-1 ${
+                    lanSyncProgress.stage === 'error'
+                      ? 'text-rose-700 dark:text-rose-300'
+                      : lanSyncProgress.stage === 'complete'
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : 'text-blue-700 dark:text-blue-300'
+                  }`}>
+                    {lanSyncProgress.active ? (
+                      <RefreshCw size={12} className="animate-spin text-blue-500 shrink-0" />
+                    ) : lanSyncProgress.stage === 'error' ? (
+                      <AlertTriangle size={12} className="text-rose-500 shrink-0" />
+                    ) : (
+                      <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                    )}
+                    <span className="truncate">{lanSyncProgress.message}</span>
+                  </span>
+                  <span className={`font-mono text-[10px] font-extrabold shrink-0 ${
+                    lanSyncProgress.stage === 'error'
+                      ? 'text-rose-700 dark:text-rose-300'
+                      : lanSyncProgress.stage === 'complete'
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : 'text-blue-700 dark:text-blue-300'
+                  }`}>
+                    {lanSyncProgress.percent}%
+                  </span>
+                </div>
+              )}
+              <div className="w-full h-1.5 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 shadow-xs ${
+                    lanSyncProgress.stage === 'error'
+                      ? 'bg-rose-500'
+                      : lanSyncProgress.stage === 'complete'
+                      ? 'bg-emerald-500'
+                      : 'bg-linear-to-r from-blue-500 to-indigo-500'
+                  }`}
+                  style={{ width: `${lanSyncProgress.percent}%` }}
                 />
               </div>
             </div>

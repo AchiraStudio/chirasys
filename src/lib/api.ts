@@ -574,6 +574,19 @@ export interface LanSyncResult {
   synced_at: string;
 }
 
+export interface LanSyncProgress {
+  active: boolean;
+  stage: 'downloading' | 'importing' | 'complete' | 'error';
+  message: string;
+  current_table?: string;
+  tables_done: number;
+  total_tables: number;
+  records_imported: number;
+  total_records: number;
+  percent: number;
+  error?: string;
+}
+
 export const getLanStatus = async (): Promise<LanStatus> => invoke('get_lan_status');
 export const getLanPeers = async (): Promise<LanPeer[]> => invoke('get_lan_peers');
 export const scanLanSubnet = async (): Promise<LanPeer[]> => invoke('scan_lan_subnet');
