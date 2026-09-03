@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Package, ShoppingCart, Users, Settings, 
   FileText, LogOut, Truck, RefreshCw, PanelLeftClose, PanelLeftOpen,
-  CheckCircle2, AlertTriangle, Zap
+  CheckCircle2, AlertTriangle
 } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
 import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus, LanSyncProgress } from '../../lib/api';

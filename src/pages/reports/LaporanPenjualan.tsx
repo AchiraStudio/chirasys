@@ -21,9 +21,9 @@ interface Props {
   initialSubtype?: ReportSubtype;
 }
 
-export type ReportSubtype = 'recap' | 'detailed' | 'daily' | 'payment_methods' | 'customer' | 'cashier' | 'product_margin';
+type ReportSubtype = 'recap' | 'detailed' | 'daily' | 'payment_methods' | 'customer' | 'cashier' | 'product_margin';
 
-export const METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; badgeBg: string; textCol: string }> = {
+const METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; badgeBg: string; textCol: string }> = {
   cash:     { label: 'Tunai (Cash)',       icon: Banknote,      color: 'bg-emerald-500', badgeBg: 'bg-emerald-50 dark:bg-emerald-950/40', textCol: 'text-emerald-700 dark:text-emerald-300' },
   transfer: { label: 'Transfer Bank',      icon: ArrowRightLeft, color: 'bg-blue-500',    badgeBg: 'bg-blue-50 dark:bg-blue-950/40',    textCol: 'text-blue-700 dark:text-blue-300' },
   debit:    { label: 'Kartu Debit / EDC',  icon: CreditCard,    color: 'bg-indigo-500',  badgeBg: 'bg-indigo-50 dark:bg-indigo-950/40',textCol: 'text-indigo-700 dark:text-indigo-300' },

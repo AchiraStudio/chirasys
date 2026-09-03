@@ -319,8 +319,10 @@ export const printRawReceipt = async (printerName: string = '', bytes: number[])
     return await invoke('print_raw_receipt', { printerName, bytes });
   }
 };
+// fallow-ignore-next-line unused-export
 export const lanRemoteKickDrawer = async (printerName?: string): Promise<string> =>
   invoke('lan_remote_kick_drawer', { printerName: printerName || null });
+// fallow-ignore-next-line unused-export
 export const lanRemotePrintReceipt = async (printerName: string | undefined, bytes: number[]): Promise<string> =>
   invoke('lan_remote_print_receipt', { printerName: printerName || null, bytes });
 
@@ -464,7 +466,13 @@ export const logoutUser = async (token: string): Promise<void> =>
   invoke('logout', { token });
 
 // --- Workspace & Sync ---
-export interface WorkspaceInfo { id: string; name: string; code: string; }
+export interface WorkspaceInfo {
+  id: string;
+  name: string;
+  code: string;
+  invite_token?: string;
+  role?: string;
+}
 export interface SyncStatus {
   workspace_id: string;
   workspace_name: string;
@@ -603,14 +611,6 @@ export const parentRequestConnectChild = async (childIp: string, childPort?: num
 export const triggerLanSyncNow = async (): Promise<LanSyncResult> => invoke('trigger_lan_sync_now');
 export const cloneFromParent = async (parentIp: string, parentPort?: number): Promise<number> =>
   invoke('clone_from_parent', { parentIp, parentPort: parentPort || null });
-
-export interface WorkspaceInfo {
-  id: string;
-  name: string;
-  code: string;
-  invite_token?: string;
-  role?: string;
-}
 
 export const joinWorkspace = async (codeOrToken: string, password?: string): Promise<WorkspaceInfo> =>
   invoke('join_workspace', { codeOrToken, password: password || null });
