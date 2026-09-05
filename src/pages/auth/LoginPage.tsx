@@ -4,6 +4,7 @@ import { loginUser, sysadminLogin } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import SysadminDashboard from './SysadminDashboard';
 import { supabase } from '../../lib/supabase';
+import KivoLogo from '../../components/common/KivoLogo';
 
 type Screen = 'login' | 'sysadmin_login' | 'sysadmin_dashboard';
 
@@ -164,14 +165,12 @@ export default function LoginPage() {
           >
             <ShieldCheck size={18} />
           </button>
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-indigo-600 p-0.5 shadow-lg shadow-brand/30 mb-6">
-            <div className="w-full h-full bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center">
-              <img src="/cs.ico" alt="ChiraSys" className="w-10 h-10 object-contain" />
-            </div>
+          <div className="mb-5 flex items-center justify-center">
+            <KivoLogo size={56} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">Masuk ke ChiraSys</h1>
-          <p className="text-sm text-slate-500 mt-2 text-center flex items-center justify-center gap-2">
-            <span>Modern Inventory & Cashier System</span>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">Masuk ke Kivo</h1>
+          <p className="text-xs text-slate-500 mt-1.5 text-center flex items-center justify-center gap-2">
+            <span>Platform Manajemen Bisnis Anda</span>
             <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-brand/10 text-brand border border-brand/20">v1.2.0</span>
           </p>
         </div>

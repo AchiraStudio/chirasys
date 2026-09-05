@@ -12,7 +12,7 @@ interface ReceiptModalProps {
 function generateReceiptBytes(data: SaleDetail, settings: { key: string; value: string }[]): number[] {
     const pWidth = settings.find(s => s.key === 'printer_width')?.value || '80mm';
     const pChars = settings.find(s => s.key === 'printer_chars_per_line')?.value;
-    const rHeader = settings.find(s => s.key === 'receipt_header')?.value || 'CHIRASYS ERP';
+    const rHeader = settings.find(s => s.key === 'receipt_header')?.value || 'KIVO ERP';
     const rAddress = settings.find(s => s.key === 'receipt_address')?.value || '';
     const rFooter = settings.find(s => s.key === 'receipt_footer')?.value || 'Terima kasih atas kunjungan Anda!';
     const pCut = settings.find(s => s.key === 'printer_autocut')?.value !== 'false';
@@ -101,7 +101,7 @@ function generateReceiptBytes(data: SaleDetail, settings: { key: string; value: 
 
     builder.feed(1);
     if (rFooter) builder.textLine(rFooter);
-    builder.textLine('ChiraSys ERP & Cashier');
+    builder.textLine('Kivo POS & Business Platform');
     builder.feed(5);
 
     if (pCut) builder.cut();

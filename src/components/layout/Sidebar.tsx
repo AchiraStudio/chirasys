@@ -9,6 +9,7 @@ import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus, 
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../ui/ConfirmModal';
 import { usePermissions } from '../../lib/permissions';
+import KivoLogo from '../common/KivoLogo';
 
 interface SidebarProps {
   activeMenu: string;
@@ -27,7 +28,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
   const { can } = usePermissions();
   const [lowStockCount, setLowStockCount] = useState(0);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
-  const [companyName, setCompanyName] = useState('ChiraSys');
+  const [companyName, setCompanyName] = useState('Kivo');
   const [branchName, setBranchName] = useState('Cabang Utama');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [lanSyncProgress, setLanSyncProgress] = useState<LanSyncProgress | null>(null);
@@ -124,13 +125,13 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
   };
 
   const menuItems = [
-    { id: 'dashboard',    icon: LayoutDashboard, label: 'Overview',            show: true },
-    { id: 'pos',          icon: ShoppingCart,    label: 'Kasir & POS',         show: can('sales.create') },
-    { id: 'inventory',    icon: Package,         label: 'Inventaris & Produk', show: can('items.view') || can('inventory.view'), badge: lowStockCount > 0 ? lowStockCount : null },
-    { id: 'purchasing',   icon: Truck,           label: 'Penerimaan & Pemasok', show: can('purchasing.view') || can('purchasing.create') },
-    { id: 'customers',    icon: Users,           label: 'Pelanggan & Promosi', show: can('crm.customers') || can('promos.manage') },
-    { id: 'reports',      icon: FileText,        label: 'Laporan & Akuntansi', show: can('reports.view') || can('accounting.manage') },
-    { id: 'settings',     icon: Settings,        label: 'Pengaturan',          show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') || can('settings.lan') },
+    { id: 'dashboard',    icon: LayoutDashboard, label: 'Kivo Overview',       show: true },
+    { id: 'pos',          icon: ShoppingCart,    label: 'Kivo POS',            show: can('sales.create') },
+    { id: 'inventory',    icon: Package,         label: 'Kivo Inventory',      show: can('items.view') || can('inventory.view'), badge: lowStockCount > 0 ? lowStockCount : null },
+    { id: 'purchasing',   icon: Truck,           label: 'Kivo Purchasing',     show: can('purchasing.view') || can('purchasing.create') },
+    { id: 'customers',    icon: Users,           label: 'Kivo Customers',      show: can('crm.customers') || can('promos.manage') },
+    { id: 'reports',      icon: FileText,        label: 'Kivo Reports',        show: can('reports.view') || can('accounting.manage') },
+    { id: 'settings',     icon: Settings,        label: 'Kivo Admin',          show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') || can('settings.lan') },
   ].filter(item => item.show);
 
   const roleLabel = () => {
@@ -150,8 +151,8 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
         {/* Brand & Branch Header */}
         <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4 justify-between'} border-b border-slate-200 dark:border-slate-800/60 transition-colors mt-2`}>
           <div className="flex items-center min-w-0">
-            <div className="w-8 h-8 rounded-lg overflow-hidden bg-white shadow-sm flex items-center justify-center p-1 shrink-0">
-              <img src="/cs.ico" alt="ChiraSys" className="w-full h-full object-contain" />
+            <div className="shrink-0 flex items-center justify-center">
+              <KivoLogo size={32} />
             </div>
             {!isCollapsed && (
               <div className="ml-3 min-w-0">

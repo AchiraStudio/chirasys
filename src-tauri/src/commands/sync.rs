@@ -18,18 +18,15 @@ pub fn get_supabase_credentials() -> (String, String) {
     let _ = dotenvy::from_filename(".env");
     let _ = dotenvy::from_filename("../.env");
 
-    let default_url = "https://vtjvtwglbalkukeyogsx.supabase.co".to_string();
-    let default_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0anZ0d2dsYmFsa3VrZXlvZ3N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzIxOTEsImV4cCI6MjA5NTEwODE5MX0.wjByh0VRKUVo6z0KUsCEWOd9QBpizSBrS75o9r7zKyE".to_string();
-
     let supabase_url = env::var("SUPABASE_URL")
         .or_else(|_| env::var("VITE_SUPABASE_URL"))
-        .unwrap_or(default_url);
+        .unwrap_or_default();
 
     let supabase_key = env::var("SUPABASE_KEY")
         .or_else(|_| env::var("SUPABASE_ANON_KEY"))
         .or_else(|_| env::var("SUPABASE_SERVICE_ROLE_KEY"))
         .or_else(|_| env::var("VITE_SUPABASE_ANON_KEY"))
-        .unwrap_or(default_key);
+        .unwrap_or_default();
 
     (supabase_url, supabase_key)
 }
@@ -55,11 +52,24 @@ pub fn spawn_sync_worker(pool: SqlitePool) {
             .build()
             .unwrap_or_else(|_| Client::new());
 
-        println!("🚀 Cloud Sync Worker started → {}", supabase_url);
-
         let mut consecutive_failures: u32 = 0;
+        let mut started_logged = false;
 
         loop {
+            // Guard: Do not run sync if setup is not yet completed
+            let has_setup: String = sqlx::query_scalar(
+                "SELECT value FROM global_settings WHERE key = 'has_completed_setup'"
+            )
+            .fetch_optional(&pool)
+            .await
+            .unwrap_or(None)
+            .unwrap_or_else(|| "false".to_string());
+
+            if has_setup != "true" {
+                sleep(Duration::from_secs(15)).await;
+                continue;
+            }
+
             // Read workspace_id from settings on each tick (so we pick it up after login)
             let workspace_id: Option<String> = sqlx::query_scalar(
                 "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
@@ -82,9 +92,14 @@ pub fn spawn_sync_worker(pool: SqlitePool) {
             .await
             .unwrap_or(None)
             .unwrap_or_else(|| "false".to_string());
-            if auto_sync == "false" || auto_sync == "0" {
-                sleep(Duration::from_secs(10)).await;
+            if auto_sync != "true" && auto_sync != "1" {
+                sleep(Duration::from_secs(15)).await;
                 continue;
+            }
+
+            if !started_logged {
+                println!("🚀 Cloud Sync Worker active → {}", supabase_url);
+                started_logged = true;
             }
 
             match process_sync_queue(&pool, &client, &supabase_url, &supabase_key, &workspace_id).await {
@@ -2074,7 +2089,7 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
 
-        println!("📥 Cloud Pull Worker started...");
+        let mut pull_logged = false;
 
         let tables = vec![
             "role_default_permissions", "users",
@@ -2088,6 +2103,20 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
         ];
 
         loop {
+            // Guard: Do not run pull worker if setup is not yet completed
+            let has_setup: String = sqlx::query_scalar(
+                "SELECT value FROM global_settings WHERE key = 'has_completed_setup'"
+            )
+            .fetch_optional(&pool)
+            .await
+            .unwrap_or(None)
+            .unwrap_or_else(|| "false".to_string());
+
+            if has_setup != "true" {
+                tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
+                continue;
+            }
+
             // Read workspace_id from settings
             let workspace_id: Option<String> = sqlx::query_scalar(
                 "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
@@ -2110,9 +2139,14 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
             .unwrap_or(None)
             .unwrap_or_else(|| "false".to_string());
 
-            if auto_sync == "false" || auto_sync == "0" {
-                tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+            if auto_sync != "true" && auto_sync != "1" {
+                tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
                 continue;
+            }
+
+            if !pull_logged {
+                println!("📥 Cloud Pull Worker active → {}", supabase_url);
+                pull_logged = true;
             }
 
             // Read last_pull_at cursor

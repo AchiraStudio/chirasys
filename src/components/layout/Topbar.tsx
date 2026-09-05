@@ -33,13 +33,13 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
   }, []);
 
   const PAGE_TITLES: Record<string, string> = {
-    dashboard: 'Overview',
-    pos: 'Kasir & Point of Sale',
-    inventory: 'Inventaris & Produk',
-    purchasing: 'Pembelian & Pemasok',
-    customers: 'Pelanggan & Promosi',
-    reports: 'Laporan & Akuntansi',
-    settings: 'Pengaturan System',
+    dashboard: 'Kivo Overview',
+    pos: 'Kivo POS — Kasir & Point of Sale',
+    inventory: 'Kivo Inventory — Katalog & Stok',
+    purchasing: 'Kivo Purchasing — Penerimaan & Pemasok',
+    customers: 'Kivo Customers — Pelanggan & Promosi',
+    reports: 'Kivo Reports — Laporan & Akuntansi',
+    settings: 'Kivo Admin — Pengaturan & Cloud Sync',
   };
 
   const title = PAGE_TITLES[activeMenu] ?? activeMenu.replace(/-/g, ' ');

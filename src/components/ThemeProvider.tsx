@@ -23,11 +23,11 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
   children,
   defaultTheme = "light",
-  storageKey = "chirasys-ui-theme",
+  storageKey = "kivo-ui-theme",
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+    () => (localStorage.getItem(storageKey) as Theme) || (localStorage.getItem('chirasys-ui-theme') as Theme) || defaultTheme
   );
 
   useEffect(() => {

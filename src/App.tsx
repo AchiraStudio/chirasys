@@ -14,13 +14,14 @@ import Settings from './pages/settings/Settings';
 import LoginPage from './pages/auth/LoginPage';
 import ContextMenu from './components/layout/ContextMenu';
 import { useAuthStore } from './store/AuthStore';
-import { getCurrentUser, kickCashDrawer, getSyncStatus } from './lib/api';
+import { getCurrentUser, kickCashDrawer, getSyncStatus, getSettings } from './lib/api';
 import { supabase } from './lib/supabase';
 import { invoke } from '@tauri-apps/api/core';
 import { useSyncStore } from './store/SyncStore';
 import { Package, Loader2 } from 'lucide-react';
 import { useZoomStore } from './store/ZoomStore';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
+import SetupWizard from './pages/onboarding/SetupWizard';
 
 interface MainContentProps {
   activeMenu: string;
@@ -94,18 +95,32 @@ export default function App() {
 
   const { token, user, setAuth, clearAuth } = useAuthStore();
   const [isVerifying, setIsVerifying] = useState(true);
+  const [hasCompletedSetup, setHasCompletedSetup] = useState<boolean | null>(null);
 
   const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem('chirasys_sidebar_collapsed') === 'true';
+    return (localStorage.getItem('kivo_sidebar_collapsed') ?? localStorage.getItem('chirasys_sidebar_collapsed')) === 'true';
   });
 
   const toggleSidebar = useCallback(() => {
     setIsSidebarCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem('chirasys_sidebar_collapsed', String(next));
+      localStorage.setItem('kivo_sidebar_collapsed', String(next));
       return next;
     });
+  }, []);
+
+  // Check if first-run setup has been completed
+  useEffect(() => {
+    getSettings()
+      .then((settings) => {
+        const completed = settings.find(s => s.key === 'has_completed_setup')?.value === 'true';
+        setHasCompletedSetup(completed);
+      })
+      .catch((err) => {
+        console.warn('Could not check has_completed_setup:', err);
+        setHasCompletedSetup(true);
+      });
   }, []);
   
   useRealtimeSync();
@@ -191,7 +206,7 @@ export default function App() {
 
       if (!workspaceId) {
         console.log('⚠️ No active workspace connected. Realtime sync bypassed.');
-        setStatus('error');
+        setStatus('disconnected');
         return;
       }
 
@@ -203,7 +218,7 @@ export default function App() {
 
       console.log('📡 Subscribing to Supabase Realtime for workspace:', workspaceId);
 
-      let channel = supabase.channel(`chirasys-sync-${workspaceId}`);
+      let channel = supabase.channel(`kivo-sync-${workspaceId}`);
 
       const tablesToSync = [
         'sales', 'stock_ledger', 'categories', 'brands', 'items', 'item_units', 'item_prices',
@@ -265,11 +280,17 @@ export default function App() {
     };
   }, [token]);
 
-  if (isVerifying) {
+  if (isVerifying || hasCompletedSetup === null) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-[#09090b]">
         <Loader2 className="animate-spin text-brand" size={32} />
       </div>
+    );
+  }
+
+  if (hasCompletedSetup === false) {
+    return (
+      <SetupWizard onComplete={() => setHasCompletedSetup(true)} />
     );
   }
 
@@ -288,7 +309,7 @@ export default function App() {
     <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-[#09090b] transition-colors duration-300">
       <ContextMenu />
       <TitleBar />
-      <div className="flex flex-1 overflow-hidden pt-10">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar 
           activeMenu={activeMenu} 
           setActiveMenu={setActiveMenu} 

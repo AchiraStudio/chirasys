@@ -48,7 +48,7 @@ export default function ContextMenu() {
       style={{ top: position.y, left: position.x }}
     >
       <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ChiraSys Actions</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kivo Actions</span>
       </div>
 
       <button

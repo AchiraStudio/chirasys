@@ -46,12 +46,30 @@ pub fn run() {
             commands::sync::spawn_sync_worker(pool.clone());
             commands::sync::spawn_pull_worker(pool.clone(), handle.clone());
 
-            // Spawn LAN Auto-Discovery and Embedded Local Server
+            // Spawn LAN Auto-Discovery and Embedded Local Server only if setup completed and enabled
             let pool_for_lan = pool.clone();
             let handle_for_lan = handle.clone();
             tauri::async_runtime::spawn(async move {
-                commands::lan::start_lan_http_server(pool_for_lan.clone(), handle_for_lan.clone(), 3699).await;
-                commands::lan::spawn_lan_discovery_service(pool_for_lan, handle_for_lan).await;
+                let has_completed: String = sqlx::query_scalar(
+                    "SELECT value FROM global_settings WHERE key = 'has_completed_setup'"
+                )
+                .fetch_optional(&pool_for_lan)
+                .await
+                .unwrap_or(None)
+                .unwrap_or_default();
+
+                let lan_enabled: String = sqlx::query_scalar(
+                    "SELECT value FROM global_settings WHERE key = 'lan_auto_connect'"
+                )
+                .fetch_optional(&pool_for_lan)
+                .await
+                .unwrap_or(None)
+                .unwrap_or_default();
+
+                if has_completed == "true" && (lan_enabled == "true" || lan_enabled == "1") {
+                    commands::lan::start_lan_http_server(pool_for_lan.clone(), handle_for_lan.clone(), 3699).await;
+                    commands::lan::spawn_lan_discovery_service(pool_for_lan, handle_for_lan).await;
+                }
             });
 
             Ok(())

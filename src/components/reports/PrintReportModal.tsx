@@ -92,10 +92,10 @@ export default function PrintReportModal({
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">
-                  CHIRASYS APOTEK & POS
+                  KIVO PLATFORM & POS
                 </h1>
                 <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Sistem Informasi Farmasi & Manajemen Penjualan Retail
+                  Platform Manajemen Bisnis & Penjualan Retail
                 </p>
                 <p className="text-[10px] text-slate-400">
                   Cabang: {user?.branch_id || 'Pusat (Branch 001)'}

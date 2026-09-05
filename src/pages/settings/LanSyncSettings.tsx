@@ -658,7 +658,7 @@ export default function LanSyncSettings() {
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Radio size={16} className="text-emerald-500 animate-pulse" /> Radar Perangkat Terdeteksi di Jaringan ({peers.length})
             </h3>
-            <p className="text-xs text-slate-500">Mendeteksi komputer lain yang membuka aplikasi ChiraSys di jaringan Wi-Fi/LAN ini.</p>
+            <p className="text-xs text-slate-500">Mendeteksi komputer lain yang membuka aplikasi Kivo di jaringan Wi-Fi/LAN ini.</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -686,7 +686,7 @@ export default function LanSyncSettings() {
               <Wifi size={32} className="mx-auto mb-2 opacity-40 text-brand" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Belum ada perangkat lain yang terdeteksi di radar.</p>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
-                Pastikan komputer induk membuka aplikasi ChiraSys. Klik tombol <strong>Pindai Subnet IP</strong> untuk memindai seluruh IP lokal, atau masukkan IP manual di bawah.
+                Pastikan komputer induk membuka aplikasi Kivo. Klik tombol <strong>Pindai Subnet IP</strong> untuk memindai seluruh IP lokal, atau masukkan IP manual di bawah.
               </p>
               <div className="mt-4 flex items-center justify-center gap-3">
                 <button

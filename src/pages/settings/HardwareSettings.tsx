@@ -165,7 +165,7 @@ export default function HardwareSettings() {
       
       // Header (Left Aligned)
       builder.align('left');
-      builder.bold(true).textLine(receiptHeader || 'CHIRASYS ERP').bold(false);
+      builder.bold(true).textLine(receiptHeader || 'KIVO ERP').bold(false);
       if (receiptAddress) builder.textLine(receiptAddress);
       builder.feed(1);
       
@@ -188,7 +188,7 @@ export default function HardwareSettings() {
       // Footer (Left Aligned)
       if (receiptFooter) builder.textLine(receiptFooter);
       builder.textLine('PRINTER THERMAL TERHUBUNG');
-      builder.textLine('ChiraSys ERP & Cashier System');
+      builder.textLine('Kivo POS & Business Platform');
       builder.feed(5);
       
       if (autoCutPaper) builder.cut();
@@ -558,7 +558,7 @@ export default function HardwareSettings() {
                       try {
                         const builder = new EscPosBuilder();
                         builder.align('center');
-                        builder.bold(true).textLine('CHIRASYS - LAN TEST').bold(false);
+                        builder.bold(true).textLine('KIVO - LAN TEST').bold(false);
                         builder.textLine('Uji coba cetak struk via LAN');
                         builder.textLine('Terminal Kasir Anak -> Server Induk');
                         builder.feed(3);
@@ -682,7 +682,7 @@ export default function HardwareSettings() {
                   type="text" 
                   value={receiptHeader} 
                   onChange={e => setReceiptHeader(e.target.value)} 
-                  placeholder="Contoh: CHIRASYS ERP"
+                  placeholder="Contoh: KIVO MART"
                   className="w-full mt-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
                 />
               </div>

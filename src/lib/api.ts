@@ -52,8 +52,10 @@ const LOCAL_ONLY_COMMANDS = new Set([
   'trigger_sync_push',
   'trigger_sync_pull',
   'join_workspace',
+  'create_workspace',
   'leave_workspace',
   'create_workspace_invite',
+  'create_user',
 
   // Hardware & Discovery
   'get_lan_status',
@@ -743,6 +745,21 @@ export const cloneFromParent = async (parentIp: string, parentPort?: number): Pr
 
 export const joinWorkspace = async (codeOrToken: string, password?: string): Promise<WorkspaceInfo> =>
   invoke('join_workspace', { codeOrToken, password: password || null });
+
+export const createWorkspace = async (name: string, code: string): Promise<WorkspaceInfo> =>
+  invoke('create_workspace', { name, code });
+
+export const createUser = async (
+  name: string,
+  username: string,
+  password: string,
+  role: string = 'staff',
+  workspaceId?: string | null
+): Promise<UserRowFull> =>
+  invoke('create_user', { name, username, password, role, workspaceId: workspaceId || null });
+
+
+
 
 
 

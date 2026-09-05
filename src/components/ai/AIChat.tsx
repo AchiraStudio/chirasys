@@ -321,10 +321,10 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
               <div className="flex items-center gap-2">
                 <h2 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight">Achira</h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 dark:bg-brand/20 text-brand border border-brand/20">
-                  AI Assistant
+                  Kivo AI
                 </span>
               </div>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">Asisten Cerdas ChiraSys</p>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">Asisten Cerdas Kivo</p>
             </div>
           </div>
 
@@ -463,7 +463,7 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
                 Halo, <span className="bg-gradient-to-r from-brand via-indigo-500 to-purple-500 bg-clip-text text-transparent">{user?.name || 'System Admin'}</span>! 👋
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-[300px] leading-relaxed mb-6">
-                Saya <strong className="text-slate-800 dark:text-slate-200">Achira</strong>, asisten AI cerdas ChiraSys. Siap membantu analisis stok, laporan penjualan, dan strategi promo.
+                Saya <strong className="text-slate-800 dark:text-slate-200">Achira</strong>, asisten cerdas Kivo AI. Siap membantu analisis stok, laporan penjualan, dan strategi promo.
               </p>
 
               {/* Quick Prompt Cards */}

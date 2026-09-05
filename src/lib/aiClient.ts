@@ -49,7 +49,7 @@ function buildConversationPrompt(messages: ChatMessage[], user: UserInfo, branch
   if (!hasSystem) {
     conversation.unshift({
       role: 'system',
-      content: `Kamu adalah Achira, asisten AI cerdas untuk sistem ERP & POS ChiraSYS.
+      content: `Kamu adalah Achira, asisten AI cerdas untuk platform bisnis Kivo (Kivo AI).
 Pengguna: ${user.username} | Role: ${user.role} | Branch: ${branchId}
 
 Aturan:

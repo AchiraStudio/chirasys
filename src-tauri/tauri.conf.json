@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ChiraSys ERP",
+  "productName": "Kivo",
   "version": "1.2.0",
   "identifier": "com.chirasys.erp",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ChiraSys ERP",
+        "title": "Kivo — Platform Manajemen Bisnis",
         "width": 1280,
         "height": 720,
         "decorations": false
