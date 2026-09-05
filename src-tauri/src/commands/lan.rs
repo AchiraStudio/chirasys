@@ -16,7 +16,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 
@@ -201,6 +201,7 @@ pub async fn start_lan_http_server(pool: SqlitePool, app_handle: AppHandle, port
 
     let router = Router::new()
         .route("/api/lan/info", get(handle_lan_info))
+        .route("/api/lan/rpc", post(handle_lan_rpc))
         .route("/api/lan/export_snapshot", get(handle_export_snapshot))
         .route("/api/lan/queue/push", post(handle_queue_push))
         .route("/api/lan/queue/pull", get(handle_queue_pull))
@@ -267,6 +268,615 @@ async fn handle_lan_info(AxumState(ctx): AxumState<ServerContext>) -> Json<serde
         "sales_count": sales_count,
         "timestamp": chrono::Utc::now().to_rfc3339()
     }))
+}
+
+// ---------------------------------------------------------------------------
+// 1.5. REMOTE RPC GATEWAY (MODEL B CLIENT-SERVER FOR ZERO-COPY CHILDREN)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct LanRpcRequest {
+    pub command: String,
+    #[serde(default)]
+    pub params: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LanRpcResponse {
+    pub success: bool,
+    pub data: Option<serde_json::Value>,
+    pub error: Option<String>,
+}
+
+async fn handle_lan_rpc(
+    AxumState(ctx): AxumState<ServerContext>,
+    Json(req): Json<LanRpcRequest>,
+) -> (StatusCode, Json<LanRpcResponse>) {
+    let state = ctx.app_handle.state::<crate::AppState>();
+    let cmd = req.command.as_str();
+    let p = req.params;
+
+    let res: Result<serde_json::Value, String> = match cmd {
+        // --- ITEMS ---
+        "get_items_filtered" => {
+            let search: Option<String> = p.get("search").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let category_id: Option<String> = p.get("categoryId").or_else(|| p.get("category_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let brand_id: Option<String> = p.get("brandId").or_else(|| p.get("brand_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let active_only: bool = p.get("activeOnly").or_else(|| p.get("active_only")).and_then(|v| v.as_bool()).unwrap_or(false);
+            let page: i64 = p.get("page").and_then(|v| v.as_i64()).unwrap_or(1);
+            let per_page: i64 = p.get("perPage").or_else(|| p.get("per_page")).and_then(|v| v.as_i64()).unwrap_or(20);
+            let sort_by: Option<String> = p.get("sortBy").or_else(|| p.get("sort_by")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let sort_order: Option<String> = p.get("sortOrder").or_else(|| p.get("sort_order")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+
+            crate::commands::items::get_items_filtered(
+                search, category_id, brand_id, active_only, page, per_page, sort_by, sort_order, state
+            ).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_item" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::items::get_item(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "add_item" => {
+            let sku: String = p.get("sku").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let barcode: Option<String> = p.get("barcode").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let generic_name: Option<String> = p.get("genericName").or_else(|| p.get("generic_name")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let category_id: Option<String> = p.get("categoryId").or_else(|| p.get("category_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let brand_id: Option<String> = p.get("brandId").or_else(|| p.get("brand_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let hpp_method: String = p.get("hppMethod").or_else(|| p.get("hpp_method")).and_then(|v| v.as_str()).unwrap_or("avg").to_string();
+            let min_stock: f64 = p.get("minStock").or_else(|| p.get("min_stock")).and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let has_expiry: i32 = p.get("hasExpiry").or_else(|| p.get("has_expiry")).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            let requires_prescription: i32 = p.get("requiresPrescription").or_else(|| p.get("requires_prescription")).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            let cost_price: Option<f64> = p.get("costPrice").or_else(|| p.get("cost_price")).and_then(|v| v.as_f64());
+            let rack_location: Option<String> = p.get("rackLocation").or_else(|| p.get("rack_location")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let item_type: Option<String> = p.get("itemType").or_else(|| p.get("item_type")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+
+            crate::commands::items::add_item(
+                sku, barcode, name, generic_name, category_id, brand_id, hpp_method,
+                min_stock, has_expiry, requires_prescription, cost_price, rack_location, item_type, notes, state
+            ).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "update_item" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let sku: String = p.get("sku").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let barcode: Option<String> = p.get("barcode").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let generic_name: Option<String> = p.get("genericName").or_else(|| p.get("generic_name")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let category_id: Option<String> = p.get("categoryId").or_else(|| p.get("category_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let brand_id: Option<String> = p.get("brandId").or_else(|| p.get("brand_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let hpp_method: String = p.get("hppMethod").or_else(|| p.get("hpp_method")).and_then(|v| v.as_str()).unwrap_or("avg").to_string();
+            let min_stock: f64 = p.get("minStock").or_else(|| p.get("min_stock")).and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let has_expiry: i32 = p.get("hasExpiry").or_else(|| p.get("has_expiry")).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            let requires_prescription: i32 = p.get("requiresPrescription").or_else(|| p.get("requires_prescription")).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            let cost_price: Option<f64> = p.get("costPrice").or_else(|| p.get("cost_price")).and_then(|v| v.as_f64());
+            let rack_location: Option<String> = p.get("rackLocation").or_else(|| p.get("rack_location")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let item_type: Option<String> = p.get("itemType").or_else(|| p.get("item_type")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+
+            crate::commands::items::update_item(
+                id, sku, barcode, name, generic_name, category_id, brand_id, hpp_method,
+                min_stock, has_expiry, requires_prescription, cost_price, rack_location, item_type, notes, state
+            ).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "delete_item" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::items::delete_item(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "toggle_item_active" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::items::toggle_item_active(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "bulk_update_category" => {
+            let item_ids: Vec<String> = p.get("itemIds").or_else(|| p.get("item_ids")).and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            let category_id: String = p.get("categoryId").or_else(|| p.get("category_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::items::bulk_update_category(item_ids, category_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "add_item_unit" => {
+            let item_id: String = p.get("itemId").or_else(|| p.get("item_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let unit_name: String = p.get("unitName").or_else(|| p.get("unit_name")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let conversion: f64 = p.get("conversion").and_then(|v| v.as_f64()).unwrap_or(1.0);
+            let is_base: i32 = p.get("isBase").or_else(|| p.get("is_base")).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            let barcode: Option<String> = p.get("barcode").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+
+            crate::commands::items::add_item_unit(item_id, unit_name, conversion, is_base, barcode, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "update_item_unit" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let unit_name: String = p.get("unitName").or_else(|| p.get("unit_name")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let conversion: f64 = p.get("conversion").and_then(|v| v.as_f64()).unwrap_or(1.0);
+            let is_base: i32 = p.get("isBase").or_else(|| p.get("is_base")).and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            let barcode: Option<String> = p.get("barcode").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+
+            crate::commands::items::update_item_unit(id, unit_name, conversion, is_base, barcode, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "delete_item_unit" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::items::delete_item_unit(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "set_item_price" => {
+            let item_id: String = p.get("itemId").or_else(|| p.get("item_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let unit_id: String = p.get("unitId").or_else(|| p.get("unit_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let customer_tier: String = p.get("customerTier").or_else(|| p.get("customer_tier")).and_then(|v| v.as_str()).unwrap_or("regular").to_string();
+            let price: f64 = p.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+            crate::commands::items::set_item_price(item_id, unit_id, customer_tier, price, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "set_item_cost_price" => {
+            let item_id: String = p.get("itemId").or_else(|| p.get("item_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let cost_price: f64 = p.get("costPrice").or_else(|| p.get("cost_price")).and_then(|v| v.as_f64()).unwrap_or(0.0);
+            crate::commands::items::set_item_cost_price(item_id, cost_price, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "update_item_wholesale_price" => {
+            let item_id: String = p.get("itemId").or_else(|| p.get("item_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let wholesale_price: f64 = p.get("wholesalePrice").or_else(|| p.get("wholesale_price")).and_then(|v| v.as_f64()).unwrap_or(0.0);
+            crate::commands::items::update_item_wholesale_price(item_id, wholesale_price, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "save_item_price_tiers" => {
+            let item_id: String = p.get("itemId").or_else(|| p.get("item_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let unit_id: Option<String> = p.get("unitId").or_else(|| p.get("unit_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let tiers: Vec<serde_json::Value> = p.get("tiers").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            crate::commands::items::save_item_price_tiers(item_id, unit_id, tiers, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_item_price_tiers" => {
+            let item_id: String = p.get("itemId").or_else(|| p.get("item_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::items::get_item_price_tiers(item_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        // --- SALES & POS ---
+        "create_sale" => {
+            match serde_json::from_value(p.get("input").cloned().unwrap_or(p.clone())) {
+                Ok(input) => crate::commands::sales::create_sale(input, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "get_sales" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let customer_id: Option<String> = p.get("customerId").or_else(|| p.get("customer_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::sales::get_sales(branch_id, customer_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_sale_detail" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::sales::get_sale_detail(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "create_sale_return" => {
+            let sale_id: String = p.get("saleId").or_else(|| p.get("sale_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let lines = p.get("lines").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            let reason: String = p.get("reason").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::sales::create_sale_return(sale_id, lines, reason, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_next_transaction_no" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            crate::commands::sales::get_next_transaction_no(branch_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "delete_sale" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::sales::delete_sale(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        // --- INVENTORY ---
+        "get_stock_overview" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            crate::commands::inventory::get_stock_overview(branch_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_low_stock_alerts" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            crate::commands::inventory::get_low_stock_alerts(branch_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_stock_movements" => {
+            let item_id: String = p.get("itemId").or_else(|| p.get("item_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let limit: i64 = p.get("limit").and_then(|v| v.as_i64()).unwrap_or(100);
+            crate::commands::inventory::get_stock_movements(item_id, branch_id, limit, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "adjust_stock" => {
+            let item_id: String = p.get("itemId").or_else(|| p.get("item_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let unit_id: String = p.get("unitId").or_else(|| p.get("unit_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let qty: f64 = p.get("qty").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let direction: String = p.get("direction").and_then(|v| v.as_str()).unwrap_or("in").to_string();
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let created_by: Option<String> = p.get("createdBy").or_else(|| p.get("created_by")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::inventory::adjust_stock(item_id, unit_id, branch_id, qty, direction, notes, created_by, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "set_initial_stock" => {
+            let item_id: String = p.get("itemId").or_else(|| p.get("item_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let unit_id: String = p.get("unitId").or_else(|| p.get("unit_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let qty: f64 = p.get("qty").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let hpp_value: Option<f64> = p.get("hppValue").or_else(|| p.get("hpp_value")).and_then(|v| v.as_f64());
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::inventory::set_initial_stock(item_id, unit_id, branch_id, qty, hpp_value, notes, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "create_opname_session" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let created_by: Option<String> = p.get("createdBy").or_else(|| p.get("created_by")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::inventory::create_opname_session(branch_id, created_by, notes, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "submit_opname_lines" => {
+            let opname_id: String = p.get("opnameId").or_else(|| p.get("opname_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let lines = p.get("lines").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            crate::commands::inventory::submit_opname_lines(opname_id, lines, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "finalize_opname" => {
+            let opname_id: String = p.get("opnameId").or_else(|| p.get("opname_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::inventory::finalize_opname(opname_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        // --- MASTERS ---
+        "get_categories" => {
+            crate::commands::masters::get_categories(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "add_category" => {
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let description: Option<String> = p.get("description").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let color: Option<String> = p.get("color").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let parent_id: Option<String> = p.get("parentId").or_else(|| p.get("parent_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::masters::add_category(name, description, color, parent_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "update_category" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::masters::update_category(id, name, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "delete_category" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::masters::delete_category(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_brands" => {
+            crate::commands::masters::get_brands(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "add_brand" => {
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::masters::add_brand(name, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "update_brand" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::masters::update_brand(id, name, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "delete_brand" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::masters::delete_brand(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_banks" => {
+            crate::commands::masters::get_banks(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_settings" => {
+            crate::commands::masters::get_settings(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "set_setting" => {
+            let key: String = p.get("key").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let value: String = p.get("value").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::masters::set_setting(key, value, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        // --- CUSTOMERS ---
+        "get_customers" => {
+            let search: Option<String> = p.get("search").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let tier: Option<String> = p.get("tier").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let active_only: bool = p.get("activeOnly").or_else(|| p.get("active_only")).and_then(|v| v.as_bool()).unwrap_or(false);
+            crate::commands::customers::get_customers(search, tier, active_only, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "add_customer" => {
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let phone: Option<String> = p.get("phone").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let email: Option<String> = p.get("email").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let address: Option<String> = p.get("address").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let region: Option<String> = p.get("region").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let customer_tier: String = p.get("customerTier").or_else(|| p.get("customer_tier")).and_then(|v| v.as_str()).unwrap_or("regular").to_string();
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let membership_expiry: Option<String> = p.get("membershipExpiry").or_else(|| p.get("membership_expiry")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::customers::add_customer(name, phone, email, address, region, customer_tier, notes, membership_expiry, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "update_customer" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let phone: Option<String> = p.get("phone").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let email: Option<String> = p.get("email").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let address: Option<String> = p.get("address").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let region: Option<String> = p.get("region").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let customer_tier: String = p.get("customerTier").or_else(|| p.get("customer_tier")).and_then(|v| v.as_str()).unwrap_or("regular").to_string();
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let membership_expiry: Option<String> = p.get("membershipExpiry").or_else(|| p.get("membership_expiry")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::customers::update_customer(id, name, phone, email, address, region, customer_tier, notes, membership_expiry, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "toggle_customer_active" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::customers::toggle_customer_active(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        // --- SUPPLIERS ---
+        "get_suppliers" => {
+            let search: Option<String> = p.get("search").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let active_only: bool = p.get("activeOnly").or_else(|| p.get("active_only")).and_then(|v| v.as_bool()).unwrap_or(false);
+            crate::commands::suppliers::get_suppliers(search, active_only, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "add_supplier" => {
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let contact_person: Option<String> = p.get("contactPerson").or_else(|| p.get("contact_person")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let phone: Option<String> = p.get("phone").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let email: Option<String> = p.get("email").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let address: Option<String> = p.get("address").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let payment_terms: Option<String> = p.get("paymentTerms").or_else(|| p.get("payment_terms")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::suppliers::add_supplier(name, contact_person, phone, email, address, payment_terms, notes, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "update_supplier" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let name: String = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let contact_person: Option<String> = p.get("contactPerson").or_else(|| p.get("contact_person")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let phone: Option<String> = p.get("phone").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let email: Option<String> = p.get("email").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let address: Option<String> = p.get("address").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let payment_terms: Option<String> = p.get("paymentTerms").or_else(|| p.get("payment_terms")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::suppliers::update_supplier(id, name, contact_person, phone, email, address, payment_terms, notes, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "toggle_supplier_active" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::suppliers::toggle_supplier_active(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        // --- PURCHASING ---
+        "get_purchases" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let supplier_id: Option<String> = p.get("supplierId").or_else(|| p.get("supplier_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let status: Option<String> = p.get("status").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::purchasing::get_purchases(branch_id, supplier_id, status, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_purchase_detail" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::purchasing::get_purchase_detail(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "receive_goods" => {
+            let po_id: String = p.get("poId").or_else(|| p.get("po_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let supplier_id: String = p.get("supplierId").or_else(|| p.get("supplier_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let invoice_no: Option<String> = p.get("invoiceNo").or_else(|| p.get("invoice_no")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let lines = p.get("lines").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            crate::commands::purchasing::receive_goods(po_id, branch_id, supplier_id, invoice_no, lines, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "receive_goods_direct" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let supplier_id: String = p.get("supplierId").or_else(|| p.get("supplier_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let invoice_no: Option<String> = p.get("invoiceNo").or_else(|| p.get("invoice_no")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let lines = p.get("lines").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            crate::commands::purchasing::receive_goods_direct(branch_id, supplier_id, invoice_no, lines, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "add_purchase_payment" => {
+            let purchase_id: String = p.get("purchaseId").or_else(|| p.get("purchase_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let amount: f64 = p.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let method: String = p.get("method").and_then(|v| v.as_str()).unwrap_or("cash").to_string();
+            let reference: Option<String> = p.get("reference").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::purchasing::add_purchase_payment(purchase_id, amount, method, reference, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "create_purchase_return" => {
+            let purchase_id: String = p.get("purchaseId").or_else(|| p.get("purchase_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let lines = p.get("lines").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            let reason: String = p.get("reason").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::purchasing::create_purchase_return(purchase_id, lines, reason, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_purchase_orders" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            crate::commands::purchasing::get_purchase_orders(branch_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_po_lines" => {
+            let po_id: String = p.get("poId").or_else(|| p.get("po_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::purchasing::get_po_lines(po_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "create_purchase_order" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let supplier_id: String = p.get("supplierId").or_else(|| p.get("supplier_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let expected_date: Option<String> = p.get("expectedDate").or_else(|| p.get("expected_date")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let notes: Option<String> = p.get("notes").and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            let lines = p.get("lines").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            crate::commands::purchasing::create_purchase_order(branch_id, supplier_id, expected_date, notes, lines, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        // --- PROMOS ---
+        "get_promos" => {
+            let active_only: bool = p.get("activeOnly").or_else(|| p.get("active_only")).and_then(|v| v.as_bool()).unwrap_or(false);
+            crate::commands::promos::get_promos(active_only, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_promo_detail" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::promos::get_promo_detail(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "create_promo" => {
+            match serde_json::from_value(p.get("input").cloned().unwrap_or(p.clone())) {
+                Ok(input) => crate::commands::promos::create_promo(input, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "update_promo" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            match serde_json::from_value(p.get("input").cloned().unwrap_or(p.clone())) {
+                Ok(input) => crate::commands::promos::update_promo(id, input, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "delete_promo" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::promos::delete_promo(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "toggle_promo_active" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::promos::toggle_promo_active(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "calculate_discounts" => {
+            let lines = p.get("lines").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            let customer_tier: Option<String> = p.get("customerTier").or_else(|| p.get("customer_tier")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::promos::calculate_discounts(lines, customer_tier, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        // --- REPORTS ---
+        "get_sales_summary" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let date_from: String = p.get("dateFrom").or_else(|| p.get("date_from")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let date_to: String = p.get("dateTo").or_else(|| p.get("date_to")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::reports::get_sales_summary(branch_id, date_from, date_to, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_top_selling_items" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let date_from: String = p.get("dateFrom").or_else(|| p.get("date_from")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let date_to: String = p.get("dateTo").or_else(|| p.get("date_to")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let limit: i64 = p.get("limit").and_then(|v| v.as_i64()).unwrap_or(10);
+            crate::commands::reports::get_top_selling_items(branch_id, date_from, date_to, limit, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_sales_by_payment_method" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let date_from: String = p.get("dateFrom").or_else(|| p.get("date_from")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let date_to: String = p.get("dateTo").or_else(|| p.get("date_to")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::reports::get_sales_by_payment_method(branch_id, date_from, date_to, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_stock_valuation" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            crate::commands::reports::get_stock_valuation(branch_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_expiring_items" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let days_ahead: i64 = p.get("daysAhead").or_else(|| p.get("days_ahead")).and_then(|v| v.as_i64()).unwrap_or(90);
+            crate::commands::reports::get_expiring_items(branch_id, days_ahead, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_outstanding_payables" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            crate::commands::reports::get_outstanding_payables(branch_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_purchase_summary" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let date_from: String = p.get("dateFrom").or_else(|| p.get("date_from")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let date_to: String = p.get("dateTo").or_else(|| p.get("date_to")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::reports::get_purchase_summary(branch_id, date_from, date_to, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_customer_report" => {
+            let branch_id: String = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| v.as_str()).unwrap_or("branch_001").to_string();
+            let date_from: String = p.get("dateFrom").or_else(|| p.get("date_from")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let date_to: String = p.get("dateTo").or_else(|| p.get("date_to")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let limit: i64 = p.get("limit").and_then(|v| v.as_i64()).unwrap_or(20);
+            crate::commands::reports::get_customer_report(branch_id, date_from, date_to, limit, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_sales_recap_report" => {
+            match serde_json::from_value(p.get("filter").cloned().unwrap_or(p.clone())) {
+                Ok(filter) => crate::commands::reports::get_sales_recap_report(filter, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "get_detailed_sales_lines" => {
+            match serde_json::from_value(p.get("filter").cloned().unwrap_or(p.clone())) {
+                Ok(filter) => crate::commands::reports::get_detailed_sales_lines(filter, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "get_sales_by_cashier_summary" => {
+            match serde_json::from_value(p.get("filter").cloned().unwrap_or(p.clone())) {
+                Ok(filter) => crate::commands::reports::get_sales_by_cashier_summary(filter, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "get_daily_sales_recap" => {
+            match serde_json::from_value(p.get("filter").cloned().unwrap_or(p.clone())) {
+                Ok(filter) => crate::commands::reports::get_daily_sales_recap(filter, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+
+        // --- ACCOUNTING ---
+        "get_accounts" => {
+            crate::commands::accounting::get_accounts(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "create_account" => {
+            match serde_json::from_value(p.get("input").cloned().unwrap_or(p.clone())) {
+                Ok(input) => crate::commands::accounting::create_account(input, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "update_account" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            match serde_json::from_value(p.get("input").cloned().unwrap_or(p.clone())) {
+                Ok(input) => crate::commands::accounting::update_account(id, input, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "delete_account" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::accounting::delete_account(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_journal_entries" => {
+            crate::commands::accounting::get_journal_entries(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_journal_detail" => {
+            let id: String = p.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::accounting::get_journal_detail(id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "create_manual_journal" => {
+            match serde_json::from_value(p.get("input").cloned().unwrap_or(p.clone())) {
+                Ok(input) => crate::commands::accounting::create_manual_journal(input, state).await.map(|d| serde_json::to_value(d).unwrap_or_default()),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        "cash_in" => {
+            let account_id: String = p.get("accountId").or_else(|| p.get("account_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let cash_account_id: String = p.get("cashAccountId").or_else(|| p.get("cash_account_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let amount: f64 = p.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let description: String = p.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let branch_id: Option<String> = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::accounting::cash_in(account_id, cash_account_id, amount, description, branch_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "cash_out" => {
+            let account_id: String = p.get("accountId").or_else(|| p.get("account_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let cash_account_id: String = p.get("cashAccountId").or_else(|| p.get("cash_account_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let amount: f64 = p.get("amount").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let description: String = p.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let branch_id: Option<String> = p.get("branchId").or_else(|| p.get("branch_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::accounting::cash_out(account_id, cash_account_id, amount, description, branch_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_trial_balance" => {
+            let as_of_date: String = p.get("asOfDate").or_else(|| p.get("as_of_date")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::accounting::get_trial_balance(as_of_date, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_profit_loss" => {
+            let start_date: String = p.get("startDate").or_else(|| p.get("start_date")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let end_date: String = p.get("endDate").or_else(|| p.get("end_date")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::accounting::get_profit_loss(start_date, end_date, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_balance_sheet" => {
+            let as_of_date: String = p.get("asOfDate").or_else(|| p.get("as_of_date")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::accounting::get_balance_sheet(as_of_date, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        // --- AUTH ---
+        "login" => {
+            let username: String = p.get("username").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let password_guess: String = p.get("passwordGuess").or_else(|| p.get("password_guess")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::auth::login(username, password_guess, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_current_user" => {
+            let token: String = p.get("token").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::auth::get_current_user(token, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_users" => {
+            crate::commands::auth::get_users(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_permission_definitions" => {
+            Ok(serde_json::to_value(crate::commands::auth::get_permission_definitions()).unwrap_or_default())
+        }
+        "get_role_default_permissions" => {
+            crate::commands::auth::get_role_default_permissions(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_user_permissions" => {
+            let user_id: String = p.get("userId").or_else(|| p.get("user_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::auth::get_user_permissions(user_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+
+        unknown => Err(format!("Perintah RPC '{}' tidak didukung oleh Server Induk", unknown)),
+    };
+
+    match res {
+        Ok(data) => (StatusCode::OK, Json(LanRpcResponse { success: true, data: Some(data), error: None })),
+        Err(err) => (StatusCode::OK, Json(LanRpcResponse { success: false, data: None, error: Some(err) })),
+    }
 }
 
 async fn handle_export_snapshot(
@@ -695,17 +1305,6 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
             if let Some((parent_ip, parent_port, parent_ws_id)) = target_parent {
                 let mut sync_success = true;
                 let mut sync_error_msg = None;
-
-                // Check if child database is empty, automatically hydrate snapshot from parent
-                let local_items: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE deleted_at IS NULL")
-                    .fetch_one(&pool)
-                    .await
-                    .unwrap_or(0);
-
-                if local_items == 0 {
-                    println!("📥 [LAN Worker] Local database is empty, automatically hydrating snapshot from Parent at {}:{}...", parent_ip, parent_port);
-                    let _ = clone_from_parent_internal(&pool, &app_handle_sync, &parent_ip, parent_port).await;
-                }
 
                 // Push un-synced queue to Parent
                 let pending_rows = sqlx::query(
@@ -1213,16 +1812,7 @@ pub async fn connect_lan_parent(
     }
 
     // AUTOMATIC INITIAL HYDRATION:
-    // If local database has 0 items or parent has data, immediately download snapshot
-    let local_items_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE deleted_at IS NULL")
-        .fetch_one(&state.db_pool)
-        .await
-        .unwrap_or(0);
-
-    if local_items_count == 0 || test_res.items_count > local_items_count {
-        println!("📥 [LAN Connect] Auto-hydrating database from Parent (Parent items: {}, Local items: {})...", test_res.items_count, local_items_count);
-        let _ = clone_from_parent_internal(&state.db_pool, &app_handle, &trimmed_ip, port).await;
-    }
+    println!("🔗 [LAN Connect] Successfully connected to Parent Host at {}:{} (Model B: Live Direct Query Active)", trimmed_ip, port);
 
     let _ = app_handle.emit("chirasys:lan_status_updated", ());
     let _ = app_handle.emit("chirasys:sync", ());

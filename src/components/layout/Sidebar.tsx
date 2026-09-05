@@ -5,7 +5,7 @@ import {
   CheckCircle2, AlertTriangle
 } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
-import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus, LanSyncProgress } from '../../lib/api';
+import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus, LanSyncProgress, getLanStatus } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../ui/ConfirmModal';
 import { usePermissions } from '../../lib/permissions';
@@ -31,6 +31,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
   const [branchName, setBranchName] = useState('Cabang Utama');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [lanSyncProgress, setLanSyncProgress] = useState<LanSyncProgress | null>(null);
+  const [lanParentInfo, setLanParentInfo] = useState<{ ip: string; name?: string } | null>(null);
   const [bgSyncProgress, setBgSyncProgress] = useState<{
     active: boolean;
     type: 'push' | 'pull';
@@ -49,28 +50,42 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
       })
       .catch(() => {});
 
-    if (can('inventory.view') || can('items.view')) {
-      getLowStockAlerts('branch_001')
-        .then(alerts => setLowStockCount(alerts.length))
-        .catch(() => {});
-    }
+    getLowStockAlerts('main')
+      .then((alerts) => setLowStockCount(alerts.length))
+      .catch(() => {});
 
     getSyncStatus()
       .then(setSyncStatus)
       .catch(() => {});
-  }, [user]);
 
-  useEffect(() => {
+    const checkLan = () => {
+      getLanStatus()
+        .then((s) => {
+          if (s.role === 'child' && s.paired_parent_ip) {
+            setLanParentInfo({ ip: s.paired_parent_ip, name: s.paired_parent_name });
+          } else {
+            setLanParentInfo(null);
+          }
+        })
+        .catch(() => {});
+    };
+    checkLan();
+    const lanInterval = setInterval(checkLan, 5000);
+
     let unlistenPush: () => void;
     let unlistenPull: () => void;
+    let unlistenLanStatus: () => void;
+
+    listen('chirasys:lan_status_updated', () => checkLan())
+      .then(fn => { unlistenLanStatus = fn; });
 
     const handleProgress = (type: 'push' | 'pull', payload: SyncEventPayload) => {
-      const rounded = Math.min(100, Math.max(0, Math.round(payload.percent)));
+      const rounded = Math.round(payload.percent);
       setBgSyncProgress({
-        active: true,
+        active: rounded < 100,
         type,
         percent: rounded,
-        table_name: payload.table_name,
+        table_name: payload.table_name
       });
       if (rounded >= 100) {
         setTimeout(() => setBgSyncProgress(null), 2500);
@@ -95,9 +110,11 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
     }).then(fn => { unlistenLanProgress = fn; });
 
     return () => {
+      clearInterval(lanInterval);
       if (unlistenPush) unlistenPush();
       if (unlistenPull) unlistenPull();
       if (unlistenLanProgress) unlistenLanProgress();
+      if (unlistenLanStatus) unlistenLanStatus();
     };
   }, []);
 
@@ -296,6 +313,31 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
                   style={{ width: `${lanSyncProgress.percent}%` }}
                 />
               </div>
+            </div>
+          )}
+
+          {/* Live LAN Parent Host Indicator (Model B) */}
+          {lanParentInfo && (
+            <div 
+              title={`Terhubung ke Server Induk: ${lanParentInfo.name || lanParentInfo.ip} (Mode B Live Induk)`}
+              className={`px-3 py-2 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/50 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in duration-200 ${isCollapsed ? 'p-1.5 w-11 mx-auto justify-center' : ''}`}
+            >
+              <div className="flex items-center gap-1.5 truncate mr-1">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                {!isCollapsed && (
+                  <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 truncate">
+                    {lanParentInfo.name || 'Server Induk'}
+                  </span>
+                )}
+              </div>
+              {!isCollapsed && (
+                <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded shrink-0">
+                  Live Induk
+                </span>
+              )}
             </div>
           )}
 

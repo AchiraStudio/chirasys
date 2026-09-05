@@ -26,7 +26,10 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       setAuth: (token, user) => set({ token, user }),
-      clearAuth: () => set({ token: null, user: null }),
+      clearAuth: () => {
+        localStorage.removeItem('chirasys_lan_parent_url');
+        set({ token: null, user: null });
+      },
     }),
     {
       name: 'chirasys-auth', // localStorage key

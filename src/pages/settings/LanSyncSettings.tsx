@@ -176,7 +176,7 @@ export default function LanSyncSettings() {
       const res = await connectLanParent(peer.ip_address, peer.http_port, peer.device_name);
       if (res.success) {
         await loadData();
-        alert(`✅ Berhasil terhubung ke "${peer.device_name}"!\n\nData barang, harga, dan stok sedang disalin otomatis dari Server Induk. Halaman utama akan diperbarui dalam beberapa detik.`);
+        alert(`✅ Berhasil terhubung ke Server Induk "${peer.device_name}"!\n\nMode Client-Server Aktif: Seluruh data produk, stok, dan kasir langsung tersambung secara live tanpa perlu menyalin database.`);
       }
     } catch (err: any) {
       alert(`❌ Gagal menghubungkan ke "${peer.device_name}":\n${typeof err === 'string' ? err : 'Periksa koneksi jaringan dan pastikan kedua perangkat terhubung di Wi-Fi yang sama.'}`);
@@ -199,7 +199,14 @@ export default function LanSyncSettings() {
   };
 
   const handleDisconnect = async () => {
-    if (!confirm('Putuskan koneksi dari Perangkat Induk? Sinkronisasi akan dijeda.')) return;
+    let proceed = true;
+    try {
+      proceed = window.confirm('Putuskan koneksi dari Perangkat Induk?');
+    } catch {
+      proceed = true;
+    }
+    if (!proceed) return;
+
     try {
       await disconnectLanParent();
       setSyncResult(null);
@@ -246,9 +253,7 @@ export default function LanSyncSettings() {
       const res = await connectLanParent(manualIp.trim(), port);
       if (res.success) {
         await loadData();
-        // Trigger initial real-time sync in background immediately
-        triggerLanSyncNow().catch(console.error);
-        alert(`Berhasil terhubung ke Server Induk (${res.device_name || manualIp})! Data barang dan transaksi akan otomatis tersinkronisasi secara real-time.`);
+        alert(`✅ Berhasil terhubung ke Server Induk (${res.device_name || manualIp})!\n\nMode Client-Server Aktif: Seluruh data produk, stok, dan kasir langsung tersambung secara live tanpa perlu menyalin database.`);
       }
     } catch (err: any) {
       alert(`Gagal menghubungkan: ${typeof err === 'string' ? err : 'Koneksi gagal'}`);

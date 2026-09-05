@@ -204,9 +204,9 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
         const totalAmount = cart.reduce((s, l) => s + l.qty * l.price, 0);
 
         const input: CreateSaleInput = {
-            branch_id: branchId,
-            customer_id: customerId,
-            user_id: user?.id,
+            branch_id: branchId || 'branch_001',
+            customer_id: customerId?.trim() ? customerId : undefined,
+            user_id: user?.id?.trim() ? user.id : undefined,
             total_amount: totalAmount,
             discount_amount: totalDiscountAmt,
             tax_amount: taxAmount,

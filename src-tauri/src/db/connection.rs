@@ -194,6 +194,24 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         println!("✅ Migration {} applied.", version);
     }
 
+    // Always guarantee essential system accounts exist
+    let _ = sqlx::query(
+        "INSERT OR IGNORE INTO accounts (id, code, name, type, parent_id, normal_balance, is_system, is_active) VALUES
+         ('acc_kas',   '1-1000', 'Kas',              'asset',     NULL, 'debit',  1, 1),
+         ('acc_bank',  '1-1100', 'Bank',             'asset',     NULL, 'debit',  1, 1),
+         ('acc_inv',   '1-1200', 'Persediaan',       'asset',     NULL, 'debit',  1, 1),
+         ('acc_ar',    '1-1300', 'Piutang Usaha',    'asset',     NULL, 'debit',  1, 1),
+         ('acc_ap',    '2-2000', 'Hutang Usaha',     'liability', NULL, 'credit', 1, 1),
+         ('acc_equity','3-3000', 'Modal',            'equity',    NULL, 'credit', 1, 1),
+         ('acc_re',    '3-3100', 'Laba Ditahan',     'equity',    NULL, 'credit', 1, 1),
+         ('acc_sales', '4-4000', 'Penjualan',        'income',    NULL, 'credit', 1, 1),
+         ('acc_cogs',  '5-5000', 'HPP',              'expense',   NULL, 'debit',  1, 1),
+         ('acc_disc',  '5-5100', 'Diskon Penjualan', 'expense',   NULL, 'debit',  1, 1),
+         ('acc_tax',   '2-2100', 'Hutang Pajak',     'liability', NULL, 'credit', 1, 1)"
+    )
+    .execute(&mut *conn)
+    .await;
+
     // Re-enable foreign keys after all migrations have completed
     sqlx::query("PRAGMA foreign_keys=ON;")
         .execute(&mut *conn)

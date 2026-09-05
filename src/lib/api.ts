@@ -1,4 +1,117 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+
+// --- LAN Client-Server (Model B) State & Gateway ---
+let cachedParentUrl: string | null = null;
+
+// fallow-ignore-next-line unused-export
+export const setLanParentHost = (url: string | null) => {
+  cachedParentUrl = url;
+  if (url) {
+    localStorage.setItem('chirasys_lan_parent_url', url);
+  } else {
+    localStorage.removeItem('chirasys_lan_parent_url');
+  }
+};
+
+// fallow-ignore-next-line unused-export
+export const getLanParentHost = (): string | null => {
+  // Only route business queries to LAN Parent if user is actively logged in!
+  try {
+    const authRaw = localStorage.getItem('chirasys-auth');
+    if (!authRaw) return null;
+    const authObj = JSON.parse(authRaw);
+    if (!authObj?.state?.token) return null;
+  } catch {
+    return null;
+  }
+
+  if (cachedParentUrl !== null) return cachedParentUrl;
+  const stored = localStorage.getItem('chirasys_lan_parent_url');
+  cachedParentUrl = stored || null;
+  return cachedParentUrl;
+};
+
+// Commands that MUST run locally (Hardware, Cloud Supabase Auth & Direct Sync, LAN Admin)
+const LOCAL_ONLY_COMMANDS = new Set([
+  // Auth & Session (ALWAYS Cloud Supabase / Native Local)
+  'login',
+  'get_current_user',
+  'logout',
+  'sysadmin_login',
+  'get_users',
+  'get_permission_definitions',
+  'get_role_default_permissions',
+  'get_user_permissions',
+
+  // Local Application Settings
+  'get_settings',
+  'set_setting',
+
+  // Workspace & Cloud Sync (ALWAYS Cloud Supabase / Native Local)
+  'get_sync_status',
+  'trigger_sync_push',
+  'trigger_sync_pull',
+  'join_workspace',
+  'leave_workspace',
+  'create_workspace_invite',
+
+  // Hardware & Discovery
+  'get_lan_status',
+  'get_lan_peers',
+  'scan_lan_subnet',
+  'set_lan_role',
+  'set_lan_device_name',
+  'set_lan_auto_connect',
+  'test_lan_connection',
+  'connect_lan_parent',
+  'disconnect_lan_parent',
+  'parent_request_connect_child',
+  'trigger_lan_sync_now',
+  'clone_from_parent',
+  'print_raw_receipt',
+  'open_cash_drawer',
+  'kick_cash_drawer',
+  'list_printers',
+  'lan_remote_kick_drawer',
+  'lan_remote_print_receipt',
+  'open_devtools',
+]);
+
+// fallow-ignore-next-line unused-export
+export const invoke = async <T>(cmd: string, args?: Record<string, any>): Promise<T> => {
+  const parentUrl = getLanParentHost();
+  if (parentUrl && !LOCAL_ONLY_COMMANDS.has(cmd)) {
+    try {
+      const response = await fetch(`${parentUrl}/api/lan/rpc`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmd, params: args || {} }),
+        signal: AbortSignal.timeout(5000), // Prevent indefinite browser freeze
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Server Induk Error (${response.status}): ${errText}`);
+      }
+
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.error || 'Terjadi kesalahan pada Server Induk');
+      }
+
+      return json.data as T;
+    } catch (err: any) {
+      console.warn(`[LAN RPC] Failed to call ${cmd} on parent (${parentUrl}):`, err);
+      if (err.name === 'TimeoutError' || (err.message && (err.message.includes('Failed to fetch') || err.message.includes('network') || err.message.includes('timed out')))) {
+        throw new Error(`Tidak dapat terhubung ke Server Induk di ${parentUrl}. Pastikan Server Induk menyala dan terhubung ke Wi-Fi yang sama.`);
+      }
+      throw err;
+    }
+  }
+
+  return tauriInvoke<T>(cmd, args);
+};
+
 
 // --- Sales Types ---
 export interface Sale { id: string; transaction_no: string; branch_id: string; customer_id?: string; user_id?: string; total_amount: number; discount_amount: number; tax_amount: number; grand_total: number; status: string; price_type: 'retail' | 'wholesale'; notes?: string; created_at: string; total_cogs?: number; }
@@ -595,7 +708,16 @@ export interface LanSyncProgress {
   error?: string;
 }
 
-export const getLanStatus = async (): Promise<LanStatus> => invoke('get_lan_status');
+export const getLanStatus = async (): Promise<LanStatus> => {
+  const status = await invoke<LanStatus>('get_lan_status');
+  if (status.role === 'child' && status.paired_parent_ip) {
+    const port = status.paired_parent_port || 3699;
+    setLanParentHost(`http://${status.paired_parent_ip}:${port}`);
+  } else if (status.role === 'parent' || !status.paired_parent_ip) {
+    setLanParentHost(null);
+  }
+  return status;
+};
 export const getLanPeers = async (): Promise<LanPeer[]> => invoke('get_lan_peers');
 export const scanLanSubnet = async (): Promise<LanPeer[]> => invoke('scan_lan_subnet');
 export const setLanRole = async (role: 'parent' | 'child'): Promise<void> => invoke('set_lan_role', { role });
@@ -603,9 +725,16 @@ export const setLanDeviceName = async (name: string): Promise<void> => invoke('s
 export const setLanAutoConnect = async (enabled: boolean): Promise<void> => invoke('set_lan_auto_connect', { enabled });
 export const testLanConnection = async (ip: string, port?: number): Promise<LanConnectionTestResult> =>
   invoke('test_lan_connection', { ip, port: port || null });
-export const connectLanParent = async (parentIp: string, parentPort?: number, parentName?: string): Promise<LanConnectionTestResult> =>
-  invoke('connect_lan_parent', { parentIp, parentPort: parentPort || null, parentName: parentName || null });
-export const disconnectLanParent = async (): Promise<void> => invoke('disconnect_lan_parent');
+export const connectLanParent = async (parentIp: string, parentPort?: number, parentName?: string): Promise<LanConnectionTestResult> => {
+  const res = await invoke<LanConnectionTestResult>('connect_lan_parent', { parentIp, parentPort: parentPort || null, parentName: parentName || null });
+  const port = parentPort || 3699;
+  setLanParentHost(`http://${parentIp}:${port}`);
+  return res;
+};
+export const disconnectLanParent = async (): Promise<void> => {
+  setLanParentHost(null);
+  return invoke('disconnect_lan_parent');
+};
 export const parentRequestConnectChild = async (childIp: string, childPort?: number): Promise<string> =>
   invoke('parent_request_connect_child', { childIp, childPort: childPort || null });
 export const triggerLanSyncNow = async (): Promise<LanSyncResult> => invoke('trigger_lan_sync_now');
