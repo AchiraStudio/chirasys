@@ -212,6 +212,7 @@ pub fn run() {
             commands::sync::leave_workspace,
             commands::sync::sysadmin_login,
             commands::sync::sysadmin_get_workspaces,
+            commands::sync::get_available_workspaces,
             commands::sync::sysadmin_create_workspace,
             commands::sync::sysadmin_create_workspace_invite,
             commands::sync::sysadmin_update_workspace_password,

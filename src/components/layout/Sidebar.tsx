@@ -125,13 +125,13 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
   };
 
   const menuItems = [
-    { id: 'dashboard',    icon: LayoutDashboard, label: 'Kivo Overview',       show: true },
-    { id: 'pos',          icon: ShoppingCart,    label: 'Kivo POS',            show: can('sales.create') },
-    { id: 'inventory',    icon: Package,         label: 'Kivo Inventory',      show: can('items.view') || can('inventory.view'), badge: lowStockCount > 0 ? lowStockCount : null },
-    { id: 'purchasing',   icon: Truck,           label: 'Kivo Purchasing',     show: can('purchasing.view') || can('purchasing.create') },
-    { id: 'customers',    icon: Users,           label: 'Kivo Customers',      show: can('crm.customers') || can('promos.manage') },
-    { id: 'reports',      icon: FileText,        label: 'Kivo Reports',        show: can('reports.view') || can('accounting.manage') },
-    { id: 'settings',     icon: Settings,        label: 'Kivo Admin',          show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') || can('settings.lan') },
+    { id: 'dashboard',    icon: LayoutDashboard, label: 'Overview',       show: true },
+    { id: 'pos',          icon: ShoppingCart,    label: 'POS',            show: can('sales.create') },
+    { id: 'inventory',    icon: Package,         label: 'Inventory',      show: can('items.view') || can('inventory.view'), badge: lowStockCount > 0 ? lowStockCount : null },
+    { id: 'purchasing',   icon: Truck,           label: 'Purchasing',     show: can('purchasing.view') || can('purchasing.create') },
+    { id: 'customers',    icon: Users,           label: 'Customers',      show: can('crm.customers') || can('promos.manage') },
+    { id: 'reports',      icon: FileText,        label: 'Reports',        show: can('reports.view') || can('accounting.manage') },
+    { id: 'settings',     icon: Settings,        label: 'Settings',          show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') || can('settings.lan') },
   ].filter(item => item.show);
 
   const roleLabel = () => {

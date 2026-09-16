@@ -406,10 +406,6 @@ pub struct UserRow {
 #[tauri::command]
 pub async fn get_users(state: State<'_, AppState>) -> Result<Vec<UserRow>, String> {
     let (supabase_url, supabase_key) = crate::commands::sync::get_supabase_credentials();
-    let local_ws: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''")
-        .fetch_optional(&state.db_pool)
-        .await
-        .unwrap_or(None);
 
     // 1. PRIMARY: Fetch from Supabase Cloud directly
     if !supabase_url.is_empty() && !supabase_key.is_empty() {
@@ -418,11 +414,8 @@ pub async fn get_users(state: State<'_, AppState>) -> Result<Vec<UserRow>, Strin
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
 
-        let url = if let Some(ref ws_id) = local_ws {
-            format!("{}/rest/v1/users?workspace_id=eq.{}&order=name.asc", supabase_url, ws_id)
-        } else {
-            format!("{}/rest/v1/users?order=name.asc", supabase_url)
-        };
+        // Query all users from Supabase Cloud so owners/admins can see and assign all staff
+        let url = format!("{}/rest/v1/users?order=name.asc", supabase_url);
 
         if let Ok(res) = client.get(&url)
             .header("apikey", &supabase_key)

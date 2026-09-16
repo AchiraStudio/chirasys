@@ -33,9 +33,96 @@
     @apply text-slate-600 dark:text-slate-400;
   }
 
-  /* Ensure inputs are readable in light mode */
-  input, textarea, select {
+  /* Ensure inputs and selects are readable and styled */
+  input, textarea {
     @apply text-slate-900 dark:text-white;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     Custom Dropbox / Select Styling (Theme-Adaptive)
+     ───────────────────────────────────────────────────────────── */
+  select,
+  .custom-select {
+    @apply text-slate-900 dark:text-white cursor-pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3e%3c/path%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.125rem 1.125rem;
+    padding-right: 2.5rem !important;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.15s ease-in-out;
+  }
+
+  .dark select,
+  .dark .custom-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3e%3c/path%3e%3c/svg%3e");
+  }
+
+  select:hover:not(:disabled),
+  .custom-select:hover:not(:disabled) {
+    border-color: rgba(99, 102, 241, 0.45);
+  }
+
+  .dark select:hover:not(:disabled),
+  .dark .custom-select:hover:not(:disabled) {
+    border-color: rgba(99, 102, 241, 0.6);
+  }
+
+  select:focus,
+  .custom-select:focus {
+    outline: none;
+    border-color: var(--color-brand, #4f46e5) !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18) !important;
+  }
+
+  .dark select:focus,
+  .dark .custom-select:focus {
+    border-color: var(--color-brand-light, #6366f1) !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.28) !important;
+  }
+
+  select:disabled,
+  .custom-select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background-color: rgba(241, 245, 249, 0.6);
+  }
+
+  .dark select:disabled,
+  .dark .custom-select:disabled {
+    background-color: rgba(15, 23, 42, 0.6);
+  }
+
+  /* Dropdown Options Popup (Chromium / WebView2) */
+  select option,
+  .custom-select option {
+    background-color: #ffffff;
+    color: #0f172a;
+    padding: 10px 14px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .dark select option,
+  .dark .custom-select option {
+    background-color: #0B0F19;
+    color: #f1f5f9;
+  }
+
+  select option:checked,
+  .custom-select option:checked {
+    background-color: #e0e7ff;
+    color: #3730a3;
+    font-weight: 700;
+  }
+
+  .dark select option:checked,
+  .dark .custom-select option:checked {
+    background-color: #1e1b4b;
+    color: #c7d2fe;
+    font-weight: 700;
   }
 
   input::placeholder,

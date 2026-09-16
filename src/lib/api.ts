@@ -49,6 +49,9 @@ const LOCAL_ONLY_COMMANDS = new Set([
 
   // Workspace & Cloud Sync (ALWAYS Cloud Supabase / Native Local)
   'get_sync_status',
+  'get_available_workspaces',
+  'sysadmin_get_workspaces',
+  'assign_user_workspace',
   'trigger_sync_push',
   'trigger_sync_pull',
   'join_workspace',
@@ -617,6 +620,8 @@ export const sysadminLogin = async (username: string, passwordHash: string): Pro
   invoke('sysadmin_login', { username, passwordHash });
 export const sysadminGetWorkspaces = async (): Promise<WorkspaceListInfo[]> =>
   invoke('sysadmin_get_workspaces');
+export const getAvailableWorkspaces = async (): Promise<WorkspaceListInfo[]> =>
+  invoke('get_available_workspaces');
 export const sysadminCreateWorkspace = async (name: string, code: string): Promise<WorkspaceInfo> =>
   invoke('sysadmin_create_workspace', { name, code });
 // fallow-ignore-next-line unused-export
@@ -762,4 +767,4 @@ export const createUser = async (
 
 
 
-
+

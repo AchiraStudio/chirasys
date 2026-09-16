@@ -974,6 +974,100 @@ pub struct WorkspaceListInfo {
 }
 
 #[tauri::command]
+pub async fn get_available_workspaces(
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<Vec<WorkspaceListInfo>, String> {
+    let mut result: Vec<WorkspaceListInfo> = Vec::new();
+    let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    // 1. Primary Source: Local active workspace from global_settings
+    let active_id: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
+    )
+    .fetch_optional(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some(ws_id) = active_id {
+        let ws_name: String = sqlx::query_scalar(
+            "SELECT value FROM global_settings WHERE key = 'workspace_name' AND value != ''"
+        )
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None)
+        .unwrap_or_else(|| "Workspace Aktif".to_string());
+
+        let ws_code: String = sqlx::query_scalar(
+            "SELECT value FROM global_settings WHERE key = 'workspace_code' AND value != ''"
+        )
+        .fetch_optional(&state.db_pool)
+        .await
+        .unwrap_or(None)
+        .unwrap_or_else(|| "MAIN".to_string());
+
+        seen_ids.insert(ws_id.clone());
+        result.push(WorkspaceListInfo {
+            id: ws_id,
+            name: ws_name,
+            code: ws_code,
+            created_at: chrono::Utc::now().to_rfc3339(),
+        });
+    }
+
+    // 2. Secondary Source: Any distinct workspaces assigned to existing local users
+    let user_workspaces: Vec<String> = sqlx::query_scalar(
+        "SELECT DISTINCT workspace_id FROM users WHERE workspace_id IS NOT NULL AND workspace_id != ''"
+    )
+    .fetch_all(&state.db_pool)
+    .await
+    .unwrap_or_default();
+
+    for ws_id in user_workspaces {
+        if !seen_ids.contains(&ws_id) {
+            seen_ids.insert(ws_id.clone());
+            result.push(WorkspaceListInfo {
+                id: ws_id.clone(),
+                name: format!("Workspace ({})", &ws_id[..8.min(ws_id.len())]),
+                code: "USER-WS".to_string(),
+                created_at: String::new(),
+            });
+        }
+    }
+
+    // 3. Tertiary Source: Fetch all available workspaces from Supabase Cloud if accessible
+    let (supabase_url, supabase_key) = get_supabase_credentials();
+    if !supabase_url.is_empty() && !supabase_key.is_empty() {
+        if let Ok(client) = Client::builder().timeout(std::time::Duration::from_secs(5)).build() {
+            let url = format!("{}/rest/v1/workspaces?select=id,name,code,created_at&order=created_at.desc", supabase_url);
+            if let Ok(resp) = client
+                .get(&url)
+                .header("apikey", &supabase_key)
+                .header("Authorization", format!("Bearer {}", &supabase_key))
+                .send()
+                .await
+            {
+                if resp.status().is_success() {
+                    if let Ok(cloud_ws) = resp.json::<Vec<WorkspaceListInfo>>().await {
+                        for ws in cloud_ws {
+                            if !seen_ids.contains(&ws.id) {
+                                seen_ids.insert(ws.id.clone());
+                                result.push(ws);
+                            } else if let Some(existing) = result.iter_mut().find(|w| w.id == ws.id) {
+                                // Refresh names with latest cloud names if available
+                                existing.name = ws.name;
+                                existing.code = ws.code;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
 pub async fn sysadmin_get_workspaces() -> Result<Vec<WorkspaceListInfo>, String> {
     let (supabase_url, supabase_key) = get_supabase_credentials();
 

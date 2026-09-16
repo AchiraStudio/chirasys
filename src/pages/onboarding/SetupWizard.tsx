@@ -26,7 +26,7 @@ import KivoLogo from '../../components/common/KivoLogo';
 import TitleBar from '../../components/TitleBar';
 import { useTheme } from '../../components/ThemeProvider';
 
-export type SetupMode = 'new' | 'join' | 'restore';
+type SetupMode = 'new' | 'join' | 'restore';
 
 interface SetupWizardProps {
   onComplete: () => void;

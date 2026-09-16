@@ -1,11 +1,11 @@
 // Force HMR reload
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Users, Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders, Cloud } from 'lucide-react';
+import { Users, Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders, Cloud, Search } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import Modal from '../../components/ui/Modal';
-import { sysadminGetWorkspaces, WorkspaceListInfo, assignUserWorkspace, UserRowFull } from '../../lib/api';
+import { sysadminGetWorkspaces, getAvailableWorkspaces, getSyncStatus, WorkspaceListInfo, assignUserWorkspace, UserRowFull } from '../../lib/api';
 import UserPermissionsModal from './UserPermissionsModal';
 import RoleDefaultsModal from './RoleDefaultsModal';
 
@@ -36,6 +36,9 @@ export default function UserManagement() {
   const [editUserModal, setEditUserModal] = useState<UserRowFull | null>(null);
   const [permModalUserId, setPermModalUserId] = useState<string | null>(null);
   const [showRoleDefaultsModal, setShowRoleDefaultsModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedWsFilter, setSelectedWsFilter] = useState('all');
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
   const [confirmModal, setConfirmModal] = useState<{
     title: string;
@@ -50,12 +53,26 @@ export default function UserManagement() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [data, ws] = await Promise.all([
+      const [data, wsList, syncStatus] = await Promise.all([
         invoke<UserRowFull[]>('get_users'),
-        sysadminGetWorkspaces().catch(() => [] as WorkspaceListInfo[])
+        getAvailableWorkspaces().catch(() => sysadminGetWorkspaces().catch(() => [] as WorkspaceListInfo[])),
+        getSyncStatus().catch(() => null),
       ]);
+
+      let mergedWorkspaces: WorkspaceListInfo[] = [...(wsList || [])];
+
+      // Guarantee local active workspace is included if present
+      if (syncStatus?.workspace_id && !mergedWorkspaces.some(w => w.id === syncStatus.workspace_id)) {
+        mergedWorkspaces.unshift({
+          id: syncStatus.workspace_id,
+          name: syncStatus.workspace_name || 'Workspace Aktif',
+          code: syncStatus.workspace_code || 'MAIN',
+          created_at: '',
+        });
+      }
+
       setUsers(data);
-      setWorkspaces(ws);
+      setWorkspaces(mergedWorkspaces);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -96,6 +113,17 @@ export default function UserManagement() {
     });
   };
 
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = !searchQuery.trim() ||
+      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.username.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    if (selectedWsFilter === 'all') return true;
+    if (selectedWsFilter === 'unassigned') return !u.workspace_id;
+    return u.workspace_id === selectedWsFilter;
+  });
+
   return (
     <div className="flex flex-col flex-1 h-full gap-6 animate-in fade-in duration-300">
       
@@ -132,6 +160,81 @@ export default function UserManagement() {
         </div>
       </div>
 
+      {/* Search & Workspace Filter Bar */}
+      <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+        {/* Search Input */}
+        <div className="relative flex-1 max-w-md">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Cari staff berdasarkan nama atau username..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-brand text-slate-900 dark:text-white"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Workspace Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 custom-scrollbar">
+          <button
+            onClick={() => setSelectedWsFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              selectedWsFilter === 'all'
+                ? 'bg-brand text-white shadow-sm'
+                : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <span>Semua Staff</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${selectedWsFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+              {users.length}
+            </span>
+          </button>
+
+          {workspaces.map(ws => {
+            const count = users.filter(u => u.workspace_id === ws.id).length;
+            const isSelected = selectedWsFilter === ws.id;
+            return (
+              <button
+                key={ws.id}
+                onClick={() => setSelectedWsFilter(ws.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-brand text-white shadow-sm'
+                    : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span>🏢 {ws.name}</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => setSelectedWsFilter('unassigned')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              selectedWsFilter === 'unassigned'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <span>Belum Ditugaskan</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${selectedWsFilter === 'unassigned' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+              {users.filter(u => !u.workspace_id).length}
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* Main Table Container */}
       <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden flex flex-col">
         {loading ? (
@@ -154,9 +257,15 @@ export default function UserManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {users.length === 0 ? (
-                  <tr><td colSpan={7} className="py-12 text-center text-slate-500">Tidak ada pengguna ditemukan.</td></tr>
-                ) : users.map(u => (
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                      {searchQuery || selectedWsFilter !== 'all'
+                        ? 'Tidak ada pengguna yang cocok dengan filter / pencarian.'
+                        : 'Tidak ada pengguna ditemukan.'}
+                    </td>
+                  </tr>
+                ) : filteredUsers.map(u => (
                   <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group fast-render-row">
                     
                     {/* User Info */}
@@ -198,22 +307,33 @@ export default function UserManagement() {
 
                     {/* Workspace Selector */}
                     <td className="py-3 px-4">
-                      <select
-                        value={u.workspace_id || ''}
-                        className="text-xs px-2 py-1 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-brand"
-                        onChange={async e => {
-                          const wsId = e.target.value || null;
-                          try {
-                            await assignUserWorkspace(u.id, wsId);
-                            fetchData();
-                          } catch (err) { console.error(err); }
-                        }}
-                      >
-                        <option value="">— Tidak ada —</option>
-                        {workspaces.map(ws => (
-                          <option key={ws.id} value={ws.id}>{ws.name}</option>
-                        ))}
-                      </select>
+                      <div className="relative flex items-center">
+                        <select
+                          disabled={updatingUserId === u.id}
+                          value={u.workspace_id || ''}
+                          className="text-xs px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-brand disabled:opacity-50"
+                          onChange={async e => {
+                            const wsId = e.target.value || null;
+                            setUpdatingUserId(u.id);
+                            try {
+                              await assignUserWorkspace(u.id, wsId);
+                              setUsers(prev => prev.map(item => item.id === u.id ? { ...item, workspace_id: wsId || undefined } : item));
+                            } catch (err) {
+                              console.error(err);
+                            } finally {
+                              setUpdatingUserId(null);
+                            }
+                          }}
+                        >
+                          <option value="">— Tidak ada —</option>
+                          {workspaces.map(ws => (
+                            <option key={ws.id} value={ws.id}>🏢 {ws.name} ({ws.code})</option>
+                          ))}
+                        </select>
+                        {updatingUserId === u.id && (
+                          <Loader2 size={12} className="animate-spin text-brand ml-2 shrink-0" />
+                        )}
+                      </div>
                     </td>
 
                     {/* Active Status */}
@@ -276,7 +396,7 @@ export default function UserManagement() {
       </div>
 
       {/* Add Staff Modal */}
-      {showModal && <AddStaffModal currentWorkspaceId={currentUser?.workspace_id} onClose={() => setShowModal(false)} onSuccess={fetchUsers} />}
+      {showModal && <AddStaffModal workspaces={workspaces} currentWorkspaceId={currentUser?.workspace_id} onClose={() => setShowModal(false)} onSuccess={fetchUsers} />}
       
       {/* Edit User Modal */}
       {editUserModal && <EditUserModal user={editUserModal} workspaces={workspaces} onClose={() => setEditUserModal(null)} onSuccess={fetchUsers} />}
@@ -316,36 +436,48 @@ export default function UserManagement() {
 function WorkspaceSelect({ value, onChange, workspaces }: { value: string; onChange: (val: string) => void; workspaces: WorkspaceListInfo[] }) {
   return (
     <div>
-      <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Workspace</label>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Workspace</label>
+        {workspaces.length > 0 && (
+          <span className="text-[10px] font-semibold text-brand dark:text-brand-light flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            {workspaces.length} Workspace Tersedia
+          </span>
+        )}
+      </div>
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand cursor-pointer"
       >
         <option value="">— Tidak di-assign ke workspace —</option>
         {workspaces.map(ws => (
-          <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
+          <option key={ws.id} value={ws.id}>
+            🏢 {ws.name} ({ws.code})
+          </option>
         ))}
       </select>
-      <p className="text-[10px] text-slate-400 mt-1">Pilih workspace agar user otomatis terhubung saat login.</p>
+      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+        Pilih workspace agar user otomatis terhubung ke database dan sinkron saat login.
+      </p>
     </div>
   );
 }
 
-function AddStaffModal({ currentWorkspaceId, onClose, onSuccess }: { currentWorkspaceId?: string | null; onClose: () => void; onSuccess: () => void }) {
+function AddStaffModal({ workspaces, currentWorkspaceId, onClose, onSuccess }: { workspaces: WorkspaceListInfo[]; currentWorkspaceId?: string | null; onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('staff');
-  const [workspaceId, setWorkspaceId] = useState<string>(currentWorkspaceId || '');
-  const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
+  
+  // Auto-select active workspace if available
+  const initialWsId = currentWorkspaceId && workspaces.some(w => w.id === currentWorkspaceId)
+    ? currentWorkspaceId
+    : (workspaces[0]?.id || '');
+  const [workspaceId, setWorkspaceId] = useState<string>(initialWsId);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    sysadminGetWorkspaces().then(setWorkspaces).catch(() => {});
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
