@@ -878,7 +878,7 @@ export default function Settings() {
                             </>
                           )}
                         </button>
-                        {(user?.role === 'owner' || user?.role === 'sysadmin') && (
+                        {isAdmin && (
                           <button
                             type="button"
                             onClick={() => setNukeStep(1)}
@@ -1438,14 +1438,14 @@ export default function Settings() {
                     <p className="text-[10px] text-dim text-center">Menghapus seluruh Master Data & Transaksi Lokal.</p>
                   </div>
 
-                  {(user?.role === 'owner' || user?.role === 'sysadmin') && (
+                  {isAdmin && (
                     <div className="space-y-1 pt-3 border-t border-danger/30/60 dark:border-danger/60">
                       <button
                         onClick={() => setNukeStep(1)}
                         disabled={loading}
                         className="w-full py-3.5 bg-danger hover:opacity-90 text-white font-black text-xs rounded-lg transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-2"
                       >
-                        <Trash2 size={16} /> Kosongkan Data Supabase Cloud (Owner Only)
+                        <Trash2 size={16} /> Kosongkan Data Supabase Cloud
                       </button>
                       <p className="text-[10px] text-danger font-bold text-center">Mengosongkan data transaksi & produk di Cloud. Akun pengguna & skema tabel 100% aman.</p>
                     </div>

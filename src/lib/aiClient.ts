@@ -13,7 +13,7 @@ export interface ChatMessage {
 
 export async function getOpenAIApiKey(): Promise<string> {
   // 1. Check localStorage
-  const localKey = localStorage.getItem('chirasys_openai_api_key');
+  const localKey = localStorage.getItem('kivo_openai_api_key') || localStorage.getItem('chirasys_openai_api_key');
   if (localKey && localKey.trim()) return localKey.trim();
 
   // 2. Check DB settings
@@ -31,7 +31,7 @@ export async function getOpenAIApiKey(): Promise<string> {
 }
 
 export async function getSelectedAIModel(): Promise<string> {
-  const localModel = localStorage.getItem('chirasys_ai_model');
+  const localModel = localStorage.getItem('kivo_ai_model') || localStorage.getItem('chirasys_ai_model');
   if (localModel && localModel.trim()) return localModel.trim();
 
   try {

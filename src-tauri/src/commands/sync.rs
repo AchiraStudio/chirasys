@@ -1163,11 +1163,10 @@ struct Claims {
 }
 
 fn mint_sysadmin_jwt(username: &str) -> Option<String> {
-    let default_secret = "fQTM5FzWc5ZQljXshc+HxRw+JUpNSkFiNf43dJmmY2gVbue5ioFDtCeTRHqHfQwbRBwfvXlKKMtKSuH4fsbofw==";
     let secret = std::env::var("VITE_SUPABASE_JWT_SECRET")
         .or_else(|_| std::env::var("SUPABASE_JWT_SECRET"))
-        .unwrap_or_else(|_| default_secret.to_string());
-    if secret.is_empty() { return None; }
+        .ok()?;
+    if secret.trim().is_empty() { return None; }
     
     let exp = (Utc::now() + chrono::Duration::try_hours(12).unwrap_or(chrono::Duration::hours(12))).timestamp() as usize;
     let claims = Claims {

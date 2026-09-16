@@ -35,8 +35,6 @@ pub async fn send_ai_chat_request(
         .or(db_key)
         .or_else(|| std::env::var("VITE_OPENAI_API_KEY").ok())
         .or_else(|| std::env::var("OPENAI_API_KEY").ok())
-        .or_else(|| option_env!("VITE_OPENAI_API_KEY").map(|s| s.to_string()))
-        .or_else(|| option_env!("OPENAI_API_KEY").map(|s| s.to_string()))
         .filter(|k| !k.trim().is_empty())
         .ok_or_else(|| "OpenAI API Key belum dikonfigurasi. Silakan masukkan API Key OpenAI Anda di menu pengaturan atau popup chat.".to_string())?;
 
