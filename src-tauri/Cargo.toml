@@ -1,6 +1,6 @@
 [package]
 name = "chirasys"
-version = "1.3.0"
+version = "1.3.2"
 description = "Modern Inventory & Cashier System"
 authors = ["you"]
 edition = "2021"
