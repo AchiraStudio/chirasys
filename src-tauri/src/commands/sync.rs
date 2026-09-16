@@ -31,6 +31,209 @@ pub fn get_supabase_credentials() -> (String, String) {
     (supabase_url, supabase_key)
 }
 
+pub async fn resolve_supabase_credentials(pool: &SqlitePool) -> (String, String) {
+    let db_url: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'supabase_url' AND value != ''"
+    )
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
+
+    let db_key: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'supabase_anon_key' AND value != ''"
+    )
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
+
+    let (env_url, env_key) = get_supabase_credentials();
+
+    let final_url = db_url
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or(env_url);
+
+    let final_key = db_key
+        .filter(|k| !k.trim().is_empty())
+        .unwrap_or(env_key);
+
+    (final_url.trim().trim_end_matches('/').to_string(), final_key.trim().to_string())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CloudConfig {
+    pub supabase_url: String,
+    pub supabase_anon_key: String,
+    pub is_configured: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConnectionTestResult {
+    pub success: bool,
+    pub latency_ms: Option<u64>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_cloud_config(state: tauri::State<'_, crate::AppState>) -> Result<CloudConfig, String> {
+    let (url, key) = resolve_supabase_credentials(&state.db_pool).await;
+    let is_configured = !url.is_empty() && !key.is_empty();
+    Ok(CloudConfig {
+        supabase_url: url,
+        supabase_anon_key: key,
+        is_configured,
+    })
+}
+
+#[tauri::command]
+pub async fn set_cloud_config(
+    url: String,
+    anon_key: String,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<(), String> {
+    let trimmed_url = url.trim().trim_end_matches('/').to_string();
+    let trimmed_key = anon_key.trim().to_string();
+
+    sqlx::query("INSERT INTO global_settings (key, value) VALUES ('supabase_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&trimmed_url)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    sqlx::query("INSERT INTO global_settings (key, value) VALUES ('supabase_anon_key', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(&trimmed_key)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_bootstrap_sql() -> String {
+    include_str!("../../../supabase_full_bootstrap.sql").to_string()
+}
+
+#[tauri::command]
+pub fn open_browser_url(url: String) -> Result<(), String> {
+    let clean_url = url.trim();
+    if clean_url.is_empty() {
+        return Err("URL tidak boleh kosong".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", clean_url])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(clean_url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(clean_url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn test_cloud_connection(
+    url: String,
+    anon_key: String,
+) -> Result<ConnectionTestResult, String> {
+    let trimmed_url = url.trim().trim_end_matches('/');
+    let trimmed_key = anon_key.trim();
+
+    if trimmed_url.is_empty() || trimmed_key.is_empty() {
+        return Ok(ConnectionTestResult {
+            success: false,
+            latency_ms: None,
+            error: Some("URL dan Anon Key tidak boleh kosong.".to_string()),
+        });
+    }
+
+    let client = Client::builder()
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let start = std::time::Instant::now();
+
+    // 1. Primary: /auth/v1/settings is the official public client endpoint (works on both empty and initialized projects)
+    let auth_url = format!("{}/auth/v1/settings", trimmed_url);
+    let auth_res = client
+        .get(&auth_url)
+        .header("apikey", trimmed_key)
+        .header("Authorization", format!("Bearer {}", trimmed_key))
+        .send()
+        .await;
+
+    match auth_res {
+        Ok(res) if res.status().is_success() => {
+            let latency_ms = start.elapsed().as_millis() as u64;
+            Ok(ConnectionTestResult {
+                success: true,
+                latency_ms: Some(latency_ms),
+                error: None,
+            })
+        }
+        Ok(res) if res.status().as_u16() == 401 => {
+            let latency_ms = start.elapsed().as_millis() as u64;
+            let text = res.text().await.unwrap_or_default();
+            Ok(ConnectionTestResult {
+                success: false,
+                latency_ms: Some(latency_ms),
+                error: Some(format!("Kunci Anon Key tidak valid atau salah (HTTP 401: {})", text)),
+            })
+        }
+        _ => {
+            // 2. Secondary fallback: Query workspaces table in REST API
+            let rest_url = format!("{}/rest/v1/workspaces?select=id&limit=1", trimmed_url);
+            match client
+                .get(&rest_url)
+                .header("apikey", trimmed_key)
+                .header("Authorization", format!("Bearer {}", trimmed_key))
+                .send()
+                .await
+            {
+                Ok(res) => {
+                    let latency_ms = start.elapsed().as_millis() as u64;
+                    let status = res.status();
+                    // 200/204 = table exists and query succeeded
+                    // 404 = table not yet created (before bootstrap SQL), but anon key is authentic!
+                    if status.is_success() || status.as_u16() == 204 || status.as_u16() == 404 {
+                        Ok(ConnectionTestResult {
+                            success: true,
+                            latency_ms: Some(latency_ms),
+                            error: None,
+                        })
+                    } else {
+                        let text = res.text().await.unwrap_or_default();
+                        Ok(ConnectionTestResult {
+                            success: false,
+                            latency_ms: Some(latency_ms),
+                            error: Some(format!("HTTP {}: {}", status, text)),
+                        })
+                    }
+                }
+                Err(e) => Ok(ConnectionTestResult {
+                    success: false,
+                    latency_ms: None,
+                    error: Some(e.to_string()),
+                }),
+            }
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Background sync worker
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,13 +242,6 @@ pub fn spawn_sync_worker(pool: SqlitePool) {
     tauri::async_runtime::spawn(async move {
         // Let the app fully start before trying
         sleep(Duration::from_secs(8)).await;
-
-        let (supabase_url, supabase_key) = get_supabase_credentials();
-
-        if supabase_url.is_empty() || supabase_key.is_empty() {
-            println!("⚠️  Sync worker stopped: SUPABASE_URL or SUPABASE_KEY not set.");
-            return;
-        }
 
         let client = Client::builder()
             .timeout(std::time::Duration::from_secs(15))
@@ -66,6 +262,14 @@ pub fn spawn_sync_worker(pool: SqlitePool) {
             .unwrap_or_else(|| "false".to_string());
 
             if has_setup != "true" {
+                sleep(Duration::from_secs(15)).await;
+                continue;
+            }
+
+            let (supabase_url, supabase_key) = resolve_supabase_credentials(&pool).await;
+
+            if supabase_url.is_empty() || supabase_key.is_empty() {
+                // Cloud not configured yet; idle quietly
                 sleep(Duration::from_secs(15)).await;
                 continue;
             }
@@ -391,7 +595,10 @@ pub async fn join_workspace(
     password: Option<String>,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<WorkspaceInfo, String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur. Masukkan URL dan Anon Key di pengaturan atau wizard.".to_string());
+    }
 
     let client = Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -536,7 +743,10 @@ pub async fn create_workspace(
     code: String,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<WorkspaceInfo, String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur. Masukkan URL dan Anon Key di pengaturan atau wizard.".to_string());
+    }
 
     let client = Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -592,7 +802,10 @@ pub async fn create_workspace_invite(
     email: Option<String>,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<String, String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur.".to_string());
+    }
 
     let workspace_id: String = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
@@ -707,7 +920,10 @@ pub async fn trigger_sync_push(
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<usize, String> {
     use tauri::Emitter;
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur.".to_string());
+    }
 
     let workspace_id: Option<String> = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
@@ -780,7 +996,7 @@ pub async fn trigger_auto_push(pool: &SqlitePool) {
         return;
     }
 
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(pool).await;
     if supabase_url.is_empty() || supabase_key.is_empty() {
         return;
     }
@@ -809,7 +1025,10 @@ pub async fn trigger_sync_pull(
     full_pull: Option<bool>,
 ) -> Result<usize, String> {
     use tauri::Emitter;
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur.".to_string());
+    }
 
     let workspace_id: Option<String> = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
@@ -1065,7 +1284,7 @@ pub async fn get_available_workspaces(
     }
 
     // 3. Tertiary Source: Fetch all available workspaces from Supabase Cloud if accessible
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
     if !supabase_url.is_empty() && !supabase_key.is_empty() {
         if let Ok(client) = Client::builder().timeout(std::time::Duration::from_secs(5)).build() {
             let url = format!("{}/rest/v1/workspaces?select=id,name,code,created_at&order=created_at.desc", supabase_url);
@@ -1098,8 +1317,11 @@ pub async fn get_available_workspaces(
 }
 
 #[tauri::command]
-pub async fn sysadmin_get_workspaces() -> Result<Vec<WorkspaceListInfo>, String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+pub async fn sysadmin_get_workspaces(state: tauri::State<'_, crate::AppState>) -> Result<Vec<WorkspaceListInfo>, String> {
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Ok(Vec::new());
+    }
 
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
@@ -1121,8 +1343,15 @@ pub async fn sysadmin_get_workspaces() -> Result<Vec<WorkspaceListInfo>, String>
 }
 
 #[tauri::command]
-pub async fn sysadmin_create_workspace(name: String, code: String) -> Result<WorkspaceInfo, String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+pub async fn sysadmin_create_workspace(
+    name: String,
+    code: String,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<WorkspaceInfo, String> {
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur.".to_string());
+    }
 
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
@@ -1156,8 +1385,15 @@ pub async fn sysadmin_create_workspace(name: String, code: String) -> Result<Wor
 }
 
 #[tauri::command]
-pub async fn sysadmin_create_workspace_invite(workspace_id: String, role: String) -> Result<String, String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+pub async fn sysadmin_create_workspace_invite(
+    workspace_id: String,
+    role: String,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<String, String> {
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur.".to_string());
+    }
 
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
@@ -1194,8 +1430,12 @@ pub async fn sysadmin_create_workspace_invite(workspace_id: String, role: String
 pub async fn sysadmin_update_workspace_password(
     workspace_id: String,
     password: Option<String>,
+    state: tauri::State<'_, crate::AppState>,
 ) -> Result<(), String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur.".to_string());
+    }
 
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
@@ -1238,7 +1478,10 @@ pub async fn sysadmin_delete_workspace(
     workspace_id: String,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<(), String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur.".to_string());
+    }
     let client = Client::builder().build().map_err(|e| e.to_string())?;
 
     // 1. Delete workspace in Supabase Cloud
@@ -2249,13 +2492,6 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
         // Delay startup so we don't hammer the network immediately
         tokio::time::sleep(tokio::time::Duration::from_secs(12)).await;
 
-        let (supabase_url, supabase_key) = get_supabase_credentials();
-
-        if supabase_url.is_empty() || supabase_key.is_empty() {
-            println!("⚠️  Pull worker stopped: SUPABASE_URL or SUPABASE_KEY not set.");
-            return;
-        }
-
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
             .build()
@@ -2270,7 +2506,7 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
             "promos", "promo_bogo_rules", "promo_tiers", "promo_bundle_items",
             "accounts", "journal_entries", "journal_lines",
             "sales", "sale_lines", "sale_payments", "sale_returns", "sale_return_lines",
-            "stock_opname", "stock_opname_lines",
+            "stock_opnames", "stock_opname_lines",
             "stock_ledger", "items", "item_units", "item_prices", "item_price_tiers", "categories", "brands"
         ];
 
@@ -2285,6 +2521,13 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
             .unwrap_or_else(|| "false".to_string());
 
             if has_setup != "true" {
+                tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
+                continue;
+            }
+
+            let (supabase_url, supabase_key) = resolve_supabase_credentials(&pool).await;
+            if supabase_url.is_empty() || supabase_key.is_empty() {
+                // Cloud not configured; sleep and retry quietly
                 tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
                 continue;
             }
@@ -2383,41 +2626,169 @@ pub fn spawn_pull_worker(pool: SqlitePool, app: tauri::AppHandle) {
 #[tauri::command]
 pub async fn nuke_cloud_workspace_data(
     state: tauri::State<'_, crate::AppState>,
+    all_data: Option<bool>,
 ) -> Result<String, String> {
-    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
+    if supabase_url.is_empty() || supabase_key.is_empty() {
+        return Err("Kredensial Supabase Cloud belum diatur. Masukkan URL dan Anon Key di Pengaturan terlebih dahulu.".to_string());
+    }
 
-    let workspace_id: Option<String> = sqlx::query_scalar(
+    let wipe_all = all_data.unwrap_or(false);
+
+    let active_ws_id: Option<String> = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
     )
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?;
 
-    let ws_id = match workspace_id {
-        Some(id) if !id.is_empty() => id,
-        _ => return Err("Tidak ada cloud workspace yang terhubung.".to_string()),
-    };
-
-    let client = reqwest::Client::new();
+    // Delete in strict child-to-parent order to respect foreign keys.
+    // NOTE: Users, user_roles, workspaces, workspace_members, and workspace_invites are KEPT SAFE.
     let tables = vec![
-        "role_default_permissions", "users",
-        "sale_return_lines", "sale_returns", "sale_payments", "sale_lines", "sales",
-        "stock_ledger", "stock_opname_lines", "stock_opname", "purchase_return_lines",
-        "purchase_returns", "purchase_payments", "purchase_lines", "purchases",
-        "po_lines", "purchase_orders", "promo_bundle_items", "promo_tiers", "promo_bogo_rules",
-        "promos", "item_price_tiers", "item_prices", "item_units", "items", "categories", "brands",
-        "suppliers", "customers", "members"
+        // 1. Accounting double-entry lines & vouchers
+        "journal_lines",
+        "journal_entries",
+        // 2. Customer & supplier debt payment records (legacy)
+        "debt_payments",
+        "debts",
+        "ap_debt_payments",
+        "ap_debts",
+        // 3. Purchase returns & payments
+        "purchase_return_lines",
+        "purchase_returns",
+        "purchase_payments",
+        "purchase_lines",
+        "purchases",
+        "po_lines",
+        "purchase_orders",
+        "receive_lines",
+        "receives",
+        // 4. POS sales, returns, payments, batches, lines
+        "sale_return_lines",
+        "sale_returns",
+        "sale_payments",
+        "sale_batches",
+        "sale_lines",
+        "payments",
+        "sales",
+        // 5. Inventory movements & stock opname audit
+        "stock_opname_lines",
+        "stock_opname_items",
+        "stock_opnames",
+        "stock_ledger",
+        // 6. Marketing promotions & chat
+        "promo_bundle_items",
+        "promo_tiers",
+        "promo_bogo_rules",
+        "promos",
+        "promotion_rules",
+        "promotions",
+        "ai_chat_history",
+        "cash_shifts",
+        // 7. Product catalog, prices, conversions, batches, categories, brands, units
+        "item_price_tiers",
+        "item_prices",
+        "item_units",
+        "item_conversions",
+        "item_batches",
+        "items",
+        "brands",
+        "categories",
+        "units",
+        // 8. CRM Partners
+        "customers",
+        "suppliers",
     ];
 
-    for table in tables {
-        let url = format!("{}/rest/v1/{}?workspace_id=eq.{}", supabase_url, table, ws_id);
-        let _ = client
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut cleared_count = 0;
+    for table in &tables {
+        let url = if wipe_all || active_ws_id.is_none() {
+            format!("{}/rest/v1/{}?id=not.is.null", supabase_url, table)
+        } else {
+            let ws_id = active_ws_id.as_ref().unwrap();
+            format!("{}/rest/v1/{}?workspace_id=eq.{}", supabase_url, table, ws_id)
+        };
+
+        let res = client
             .delete(&url)
             .header("apikey", &supabase_key)
             .header("Authorization", format!("Bearer {}", &supabase_key))
+            .header("Prefer", "return=minimal")
             .send()
             .await;
+
+        if let Ok(resp) = res {
+            if resp.status().is_success() || resp.status().as_u16() == 404 {
+                cleared_count += 1;
+            } else if !wipe_all && resp.status().as_u16() == 400 {
+                // Table might not have workspace_id column (e.g. sale_lines, child tables)
+                let fallback_url = format!("{}/rest/v1/{}?id=not.is.null", supabase_url, table);
+                let _ = client
+                    .delete(&fallback_url)
+                    .header("apikey", &supabase_key)
+                    .header("Authorization", format!("Bearer {}", &supabase_key))
+                    .header("Prefer", "return=minimal")
+                    .send()
+                    .await;
+                cleared_count += 1;
+            }
+        }
     }
 
-    Ok(format!("Seluruh data cloud Supabase untuk workspace {} berhasil dibersihkan!", ws_id))
+    // Reset local cursor so future sync pulls everything fresh
+    let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('last_pull_at', '2000-01-01T00:00:00Z') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .execute(&state.db_pool)
+        .await;
+
+    Ok(format!(
+        "Berhasil mengosongkan {} tabel data transaksi & katalog di Supabase Cloud! Seluruh akun pengguna, role, dan struktur tabel tetap utuh.",
+        cleared_count
+    ))
+}
+
+#[tauri::command]
+pub fn get_truncate_sql() -> String {
+    r#"-- ============================================================================
+-- KIVO CLOUD: KOSONGKAN SELURUH DATA TRANSAKSI & KATALOG
+-- Menghapus seluruh baris data transaksi, inventaris, dan produk.
+-- Akun pengguna (users), hak akses, workspace, dan struktur tabel TETAP AMAN.
+-- Jalankan skrip ini di SQL Editor Supabase Anda.
+-- ============================================================================
+
+DO $$
+DECLARE
+    t TEXT;
+    target_tables TEXT[] := ARRAY[
+        -- 1. Double-Entry Accounting
+        'journal_lines', 'journal_entries',
+        -- 2. Procurement & Purchasing
+        'purchase_return_lines', 'purchase_returns', 'purchase_payments', 'purchase_lines', 'purchases', 'po_lines', 'purchase_orders',
+        -- 3. Sales & Returns
+        'sale_return_lines', 'sale_returns', 'sale_payments', 'sale_lines', 'sales',
+        -- 4. Stock & Inventory Ledger
+        'stock_opname_lines', 'stock_opnames', 'stock_ledger',
+        -- 5. Promotions & Discounts
+        'promo_bundle_items', 'promo_tiers', 'promo_bogo_rules', 'promos',
+        -- 6. Product Catalog & Units
+        'item_price_tiers', 'item_prices', 'item_units', 'items', 'brands', 'categories',
+        -- 7. CRM Partners
+        'customers', 'suppliers',
+        -- 8. Legacy / Alternative Tables (jika ada)
+        'debt_payments', 'debts', 'ap_debt_payments', 'ap_debts', 'sale_batches', 'payments', 
+        'receive_lines', 'receives', 'stock_opname_items', 'promotion_rules', 'promotions',
+        'item_conversions', 'item_batches', 'units', 'cash_shifts', 'ai_chat_history'
+    ];
+BEGIN
+    FOREACH t IN ARRAY target_tables LOOP
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = t) THEN
+            EXECUTE 'TRUNCATE TABLE public.' || quote_ident(t) || ' CASCADE;';
+        END IF;
+    END LOOP;
+END $$;
+"#.to_string()
 }

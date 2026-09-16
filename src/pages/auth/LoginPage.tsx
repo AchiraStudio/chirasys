@@ -1,13 +1,10 @@
 import { useState } from 'react';
-import { Loader2, Lock, User, ShieldCheck, ArrowLeft, LogIn, Eye, EyeOff, Store, Sun, Moon } from 'lucide-react';
-import { loginUser, sysadminLogin } from '../../lib/api';
+import { Loader2, Lock, User, LogIn, Eye, EyeOff, Store, Sun, Moon } from 'lucide-react';
+import { loginUser } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
-import SysadminDashboard from './SysadminDashboard';
 import { supabase } from '../../lib/supabase';
 import KivoLogo from '../../components/common/KivoLogo';
 import { useTheme } from '../../components/ThemeProvider';
-
-type Screen = 'login' | 'sysadmin_login' | 'sysadmin_dashboard';
 
 interface LoginPageProps {
   onOpenSetupWizard?: () => void;
@@ -19,9 +16,7 @@ const INPUT_CLASS =
 const LABEL_CLASS = 'text-[11px] font-bold text-heading uppercase tracking-wider block mb-1.5';
 
 export default function LoginPage({ onOpenSetupWizard }: LoginPageProps) {
-  const [screen, setScreen] = useState<Screen>('login');
-
-  // Step 1 - credentials
+  // Credentials
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,12 +25,7 @@ export default function LoginPage({ onOpenSetupWizard }: LoginPageProps) {
   const { setAuth } = useAuthStore();
   const { theme, setTheme } = useTheme();
 
-  // Sysadmin auth state
-  const [sysadminUser, setSysadminUser] = useState('admin');
-  const [sysadminPass, setSysadminPass] = useState('');
-  const [showSysadminPass, setShowSysadminPass] = useState(false);
-
-  // ─── Step 1: Credential Login ─────────────────────────────────────────────
+  // ─── Credential Login ─────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
@@ -54,133 +44,7 @@ export default function LoginPage({ onOpenSetupWizard }: LoginPageProps) {
     }
   };
 
-  // ─── Sysadmin Login ───────────────────────────────────────────────────────
-  const handleSysadminLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(sysadminPass);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-      const res = await sysadminLogin(sysadminUser, hashHex);
-      if (res.success) {
-        if (res.supabase_token) {
-          await supabase.auth.setSession({ access_token: res.supabase_token, refresh_token: '' });
-        }
-        setScreen('sysadmin_dashboard');
-      } else {
-        setError('Kredensial System Admin tidak valid.');
-      }
-    } catch (err: any) {
-      setError(err.message || String(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ─── Sysadmin Screens ──────────────────────────────────────────────────────
-  if (screen === 'sysadmin_dashboard') {
-    return <SysadminDashboard onLogout={() => { setSysadminPass(''); setScreen('login'); }} />;
-  }
-
-  // ─── Sysadmin Login Screen ────────────────────────────────────────────────
-  if (screen === 'sysadmin_login') {
-    return (
-      <div className="min-h-full w-full bg-background flex flex-col items-center justify-center p-4 py-8 relative overflow-x-hidden overflow-y-auto select-none">
-        {/* Ambient Background Glow */}
-        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-primary/10 rounded-full blur-[110px] -z-0" />
-
-        <div className="w-full max-w-[420px] relative z-10 space-y-3 my-auto animate-slide-in-up">
-          <div className="flex items-center justify-between px-1">
-            <button
-              onClick={() => { setError(''); setScreen('login'); }}
-              className="flex items-center gap-1.5 text-xs font-semibold text-dim hover:text-heading transition-colors"
-            >
-              <ArrowLeft size={14} />
-              <span>Kembali ke Login</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-1.5 text-dim hover:text-heading hover:bg-card border border-transparent hover:border-line transition-all rounded-lg"
-              title={theme === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
-            >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
-          </div>
-
-          <div className="bg-card rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/40 border border-line overflow-hidden">
-            <div className="p-7 pb-5 border-b border-line bg-muted/40">
-              <div className="w-10 h-10 rounded-xl bg-primary-soft flex items-center justify-center text-primary mb-3">
-                <ShieldCheck size={20} />
-              </div>
-              <h2 className="text-lg font-black text-heading tracking-tight">System Admin</h2>
-              <p className="text-xs text-dim mt-0.5">Kelola seluruh workspace cloud dan konfigurasi pusat.</p>
-            </div>
-
-            <form onSubmit={handleSysadminLogin} className="p-7 flex flex-col gap-4">
-              {error && (
-                <div className="p-3 rounded-xl bg-danger-soft border border-danger/30 text-danger text-xs font-medium flex items-center gap-2 animate-fade-in">
-                  <span className="shrink-0">•</span>
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className={LABEL_CLASS}>Username</label>
-                <div className="relative flex items-center">
-                  <User size={16} className="absolute left-3.5 text-dim pointer-events-none" />
-                  <input
-                    type="text"
-                    value={sysadminUser}
-                    onChange={e => setSysadminUser(e.target.value)}
-                    className={INPUT_CLASS}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className={LABEL_CLASS}>Password</label>
-                <div className="relative flex items-center">
-                  <Lock size={16} className="absolute left-3.5 text-dim pointer-events-none" />
-                  <input
-                    type={showSysadminPass ? 'text' : 'password'}
-                    autoFocus
-                    value={sysadminPass}
-                    onChange={e => setSysadminPass(e.target.value)}
-                    className={INPUT_CLASS}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSysadminPass(!showSysadminPass)}
-                    className="absolute right-3 text-dim hover:text-heading p-1 rounded-md transition-colors"
-                    title={showSysadminPass ? 'Sembunyikan password' : 'Lihat password'}
-                  >
-                    {showSysadminPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || !sysadminUser || !sysadminPass}
-                className="w-full mt-1.5 bg-primary hover:bg-primary-hover text-white font-bold h-11 rounded-xl shadow-md shadow-primary/25 transition-all active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
-              >
-                {loading ? <Loader2 size={18} className="animate-spin" /> : <Lock size={16} />}
-                <span>Admin Login</span>
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Main Login Screen (Step 1) ───────────────────────────────────────────
+  // ─── Main Login Screen ───────────────────────────────────────────
   return (
     <div className="min-h-full w-full bg-background flex flex-col items-center justify-center p-4 py-8 relative overflow-x-hidden overflow-y-auto select-none">
       {/* Ambient Background Glow */}
@@ -195,18 +59,10 @@ export default function LoginPage({ onOpenSetupWizard }: LoginPageProps) {
             <button
               type="button"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 text-dim hover:text-heading hover:bg-card border border-transparent hover:border-line transition-all rounded-lg"
+              className="p-2 text-dim hover:text-heading hover:bg-card border border-transparent hover:border-line transition-all rounded-lg cursor-pointer"
               title={theme === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
             >
               {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setError(''); setScreen('sysadmin_login'); }}
-              className="p-2 text-dim hover:text-primary hover:bg-card border border-transparent hover:border-line transition-all rounded-lg"
-              title="Masuk sebagai System Admin"
-            >
-              <ShieldCheck size={16} />
             </button>
           </div>
 
@@ -216,10 +72,7 @@ export default function LoginPage({ onOpenSetupWizard }: LoginPageProps) {
             </div>
           </div>
           <div className="flex items-center justify-center gap-2">
-            <h1 className="text-xl font-black text-heading text-center tracking-tight">Masuk ke Kivo</h1>
-            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-primary-soft text-primary border border-primary/20">
-              v1.3
-            </span>
+            <h1 className="text-xl font-black text-heading text-center tracking-tight">Sign In to Kivo</h1>
           </div>
           <p className="text-xs text-dim mt-1 text-center font-medium">
             Platform Manajemen Bisnis &amp; Kasir POS

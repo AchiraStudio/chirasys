@@ -5,7 +5,7 @@ import {
   Lock, Eye, EyeOff, Sparkles, Server, Check,
   AlertCircle, Loader2, Upload, DollarSign, MapPin, Phone,
   Sun, Moon, Pill, ShoppingCart, Coffee, Wrench, Briefcase,
-  KeyRound, Download
+  KeyRound, Download, ExternalLink, Copy, CheckCheck, Zap
 } from 'lucide-react';
 import { 
   setSetting, 
@@ -16,12 +16,16 @@ import {
   loginUser,
   importItemsExcel,
   triggerSyncPull,
-  WorkspaceInfo
+  WorkspaceInfo,
+  setCloudConfig,
+  testCloudConnection,
+  getBootstrapSql,
+  openBrowserUrl
 } from '../../lib/api';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
-import { supabase } from '../../lib/supabase';
+import { supabase, updateSupabaseCredentials, getSavedSupabaseCredentials } from '../../lib/supabase';
 import KivoLogo from '../../components/common/KivoLogo';
 import TitleBar from '../../components/TitleBar';
 import { useTheme } from '../../components/ThemeProvider';
@@ -65,6 +69,22 @@ export default function SetupWizard({ onComplete, onCancel }: SetupWizardProps) 
   const [workspaceCode, setWorkspaceCode] = useState('');
   const [createdWorkspace, setCreatedWorkspace] = useState<WorkspaceInfo | null>(null);
 
+  // ─── Mode NEW: BYOK Cloud (Supabase) ───
+  const [supabaseUrl, setSupabaseUrl] = useState(() => getSavedSupabaseCredentials().url);
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState(() => getSavedSupabaseCredentials().anonKey);
+  const [showAnonKey, setShowAnonKey] = useState(false);
+  const [testingSupabase, setTestingSupabase] = useState(false);
+  const [supabaseTestStatus, setSupabaseTestStatus] = useState<{
+    status: 'idle' | 'testing' | 'success' | 'error';
+    latency?: number;
+    error?: string;
+  }>({ status: 'idle' });
+  const [copiedSchema, setCopiedSchema] = useState(false);
+
+  // ─── Mode NEW: Kivo AI (OpenAI) ───
+  const [openaiApiKey, setOpenaiApiKey] = useState(() => localStorage.getItem('kivo_openai_api_key') || localStorage.getItem('chirasys_openai_api_key') || '');
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+
   // ─── Mode NEW: Owner Account ───
   const [ownerName, setOwnerName] = useState('Pemilik Usaha');
   const [ownerUsername, setOwnerUsername] = useState('owner');
@@ -106,16 +126,61 @@ export default function SetupWizard({ onComplete, onCancel }: SetupWizardProps) 
     }
   };
 
+  const handleTestCloudConnection = async () => {
+    if (!supabaseUrl.trim() || !supabaseAnonKey.trim()) {
+      setSupabaseTestStatus({ status: 'error', error: 'Masukkan Supabase Project URL dan Anon Key terlebih dahulu.' });
+      return;
+    }
+    setTestingSupabase(true);
+    setSupabaseTestStatus({ status: 'testing' });
+    try {
+      const res = await testCloudConnection(supabaseUrl.trim(), supabaseAnonKey.trim());
+      if (res.success) {
+        setSupabaseTestStatus({ status: 'success', latency: res.latency_ms });
+      } else {
+        setSupabaseTestStatus({ status: 'error', error: res.error || 'Gagal terhubung ke Supabase.' });
+      }
+    } catch (e: any) {
+      setSupabaseTestStatus({ status: 'error', error: e.message || String(e) });
+    } finally {
+      setTestingSupabase(false);
+    }
+  };
+
+  const handleCopySchemaNotice = async () => {
+    try {
+      const sql = await getBootstrapSql();
+      await navigator.clipboard.writeText(sql);
+      setCopiedSchema(true);
+      setTimeout(() => setCopiedSchema(false), 3500);
+    } catch (e: any) {
+      console.error('Gagal mengambil skema SQL:', e);
+      setError('Gagal menyalin skema SQL: ' + (e.message || String(e)));
+    }
+  };
+
   // ─── MODE NEW: Step 2 Cloud Next ───
   const handleNewStep2Next = async () => {
     setError('');
     if (enableCloud) {
+      if (!supabaseUrl.trim()) {
+        setError('Supabase Project URL wajib diisi jika Kivo Cloud aktif.');
+        return;
+      }
+      if (!supabaseAnonKey.trim()) {
+        setError('Supabase Anon Public Key wajib diisi jika Kivo Cloud aktif.');
+        return;
+      }
       if (!workspaceCode.trim()) {
         setError('Kode workspace tidak boleh kosong jika Kivo Cloud aktif.');
         return;
       }
       setLoading(true);
       try {
+        // Persist cloud credentials to SQLite and dynamic client
+        await setCloudConfig(supabaseUrl.trim(), supabaseAnonKey.trim());
+        updateSupabaseCredentials(supabaseUrl.trim(), supabaseAnonKey.trim());
+
         const ws = await createWorkspace(workspaceName.trim() || companyName, workspaceCode.trim().toUpperCase());
         setCreatedWorkspace(ws);
         setStep(3);
@@ -232,6 +297,15 @@ export default function SetupWizard({ onComplete, onCancel }: SetupWizardProps) 
         await setSetting(key, value);
       }
 
+      if (openaiApiKey.trim()) {
+        await setSetting('openai_api_key', openaiApiKey.trim());
+        localStorage.setItem('kivo_openai_api_key', openaiApiKey.trim());
+      }
+      if (enableCloud && supabaseUrl.trim() && supabaseAnonKey.trim()) {
+        await setCloudConfig(supabaseUrl.trim(), supabaseAnonKey.trim());
+        updateSupabaseCredentials(supabaseUrl.trim(), supabaseAnonKey.trim());
+      }
+
       // 3. Log in automatically
       const loginRes = await loginUser(ownerUsername.trim().toLowerCase(), ownerPassword);
       if (loginRes.supabase_token) {
@@ -257,6 +331,10 @@ export default function SetupWizard({ onComplete, onCancel }: SetupWizardProps) 
     }
     setLoading(true);
     try {
+      if (supabaseUrl.trim() && supabaseAnonKey.trim()) {
+        await setCloudConfig(supabaseUrl.trim(), supabaseAnonKey.trim());
+        updateSupabaseCredentials(supabaseUrl.trim(), supabaseAnonKey.trim());
+      }
       const ws = await joinWorkspace(joinCodeOrToken.trim(), joinPassword || undefined);
       setCreatedWorkspace(ws);
       setStep(2);
@@ -351,6 +429,10 @@ export default function SetupWizard({ onComplete, onCancel }: SetupWizardProps) 
     }
     setLoading(true);
     try {
+      if (supabaseUrl.trim() && supabaseAnonKey.trim()) {
+        await setCloudConfig(supabaseUrl.trim(), supabaseAnonKey.trim());
+        updateSupabaseCredentials(supabaseUrl.trim(), supabaseAnonKey.trim());
+      }
       const ws = await joinWorkspace(restoreCode.trim(), restoreWsPassword || undefined);
       setCreatedWorkspace(ws);
       setStep(2);
@@ -718,85 +800,284 @@ export default function SetupWizard({ onComplete, onCancel }: SetupWizardProps) 
             </div>
           )}
 
-          {/* Step 2: Kivo Cloud & Workspace */}
+          {/* Step 2: Kivo Cloud & Workspace (BYOK) */}
           {mode === 'new' && step === 2 && (
             <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold text-heading">Hubungkan ke Kivo Cloud</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-heading">Konektivitas Cloud &amp; AI (Opsional)</h2>
                 <p className="text-dim text-xs mt-0.5">
-                  Kivo Cloud memungkinkan sinkronisasi real-time antar perangkat kasir dan backup cloud otomatis.
+                  Kivo mengadopsi prinsip <strong>Bring Your Own Keys (BYOK)</strong>. Database dan data Anda 100% milik toko Anda sendiri secara aman.
                 </p>
               </div>
 
               <div className="space-y-3.5">
+                {/* ── Toggle Kivo Cloud ── */}
                 <div 
                   onClick={() => setEnableCloud(!enableCloud)}
                   className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-3.5 ${
                     enableCloud 
                       ? 'border-primary bg-primary-soft ring-1 ring-primary' 
-                      : 'border-line bg-muted/70 dark:bg-card/50 hover:border-line-strong dark:hover:border-line-strong'
+                      : 'border-line bg-muted/70 dark:bg-card/50 hover:border-line-strong'
                   }`}
                 >
-                  <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center ${
-                    enableCloud ? 'bg-primary text-white' : 'border border-line-strong dark:border-line-strong'
+                  <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                    enableCloud ? 'bg-primary text-white' : 'border border-line-strong'
                   }`}>
                     {enableCloud && <Check size={14} strokeWidth={3} />}
                   </div>
                   <div className="flex-1 space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-heading text-sm">Aktifkan Kivo Cloud untuk Toko Ini</h4>
-                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full bg-primary-soft text-primary dark:text-brand-light">
-                        Multi-Cabang
+                      <h4 className="font-bold text-heading text-sm">Aktifkan Kivo Cloud (Multi-Cabang &amp; Sync)</h4>
+                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full bg-primary text-white">
+                        BYOK Cloud
                       </span>
                     </div>
                     <p className="text-[11px] text-dim leading-relaxed">
-                      Membuat workspace cloud baru di mana cabang lain dapat bergabung menggunakan kode toko Anda.
+                      Hubungkan ke database Supabase pribadi Anda untuk sinkronisasi antar perangkat kasir, cabang, dan cadangan real-time.
                     </p>
                   </div>
                 </div>
 
+                {/* ── When Cloud Enabled: Supabase BYOK Config + Workspace Details ── */}
                 {enableCloud && (
-                  <div className="p-4 rounded-xl bg-muted/80 border border-line/80 space-y-3 animate-fade-in">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
-                        Nama Cloud Workspace
-                      </label>
-                      <input
-                        type="text"
-                        value={workspaceName}
-                        onChange={(e) => setWorkspaceName(e.target.value)}
-                        placeholder="Nama Workspace Toko"
-                        className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
-                      />
-                    </div>
+                  <div className="space-y-3.5 animate-fade-in">
+                    {/* Card 1: Supabase BYOK Credentials */}
+                    <div className="p-4 rounded-xl bg-card border border-line space-y-3 shadow-xs">
+                      <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                            <Cloud size={18} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h5 className="font-bold text-heading text-xs sm:text-sm">Kredensial Supabase Project</h5>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-success-soft text-success border border-success/30">
+                                100% Milik Anda
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-dim mt-0.5">
+                              Data disimpan di project Supabase Anda sendiri tanpa perantara.
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
-                          Kode Workspace Unik (Shareable)
-                        </label>
-                        <span className="text-[10px] text-dim">Huruf besar & angka</span>
+                        {/* Quick helper links */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => openBrowserUrl(supabaseUrl ? `${supabaseUrl.replace(/\/$/, '')}` : 'https://supabase.com/dashboard/new')}
+                            className="px-2.5 py-1.5 rounded-lg border border-line bg-muted/60 hover:bg-muted text-[11px] font-semibold text-heading flex items-center gap-1 transition-all cursor-pointer"
+                            title="Buka Supabase Dashboard di Browser"
+                          >
+                            <span>Dashboard</span>
+                            <ExternalLink size={11} className="text-dim" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCopySchemaNotice}
+                            className="px-2.5 py-1.5 rounded-lg border border-line bg-muted/60 hover:bg-muted text-[11px] font-semibold text-heading flex items-center gap-1 transition-all"
+                            title="Salin instruksi skema SQL Supabase"
+                          >
+                            {copiedSchema ? (
+                              <>
+                                <CheckCheck size={11} className="text-success" />
+                                <span className="text-success">Tersalin!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={11} className="text-dim" />
+                                <span>Salin Skema SQL</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
-                      <input
-                        type="text"
-                        value={workspaceCode}
-                        onChange={(e) => setWorkspaceCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
-                        placeholder="Contoh: KV-TOKO-01"
-                        className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading font-mono text-xs sm:text-sm tracking-wider focus:outline-none focus:border-primary"
-                      />
+
+                      {/* Notice banner for SQL script */}
+                      <div className="p-2.5 rounded-lg bg-primary-soft/60 border border-primary/20 text-[11px] text-dim flex items-start gap-2">
+                        <Server size={14} className="text-primary shrink-0 mt-0.5" />
+                        <div className="flex-1 leading-relaxed">
+                          Jalankan file <code className="px-1 py-0.5 rounded bg-card border border-line text-heading font-mono text-[10px]">supabase_full_bootstrap.sql</code> di <strong>Supabase SQL Editor</strong> Anda untuk menyiapkan seluruh 34 tabel multi-cabang.
+                        </div>
+                      </div>
+
+                      {/* Input: Project URL */}
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-heading uppercase tracking-wider flex items-center justify-between">
+                          <span>Project URL Supabase <span className="text-danger">*</span></span>
+                          <span className="text-[10px] text-dim font-normal">Contoh: https://xyzcompany.supabase.co</span>
+                        </label>
+                        <input
+                          type="url"
+                          value={supabaseUrl}
+                          onChange={(e) => setSupabaseUrl(e.target.value.trim())}
+                          placeholder="https://xyzcompany.supabase.co"
+                          className="w-full px-3.5 py-2 bg-muted/50 border border-line rounded-xl text-heading font-mono text-xs focus:outline-none focus:border-primary focus:bg-card transition-all"
+                        />
+                      </div>
+
+                      {/* Input: Anon Key */}
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-heading uppercase tracking-wider flex items-center justify-between">
+                          <span>Anon / Public API Key <span className="text-danger">*</span></span>
+                          <span className="text-[10px] text-dim font-normal">Project Settings &gt; API</span>
+                        </label>
+                        <div className="relative flex items-center">
+                          <input
+                            type={showAnonKey ? 'text' : 'password'}
+                            value={supabaseAnonKey}
+                            onChange={(e) => setSupabaseAnonKey(e.target.value.trim())}
+                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                            className="w-full pl-3.5 pr-10 py-2 bg-muted/50 border border-line rounded-xl text-heading font-mono text-xs focus:outline-none focus:border-primary focus:bg-card transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAnonKey(!showAnonKey)}
+                            className="absolute right-2.5 p-1 text-dim hover:text-heading transition-colors"
+                          >
+                            {showAnonKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Test Connection Button & Status */}
+                      <div className="pt-1 flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={handleTestCloudConnection}
+                          disabled={testingSupabase || !supabaseUrl || !supabaseAnonKey}
+                          className="px-3.5 py-1.5 rounded-lg border border-line bg-muted hover:bg-line text-heading font-semibold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
+                        >
+                          {testingSupabase ? (
+                            <>
+                              <Loader2 size={13} className="animate-spin text-primary" />
+                              <span>Menguji Koneksi...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap size={13} className="text-primary" />
+                              <span>Tes Koneksi Cloud</span>
+                            </>
+                          )}
+                        </button>
+
+                        {supabaseTestStatus.status === 'success' && (
+                          <div className="flex items-center gap-1.5 text-xs text-success font-semibold">
+                            <CheckCircle2 size={14} />
+                            <span>Koneksi Berhasil ({supabaseTestStatus.latency}ms)</span>
+                          </div>
+                        )}
+
+                        {supabaseTestStatus.status === 'error' && (
+                          <div className="flex items-center gap-1.5 text-xs text-danger font-medium truncate max-w-[280px]">
+                            <AlertCircle size={14} className="shrink-0" />
+                            <span className="truncate">{supabaseTestStatus.error}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Workspace Identifiers */}
+                    <div className="p-4 rounded-xl bg-card border border-line space-y-3 shadow-xs">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                          Nama Cloud Workspace
+                        </label>
+                        <input
+                          type="text"
+                          value={workspaceName}
+                          onChange={(e) => setWorkspaceName(e.target.value)}
+                          placeholder="Nama Workspace Toko"
+                          className="w-full px-3.5 py-2 bg-muted/50 border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary focus:bg-card transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                            Kode Workspace Unik (Shareable)
+                          </label>
+                          <span className="text-[10px] text-dim">Huruf besar &amp; angka</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={workspaceCode}
+                          onChange={(e) => setWorkspaceCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
+                          placeholder="Contoh: KV-TOKO-01"
+                          className="w-full px-3.5 py-2 bg-muted/50 border border-line rounded-xl text-heading font-mono text-xs sm:text-sm tracking-wider focus:outline-none focus:border-primary focus:bg-card transition-all"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
 
+                {/* ── When Cloud Disabled: Local Mode Banner ── */}
                 {!enableCloud && (
-                  <div className="p-3 rounded-xl bg-muted/40 border border-line text-xs text-body flex items-start gap-2.5">
-                    <ShieldCheck size={16} className="text-success dark:text-success shrink-0 mt-0.5" />
+                  <div className="p-3.5 rounded-xl bg-muted/40 border border-line text-xs text-body flex items-start gap-3">
+                    <ShieldCheck size={18} className="text-success shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-heading dark:text-body text-xs">Mode Lokal (Offline-First)</p>
-                      <p className="text-[11px] mt-0.5">Seluruh data penjualan dan inventaris disimpan secara lokal di komputer ini tanpa ketergantungan cloud.</p>
+                      <p className="font-semibold text-heading text-xs">Mode Lokal (Offline-First Aktif)</p>
+                      <p className="text-[11px] text-dim mt-0.5">
+                        Seluruh data penjualan, inventaris, dan akuntansi tersimpan 100% di komputer ini menggunakan SQLite lokal berkecepatan tinggi tanpa ketergantungan internet.
+                      </p>
                     </div>
                   </div>
                 )}
+
+                {/* ── Card 2: Kivo AI Assistant (OpenAI BYOK) ── */}
+                <div className="p-4 rounded-xl bg-card border border-line space-y-3 shadow-xs">
+                  <div className="flex items-start justify-between gap-3 border-b border-line pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                        <Sparkles size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h5 className="font-bold text-heading text-xs sm:text-sm">Kivo AI Assistant (OpenAI)</h5>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-dim border border-line">
+                            Opsional
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-dim mt-0.5">
+                          Analisis penjualan otomatis, audit stok cerdas, dan prediksi pesanan barang.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => openBrowserUrl('https://platform.openai.com/api-keys')}
+                      className="px-2.5 py-1.5 rounded-lg border border-line bg-muted/60 hover:bg-muted text-[11px] font-semibold text-heading flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+                      title="Buka OpenAI Platform di Browser"
+                    >
+                      <span>Dapatkan Key</span>
+                      <ExternalLink size={11} className="text-dim" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider flex items-center justify-between">
+                      <span>OpenAI API Key</span>
+                      <span className="text-[10px] text-dim font-normal">Bisa diisi nanti di Pengaturan</span>
+                    </label>
+                    <div className="relative flex items-center">
+                      <input
+                        type={showOpenaiKey ? 'text' : 'password'}
+                        value={openaiApiKey}
+                        onChange={(e) => setOpenaiApiKey(e.target.value.trim())}
+                        placeholder="sk-proj-..."
+                        className="w-full pl-3.5 pr-10 py-2 bg-muted/50 border border-line rounded-xl text-heading font-mono text-xs focus:outline-none focus:border-primary focus:bg-card transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                        className="absolute right-2.5 p-1 text-dim hover:text-heading transition-colors"
+                      >
+                        {showOpenaiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Navigation */}

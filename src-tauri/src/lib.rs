@@ -217,6 +217,12 @@ pub fn run() {
             commands::sync::sysadmin_create_workspace_invite,
             commands::sync::sysadmin_update_workspace_password,
             commands::sync::sysadmin_delete_workspace,
+            commands::sync::get_cloud_config,
+            commands::sync::set_cloud_config,
+            commands::sync::test_cloud_connection,
+            commands::sync::get_bootstrap_sql,
+            commands::sync::get_truncate_sql,
+            commands::sync::open_browser_url,
 
             // Phase 10 - Maintenance
             commands::maintenance::optimize_database,

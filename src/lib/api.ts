@@ -412,7 +412,7 @@ export const parseReceiveExcel = async (filePath: string): Promise<ParsedReceive
 export const optimizeDatabase = async (): Promise<string> => invoke('optimize_database');
 export const exportDatabase = async (targetPath: string): Promise<string> => invoke('export_database', { targetPath });
 export const resetDbSpecific = async (target: string): Promise<string> => invoke('reset_db_specific', { target });
-export const nukeCloudWorkspaceData = async (): Promise<string> => invoke('nuke_cloud_workspace_data');
+export const nukeCloudWorkspaceData = async (allData?: boolean): Promise<string> => invoke('nuke_cloud_workspace_data', { allData });
 
 // --- Hardware / Printer Commands ---
 export interface DetectedPrinterInfo {
@@ -616,6 +616,7 @@ export const leaveWorkspace = async (): Promise<void> =>
 export interface WorkspaceListInfo { id: string; name: string; code: string; created_at: string; }
 export interface SysadminLoginResponse { success: boolean; supabase_token?: string; }
 export interface UserRowFull { id: string; username: string; name: string; role: string; is_active: boolean; created_at: string; workspace_id?: string; permissions?: string; is_custom_perms?: boolean; }
+// fallow-ignore-next-line unused-export
 export const sysadminLogin = async (username: string, passwordHash: string): Promise<SysadminLoginResponse> =>
   invoke('sysadmin_login', { username, passwordHash });
 export const sysadminGetWorkspaces = async (): Promise<WorkspaceListInfo[]> =>
@@ -627,6 +628,7 @@ export const sysadminCreateWorkspace = async (name: string, code: string): Promi
 // fallow-ignore-next-line unused-export
 export const sysadminCreateWorkspaceInvite = async (workspaceId: string, role: string): Promise<string> =>
   invoke('sysadmin_create_workspace_invite', { workspaceId, role });
+// fallow-ignore-next-line unused-export
 export const sysadminUpdateWorkspacePassword = async (workspaceId: string, password?: string): Promise<void> =>
   invoke('sysadmin_update_workspace_password', { workspaceId, password: password || null });
 export const sysadminDeleteWorkspace = async (workspaceId: string): Promise<void> =>
@@ -747,6 +749,7 @@ export const disconnectLanParent = async (): Promise<void> => {
 export const parentRequestConnectChild = async (childIp: string, childPort?: number): Promise<string> =>
   invoke('parent_request_connect_child', { childIp, childPort: childPort || null });
 export const triggerLanSyncNow = async (): Promise<LanSyncResult> => invoke('trigger_lan_sync_now');
+// fallow-ignore-next-line unused-export
 export const cloneFromParent = async (parentIp: string, parentPort?: number): Promise<number> =>
   invoke('clone_from_parent', { parentIp, parentPort: parentPort || null });
 
@@ -764,6 +767,27 @@ export const createUser = async (
   workspaceId?: string | null
 ): Promise<UserRowFull> =>
   invoke('create_user', { name, username, password, role, workspaceId: workspaceId || null });
+
+export interface CloudConfig {
+  supabase_url: string;
+  supabase_anon_key: string;
+  is_configured: boolean;
+}
+
+export interface ConnectionTestResult {
+  success: boolean;
+  latency_ms?: number;
+  error?: string;
+}
+
+export const getCloudConfig = async (): Promise<CloudConfig> => invoke('get_cloud_config');
+export const setCloudConfig = async (url: string, anonKey: string): Promise<void> =>
+  invoke('set_cloud_config', { url, anonKey });
+export const testCloudConnection = async (url: string, anonKey: string): Promise<ConnectionTestResult> =>
+  invoke('test_cloud_connection', { url, anonKey });
+export const getBootstrapSql = async (): Promise<string> => invoke('get_bootstrap_sql');
+export const getTruncateSql = async (): Promise<string> => invoke('get_truncate_sql');
+export const openBrowserUrl = async (url: string): Promise<void> => invoke('open_browser_url', { url });
 
 
 

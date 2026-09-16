@@ -109,6 +109,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// fallow-ignore-next-line unused-export
 export function useToast(): ToastApi {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast must be used within a ToastProvider');

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, Globe, RefreshCw, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown, Network, Link2, Zap, Flame, Activity, Plus } from 'lucide-react';
-import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, joinWorkspace, createWorkspace, getAvailableWorkspaces, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminDeleteWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData } from '../../lib/api';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, Globe, RefreshCw, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown, ChevronUp, Network, Link2, Zap, Flame, Activity, Plus, Eye, EyeOff, ExternalLink, Copy, CheckCheck, Server, Cloud, ShieldCheck } from 'lucide-react';
+import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, joinWorkspace, createWorkspace, getAvailableWorkspaces, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminDeleteWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData, getCloudConfig, setCloudConfig, testCloudConnection, getBootstrapSql, getTruncateSql, openBrowserUrl } from '../../lib/api';
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
-import { supabase } from '../../lib/supabase';
+import { supabase, updateSupabaseCredentials, getSavedSupabaseCredentials } from '../../lib/supabase';
 import UserManagement from './UserManagement';
 import HardwareSettings from './HardwareSettings';
 import LanSyncSettings from './LanSyncSettings';
@@ -174,6 +174,7 @@ export default function Settings() {
   // Nuke Supabase state
   const [nukeStep, setNukeStep] = useState<0 | 1 | 2>(0);
   const [nukeConfirmText, setNukeConfirmText] = useState('');
+  const [nukeAllData, setNukeAllData] = useState(true);
 
   // Sync / workspace state
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
@@ -195,6 +196,119 @@ export default function Settings() {
   const [isCreatingWs, setIsCreatingWs] = useState(false);
   const [supabasePing, setSupabasePing] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; latency?: number; error?: string }>({ status: 'idle' });
   const [availableWorkspaces, setAvailableWorkspaces] = useState<WorkspaceListInfo[]>([]);
+
+  // Supabase BYOK Cloud Credentials state
+  const [cloudUrl, setCloudUrl] = useState(() => getSavedSupabaseCredentials().url);
+  const [cloudAnonKey, setCloudAnonKey] = useState(() => getSavedSupabaseCredentials().anonKey);
+  const [showCloudKey, setShowCloudKey] = useState(false);
+  const [isSavingCloud, setIsSavingCloud] = useState(false);
+  const [isTestingCloud, setIsTestingCloud] = useState(false);
+  const [cloudTestStatus, setCloudTestStatus] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; latency?: number; error?: string }>({ status: 'idle' });
+  const [cloudConfigOpen, setCloudConfigOpen] = useState(false);
+  const [copiedSqlSchema, setCopiedSqlSchema] = useState(false);
+  const [copiedTruncateSql, setCopiedTruncateSql] = useState(false);
+  const [showSqlModal, setShowSqlModal] = useState(false);
+  const [sqlModalTab, setSqlModalTab] = useState<'bootstrap' | 'truncate'>('bootstrap');
+  const [sqlContent, setSqlContent] = useState('');
+
+  const loadCloudConfig = async () => {
+    try {
+      const cfg = await getCloudConfig();
+      if (cfg.supabase_url) setCloudUrl(cfg.supabase_url);
+      if (cfg.supabase_anon_key) setCloudAnonKey(cfg.supabase_anon_key);
+    } catch (e) {
+      console.warn('Could not load cloud config:', e);
+    }
+  };
+
+  const handleSaveCloudConfig = async () => {
+    if (!cloudUrl || !cloudAnonKey) {
+      toast.error('URL dan Anon Key Supabase harus diisi');
+      return;
+    }
+    setIsSavingCloud(true);
+    try {
+      await setCloudConfig(cloudUrl.trim(), cloudAnonKey.trim());
+      updateSupabaseCredentials(cloudUrl.trim(), cloudAnonKey.trim());
+      toast.success('Kredensial Supabase berhasil disimpan dan diaktifkan!');
+      setCloudConfigOpen(false);
+      await loadSyncStatus();
+    } catch (e: any) {
+      toast.error('Gagal menyimpan kredensial Supabase: ' + (e.message || String(e)));
+    } finally {
+      setIsSavingCloud(false);
+    }
+  };
+
+  const handleTestCloud = async () => {
+    if (!cloudUrl || !cloudAnonKey) {
+      toast.error('Isi URL dan Anon Key terlebih dahulu');
+      return;
+    }
+    setIsTestingCloud(true);
+    setCloudTestStatus({ status: 'testing' });
+    try {
+      const result = await testCloudConnection(cloudUrl.trim(), cloudAnonKey.trim());
+      if (result.success) {
+        setCloudTestStatus({ status: 'success', latency: result.latency_ms });
+        toast.success(`Koneksi Supabase Berhasil! (${result.latency_ms}ms)`);
+      } else {
+        setCloudTestStatus({ status: 'error', error: result.error || 'Gagal tersambung' });
+        toast.error(`Koneksi Gagal: ${result.error}`);
+      }
+    } catch (e: any) {
+      const msg = e.message || String(e);
+      setCloudTestStatus({ status: 'error', error: msg });
+      toast.error(`Koneksi Gagal: ${msg}`);
+    } finally {
+      setIsTestingCloud(false);
+    }
+  };
+
+  const handleCopyBootstrapSql = async () => {
+    try {
+      const sql = await getBootstrapSql();
+      await navigator.clipboard.writeText(sql);
+      setCopiedSqlSchema(true);
+      toast.success('Skema SQL lengkap (34 tabel multi-cabang) disalin ke clipboard!');
+      setTimeout(() => setCopiedSqlSchema(false), 3000);
+    } catch (e: any) {
+      toast.error('Gagal mengambil skema SQL: ' + (e.message || String(e)));
+    }
+  };
+
+  const handleCopyTruncateSql = async () => {
+    try {
+      const sql = await getTruncateSql();
+      await navigator.clipboard.writeText(sql);
+      setCopiedTruncateSql(true);
+      toast.success('Skrip SQL TRUNCATE (kosongkan data) disalin ke clipboard!');
+      setTimeout(() => setCopiedTruncateSql(false), 3000);
+    } catch (e: any) {
+      toast.error('Gagal mengambil skrip TRUNCATE: ' + (e.message || String(e)));
+    }
+  };
+
+  const handleViewSqlModal = async (tab: 'bootstrap' | 'truncate' = 'bootstrap') => {
+    try {
+      setSqlModalTab(tab);
+      const sql = tab === 'bootstrap' ? await getBootstrapSql() : await getTruncateSql();
+      setSqlContent(sql);
+      setShowSqlModal(true);
+    } catch (e: any) {
+      toast.error('Gagal memuat skrip SQL: ' + (e.message || String(e)));
+    }
+  };
+
+  const handleSwitchSqlModalTab = async (tab: 'bootstrap' | 'truncate') => {
+    setSqlModalTab(tab);
+    try {
+      const sql = tab === 'bootstrap' ? await getBootstrapSql() : await getTruncateSql();
+      setSqlContent(sql);
+    } catch (e: any) {
+      toast.error('Gagal memuat skrip SQL: ' + (e.message || String(e)));
+    }
+  };
 
   useEffect(() => {
     // If user lacks general settings, redirect to allowed tab
@@ -340,6 +454,7 @@ export default function Settings() {
       setSyncStatus(s);
     } catch { /* offline */ }
     handleFetchAvailableWorkspaces();
+    loadCloudConfig();
   };
 
   const loadSettings = async () => {
@@ -444,15 +559,17 @@ export default function Settings() {
     if (nukeConfirmText !== 'NUKE CLOUD DATA') return;
     setLoading(true);
     try {
-      const msg = await nukeCloudWorkspaceData();
+      const msg = await nukeCloudWorkspaceData(nukeAllData);
       setSuccessMsg(msg);
+      toast.success(msg);
       setTimeout(() => setSuccessMsg(''), 8000);
       setNukeStep(0);
       setNukeConfirmText('');
-    } catch (e) {
+      await loadSyncStatus();
+    } catch (e: any) {
       setConfirmModal({
         title: 'Penghapusan Cloud Gagal',
-        message: `Gagal menghapus data Supabase Cloud: ${e}`,
+        message: `Gagal menghapus data Supabase Cloud: ${e.message || String(e)}`,
         variant: 'danger',
         confirmLabel: 'OK',
         onConfirm: () => setConfirmModal(null),
@@ -501,8 +618,7 @@ export default function Settings() {
   const byKey = new Map(configs.map(c => [c.key, c]));
   const knownKeys = new Set(SYSTEM_SETTING_FIELDS.map(f => f.key));
   const generalConfigs = SYSTEM_SETTING_FIELDS
-    .map(f => byKey.get(f.key))
-    .filter((c): c is { key: string; value: string; description?: string } => Boolean(c));
+    .map(f => byKey.get(f.key) || { key: f.key, value: '', description: f.label });
   const advancedConfigs = configs.filter(
     c => !INTERNAL_KEYS.has(c.key) && !PROFILE_KEYS.includes(c.key) && !MEMBER_KEYS.includes(c.key) && !knownKeys.has(c.key)
   );
@@ -675,6 +791,189 @@ export default function Settings() {
                       <p className="text-xs font-medium text-heading truncate">
                         {syncStatus.last_synced ? new Date(syncStatus.last_synced).toLocaleTimeString('id-ID') : '—'}
                       </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── BYOK Supabase Cloud Configuration Panel ── */}
+              <div className="bg-card rounded-xl border border-line shadow-xs overflow-hidden">
+                <div 
+                  onClick={() => setCloudConfigOpen(!cloudConfigOpen)}
+                  className="p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                      <Cloud size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs sm:text-sm font-bold text-heading truncate">
+                          Konfigurasi Database Cloud (Supabase BYOK)
+                        </h3>
+                        <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-primary-soft text-primary border border-primary/20 shrink-0">
+                          BYOK
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-dim truncate mt-0.5">
+                        {cloudUrl 
+                          ? `Terhubung: ${cloudUrl.replace(/^https?:\/\//, '').split('.')[0]}.supabase.co` 
+                          : 'Kredensial database Supabase pribadi milik Anda'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-dim font-medium hidden sm:inline">
+                      {cloudConfigOpen ? 'Tutup Pengaturan' : 'Ubah Kredensial'}
+                    </span>
+                    <div className="p-1 rounded-md text-dim hover:text-heading">
+                      {cloudConfigOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
+                  </div>
+                </div>
+
+                {cloudConfigOpen && (
+                  <div className="p-4 pt-1 border-t border-line space-y-3.5 bg-muted/20 animate-fade-in">
+                    <div className="p-2.5 rounded-lg bg-primary-soft/60 border border-primary/20 text-[11px] text-dim flex items-start justify-between gap-2.5">
+                      <div className="flex items-start gap-2">
+                        <Server size={14} className="text-primary shrink-0 mt-0.5" />
+                        <span className="leading-relaxed">
+                          Kivo menggunakan arsitektur <strong>Bring Your Own Keys</strong>. Data toko tersimpan di server Supabase Anda sendiri. Jalankan <code className="px-1 py-0.2 rounded bg-card border border-line text-heading font-mono text-[10px]">supabase_full_bootstrap.sql</code> di SQL Editor Anda untuk menyiapkan seluruh tabel.
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                        <button
+                          type="button"
+                          onClick={() => openBrowserUrl(cloudUrl ? `${cloudUrl.replace(/\/$/, '')}` : 'https://supabase.com/dashboard/new')}
+                          className="px-2.5 py-1 rounded bg-card border border-line text-[11px] font-semibold text-heading hover:border-primary flex items-center gap-1 transition-all cursor-pointer"
+                          title="Buka Supabase Dashboard di Browser"
+                        >
+                          <span>Dashboard</span>
+                          <ExternalLink size={10} className="text-dim" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleViewSqlModal('bootstrap')}
+                          className="px-2.5 py-1 rounded bg-card border border-line text-[11px] font-semibold text-heading hover:border-primary flex items-center gap-1 transition-all cursor-pointer"
+                          title="Lihat Skema SQL & Skrip TRUNCATE (34 Tabel)"
+                        >
+                          <span>Lihat SQL</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCopyBootstrapSql}
+                          className="px-2.5 py-1 rounded bg-card border border-line text-[11px] font-semibold text-heading hover:border-primary flex items-center gap-1 transition-all cursor-pointer"
+                          title="Salin Seluruh Skema SQL ke Clipboard"
+                        >
+                          {copiedSqlSchema ? (
+                            <>
+                              <CheckCheck size={11} className="text-success" />
+                              <span className="text-success">Disalin!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={11} className="text-dim" />
+                              <span>Salin SQL</span>
+                            </>
+                          )}
+                        </button>
+                        {(user?.role === 'owner' || user?.role === 'sysadmin') && (
+                          <button
+                            type="button"
+                            onClick={() => setNukeStep(1)}
+                            className="px-2.5 py-1 rounded bg-danger/10 border border-danger/30 text-[11px] font-bold text-danger hover:bg-danger hover:text-white flex items-center gap-1 transition-all cursor-pointer"
+                            title="Kosongkan seluruh data transaksi & katalog di Supabase Cloud"
+                          >
+                            <Trash2 size={11} />
+                            <span>Kosongkan Cloud</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-heading uppercase tracking-wider mb-1">
+                          Supabase Project URL <span className="text-danger">*</span>
+                        </label>
+                        <input
+                          type="url"
+                          value={cloudUrl}
+                          onChange={(e) => setCloudUrl(e.target.value.trim())}
+                          placeholder="https://xyzcompany.supabase.co"
+                          className="w-full px-3.5 py-2 rounded-lg border border-line bg-card text-heading font-mono text-xs focus:border-primary outline-none transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                            Supabase Anon / Public Key <span className="text-danger">*</span>
+                          </label>
+                          <span className="text-[10px] text-dim">Project Settings &gt; API</span>
+                        </div>
+                        <div className="relative flex items-center">
+                          <input
+                            type={showCloudKey ? 'text' : 'password'}
+                            value={cloudAnonKey}
+                            onChange={(e) => setCloudAnonKey(e.target.value.trim())}
+                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                            className="w-full pl-3.5 pr-10 py-2 rounded-lg border border-line bg-card text-heading font-mono text-xs focus:border-primary outline-none transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCloudKey(!showCloudKey)}
+                            className="absolute right-2.5 p-1 text-dim hover:text-heading transition-colors"
+                          >
+                            {showCloudKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 pt-1">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleTestCloud}
+                            disabled={isTestingCloud || !cloudUrl || !cloudAnonKey}
+                            className="px-3 py-1.5 rounded-lg border border-line bg-muted hover:bg-line text-heading font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            {isTestingCloud ? (
+                              <>
+                                <Loader2 size={12} className="animate-spin text-primary" />
+                                <span>Menguji...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Zap size={12} className="text-primary" />
+                                <span>Uji Koneksi</span>
+                              </>
+                            )}
+                          </button>
+                          {cloudTestStatus.status === 'success' && (
+                            <span className="text-xs text-success font-medium flex items-center gap-1">
+                              <CheckCircle2 size={13} />
+                              Terhubung ({cloudTestStatus.latency}ms)
+                            </span>
+                          )}
+                          {cloudTestStatus.status === 'error' && (
+                            <span className="text-xs text-danger font-medium truncate max-w-[200px]" title={cloudTestStatus.error}>
+                              Gagal: {cloudTestStatus.error}
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleSaveCloudConfig}
+                          disabled={isSavingCloud}
+                          className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50 transition-all"
+                        >
+                          {isSavingCloud ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                          <span>Simpan Kredensial</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1146,9 +1445,9 @@ export default function Settings() {
                         disabled={loading}
                         className="w-full py-3.5 bg-danger hover:opacity-90 text-white font-black text-xs rounded-lg transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-2"
                       >
-                        <Trash2 size={16} /> Nuke Supabase Cloud Data (Owner Only)
+                        <Trash2 size={16} /> Kosongkan Data Supabase Cloud (Owner Only)
                       </button>
-                      <p className="text-[10px] text-danger font-bold text-center">PERINGATAN: Menghapus SELURUH database di Supabase Cloud!</p>
+                      <p className="text-[10px] text-danger font-bold text-center">Mengosongkan data transaksi & produk di Cloud. Akun pengguna & skema tabel 100% aman.</p>
                     </div>
                   )}
                 </div>
@@ -1247,13 +1546,13 @@ export default function Settings() {
         </Modal>
       )}
 
-      {/* Nuke Supabase Modal Step 1: Warning */}
+      {/* Nuke Supabase Modal Step 1: Warning & Guarantees */}
       {nukeStep === 1 && (
         <Modal
           isOpen={true}
           onClose={() => setNukeStep(0)}
           size="md"
-          title="Peringatan Bahaya (Owner)"
+          title="Kosongkan Data Supabase Cloud (Owner)"
           icon={AlertTriangle}
           iconBg="bg-danger/10 text-danger"
           footer={
@@ -1261,25 +1560,97 @@ export default function Settings() {
               <button
                 type="button"
                 onClick={() => setNukeStep(0)}
-                className="flex-1 py-3 border border-line rounded-xl text-xs font-bold text-body hover:bg-muted transition-colors"
+                className="flex-1 py-3 border border-line rounded-xl text-xs font-bold text-body hover:bg-muted transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={() => setNukeStep(2)}
-                className="flex-[1.5] py-3 bg-danger hover:bg-danger text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-danger/20"
+                className="flex-[1.5] py-3 bg-danger hover:bg-danger text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-danger/20 flex items-center justify-center gap-1.5"
               >
-                Lanjut ke Konfirmasi Akhir →
+                <span>Lanjut ke Konfirmasi Akhir</span>
+                <span>→</span>
               </button>
             </div>
           }
         >
-          <div className="text-center space-y-4 py-2">
-            <h3 className="text-lg font-black text-heading">Hapus Seluruh Data Supabase Cloud?</h3>
-            <p className="text-xs text-dim leading-relaxed">
-              Tindakan ini akan mengosongkan <strong>SELURUH master data, produk, dan transaksi</strong> pada database Cloud Supabase untuk workspace ini.<br/><br/>
-              <strong className="text-danger">TINDAKAN INI TIDAK DAPAT DIBATALKAN ATAU DIKEMBALIKAN!</strong>
+          <div className="space-y-4 py-1">
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-black text-heading">Kosongkan Seluruh Data Transaksi Cloud?</h3>
+              <p className="text-xs text-dim leading-relaxed">
+                Tindakan ini akan mengosongkan seluruh data transaksi penjualan, pembelian, kartu stok, dan produk di database Supabase Cloud.
+              </p>
+            </div>
+
+            {/* Guarantees Box */}
+            <div className="p-3.5 rounded-xl bg-success-soft/70 border border-success/30 space-y-2">
+              <div className="flex items-center gap-2 text-success font-bold text-xs">
+                <ShieldCheck size={16} className="shrink-0" />
+                <span>Jaminan Keamanan Akun &amp; Struktur Database</span>
+              </div>
+              <ul className="text-[11px] text-body space-y-1.5 pl-6 list-disc">
+                <li><strong>Akun Pengguna (Users, Owner, Kasir, Admin)</strong> 100% AMAN &amp; tidak dihapus.</li>
+                <li><strong>Hak Akses &amp; Role Permissions</strong> tetap utuh.</li>
+                <li><strong>Workspace &amp; Multi-Cabang</strong> tetap aktif dan terhubung.</li>
+                <li><strong>Struktur Seluruh 34 Tabel</strong> tetap utuh (Zero DROP TABLE).</li>
+              </ul>
+            </div>
+
+            {/* Scope Selection */}
+            <div className="space-y-2 pt-1">
+              <label className="block text-[11px] font-bold text-heading uppercase tracking-wider">
+                Pilih Cakupan Pembersihan:
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                <label
+                  onClick={() => setNukeAllData(true)}
+                  className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
+                    nukeAllData
+                      ? 'border-danger bg-danger-soft/40 text-heading'
+                      : 'border-line bg-card hover:bg-muted text-dim'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="nukeScope"
+                    checked={nukeAllData}
+                    onChange={() => setNukeAllData(true)}
+                    className="accent-danger"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-heading">Seluruh Data di Cloud (Semua Cabang / Data Kotor)</p>
+                    <p className="text-[10px] text-dim mt-0.5">Rekomendasi untuk Fresh Start atau menghapus semua data dummy/tes.</p>
+                  </div>
+                </label>
+
+                {syncStatus?.workspace_id && (
+                  <label
+                    onClick={() => setNukeAllData(false)}
+                    className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
+                      !nukeAllData
+                        ? 'border-danger bg-danger-soft/40 text-heading'
+                        : 'border-line bg-card hover:bg-muted text-dim'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="nukeScope"
+                      checked={!nukeAllData}
+                      onChange={() => setNukeAllData(false)}
+                      className="accent-danger"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-heading">Hanya Data Workspace Aktif Ini ({syncStatus.workspace_name})</p>
+                      <p className="text-[10px] text-dim mt-0.5">Hanya mengosongkan baris data dengan ID workspace aktif saat ini.</p>
+                    </div>
+                  </label>
+                )}
+              </div>
+            </div>
+
+            <p className="text-[11px] text-danger font-semibold text-center pt-1">
+              ⚠️ Data transaksi yang dikosongkan tidak dapat dikembalikan lagi.
             </p>
           </div>
         </Modal>
@@ -1291,7 +1662,7 @@ export default function Settings() {
           isOpen={true}
           onClose={() => { setNukeStep(0); setNukeConfirmText(''); }}
           size="md"
-          title="Konfirmasi Akhir Nuke Cloud"
+          title="Konfirmasi Akhir Kosongkan Cloud"
           icon={Trash2}
           iconBg="bg-danger/15 text-danger"
           footer={
@@ -1299,7 +1670,7 @@ export default function Settings() {
               <button
                 type="button"
                 onClick={() => { setNukeStep(0); setNukeConfirmText(''); }}
-                className="flex-1 py-3 border border-line rounded-xl text-xs font-bold text-body hover:bg-muted transition-colors"
+                className="flex-1 py-3 border border-line rounded-xl text-xs font-bold text-body hover:bg-muted transition-colors cursor-pointer"
               >
                 Batal
               </button>
@@ -1310,9 +1681,9 @@ export default function Settings() {
                 className="flex-[1.5] py-3 bg-danger hover:bg-danger text-white rounded-xl text-xs font-black transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-danger/30"
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
-                {loading ? 'Memproses Nuke...' : (
+                {loading ? 'Mengosongkan Data Cloud...' : (
                   <span className="flex items-center gap-1.5">
-                    <Flame size={14} /> EKSEKUSI HAPUS CLOUD
+                    <Flame size={14} /> EKSEKUSI KOSONGKAN DATA
                   </span>
                 )}
               </button>
@@ -1320,8 +1691,9 @@ export default function Settings() {
           }
         >
           <div className="text-center space-y-4 py-2">
-            <h3 className="text-lg font-black text-heading">Ketik untuk Mengonfirmasi Nuke</h3>
+            <h3 className="text-lg font-black text-heading">Ketik untuk Mengonfirmasi</h3>
             <p className="text-xs text-dim leading-relaxed">
+              Target pembersihan: <strong className="text-heading">{nukeAllData ? 'Seluruh Data Cloud' : `Workspace ${syncStatus?.workspace_name || 'Aktif'}`}</strong>.<br/>
               Ketik frasa <code className="bg-danger-soft dark:bg-danger text-danger font-mono px-1.5 py-0.5 rounded font-bold">NUKE CLOUD DATA</code> di bawah ini untuk membuka tombol eksekusi:
             </p>
             <input
@@ -1331,6 +1703,92 @@ export default function Settings() {
               onChange={e => setNukeConfirmText(e.target.value)}
               className="w-full bg-muted border-2 border-danger/50 rounded-xl px-4 py-3 text-sm font-black text-danger outline-none uppercase font-mono text-center tracking-wider focus:ring-2 focus:ring-danger"
             />
+          </div>
+        </Modal>
+      )}
+
+      {/* Bootstrap & Truncate SQL Viewer Modal */}
+      {showSqlModal && (
+        <Modal
+          isOpen={true}
+          onClose={() => setShowSqlModal(false)}
+          size="2xl"
+          title={sqlModalTab === 'bootstrap' ? "Skema Database Supabase Kivo (34 Tabel)" : "Skrip SQL Kosongkan Data (TRUNCATE ... CASCADE)"}
+          icon={Database}
+          iconBg="bg-primary-soft text-primary"
+          footer={
+            <div className="flex items-center justify-between gap-3 w-full flex-wrap sm:flex-nowrap">
+              <button
+                type="button"
+                onClick={() => openBrowserUrl(cloudUrl ? `${cloudUrl.replace(/\/$/, '')}/sql` : "https://supabase.com/dashboard/project/_/sql")}
+                className="px-4 py-2 border border-line rounded-xl text-xs font-semibold text-heading hover:bg-muted transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Buka SQL Editor di Browser</span>
+                <ExternalLink size={12} className="text-dim" />
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSqlModal(false)}
+                  className="px-4 py-2 border border-line rounded-xl text-xs font-semibold text-body hover:bg-muted transition-colors cursor-pointer"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={sqlModalTab === 'bootstrap' ? handleCopyBootstrapSql : handleCopyTruncateSql}
+                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  {(sqlModalTab === 'bootstrap' ? copiedSqlSchema : copiedTruncateSql) ? <CheckCheck size={14} /> : <Copy size={14} />}
+                  <span>
+                    {(sqlModalTab === 'bootstrap' ? copiedSqlSchema : copiedTruncateSql)
+                      ? 'Tersalin ke Clipboard!'
+                      : sqlModalTab === 'bootstrap'
+                      ? 'Salin Seluruh SQL (34 Tabel)'
+                      : 'Salin SQL TRUNCATE'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-3 py-1">
+            {/* Tab switch inside modal */}
+            <div className="flex items-center gap-2 bg-muted p-1 rounded-xl border border-line">
+              <button
+                type="button"
+                onClick={() => handleSwitchSqlModalTab('bootstrap')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  sqlModalTab === 'bootstrap'
+                    ? 'bg-card text-heading shadow-xs'
+                    : 'text-dim hover:text-heading'
+                }`}
+              >
+                1. Skema Database (34 Tabel Bootstrap)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchSqlModalTab('truncate')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  sqlModalTab === 'truncate'
+                    ? 'bg-danger/10 text-danger border border-danger/20 shadow-xs'
+                    : 'text-dim hover:text-heading'
+                }`}
+              >
+                2. Kosongkan Data (TRUNCATE CASCADE)
+              </button>
+            </div>
+
+            <p className="text-xs text-dim leading-relaxed">
+              {sqlModalTab === 'bootstrap' ? (
+                <>Jalankan skrip SQL di bawah ini pada menu <strong>SQL Editor</strong> di dashboard Supabase Anda. Seluruh 34 tabel multi-cabang, indeks, dan aturan Row-Level Security akan otomatis disiapkan.</>
+              ) : (
+                <>Jalankan skrip SQL di bawah ini di <strong>SQL Editor</strong> Supabase untuk mengosongkan seluruh baris transaksi, pesanan, inventaris, dan produk. <strong className="text-success">Akun pengguna (users), hak akses, workspace, dan struktur tabel 100% AMAN.</strong></>
+              )}
+            </p>
+            <div className="relative rounded-xl border border-line bg-slate-950 p-3 max-h-[380px] overflow-y-auto custom-scrollbar font-mono text-[11px] text-slate-200">
+              <pre className="whitespace-pre-wrap select-all">{sqlContent}</pre>
+            </div>
           </div>
         </Modal>
       )}
@@ -1422,6 +1880,9 @@ function CustomSelect({
 
 function SettingRow({ config, onSave, disabled }: { config: { key: string; value: string; description?: string }, onSave: (k: string, v: string) => void, disabled?: boolean }) {
   const [val, setVal] = useState(config.value);
+  const [showSecret, setShowSecret] = useState(false);
+  const isApiKey = config.key === 'openai_api_key';
+
   const options = SELECT_OPTIONS[config.key] || (
     config.value === '1' || config.value === '0' || config.value === 'true' || config.value === 'false'
       ? [
@@ -1456,9 +1917,23 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
 
   return (
     <div className="space-y-1.5 min-w-0">
-      <label className="block text-xs font-bold text-heading">
-        {FIELD_LABELS[config.key] || config.key.replace(/_/g, ' ')}
-      </label>
+      <div className="flex items-center justify-between">
+        <label className="block text-xs font-bold text-heading">
+          {FIELD_LABELS[config.key] || config.key.replace(/_/g, ' ')}
+        </label>
+        {isApiKey && (
+          <button
+            type="button"
+            onClick={() => openBrowserUrl('https://platform.openai.com/api-keys')}
+            className="text-[10px] text-primary hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+            title="Buka OpenAI Platform di Browser"
+          >
+            <span>Dapatkan Key</span>
+            <ExternalLink size={10} />
+          </button>
+        )}
+      </div>
+
       <div className="flex gap-2 items-center">
         {options ? (
           <CustomSelect
@@ -1468,22 +1943,37 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
             disabled={disabled}
           />
         ) : (
-          <input
-            type={config.key === 'openai_api_key' ? 'password' : 'text'}
-            value={val}
-            placeholder={config.key === 'openai_api_key' ? 'sk-proj-...' : ''}
-            onChange={(e) => setVal(e.target.value)}
-            disabled={disabled}
-            onBlur={() => {
-              if (val !== config.value) {
-                if (config.key === 'openai_api_key') {
-                  localStorage.setItem('chirasys_openai_api_key', val.trim());
+          <div className="relative flex-1 flex items-center">
+            <input
+              type={isApiKey && !showSecret ? 'password' : 'text'}
+              value={val}
+              placeholder={isApiKey ? 'sk-proj-...' : ''}
+              onChange={(e) => setVal(e.target.value)}
+              disabled={disabled}
+              onBlur={() => {
+                if (val !== config.value) {
+                  if (isApiKey) {
+                    localStorage.setItem('kivo_openai_api_key', val.trim());
+                    localStorage.setItem('chirasys_openai_api_key', val.trim());
+                  }
+                  onSave(config.key, val);
                 }
-                onSave(config.key, val);
-              }
-            }}
-            className="flex-1 bg-input border border-line rounded-lg px-3 py-2 text-xs font-semibold text-heading outline-none focus:ring-2 focus:ring-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
-          />
+              }}
+              className={`w-full bg-input border border-line rounded-lg py-2 text-xs font-semibold text-heading outline-none focus:ring-2 focus:ring-primary/25 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isApiKey ? 'pl-3 pr-9 font-mono' : 'px-3'
+              }`}
+            />
+            {isApiKey && (
+              <button
+                type="button"
+                onClick={() => setShowSecret(!showSecret)}
+                className="absolute right-2.5 p-1 text-dim hover:text-heading transition-colors"
+                title={showSecret ? 'Sembunyikan' : 'Tampilkan'}
+              >
+                {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            )}
+          </div>
         )}
 
         {(config.key === 'hpp_method' || config.key === 'hpp_method_default') && (
