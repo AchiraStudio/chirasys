@@ -4,62 +4,103 @@ import { ChatMessage, sendChatRequest, getOpenAIApiKey, getSelectedAIModel } fro
 import * as api from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 
-const CHAT_HISTORY_KEY = 'achira_chat_history';
+import { toast } from '../ui/Toast';
+import Select from '../ui/Select';
+const CHAT_HISTORY_KEY = 'kivo_chat_history';
+const LEGACY_CHAT_HISTORY_KEY = 'achira_chat_history';
 
 // ─── MARKDOWN FORMATTER ──────────────────────────────────────────────────────
 const formatMessageContent = (text: string) => {
   if (!text) return { __html: '' };
 
-  let html = text
-    .replace(/^### (.*$)/gim, '<h3 class="text-base font-bold mt-3 mb-1.5 text-slate-900 dark:text-white">$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2 class="text-lg font-extrabold mt-4 mb-2 text-slate-900 dark:text-white">$1</h2>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white">$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em class="italic text-slate-700 dark:text-slate-300">$1</em>')
-    .replace(/`([^`]+)`/g, '<code class="bg-brand/10 dark:bg-brand/20 text-brand dark:text-brand-light px-2 py-0.5 rounded-md text-xs font-mono border border-brand/20">$1</code>')
-    .replace(/^\s*\-\s+(.*$)/gim, '<li class="ml-4 list-disc my-1 text-slate-700 dark:text-slate-300">$1</li>')
-    .replace(/^\s*[0-9]+\.\s+(.*$)/gim, '<li class="ml-4 list-decimal my-1 text-slate-700 dark:text-slate-300">$1</li>');
+  // First process inline styling: inline code, bold, italic
+  let formatted = text
+    .replace(/`([^`]+)`/g, '<code class="bg-muted text-primary px-1.5 py-0.5 rounded text-xs font-mono border border-line">$1</code>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-heading">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic text-heading">$1</em>');
 
-  html = html.replace(/(<li class="[^"]*list-disc[^"]*">.*?<\/li>(?:\n|$))+/g, match => `<ul class="mb-3 mt-1 space-y-1">${match}</ul>`);
-  html = html.replace(/(<li class="[^"]*list-decimal[^"]*">.*?<\/li>(?:\n|$))+/g, match => `<ol class="mb-3 mt-1 space-y-1">${match}</ol>`);
+  // Process line by line to preserve exact numbered & bullet list structures without browser <ol> reset bugs
+  const lines = formatted.split('\n');
+  const resultLines: string[] = [];
 
-  html = html.split('\n').map(line => line.trim() === '' ? '<div class="h-2"></div>' : line).join('\n');
-  html = html.replace(/\n/g, '<br />');
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
 
-  html = html.replace(/(<\/?ul>|<\/?ol>|<\/?li[^>]*>|<\/?h[23][^>]*>)<br \/>/g, '$1');
-  html = html.replace(/<br \/>(<\/?ul>|<\/?ol>|<\/?li[^>]*>|<\/?h[23][^>]*>)/g, '$1');
+    if (!trimmed) {
+      resultLines.push('<div class="h-1.5"></div>');
+      continue;
+    }
 
-  return { __html: html };
+    // Headers
+    if (trimmed.startsWith('### ')) {
+      resultLines.push(`<h3 class="text-xs font-bold uppercase tracking-wider text-heading mt-2.5 mb-1">${trimmed.slice(4)}</h3>`);
+      continue;
+    }
+    if (trimmed.startsWith('## ')) {
+      resultLines.push(`<h2 class="text-sm font-bold text-heading mt-3 mb-1.5">${trimmed.slice(3)}</h2>`);
+      continue;
+    }
+
+    // Numbered List: e.g. "1. Pengelolaan Produk:" or "2. Manajemen Pelanggan:"
+    const numMatch = rawLine.match(/^(\s*)([0-9]+)\.\s+(.*$)/);
+    if (numMatch) {
+      const num = numMatch[2];
+      const content = numMatch[3];
+      resultLines.push(
+        `<div class="flex items-start gap-1.5 my-1 text-heading"><span class="font-bold text-primary shrink-0 tabular-nums">${num}.</span><div class="flex-1 font-medium">${content}</div></div>`
+      );
+      continue;
+    }
+
+    // Bullet List: e.g. "- Menambah item..." or "* Menambah item..." or "• Menambah item..."
+    const bulletMatch = rawLine.match(/^(\s*)[\-\*•]\s+(.*$)/);
+    if (bulletMatch) {
+      const content = bulletMatch[2];
+      resultLines.push(
+        `<div class="flex items-start gap-2 ml-3 my-0.5 text-heading"><span class="text-primary/80 shrink-0 select-none font-bold">•</span><div class="flex-1 text-heading font-medium leading-relaxed">${content}</div></div>`
+      );
+      continue;
+    }
+
+    // Regular paragraph line
+    resultLines.push(`<div class="text-heading leading-relaxed">${rawLine}</div>`);
+  }
+
+  return { __html: resultLines.join('') };
 };
 
 // ─── TYPEWRITER ───────────────────────────────────────────────────────────────
-function TypewriterMessage({ text, animate, onComplete }: { text: string; animate: boolean; onComplete: () => void }) {
-  const [displayedText, setDisplayedText] = useState(animate ? '' : text);
+function TypewriterMessage({ text, animate }: { text: string; animate: boolean }) {
+  const [displayedText, setDisplayedText] = useState(() => (animate ? '' : text));
+  const hasFinishedRef = useRef(!animate);
 
   useEffect(() => {
-    if (!animate) {
+    // If this message was already finished or shouldn't animate, stay static
+    if (hasFinishedRef.current) {
       setDisplayedText(text);
-      onComplete();
       return;
     }
 
     let i = 0;
+    const step = Math.max(3, Math.ceil(text.length / 50));
     const intervalId = setInterval(() => {
-      i += 3;
+      i += step;
       if (i >= text.length) {
         clearInterval(intervalId);
+        hasFinishedRef.current = true;
         setDisplayedText(text);
-        onComplete();
       } else {
         setDisplayedText(text.slice(0, i));
       }
     }, 12);
 
     return () => clearInterval(intervalId);
-  }, [text, animate, onComplete]);
+  }, [text]);
 
   return (
     <div
-      className="whitespace-pre-wrap leading-relaxed space-y-2"
+      className="whitespace-pre-wrap leading-relaxed space-y-0.5"
       dangerouslySetInnerHTML={formatMessageContent(displayedText)}
     />
   );
@@ -79,7 +120,7 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
-      const saved = localStorage.getItem(storageKey);
+      const saved = localStorage.getItem(storageKey) || localStorage.getItem(`${LEGACY_CHAT_HISTORY_KEY}_${user?.id || 'guest'}`);
       if (saved) return JSON.parse(saved) as ChatMessage[];
     } catch {}
     return [];
@@ -98,6 +139,11 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const animatedIndices = useRef<Set<number>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Mark all restored historical messages as already animated so history never replays
+  useEffect(() => {
+    messages.forEach((_, i) => animatedIndices.current.add(i));
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -123,7 +169,7 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
         setShowSettings(false);
       }, 1200);
     } catch (err: any) {
-      alert(`Gagal menyimpan pengaturan AI: ${err.message || err}`);
+      toast.error(`Gagal menyimpan pengaturan AI: ${err.message || err}`);
     } finally {
       setSavingSettings(false);
     }
@@ -241,7 +287,9 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
   const handleCopy = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIdx(idx);
-    setTimeout(() => setCopiedIdx(null), 2000);
+    setTimeout(() => {
+      setCopiedIdx(prev => prev === idx ? null : prev);
+    }, 2000);
   };
 
   const clearHistory = () => {
@@ -268,7 +316,7 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
       // Let AI know it succeeded (mocking the submit)
       handleSubmit(null, 'Saya telah menyetujui dan menerapkan perubahan stok. Selesai.');
     } catch (e: any) {
-      alert(`Gagal menerapkan penyesuaian stok: ${e.message || e}`);
+      toast.error(`Gagal menerapkan penyesuaian stok: ${e.message || e}`);
       setLoading(false);
     }
   };
@@ -290,103 +338,99 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
     <>
       {/* Backdrop for mobile */}
       <div
-        className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm sm:hidden animate-in fade-in duration-200"
+        className="fixed inset-0 z-[100] bg-card/50 backdrop-blur-sm sm:hidden animate-fade-in"
         onClick={onClose}
       />
 
       {/* Main Container */}
       <div
-        className={`fixed z-[110] bottom-0 right-0 sm:bottom-6 sm:right-6 bg-white dark:bg-[#0B0F19] sm:rounded-3xl rounded-t-3xl shadow-2xl shadow-brand/15 border-t sm:border border-slate-200/90 dark:border-slate-800/90 flex flex-col overflow-hidden transition-all duration-300 ${
+        className={`fixed z-[110] bottom-0 right-0 sm:bottom-5 sm:right-5 bg-card sm:rounded-2xl rounded-t-2xl shadow-2xl border border-line flex flex-col overflow-hidden transition-all duration-200 ${
           isExpanded
-            ? 'w-full sm:w-[680px] h-[92vh] sm:h-[720px] sm:max-h-[calc(100vh-3rem)]'
-            : 'w-full sm:w-[440px] h-[85vh] sm:h-[660px] sm:max-h-[calc(100vh-3rem)]'
-        } animate-in slide-in-from-bottom-10 sm:zoom-in-95`}
+            ? 'w-full sm:w-[620px] h-[92vh] sm:h-[700px] sm:max-h-[calc(100vh-2.5rem)]'
+            : 'w-full sm:w-[410px] h-[85vh] sm:h-[600px] sm:max-h-[calc(100vh-2.5rem)]'
+        } animate-fade-in`}
       >
-
         {/* Header */}
-        <div className="relative flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800/70 bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md z-10 shrink-0">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand via-indigo-500 to-purple-600" />
-          
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line bg-card z-10 shrink-0">
+          <div className="flex items-center gap-2.5">
             <div className="relative">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-brand/25">
-                <Sparkles size={20} className="animate-pulse" />
+              <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center">
+                <Sparkles size={16} />
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-white dark:border-[#0B0F19]"></span>
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-card"></span>
               </span>
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight">Achira</h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 dark:bg-brand/20 text-brand border border-brand/20">
-                  Kivo AI
+              <div className="flex items-center gap-1.5">
+                <h2 className="font-bold text-heading text-sm leading-none">Kivo AI</h2>
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary-soft text-primary border border-primary/20 leading-none">
+                  Smart Assistant
                 </span>
               </div>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">Asisten Cerdas Kivo</p>
+              <p className="text-[11px] text-dim mt-0.5">Asisten Cerdas Bisnis & Kasir</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setShowSettings(true)}
-              className="p-2 text-slate-400 hover:text-brand bg-slate-50 dark:bg-slate-800/60 hover:bg-brand/10 rounded-xl transition-all"
+              className="p-1.5 text-dim hover:text-heading bg-muted hover:bg-line rounded-lg transition-colors cursor-pointer"
               title="Pengaturan OpenAI API Key & Model"
             >
-              <Key size={15} />
+              <Key size={14} />
             </button>
             {visibleMessages.length > 0 && (
               <button
                 onClick={clearHistory}
-                className="p-2 text-slate-400 hover:text-rose-500 bg-slate-50 dark:bg-slate-800/60 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-xl transition-all"
+                className="p-1.5 text-dim hover:text-danger bg-muted hover:bg-danger-soft rounded-lg transition-colors cursor-pointer"
                 title="Hapus riwayat chat"
               >
-                <Trash2 size={15} />
+                <Trash2 size={14} />
               </button>
             )}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="hidden sm:flex p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+              className="hidden sm:flex p-1.5 text-dim hover:text-heading bg-muted hover:bg-line rounded-lg transition-colors cursor-pointer"
               title={isExpanded ? "Kecilkan tampilan" : "Perbesar tampilan"}
             >
-              {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+              className="p-1.5 text-dim hover:text-heading bg-muted hover:bg-line rounded-lg transition-colors cursor-pointer"
               title="Tutup (Esc)"
             >
-              <X size={18} />
+              <X size={15} />
             </button>
           </div>
         </div>
 
         {/* Settings Modal Overlay */}
         {showSettings && (
-          <div className="absolute inset-0 z-30 bg-slate-900/70 backdrop-blur-sm p-6 flex flex-col justify-center animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-[#0B0F19] rounded-3xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-xs p-4 flex flex-col justify-center animate-fade-in">
+            <div className="bg-card rounded-xl p-4 border border-line shadow-xl space-y-3.5">
+              <div className="flex items-center justify-between border-b border-line pb-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 bg-brand/10 text-brand rounded-xl">
-                    <Key size={18} />
+                  <div className="p-1.5 bg-primary-soft text-primary rounded-lg">
+                    <Key size={15} />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Pengaturan OpenAI API</h3>
-                    <p className="text-[11px] text-slate-500">Konfigurasi API Key & Model AI</p>
+                    <h3 className="font-bold text-heading text-xs">Pengaturan OpenAI API</h3>
+                    <p className="text-[10px] text-dim">Konfigurasi API Key & Model AI</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowSettings(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg"
+                  className="p-1 text-dim hover:text-heading hover:bg-muted rounded-lg transition-colors cursor-pointer"
                 >
-                  <X size={16} />
+                  <X size={15} />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveAISettings} className="space-y-3.5">
+              <form onSubmit={handleSaveAISettings} className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  <label className="text-[10px] font-bold text-heading uppercase tracking-wide">
                     OpenAI API Key
                   </label>
                   <input
@@ -394,32 +438,32 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
                     value={apiKeyInput}
                     onChange={(e) => setApiKeyInput(e.target.value)}
                     placeholder="sk-proj-..."
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+                    className="w-full bg-muted/50 border border-line rounded-lg px-3 py-2 text-xs font-mono text-heading outline-none focus:ring-1 focus:ring-primary"
                   />
-                  <p className="text-[10px] text-slate-400">
-                    Dapatkan API Key dari platform.openai.com.
+                  <p className="text-[10px] text-dim">
+                    Dapatkan API Key dari platform.openai.com
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  <label className="text-[10px] font-bold text-heading uppercase tracking-wide">
                     Model AI
                   </label>
-                  <select
+                  <Select
                     value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+                    onChange={(v) => setSelectedModel(v)}
+                    className="w-full bg-muted/50 border border-line rounded-lg px-3 py-2 text-xs font-medium text-heading outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="gpt-4o-mini">GPT-4o Mini (Direkomendasikan - Cepat & Hemat)</option>
                     <option value="gpt-4o">GPT-4o (Paling Cerdas & Akurat)</option>
                     <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                  </select>
+                  </Select>
                 </div>
 
-                <div className="pt-2 flex items-center justify-between">
+                <div className="pt-1.5 flex items-center justify-between">
                   {settingsSaved ? (
-                    <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
-                      <Check size={14} /> Tersimpan!
+                    <span className="flex items-center gap-1 text-xs font-semibold text-success">
+                      <Check size={13} /> Tersimpan!
                     </span>
                   ) : <span />}
 
@@ -427,16 +471,16 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
                     <button
                       type="button"
                       onClick={() => setShowSettings(false)}
-                      className="px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-dim hover:text-heading hover:bg-muted transition-colors cursor-pointer"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
                       disabled={savingSettings}
-                      className="px-4 py-2 bg-brand hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
                     >
-                      {savingSettings ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      {savingSettings ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                       Simpan
                     </button>
                   </div>
@@ -447,75 +491,72 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
         )}
 
         {/* Messages Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-slate-50/40 dark:bg-slate-950/30 custom-scrollbar scroll-smooth">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/20 custom-scrollbar scroll-smooth">
           
           {/* Welcome / Empty State */}
           {visibleMessages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center py-6 animate-in zoom-in-95 duration-300">
-              <div className="relative mb-5">
-                <div className="absolute inset-0 bg-gradient-to-tr from-brand via-indigo-500 to-purple-500 rounded-3xl blur-xl opacity-25 animate-pulse" />
-                <div className="relative w-20 h-20 bg-gradient-to-tr from-brand via-indigo-600 to-purple-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-brand/40 border border-white/20">
-                  <Sparkles size={36} className="text-white" />
-                </div>
+            <div className="flex flex-col items-center justify-center h-full text-center px-4 py-6 animate-fade-in">
+              <div className="w-12 h-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center mb-3 shadow-xs">
+                <Sparkles size={22} />
               </div>
 
-              <h3 className="font-black text-2xl text-slate-900 dark:text-white mb-2 tracking-tight">
-                Halo, <span className="bg-gradient-to-r from-brand via-indigo-500 to-purple-500 bg-clip-text text-transparent">{user?.name || 'System Admin'}</span>! 👋
+              <h3 className="font-bold text-base text-heading tracking-tight">
+                Halo, <span className="text-primary">{user?.name || 'Administrator'}</span>!
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-[300px] leading-relaxed mb-6">
-                Saya <strong className="text-slate-800 dark:text-slate-200">Achira</strong>, asisten cerdas Kivo AI. Siap membantu analisis stok, laporan penjualan, dan strategi promo.
+              <p className="text-xs text-dim max-w-[280px] leading-relaxed mt-1 mb-5">
+                Saya <strong className="text-heading">Kivo AI</strong>, asisten cerdas toko Anda. Siap membantu analisis omset, stok kritis, dan rekomendasi promo.
               </p>
 
               {/* Quick Prompt Cards */}
               <div className="w-full max-w-sm space-y-2 text-left">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1 mb-1">Coba Pertanyaan Ini:</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-dim px-0.5">Saran Pertanyaan:</p>
                 
                 <button
                   onClick={() => handleSendPrompt('Tampilkan ringkasan penjualan & performa toko hari ini')}
-                  className="w-full p-3 bg-white dark:bg-slate-900/90 hover:bg-brand/5 dark:hover:bg-brand/10 border border-slate-200/80 dark:border-slate-800 hover:border-brand/40 dark:hover:border-brand/40 rounded-2xl transition-all group flex items-center justify-between shadow-xs cursor-pointer"
+                  className="w-full p-2.5 bg-card hover:bg-muted/40 border border-line hover:border-primary/40 rounded-xl transition-all group flex items-center justify-between shadow-xs cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform">
-                      <BarChart3 size={16} />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
+                      <BarChart3 size={15} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-brand transition-colors">Ringkasan Penjualan</p>
-                      <p className="text-[11px] text-slate-400">Cek total omset & statistik hari ini</p>
+                      <p className="text-xs font-semibold text-heading group-hover:text-primary transition-colors">Ringkasan Penjualan</p>
+                      <p className="text-[11px] text-dim">Cek total omset & statistik hari ini</p>
                     </div>
                   </div>
-                  <ArrowRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform group-hover:text-brand" />
+                  <ArrowRight size={13} className="text-dim group-hover:translate-x-0.5 transition-transform group-hover:text-primary" />
                 </button>
 
                 <button
                   onClick={() => handleSendPrompt('Cek produk yang stoknya sudah di bawah batas minimum')}
-                  className="w-full p-3 bg-white dark:bg-slate-900/90 hover:bg-brand/5 dark:hover:bg-brand/10 border border-slate-200/80 dark:border-slate-800 hover:border-brand/40 dark:hover:border-brand/40 rounded-2xl transition-all group flex items-center justify-between shadow-xs cursor-pointer"
+                  className="w-full p-2.5 bg-card hover:bg-muted/40 border border-line hover:border-primary/40 rounded-xl transition-all group flex items-center justify-between shadow-xs cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 group-hover:scale-110 transition-transform">
-                      <Package size={16} />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
+                      <Package size={15} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-brand transition-colors">Cek Stok Kritis</p>
-                      <p className="text-[11px] text-slate-400">Daftar produk butuh reorder segera</p>
+                      <p className="text-xs font-semibold text-heading group-hover:text-primary transition-colors">Cek Stok Kritis</p>
+                      <p className="text-[11px] text-dim">Daftar produk butuh reorder segera</p>
                     </div>
                   </div>
-                  <ArrowRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform group-hover:text-brand" />
+                  <ArrowRight size={13} className="text-dim group-hover:translate-x-0.5 transition-transform group-hover:text-primary" />
                 </button>
 
                 <button
                   onClick={() => handleSendPrompt('Rekomendasikan promo bundle menarik dari produk paling laris')}
-                  className="w-full p-3 bg-white dark:bg-slate-900/90 hover:bg-brand/5 dark:hover:bg-brand/10 border border-slate-200/80 dark:border-slate-800 hover:border-brand/40 dark:hover:border-brand/40 rounded-2xl transition-all group flex items-center justify-between shadow-xs cursor-pointer"
+                  className="w-full p-2.5 bg-card hover:bg-muted/40 border border-line hover:border-primary/40 rounded-xl transition-all group flex items-center justify-between shadow-xs cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-purple-500/10 text-purple-500 group-hover:scale-110 transition-transform">
-                      <Gift size={16} />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-colors">
+                      <Gift size={15} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-brand transition-colors">Buat Promo Bundle</p>
-                      <p className="text-[11px] text-slate-400">Ide paket bundling item terlaris</p>
+                      <p className="text-xs font-semibold text-heading group-hover:text-primary transition-colors">Buat Promo Bundle</p>
+                      <p className="text-[11px] text-dim">Ide paket bundling item terlaris</p>
                     </div>
                   </div>
-                  <ArrowRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform group-hover:text-brand" />
+                  <ArrowRight size={13} className="text-dim group-hover:translate-x-0.5 transition-transform group-hover:text-primary" />
                 </button>
               </div>
             </div>
@@ -527,56 +568,61 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
             return (
               <div
                 key={idx}
-                className={`flex gap-3 animate-in fade-in slide-in-from-bottom-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+                className={`flex gap-2.5 animate-fade-in ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
               >
                 {/* Avatar */}
-                <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center shadow-md mt-0.5 ${
+                <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mt-0.5 ${
                   isUser
-                    ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900'
-                    : 'bg-gradient-to-tr from-brand via-indigo-600 to-purple-600 text-white shadow-brand/20'
+                    ? 'bg-muted text-heading border border-line'
+                    : 'bg-primary-soft text-primary'
                 }`}>
-                  {isUser ? <User size={15} /> : <Bot size={15} />}
+                  {isUser ? <User size={14} /> : <Bot size={14} />}
                 </div>
 
                 {/* Bubble Container */}
-                <div className={`relative max-w-[85%] group ${
+                <div className={`relative group ${
                   isUser
-                    ? 'bg-gradient-to-r from-brand via-blue-600 to-indigo-600 text-white rounded-3xl rounded-tr-xs px-4 py-3 shadow-md shadow-brand/15 text-sm'
-                    : 'bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-3xl rounded-tl-xs p-4 shadow-xs text-sm'
+                    ? 'bg-primary text-white rounded-2xl rounded-tr-xs px-3.5 py-2.5 text-xs font-medium leading-relaxed max-w-[82%] shadow-xs'
+                    : 'bg-card border border-line text-heading rounded-2xl rounded-tl-xs px-4 py-3 text-xs leading-relaxed shadow-xs max-w-[85%]'
                 }`}>
                   {isUser ? (
-                    <div
-                      className="whitespace-pre-wrap leading-relaxed space-y-2"
-                      dangerouslySetInnerHTML={formatMessageContent(msg.content || '')}
-                    />
+                    <>
+                      <div
+                        className="whitespace-pre-wrap leading-relaxed space-y-1"
+                        dangerouslySetInnerHTML={formatMessageContent(msg.content || '')}
+                      />
+                      <button
+                        onClick={() => handleCopy(msg.content || '', idx)}
+                        className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 bg-white/20 hover:bg-white/30 text-white rounded transition-all cursor-pointer"
+                        title="Salin pesan"
+                      >
+                        {copiedIdx === idx ? <Check size={12} className="text-white" /> : <Copy size={12} />}
+                      </button>
+                    </>
                   ) : (
                     <>
                       <TypewriterMessage
                         text={msg.content || ''}
                         animate={!animatedIndices.current.has(idx)}
-                        onComplete={() => {
-                          animatedIndices.current.add(idx);
-                          scrollToBottom();
-                        }}
                       />
                       
                       {/* Copy Action Button */}
                       <button
                         onClick={() => handleCopy(msg.content || '', idx)}
-                        className="absolute top-3 right-3 p-1.5 opacity-0 group-hover:opacity-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 rounded-lg transition-all"
+                        className="absolute top-2.5 right-2.5 p-1 opacity-0 group-hover:opacity-100 bg-muted hover:bg-line text-dim hover:text-heading rounded transition-all cursor-pointer"
                         title="Salin jawaban"
                       >
-                        {copiedIdx === idx ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                        {copiedIdx === idx ? <Check size={12} className="text-success" /> : <Copy size={12} />}
                       </button>
 
                       {/* Direct action button if API Key error */}
                       {(msg.content?.includes('API Key') || msg.content?.includes('Error') || msg.content?.includes('401') || msg.content?.includes('Unauthorized')) && (
-                        <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center">
+                        <div className="mt-2.5 pt-2 border-t border-line flex items-center">
                           <button
                             onClick={() => setShowSettings(true)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand/10 hover:bg-brand/20 text-brand text-xs font-bold rounded-xl transition-all cursor-pointer"
+                            className="flex items-center gap-1.5 px-2.5 py-1 bg-primary-soft hover:bg-primary/20 text-primary text-xs font-semibold rounded-lg transition-all cursor-pointer"
                           >
-                            <Key size={13} /> Atur API Key OpenAI
+                            <Key size={12} /> Atur API Key OpenAI
                           </button>
                         </div>
                       )}
@@ -589,17 +635,17 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
 
           {/* Thinking / Loading Animation */}
           {loading && (
-            <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
-              <div className="shrink-0 w-8 h-8 rounded-xl bg-gradient-to-tr from-brand via-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md shadow-brand/20 mt-0.5">
-                <Sparkles size={15} className="animate-spin" />
+            <div className="flex gap-2.5 animate-fade-in">
+              <div className="shrink-0 w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center mt-0.5">
+                <Sparkles size={14} className="animate-spin" />
               </div>
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl rounded-tl-xs px-5 py-3.5 flex items-center gap-3 shadow-xs">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-brand animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="bg-card border border-line rounded-2xl rounded-tl-xs px-4 py-2.5 flex items-center gap-2.5 shadow-xs">
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Achira sedang menganalisis data...</span>
+                <span className="text-xs font-medium text-dim">Menganalisis data...</span>
               </div>
             </div>
           )}
@@ -608,61 +654,61 @@ export default function AIChat({ isOpen, onClose, branchId }: AIChatProps) {
         </div>
 
         {pendingPreview && (
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-100 dark:border-blue-900/40 z-10 shrink-0">
-            <h4 className="font-bold text-sm text-blue-900 dark:text-blue-100 mb-2">Persetujuan Penyesuaian Stok (AI)</h4>
-            <div className="max-h-32 overflow-y-auto custom-scrollbar mb-3 bg-white dark:bg-slate-900 rounded-lg p-2 border border-blue-200 dark:border-blue-800">
+          <div className="p-3 bg-card border-t border-line z-10 shrink-0">
+            <h4 className="font-bold text-xs text-heading mb-1.5">Persetujuan Penyesuaian Stok (AI)</h4>
+            <div className="max-h-32 overflow-y-auto custom-scrollbar mb-2.5 bg-muted/40 rounded-lg p-2 border border-line">
               <table className="w-full text-xs text-left">
-                <thead><tr className="border-b text-slate-500"><th className="pb-1">Item ID</th><th className="pb-1">Qty</th><th className="pb-1">Batch</th></tr></thead>
+                <thead><tr className="border-b border-line text-dim"><th className="pb-1">Item ID</th><th className="pb-1">Qty</th><th className="pb-1">Batch</th></tr></thead>
                 <tbody>
                   {pendingPreview.items.map((it, idx) => (
-                    <tr key={idx} className="border-b border-slate-50 dark:border-slate-800">
+                    <tr key={idx} className="border-b border-line/50">
                       <td className="py-1 font-mono">{it.item_id.substring(0,8)}...</td>
-                      <td className="py-1">{it.actual_qty}</td>
-                      <td className="py-1">{it.batch_no || '-'}</td>
+                      <td className="py-1 font-semibold text-heading">{it.actual_qty}</td>
+                      <td className="py-1 text-dim">{it.batch_no || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={handleRejectPreview} className="px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700">Tolak & Batal</button>
-              <button onClick={handleApprovePreview} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">Setujui & Terapkan</button>
+              <button onClick={handleRejectPreview} className="px-2.5 py-1.5 bg-muted hover:bg-line text-body text-xs font-semibold rounded-lg transition-colors cursor-pointer">Tolak & Batal</button>
+              <button onClick={handleApprovePreview} className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer">Setujui & Terapkan</button>
             </div>
           </div>
         )}
 
         {/* Input Bar */}
-        <div className="p-4 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800/80 z-10 shrink-0">
-          <div className="relative flex items-end gap-2 bg-slate-50 dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-2 focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/10 transition-all shadow-inner">
+        <div className="p-3 bg-card border-t border-line z-10 shrink-0">
+          <div className="relative flex items-end gap-1.5 bg-muted/50 border border-line rounded-xl p-1.5 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15 transition-all">
             <textarea
               ref={textareaRef}
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Tanya Achira... (Enter kirim, Shift+Enter baris baru)"
+              placeholder="Tanya Kivo AI... (Tekan Enter untuk kirim)"
               disabled={loading}
               autoFocus
               rows={1}
-              className="flex-1 resize-none bg-transparent border-none pl-3 pr-2 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-0 placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-50 overflow-hidden leading-relaxed"
-              style={{ minHeight: '40px', maxHeight: '120px' }}
+              className="flex-1 resize-none bg-transparent border-none px-2.5 py-1 text-xs text-heading outline-none placeholder:text-dim disabled:opacity-50 overflow-y-auto leading-relaxed custom-scrollbar"
+              style={{ minHeight: '34px', maxHeight: '100px' }}
             />
             <button
               onClick={(e) => handleSubmit(e)}
               disabled={!input.trim() || loading}
-              className="shrink-0 p-3 bg-gradient-to-r from-brand to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-2xl disabled:opacity-40 disabled:hover:from-brand disabled:hover:to-indigo-600 transition-all shadow-md shadow-brand/20 flex items-center justify-center active:scale-95 cursor-pointer"
+              className="shrink-0 w-8 h-8 bg-primary hover:bg-primary-hover text-white rounded-lg disabled:opacity-40 transition-all shadow-xs flex items-center justify-center active:scale-95 cursor-pointer"
               title="Kirim pesan"
             >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             </button>
           </div>
 
-          <div className="flex items-center justify-between px-2 mt-2.5">
-            <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 flex items-center gap-1">
-              <Sparkles size={11} className="text-brand shrink-0" />
-              Achira AI dapat membuat kesalahan. Verifikasi data penting.
+          <div className="flex items-center justify-between px-1 mt-1.5">
+            <p className="text-[10px] text-dim flex items-center gap-1">
+              <Sparkles size={11} className="text-primary shrink-0" />
+              Kivo AI dapat melakukan kesalahan. Verifikasi data penting.
             </p>
             {input.trim() && (
-              <span className="text-[10px] font-mono text-slate-400 shrink-0">Shift+Enter = baris baru</span>
+              <span className="text-[10px] font-mono text-dim shrink-0 hidden sm:inline">Shift+Enter = baris baru</span>
             )}
           </div>
         </div>

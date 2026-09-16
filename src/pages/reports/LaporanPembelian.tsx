@@ -25,7 +25,7 @@ export default function LaporanPembelian({ onBack }: Props) {
   const grandPaid = data.reduce((s, r) => s + r.paid_amount, 0);
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-300 h-full">
+    <div className="flex flex-col gap-6 animate-fade-in h-full">
       <ReportHeader
         title="Laporan Pembelian"
         subtitle="Ringkasan pembelian per pemasok"
@@ -37,10 +37,10 @@ export default function LaporanPembelian({ onBack }: Props) {
         onFetch={fetchData}
       />
 
-      <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden">
+      <div className="bg-card rounded-xl border border-line shadow-sm flex-1 overflow-hidden">
         <div className="overflow-x-auto h-full">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold sticky top-0">
+            <thead className="bg-muted/50 border-b border-line text-xs uppercase text-dim font-semibold sticky top-0">
               <tr>
                 <th className="py-4 px-6">Pemasok</th>
                 <th className="py-4 px-6 text-right">Jumlah PO</th>
@@ -49,31 +49,31 @@ export default function LaporanPembelian({ onBack }: Props) {
                 <th className="py-4 px-6 text-right">Sisa Hutang</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
+            <tbody className="divide-y divide-line dark:divide-line/60 text-sm">
               {loading ? (
-                <tr><td colSpan={5} className="py-16 text-center"><Loader2 className="animate-spin text-brand mx-auto" size={28}/></td></tr>
+                <tr><td colSpan={5} className="py-16 text-center"><Loader2 className="animate-spin text-primary mx-auto" size={28}/></td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan={5} className="py-16 text-center text-slate-500">Tidak ada data pada periode ini.</td></tr>
+                <tr><td colSpan={5} className="py-16 text-center text-dim">Tidak ada data pada periode ini.</td></tr>
               ) : data.map(r => (
-                <tr key={r.supplier_name} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                  <td className="py-3 px-6 font-bold text-slate-900 dark:text-white">{r.supplier_name}</td>
-                  <td className="py-3 px-6 text-right font-mono text-slate-700 dark:text-slate-300">{r.purchase_count}</td>
-                  <td className="py-3 px-6 text-right font-mono font-semibold text-slate-900 dark:text-white">Rp {r.total_amount.toLocaleString('id-ID')}</td>
-                  <td className="py-3 px-6 text-right font-mono text-emerald-600">Rp {r.paid_amount.toLocaleString('id-ID')}</td>
-                  <td className={`py-3 px-6 text-right font-mono font-bold ${(r.total_amount - r.paid_amount) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
+                <tr key={r.supplier_name} className="hover:bg-muted/30">
+                  <td className="py-3 px-6 font-bold text-heading">{r.supplier_name}</td>
+                  <td className="py-3 px-6 text-right font-mono text-heading">{r.purchase_count}</td>
+                  <td className="py-3 px-6 text-right font-mono font-semibold text-heading">Rp {r.total_amount.toLocaleString('id-ID')}</td>
+                  <td className="py-3 px-6 text-right font-mono text-success">Rp {r.paid_amount.toLocaleString('id-ID')}</td>
+                  <td className={`py-3 px-6 text-right font-mono font-bold ${(r.total_amount - r.paid_amount) > 0 ? 'text-danger dark:text-danger' : 'text-dim'}`}>
                     {(r.total_amount - r.paid_amount) > 0 ? `Rp ${(r.total_amount - r.paid_amount).toLocaleString('id-ID')}` : '-'}
                   </td>
                 </tr>
               ))}
             </tbody>
             {data.length > 0 && !loading && (
-              <tfoot className="bg-slate-50 dark:bg-slate-900/50 border-t-2 border-slate-200 dark:border-slate-700 text-sm font-bold">
+              <tfoot className="bg-muted/50 border-t-2 border-line text-sm font-bold">
                 <tr>
-                  <td className="py-4 px-6 text-slate-900 dark:text-white">TOTAL</td>
-                  <td className="py-4 px-6 text-right text-slate-900 dark:text-white">{data.reduce((s, r) => s + r.purchase_count, 0)}</td>
-                  <td className="py-4 px-6 text-right text-slate-900 dark:text-white">Rp {grandTotal.toLocaleString('id-ID')}</td>
-                  <td className="py-4 px-6 text-right text-emerald-600">Rp {grandPaid.toLocaleString('id-ID')}</td>
-                  <td className="py-4 px-6 text-right text-rose-600">Rp {(grandTotal - grandPaid).toLocaleString('id-ID')}</td>
+                  <td className="py-4 px-6 text-heading">TOTAL</td>
+                  <td className="py-4 px-6 text-right text-heading">{data.reduce((s, r) => s + r.purchase_count, 0)}</td>
+                  <td className="py-4 px-6 text-right text-heading">Rp {grandTotal.toLocaleString('id-ID')}</td>
+                  <td className="py-4 px-6 text-right text-success">Rp {grandPaid.toLocaleString('id-ID')}</td>
+                  <td className="py-4 px-6 text-right text-danger">Rp {(grandTotal - grandPaid).toLocaleString('id-ID')}</td>
                 </tr>
               </tfoot>
             )}

@@ -11,6 +11,8 @@ import {
 } from '../../lib/api';
 import Modal from '../../components/ui/Modal';
 
+import { toast } from '../../components/ui/Toast';
+import Select from '../../components/ui/Select';
 interface DirectReceiveModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -184,10 +186,10 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
       if (!filePath) return;
 
       await exportReceiveTemplate(filePath);
-      alert('Template Excel berhasil diunduh!');
+      toast.error('Template Excel berhasil diunduh!');
     } catch (e) {
       console.error(e);
-      alert(`Gagal mengunduh template: ${e}`);
+      toast.error(`Gagal mengunduh template: ${e}`);
     } finally {
       setIsExportingTemplate(false);
     }
@@ -206,7 +208,7 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
       setIsParsingExcel(true);
       const parsedItems = await parseReceiveExcel(filePath);
       if (parsedItems.length === 0) {
-        return alert('File Excel tidak berisi data yang valid.');
+        return toast.info('File Excel tidak berisi data yang valid.');
       }
 
       const newLines: DirectLine[] = await Promise.all(
@@ -237,13 +239,13 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
 
       const unmatchedCount = parsedItems.filter(p => !p.matched).length;
       if (unmatchedCount > 0) {
-        alert(`Berhasil memuat ${parsedItems.length} baris dari Excel.\nPerhatian: Ada ${unmatchedCount} item yang belum cocok dengan SKU master data.`);
+        toast.success(`Berhasil memuat ${parsedItems.length} baris dari Excel.\nPerhatian: Ada ${unmatchedCount} item yang belum cocok dengan SKU master data.`);
       } else {
-        alert(`Berhasil memuat ${parsedItems.length} baris barang dari Excel!`);
+        toast.error(`Berhasil memuat ${parsedItems.length} baris barang dari Excel!`);
       }
     } catch (err) {
       console.error(err);
-      alert(`Gagal memproses Excel: ${err}`);
+      toast.error(`Gagal memproses Excel: ${err}`);
     } finally {
       setIsParsingExcel(false);
     }
@@ -254,12 +256,12 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
 
   const handleSubmit = async () => {
     if (!selectedSupplierId) {
-      return alert('Pilih supplier / pemasok terlebih dahulu.');
+      return toast.info('Pilih supplier / pemasok terlebih dahulu.');
     }
 
     const validLines = lines.filter(l => l.item_id && l.qty_received > 0);
     if (validLines.length === 0) {
-      return alert('Harap pilih minimal satu barang dengan kuantitas lebih dari 0.');
+      return toast.info('Harap pilih minimal satu barang dengan kuantitas lebih dari 0.');
     }
 
     setIsSubmitting(true);
@@ -277,7 +279,7 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
       onSuccess();
       onClose();
     } catch (e: any) {
-      alert('Gagal memproses penerimaan barang: ' + (e?.message || e));
+      toast.error('Gagal memproses penerimaan barang: ' + (e?.message || e));
     } finally {
       setIsSubmitting(false);
     }
@@ -298,13 +300,13 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
           <div className="flex items-center gap-6">
             <div>
-              <p className="text-[10px] font-bold uppercase text-slate-400">Total Kuantitas</p>
-              <p className="text-sm font-extrabold text-slate-700 dark:text-slate-300">{totalQty} Unit</p>
+              <p className="text-[10px] font-bold uppercase text-dim">Total Kuantitas</p>
+              <p className="text-sm font-extrabold text-heading">{totalQty} Unit</p>
             </div>
-            <div className="h-8 w-px bg-slate-200 dark:border-slate-800" />
+            <div className="h-8 w-px bg-line dark:border-line" />
             <div>
-              <p className="text-[10px] font-bold uppercase text-slate-400">Total Nilai Faktur</p>
-              <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+              <p className="text-[10px] font-bold uppercase text-dim">Total Nilai Faktur</p>
+              <p className="text-base font-extrabold text-success dark:text-success font-mono">
                 Rp {totalAmount.toLocaleString('id-ID')}
               </p>
             </div>
@@ -314,7 +316,7 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-body hover:bg-muted transition-colors cursor-pointer"
             >
               Batal
             </button>
@@ -322,7 +324,7 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-2xl font-bold text-xs transition-all shadow-md shadow-emerald-600/20 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-2 bg-success hover:bg-success text-white px-6 py-2.5 rounded-xl font-bold text-xs transition-all shadow-md shadow-success/20 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
               Konfirmasi & Tambah ke Stok
@@ -334,14 +336,14 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
       <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
 
         {/* Toolbar & Excel Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-800/40">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 rounded-xl bg-success-soft/60 dark:bg-success/20 border border-success-soft dark:border-success/40">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs">
+            <div className="p-2.5 bg-success text-white rounded-xl shadow-xs">
               <FileSpreadsheet size={20} />
             </div>
             <div>
-              <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">Input Cepat via Spreadsheet Excel</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Unduh template standar, isi data faktur supplier, dan import otomatis ke formulir.</p>
+              <h4 className="text-xs font-extrabold text-heading">Input Cepat via Spreadsheet Excel</h4>
+              <p className="text-[11px] text-dim">Unduh template standar, isi data faktur supplier, dan import otomatis ke formulir.</p>
             </div>
           </div>
 
@@ -350,7 +352,7 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
               type="button"
               onClick={handleDownloadTemplate}
               disabled={isExportingTemplate}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-line bg-card text-xs font-bold text-heading hover:bg-muted transition-all cursor-pointer shadow-xs"
             >
               {isExportingTemplate ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
               Download Template
@@ -359,7 +361,7 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
               type="button"
               onClick={handleImportExcel}
               disabled={isParsingExcel}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs shadow-emerald-600/20"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-success hover:bg-success text-white text-xs font-bold transition-all cursor-pointer shadow-xs shadow-success/20"
             >
               {isParsingExcel ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
               Import dari Excel
@@ -370,36 +372,36 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
         {/* Header Information (Supplier & Invoice) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-heading mb-1">
               Pemasok / Distributor *
             </label>
-            <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-emerald-500/20">
-              <Building2 size={16} className="text-slate-400 mr-2 shrink-0" />
-              <select
+            <div className="relative flex items-center bg-muted border border-line rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-success/20">
+              <Building2 size={16} className="text-dim mr-2 shrink-0" />
+              <Select
                 value={selectedSupplierId}
-                onChange={e => setSelectedSupplierId(e.target.value)}
-                className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white p-0"
+                onChange={v => setSelectedSupplierId(v)}
+                className="w-full bg-transparent border-none outline-none text-xs font-bold text-heading p-0"
               >
                 <option value="">-- Pilih Pemasok --</option>
                 {suppliers.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-heading mb-1">
               No. Faktur / Surat Jalan Supplier
             </label>
-            <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-emerald-500/20">
-              <FileText size={16} className="text-slate-400 mr-2 shrink-0" />
+            <div className="relative flex items-center bg-muted border border-line rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-success/20">
+              <FileText size={16} className="text-dim mr-2 shrink-0" />
               <input
                 type="text"
                 value={invoiceNo}
                 onChange={e => setInvoiceNo(e.target.value)}
                 placeholder="contoh: INV-KF-2026-881"
-                className="w-full bg-transparent border-none outline-none text-xs text-slate-900 dark:text-white font-mono p-0"
+                className="w-full bg-transparent border-none outline-none text-xs text-heading font-mono p-0"
               />
             </div>
           </div>
@@ -408,21 +410,21 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
         {/* Line Items Table */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
+            <h3 className="text-xs font-extrabold text-heading uppercase tracking-wider">
               Daftar Barang & Batch Masuk ({lines.length} Baris)
             </h3>
             <button
               type="button"
               onClick={addLine}
-              className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors cursor-pointer"
+              className="flex items-center gap-1 text-xs font-bold text-success dark:text-success hover:text-success transition-colors cursor-pointer"
             >
               <Plus size={15} /> Tambah Baris Manual
             </button>
           </div>
 
-          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+          <div className="border border-line rounded-xl overflow-hidden shadow-xs">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+              <thead className="bg-muted/50 border-b border-line text-dim font-bold uppercase tracking-wider">
                 <tr>
                   <th className="py-2.5 px-3 w-8 text-center">#</th>
                   <th className="py-2.5 px-3">Nama Produk / Obat</th>
@@ -435,27 +437,27 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
                   <th className="py-2.5 px-2 w-10 text-center"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-line dark:divide-line">
                 {lines.map((line, idx) => {
                   const lineSubtotal = line.qty_received * line.price_per_unit;
                   const isUnmatched = !line.item_id;
 
                   return (
-                    <tr key={line.id} className="bg-white dark:bg-slate-950 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
-                      <td className="p-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                    <tr key={line.id} className="bg-card dark:bg-input hover:bg-muted/50 dark:hover:bg-card/30 transition-colors">
+                      <td className="p-3 text-center text-dim font-mono text-[11px]">{idx + 1}</td>
 
                       {/* Product Selector */}
                       <td className="p-2.5 relative">
                         {line.item_id ? (
                           <div className="flex items-center justify-between group">
-                            <span className="font-bold text-slate-900 dark:text-white text-xs">{line.item_name}</span>
+                            <span className="font-bold text-heading text-xs">{line.item_name}</span>
                             <button
                               type="button"
                               onClick={() => {
                                 setActiveLineIdForSearch(line.id);
                                 setSearchQuery('');
                               }}
-                              className="text-[10px] font-bold text-brand hover:underline ml-2 cursor-pointer"
+                              className="text-[10px] font-bold text-primary hover:underline ml-2 cursor-pointer"
                             >
                               Ganti
                             </button>
@@ -468,13 +470,13 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
                                 setActiveLineIdForSearch(line.id);
                                 setSearchQuery('');
                               }}
-                              className="w-full text-left px-3 py-1.5 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 hover:border-emerald-500 hover:text-emerald-500 flex items-center justify-between text-xs transition-colors cursor-pointer"
+                              className="w-full text-left px-3 py-1.5 rounded-lg border border-dashed border-line-strong dark:border-line-strong text-dim hover:border-success hover:text-success flex items-center justify-between text-xs transition-colors cursor-pointer"
                             >
                               <span>{line.item_name || 'Cari / Pilih Barang...'}</span>
                               <Search size={14} />
                             </button>
                             {isUnmatched && line.item_name && (
-                              <p className="text-[10px] text-amber-500 font-semibold mt-0.5 flex items-center gap-1">
+                              <p className="text-[10px] text-warning font-semibold mt-0.5 flex items-center gap-1">
                                 <AlertTriangle size={10} /> Belum cocok di master
                               </p>
                             )}
@@ -483,28 +485,28 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
 
                         {/* Dropdown Popup */}
                         {activeLineIdForSearch === line.id && (
-                          <div className="absolute left-2.5 top-12 z-30 w-80 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
-                            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                              <Search size={14} className="text-slate-400" />
+                          <div className="absolute left-2.5 top-12 z-30 w-80 bg-card rounded-xl shadow-2xl border border-line p-3 space-y-2">
+                            <div className="flex items-center gap-2 border-b border-line pb-2">
+                              <Search size={14} className="text-dim" />
                               <input
                                 autoFocus
                                 type="text"
                                 placeholder="Ketik nama produk atau SKU..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full bg-transparent text-xs text-slate-900 dark:text-white outline-none"
+                                className="w-full bg-transparent text-xs text-heading outline-none"
                               />
-                              <button onClick={() => setActiveLineIdForSearch(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                              <button onClick={() => setActiveLineIdForSearch(null)} className="text-dim hover:text-body cursor-pointer">
                                 <X size={14} />
                               </button>
                             </div>
                             <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
                               {isSearching ? (
-                                <div className="p-3 text-center text-slate-400 flex items-center justify-center gap-2">
+                                <div className="p-3 text-center text-dim flex items-center justify-center gap-2">
                                   <Loader2 size={14} className="animate-spin" /> Mencari item...
                                 </div>
                               ) : searchResults.length === 0 ? (
-                                <div className="p-3 text-center text-slate-400">
+                                <div className="p-3 text-center text-dim">
                                   {searchQuery.length < 2 ? 'Ketik minimal 2 huruf...' : 'Tidak ditemukan.'}
                                 </div>
                               ) : (
@@ -513,13 +515,13 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
                                     key={item.id}
                                     type="button"
                                     onClick={() => handleSelectItem(line.id, item)}
-                                    className="w-full text-left p-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex justify-between items-center transition-colors cursor-pointer"
+                                    className="w-full text-left p-2 rounded-xl hover:bg-success-soft dark:hover:bg-success/40 flex justify-between items-center transition-colors cursor-pointer"
                                   >
                                     <div>
-                                      <p className="font-bold text-slate-900 dark:text-white text-xs">{item.name}</p>
-                                      <p className="text-[10px] text-slate-400 font-mono">{item.sku}</p>
+                                      <p className="font-bold text-heading text-xs">{item.name}</p>
+                                      <p className="text-[10px] text-dim font-mono">{item.sku}</p>
                                     </div>
-                                    <span className="text-[10px] font-bold text-emerald-600">Pilih</span>
+                                    <span className="text-[10px] font-bold text-success">Pilih</span>
                                   </button>
                                 ))
                               )}
@@ -531,21 +533,21 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
                       {/* Unit Selector */}
                       <td className="p-2.5">
                         {line.available_units.length > 0 ? (
-                          <select
+                          <Select
                             value={line.unit_id}
-                            onChange={e => handleUnitChange(line.id, e.target.value)}
-                            className="w-full p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                            onChange={v => handleUnitChange(line.id, v)}
+                            className="w-full p-1.5 rounded-lg border border-line bg-muted text-xs font-bold text-heading outline-none"
                           >
                             {line.available_units.map(u => (
                               <option key={u.id} value={u.id}>{u.unit_name}</option>
                             ))}
-                          </select>
+                          </Select>
                         ) : (
                           <input
                             type="text"
                             value={line.unit_name || 'PCS'}
                             onChange={e => updateLine(line.id, 'unit_name', e.target.value)}
-                            className="w-full p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none uppercase"
+                            className="w-full p-1.5 rounded-lg border border-line bg-muted text-xs font-bold text-heading outline-none uppercase"
                           />
                         )}
                       </td>
@@ -557,20 +559,20 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
                           min="1"
                           value={line.qty_received || ''}
                           onChange={e => updateLine(line.id, 'qty_received', parseFloat(e.target.value) || 0)}
-                          className="w-full p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-center font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
+                          className="w-full p-1.5 rounded-lg border border-line bg-muted text-center font-bold text-heading outline-none focus:ring-1 focus:ring-success font-mono"
                         />
                       </td>
 
                       {/* Cost Price */}
                       <td className="p-2.5">
-                        <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5">
-                          <span className="text-[10px] text-slate-400 font-bold mr-1">Rp</span>
+                        <div className="relative flex items-center bg-muted border border-line rounded-lg px-2 py-1.5">
+                          <span className="text-[10px] text-dim font-bold mr-1">Rp</span>
                           <input
                             type="number"
                             min="0"
                             value={line.price_per_unit || ''}
                             onChange={e => updateLine(line.id, 'price_per_unit', parseFloat(e.target.value) || 0)}
-                            className="w-full bg-transparent border-none outline-none text-right font-bold text-slate-900 dark:text-white font-mono p-0"
+                            className="w-full bg-transparent border-none outline-none text-right font-bold text-heading font-mono p-0"
                           />
                         </div>
                       </td>
@@ -582,7 +584,7 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
                           placeholder="BATCH-..."
                           value={line.batch_no}
                           onChange={e => updateLine(line.id, 'batch_no', e.target.value)}
-                          className="w-full p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono outline-none"
+                          className="w-full p-1.5 rounded-lg border border-line bg-muted text-xs text-heading font-mono outline-none"
                         />
                       </td>
 
@@ -592,12 +594,12 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
                           type="date"
                           value={line.expiry_date}
                           onChange={e => updateLine(line.id, 'expiry_date', e.target.value)}
-                          className="w-full p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-slate-900 dark:text-white outline-none"
+                          className="w-full p-1.5 rounded-lg border border-line bg-muted text-xs text-heading outline-none"
                         />
                       </td>
 
                       {/* Subtotal */}
-                      <td className="p-2.5 text-right font-bold font-mono text-slate-900 dark:text-white">
+                      <td className="p-2.5 text-right font-bold font-mono text-heading">
                         Rp {lineSubtotal.toLocaleString('id-ID')}
                       </td>
 
@@ -606,7 +608,7 @@ export default function DirectReceiveModal({ isOpen, onClose, onSuccess, branchI
                         <button
                           type="button"
                           onClick={() => removeLine(line.id)}
-                          className="text-slate-400 hover:text-rose-500 p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors cursor-pointer"
+                          className="text-dim hover:text-danger p-1 rounded-lg hover:bg-danger-soft dark:hover:bg-danger transition-colors cursor-pointer"
                         >
                           <Trash2 size={14} />
                         </button>

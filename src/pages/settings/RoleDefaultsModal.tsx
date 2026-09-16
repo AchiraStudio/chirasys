@@ -121,9 +121,9 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
       icon={Sliders}
       footer={
         <div className="flex items-center justify-between w-full">
-          <div className="text-xs text-slate-500 dark:text-slate-400">
+          <div className="text-xs text-dim">
             {successMsg ? (
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+              <span className="text-success dark:text-success font-bold flex items-center gap-1.5">
                 <Check size={15} /> {successMsg}
               </span>
             ) : (
@@ -137,7 +137,7 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="px-5 py-2.5 border border-line rounded-xl text-sm font-bold text-heading hover:bg-muted transition-colors"
             >
               Batal
             </button>
@@ -145,7 +145,7 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
               type="button"
               disabled={loading || saving}
               onClick={handleSave}
-              className="px-6 py-2.5 bg-brand hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand/25 transition-all active:scale-[0.98] flex items-center gap-2 cursor-pointer"
+              className="px-6 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.98] flex items-center gap-2 cursor-pointer"
             >
               {saving ? (
                 <>
@@ -164,14 +164,14 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
       }
     >
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-500">
-          <Loader2 className="animate-spin text-brand" size={32} />
+        <div className="py-20 flex flex-col items-center justify-center gap-3 text-dim">
+          <Loader2 className="animate-spin text-primary" size={32} />
           <p className="text-sm font-semibold">Memuat aturan baku hak akses...</p>
         </div>
       ) : (
         <div className="space-y-6">
           {/* Role Tabs */}
-          <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="grid grid-cols-2 gap-3 p-1.5 bg-muted rounded-xl border border-line">
             {EDITABLE_ROLES.map((role) => {
               const isSelected = activeRole === role.value;
               const count = (roleDefaults[role.value] || new Set()).size;
@@ -183,21 +183,21 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
                   onClick={() => setActiveRole(role.value as any)}
                   className={`p-4 rounded-xl text-left transition-all ${
                     isSelected
-                      ? 'bg-white dark:bg-[#0B0F19] shadow-sm border border-slate-200/80 dark:border-slate-700 text-slate-900 dark:text-white'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'
+                      ? 'bg-card shadow-sm border border-line/80 dark:border-line-strong text-heading'
+                      : 'text-dim hover:text-heading dark:hover:text-dim'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-extrabold text-sm capitalize">{role.label}</span>
                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                       isSelected 
-                        ? 'bg-brand/10 text-brand' 
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        ? 'bg-primary-soft text-primary' 
+                        : 'bg-line dark:bg-muted text-dim'
                     }`}>
                       {count} Izin
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+                  <p className="text-xs text-dim line-clamp-1">
                     {role.desc}
                   </p>
                 </button>
@@ -208,18 +208,18 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
           {/* Search & Bulk Selection Toolbar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <div className="relative flex-1">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dim" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari izin akses (contoh: harga, hapus, pos)..."
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
+                className="w-full pl-9 pr-4 py-2 bg-muted/60 border border-line rounded-xl text-xs text-heading placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-body text-xs font-bold"
                 >
                   <X size={13} />
                 </button>
@@ -230,14 +230,14 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
               <button
                 type="button"
                 onClick={handleSelectAll}
-                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-muted/80 hover:bg-line dark:hover:bg-line-strong text-heading text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <CheckSquare size={13} /> Pilih Semua
               </button>
               <button
                 type="button"
                 onClick={handleDeselectAll}
-                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-muted/80 hover:bg-line dark:hover:bg-line-strong text-heading text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Square size={13} /> Matikan Semua
               </button>
@@ -245,7 +245,7 @@ export default function RoleDefaultsModal({ onClose, onSuccess }: RoleDefaultsMo
           </div>
 
           {errorMsg && (
-            <div className="p-3.5 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+            <div className="p-3.5 bg-danger-soft dark:bg-danger/20 border border-danger/30 dark:border-danger/40 rounded-xl text-xs text-danger dark:text-danger flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" />
               <span>{errorMsg}</span>
             </div>

@@ -629,6 +629,8 @@ export const sysadminCreateWorkspaceInvite = async (workspaceId: string, role: s
   invoke('sysadmin_create_workspace_invite', { workspaceId, role });
 export const sysadminUpdateWorkspacePassword = async (workspaceId: string, password?: string): Promise<void> =>
   invoke('sysadmin_update_workspace_password', { workspaceId, password: password || null });
+export const sysadminDeleteWorkspace = async (workspaceId: string): Promise<void> =>
+  invoke('sysadmin_delete_workspace', { workspaceId });
 export const getUsers = async (): Promise<UserRowFull[]> => invoke('get_users');
 export const assignUserWorkspace = async (userId: string, workspaceId: string | null): Promise<void> =>
   invoke('assign_user_workspace', { userId, workspaceId });

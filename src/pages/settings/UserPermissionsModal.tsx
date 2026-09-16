@@ -129,10 +129,10 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
         userData ? (
           <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
             isOwner 
-              ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400' 
+              ? 'bg-primary-soft text-purple-700 dark:bg-primary-soft dark:text-purple-400' 
               : userData.role === 'admin' 
-                ? 'bg-brand/10 text-brand' 
-                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                ? 'bg-primary-soft text-primary' 
+                : 'bg-success-soft text-success dark:bg-success/10 dark:text-success'
           }`}>
             {userData.role}
           </span>
@@ -140,9 +140,9 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
       }
       footer={
         <div className="flex items-center justify-between w-full">
-          <div className="text-xs text-slate-500 dark:text-slate-400">
+          <div className="text-xs text-dim">
             {successMsg ? (
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+              <span className="text-success dark:text-success font-bold flex items-center gap-1.5">
                 <Check size={15} /> {successMsg}
               </span>
             ) : (
@@ -156,7 +156,7 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-5 py-2.5 border border-line rounded-xl text-sm font-bold text-heading hover:bg-muted transition-colors cursor-pointer"
             >
               Batal
             </button>
@@ -164,7 +164,7 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
               type="button"
               disabled={loading || saving || isOwner}
               onClick={handleSave}
-              className="px-6 py-2.5 bg-brand hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand/25 transition-all active:scale-[0.98] flex items-center gap-2 cursor-pointer"
+              className="px-6 py-2.5 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.98] flex items-center gap-2 cursor-pointer"
             >
               {saving ? (
                 <>
@@ -183,36 +183,36 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
       }
     >
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-500">
-          <Loader2 className="animate-spin text-brand" size={32} />
+        <div className="py-20 flex flex-col items-center justify-center gap-3 text-dim">
+          <Loader2 className="animate-spin text-primary" size={32} />
           <p className="text-sm font-semibold">Memuat konfigurasi hak akses...</p>
         </div>
       ) : (
         <div className="space-y-6">
           {/* Owner Notice or Mode Banner */}
           {isOwner ? (
-            <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/40 rounded-2xl flex items-center gap-3 text-purple-800 dark:text-purple-300">
-              <Sparkles size={20} className="shrink-0 text-purple-600" />
+            <div className="p-4 bg-primary-soft dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/40 rounded-xl flex items-center gap-3 text-purple-800 dark:text-purple-300">
+              <Sparkles size={20} className="shrink-0 text-primary" />
               <p className="text-xs leading-relaxed">
                 Pengguna dengan peran <strong>Owner</strong> memiliki akses penuh tanpa batasan pada semua fitur sistem.
               </p>
             </div>
           ) : (
-            <div className="p-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-4 bg-muted/60 border border-line rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  <span className="text-xs font-bold text-heading">
                     Mode Hak Akses:
                   </span>
                   <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
                     isCustom 
-                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300' 
-                      : 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-300'
+                      ? 'bg-warning-soft text-warning dark:bg-warning/10 dark:text-warning' 
+                      : 'bg-accent-soft text-accent dark:bg-accent/10 dark:text-accent'
                   }`}>
                     {isCustom ? 'Kustom (Khusus)' : 'Bawaan Peran (Default)'}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-xs text-dim mt-1">
                   {isCustom 
                     ? 'Pengguna ini memiliki izin yang disesuaikan secara manual.'
                     : `Mengikuti izin standar untuk peran "${userData?.role}".`}
@@ -223,7 +223,7 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
                 <button
                   type="button"
                   onClick={handleResetToDefault}
-                  className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-brand hover:border-brand/40 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer shrink-0"
+                  className="px-3.5 py-2 rounded-xl bg-card dark:bg-muted border border-line text-heading hover:text-primary hover:border-primary/40 text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer shrink-0"
                 >
                   <RotateCcw size={13} /> Reset ke Default Peran
                 </button>
@@ -234,18 +234,18 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
           {/* Search & Bulk Toolbar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <div className="relative flex-1">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dim" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari izin akses..."
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
+                className="w-full pl-9 pr-4 py-2 bg-muted/60 border border-line rounded-xl text-xs text-heading placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-body text-xs font-bold"
                 >
                   <X size={13} />
                 </button>
@@ -257,14 +257,14 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
                 <button
                   type="button"
                   onClick={handleSelectAll}
-                  className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-muted/80 hover:bg-line dark:hover:bg-line-strong text-heading text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <CheckSquare size={13} /> Pilih Semua
                 </button>
                 <button
                   type="button"
                   onClick={handleDeselectAll}
-                  className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-muted/80 hover:bg-line dark:hover:bg-line-strong text-heading text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Square size={13} /> Matikan Semua
                 </button>
@@ -273,7 +273,7 @@ export default function UserPermissionsModal({ userId, onClose, onSuccess }: Use
           </div>
 
           {errorMsg && (
-            <div className="p-3.5 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+            <div className="p-3.5 bg-danger-soft dark:bg-danger/20 border border-danger/30 dark:border-danger/40 rounded-xl text-xs text-danger dark:text-danger flex items-center gap-2">
               <AlertCircle size={16} className="shrink-0" />
               <span>{errorMsg}</span>
             </div>

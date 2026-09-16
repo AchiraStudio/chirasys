@@ -3,6 +3,7 @@ import { Save, AlertCircle, Loader2, PackagePlus } from 'lucide-react';
 import { StockOverviewRow, setInitialStock } from '../../lib/api';
 import Modal from '../../components/ui/Modal';
 
+import { toast } from '../../components/ui/Toast';
 interface SetInitialStockModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,7 +27,7 @@ export default function SetInitialStockModal({ isOpen, onClose, item, branchId, 
       onSuccess();
       onClose();
     } catch (error) {
-      alert(`Failed to set initial stock: ${error}`);
+      toast.error(`Failed to set initial stock: ${error}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -45,7 +46,7 @@ export default function SetInitialStockModal({ isOpen, onClose, item, branchId, 
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="px-4 py-2.5 rounded-xl border border-line text-sm font-semibold text-body hover:bg-muted transition-colors"
           >
             Batal
           </button>
@@ -53,7 +54,7 @@ export default function SetInitialStockModal({ isOpen, onClose, item, branchId, 
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || qty === ''}
-            className="bg-brand hover:bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md shadow-brand/20 disabled:opacity-50"
+            className="bg-primary hover:bg-primary-hover text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md shadow-primary/20 disabled:opacity-50"
           >
             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             Simpan Stok Awal
@@ -62,35 +63,35 @@ export default function SetInitialStockModal({ isOpen, onClose, item, branchId, 
       }
     >
       <div className="space-y-4">
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border border-blue-200 dark:border-blue-800/50 flex gap-3">
-          <AlertCircle size={18} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+        <div className="bg-accent-soft dark:bg-accent/20 p-4 rounded-xl border border-accent/30 dark:border-accent/50 flex gap-3">
+          <AlertCircle size={18} className="text-accent dark:text-accent shrink-0 mt-0.5" />
+          <p className="text-xs text-accent dark:text-accent leading-relaxed">
             Stok awal hanya dapat diatur satu kali saat inisialisasi barang. Perubahan berikutnya harus melalui menu Penyesuaian Stok.
           </p>
         </div>
         
         <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+          <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">
             Jumlah Stok Awal ({item.unit_name || 'Satuan'})
           </label>
           <input
             type="number"
             value={qty}
             onChange={e => setQty(e.target.value === '' ? '' : Number(e.target.value))}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 font-mono text-base outline-none focus:ring-2 focus:ring-brand"
+            className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 font-mono text-base outline-none focus:ring-2 focus:ring-primary"
             placeholder="0"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+          <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">
             Harga Modal Dasar (HPP) per {item.unit_name || 'Satuan'}
           </label>
           <input
             type="number"
             value={hppValue}
             onChange={e => setHppValue(e.target.value === '' ? '' : Number(e.target.value))}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 font-mono text-sm outline-none focus:ring-2 focus:ring-brand"
+            className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 font-mono text-sm outline-none focus:ring-2 focus:ring-primary"
             placeholder="0.00"
           />
         </div>

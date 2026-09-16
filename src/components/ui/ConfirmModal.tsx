@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { AlertTriangle, Info, LogOut } from 'lucide-react';
 import Modal from './Modal';
+import Button from './Button';
 
 export interface ConfirmModalProps {
   title: string;
@@ -8,6 +9,7 @@ export interface ConfirmModalProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'danger' | 'warning' | 'primary' | 'logout';
+  loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -18,40 +20,41 @@ export default function ConfirmModal({
   confirmLabel = 'Ya, Lanjutkan',
   cancelLabel = 'Batal',
   variant = 'danger',
+  loading = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
   // Enter key confirms
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !loading) {
         e.preventDefault();
         onConfirm();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onConfirm]);
+  }, [onConfirm, loading]);
 
   const variants = {
     danger: {
-      iconBg: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
-      btnClass: 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20 text-white',
+      iconBg: 'bg-danger-soft text-danger',
+      btnVariant: 'danger' as const,
       Icon: AlertTriangle,
     },
     warning: {
-      iconBg: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
-      btnClass: 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20 text-white',
+      iconBg: 'bg-warning-soft text-warning',
+      btnVariant: 'primary' as const,
       Icon: AlertTriangle,
     },
     primary: {
-      iconBg: 'bg-brand/10 text-brand dark:bg-brand/20',
-      btnClass: 'bg-brand hover:bg-blue-600 shadow-brand/20 text-white',
+      iconBg: 'bg-primary-soft text-primary',
+      btnVariant: 'primary' as const,
       Icon: Info,
     },
     logout: {
-      iconBg: 'bg-rose-100 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400',
-      btnClass: 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20 text-white',
+      iconBg: 'bg-danger-soft text-danger',
+      btnVariant: 'danger' as const,
       Icon: LogOut,
     },
   };
@@ -69,25 +72,22 @@ export default function ConfirmModal({
       size="sm"
       footer={
         <div className="flex gap-3 w-full">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-          >
+          <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>
             {cancelLabel}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={v.btnVariant}
+            className="flex-[2]"
             onClick={onConfirm}
-            className={`flex-[2] py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${v.btnClass}`}
+            loading={loading}
           >
             <Icon size={15} />
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       }
     >
-      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{message}</p>
+      <p className="text-sm text-body leading-relaxed">{message}</p>
     </Modal>
   );
 }

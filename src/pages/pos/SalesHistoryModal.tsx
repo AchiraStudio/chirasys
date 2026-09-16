@@ -11,6 +11,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 
 
+import { toast } from '../../components/ui/Toast';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -57,7 +58,7 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
       setDetailSaleId(null);
       await fetchSales();
     } catch (e: any) {
-      alert('Gagal menghapus transaksi: ' + (e?.message || String(e)));
+      toast.error('Gagal menghapus transaksi: ' + (e?.message || String(e)));
     } finally {
       setDeleting(false);
     }
@@ -114,12 +115,12 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
         {/* Table */}
         <div className="overflow-y-auto custom-scrollbar max-h-[65vh]">
           {loading ? (
-            <div className="py-20 text-center"><Loader2 className="animate-spin text-brand mx-auto" size={32} /></div>
+            <div className="py-20 text-center"><Loader2 className="animate-spin text-primary mx-auto" size={32} /></div>
           ) : sales.length === 0 ? (
-            <div className="py-20 text-center text-slate-500">Belum ada transaksi.</div>
+            <div className="py-20 text-center text-dim">Belum ada transaksi.</div>
           ) : (
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold sticky top-0 z-10">
+              <thead className="bg-muted/50 border-b border-line text-xs uppercase text-dim font-semibold sticky top-0 z-10">
                 <tr>
                   <th className="py-3 px-4">Waktu</th>
                   <th className="py-3 px-4">No Transaksi</th>
@@ -128,7 +129,7 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
                   <th className="py-3 px-4 text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              <tbody className="divide-y divide-line dark:divide-line/60">
                 {sales.map((s, idx) => (
                   <tr
                     key={s.id}
@@ -136,31 +137,31 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
                     onClick={() => setSelectedIdx(idx)}
                     className={`cursor-pointer transition-colors ${
                       idx === selectedIdx 
-                        ? 'bg-brand/10 dark:bg-brand/20' 
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                        ? 'bg-primary-soft dark:bg-primary-soft' 
+                        : 'hover:bg-muted/40'
                     }`}
                   >
-                    <td className="py-3.5 px-4 font-mono text-xs text-slate-500">
+                    <td className="py-3.5 px-4 font-mono text-xs text-dim">
                       {new Date(s.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                    <td className="py-3.5 px-4 font-mono font-bold text-heading">
                       {s.transaction_no}
                       {idx === selectedIdx && (
-                        <span className="ml-2 text-[10px] bg-brand text-white px-1.5 py-0.5 rounded font-sans font-normal">
+                        <span className="ml-2 text-[10px] bg-primary text-white px-1.5 py-0.5 rounded font-sans font-normal">
                           ENTER
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-900 dark:text-white">
+                    <td className="py-3.5 px-4 text-right font-bold text-heading">
                       Rp {s.grand_total.toLocaleString('id-ID')}
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                         s.status === 'completed'
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          ? 'bg-success-soft text-success dark:bg-success/30 dark:text-success'
                           : s.status === 'returned'
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                            : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                            ? 'bg-warning-soft text-warning dark:bg-warning/30 dark:text-warning'
+                            : 'bg-danger-soft text-danger dark:bg-danger/30 dark:text-danger'
                       }`}>
                         {s.status}
                       </span>
@@ -170,7 +171,7 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
                         <button
                           onClick={() => setReceiptSaleId(s.id)}
                           title="Cetak Ulang Struk"
-                          className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 transition-colors"
+                          className="p-1.5 hover:bg-line dark:hover:bg-line-strong rounded-lg text-body transition-colors"
                         >
                           <Printer size={15} />
                         </button>
@@ -178,7 +179,7 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
                           <button
                             onClick={() => setReturnSaleId(s.id)}
                             title="Retur Transaksi"
-                            className="p-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg transition-colors"
+                            className="p-1.5 hover:bg-warning-soft dark:hover:bg-warning/30 text-warning dark:text-warning rounded-lg transition-colors"
                           >
                             <RotateCcw size={15} />
                           </button>
@@ -187,7 +188,7 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
                           <button
                             onClick={() => setDeleteConfirmId(s.id)}
                             title="Hapus Transaksi"
-                            className="p-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-rose-500 rounded-lg transition-colors"
+                            className="p-1.5 hover:bg-danger-soft dark:hover:bg-danger/30 text-danger rounded-lg transition-colors"
                           >
                             <Trash2 size={15} />
                           </button>

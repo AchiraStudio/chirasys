@@ -59,32 +59,32 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
   };
 
   return (
-    <div className="min-h-full w-full bg-slate-50 dark:bg-[#0B0F19] p-4 sm:p-8 overflow-y-auto">
+    <div className="min-h-full w-full bg-background p-4 sm:p-8 overflow-y-auto">
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-              <ShieldCheck className="text-indigo-500" size={28} />
+            <h1 className="text-2xl font-bold text-heading flex items-center gap-3">
+              <ShieldCheck className="text-primary" size={28} />
               System Admin Portal
             </h1>
-            <p className="text-sm text-slate-500 mt-1">Manage workspaces across all clients.</p>
+            <p className="text-sm text-dim mt-1">Manage workspaces across all clients.</p>
           </div>
           <button 
             onClick={onLogout}
-            className="px-4 py-2 text-sm font-semibold text-slate-500 hover:text-rose-500 transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-dim hover:text-danger transition-colors"
           >
             Logout
           </button>
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl dark:bg-rose-900/20 dark:border-rose-800/50 dark:text-rose-400 flex items-center justify-between gap-4">
+          <div className="p-4 bg-danger-soft border border-danger/30 text-danger rounded-xl dark:bg-danger/20 dark:border-danger/50 dark:text-danger flex items-center justify-between gap-4">
             <span className="text-sm">{error}</span>
             <button
               onClick={loadWorkspaces}
-              className="shrink-0 px-3 py-1.5 bg-rose-100 dark:bg-rose-800/30 hover:bg-rose-200 dark:hover:bg-rose-700/30 text-rose-700 dark:text-rose-300 rounded-lg text-xs font-bold transition-colors"
+              className="shrink-0 px-3 py-1.5 bg-danger-soft dark:bg-danger/30 hover:bg-danger/30 dark:hover:bg-danger/30 text-danger dark:text-danger rounded-lg text-xs font-bold transition-colors"
             >
               Coba Lagi
             </button>
@@ -92,19 +92,19 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
         )}
 
         {/* Dashboard Content */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl shadow-brand/5 p-6">
+        <div className="bg-card border border-line rounded-xl shadow-xl shadow-primary/5 p-6">
           {selectedWs ? (
             <WorkspaceOverview workspace={selectedWs} onBack={() => setSelectedWs(null)} />
           ) : (
             <>
               <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <Building2 size={20} className="text-slate-400" />
+            <h2 className="text-lg font-bold text-heading dark:text-white flex items-center gap-2">
+              <Building2 size={20} className="text-dim" />
               Active Workspaces
             </h2>
             <button
               onClick={() => setShowCreate(!showCreate)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-semibold transition-all active:scale-[0.98]"
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm font-semibold transition-all active:scale-[0.98]"
             >
               <Plus size={16} /> New Workspace
             </button>
@@ -112,36 +112,36 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
 
           {/* Create Form */}
           {showCreate && (
-            <form onSubmit={handleCreate} className="mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
-              <h3 className="font-bold text-slate-800 dark:text-white mb-4">Create New Workspace</h3>
+            <form onSubmit={handleCreate} className="mb-8 p-6 bg-muted dark:bg-muted/50 rounded-xl border border-primary-soft dark:border-primary/30">
+              <h3 className="font-bold text-heading dark:text-white mb-4">Create New Workspace</h3>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Workspace Name</label>
+                  <label className="text-xs font-semibold text-dim uppercase tracking-wider block mb-1">Workspace Name</label>
                   <input
                     type="text"
                     value={newName}
                     onChange={e => setNewName(e.target.value)}
                     placeholder="e.g. Apotek Maju Pusat"
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-indigo-500"
+                    className="w-full px-4 py-2.5 bg-card border border-line rounded-xl focus:outline-none focus:border-primary"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Unique Code</label>
+                  <label className="text-xs font-semibold text-dim uppercase tracking-wider block mb-1">Unique Code</label>
                   <input
                     type="text"
                     value={newCode}
                     onChange={e => setNewCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
                     placeholder="e.g. MAJU-01"
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-indigo-500 uppercase font-mono"
+                    className="w-full px-4 py-2.5 bg-card border border-line rounded-xl focus:outline-none focus:border-primary uppercase font-mono"
                     maxLength={32}
                     required
                   />
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
-                <button type="submit" disabled={creating} className="px-4 py-2 text-sm font-semibold bg-indigo-500 text-white hover:bg-indigo-600 rounded-lg flex items-center gap-2">
+                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm font-semibold text-dim hover:bg-line dark:hover:bg-muted rounded-lg">Cancel</button>
+                <button type="submit" disabled={creating} className="px-4 py-2 text-sm font-semibold bg-primary text-white hover:bg-primary-hover rounded-lg flex items-center gap-2">
                   {creating && <Loader2 size={14} className="animate-spin" />}
                   Create
                 </button>
@@ -151,31 +151,31 @@ export default function SysadminDashboard({ onLogout }: { onLogout: () => void }
 
           {/* List */}
           {loading ? (
-            <div className="flex justify-center p-12"><Loader2 size={32} className="animate-spin text-indigo-500" /></div>
+            <div className="flex justify-center p-12"><Loader2 size={32} className="animate-spin text-primary" /></div>
           ) : workspaces.length === 0 ? (
-            <div className="text-center p-12 text-slate-500">No workspaces found. Create one to get started.</div>
+            <div className="text-center p-12 text-dim">No workspaces found. Create one to get started.</div>
           ) : (
             <div className="space-y-4">
               {workspaces.map(ws => (
-                <div key={ws.id} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between group hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors">
+                <div key={ws.id} className="p-4 border border-line rounded-xl flex items-center justify-between group hover:border-primary dark:hover:border-primary transition-colors">
                   <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white">{ws.name}</h3>
+                    <h3 className="font-bold text-heading">{ws.name}</h3>
                     <div className="flex items-center gap-3 mt-1">
-                      <code className="text-xs font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded">{ws.code}</code>
-                      <span className="text-xs text-slate-400">Created: {new Date(ws.created_at).toLocaleDateString()}</span>
+                      <code className="text-xs font-mono text-primary dark:text-primary bg-primary-soft dark:bg-primary/30 px-2 py-0.5 rounded">{ws.code}</code>
+                      <span className="text-xs text-dim">Created: {new Date(ws.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedWs(ws)}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-xl transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-2 text-dim hover:text-success hover:bg-success-soft dark:hover:bg-success/30 rounded-xl transition-all"
                       title="Lihat Data Workspace"
                     >
                       <LayoutDashboard size={15} />
                     </button>
                     <button
                       onClick={() => setEditingPasswordWs(ws)}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-2 text-dim hover:text-primary hover:bg-primary-soft dark:hover:bg-primary/30 rounded-xl transition-all"
                       title="Set/Edit Password"
                     >
                       <KeyRound size={15} />
@@ -232,7 +232,7 @@ function EditWorkspacePasswordModal({ ws, onClose }: { ws: WorkspaceListInfo; on
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="flex-1 py-2.5 border border-line rounded-xl text-sm font-bold text-heading hover:bg-muted transition-colors"
           >
             Batal
           </button>
@@ -240,7 +240,7 @@ function EditWorkspacePasswordModal({ ws, onClose }: { ws: WorkspaceListInfo; on
             type="button"
             onClick={handleSubmit}
             disabled={loading || success}
-            className="flex-[2] py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-[2] py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : null}
             {loading ? 'Menyimpan...' : 'Simpan Password'}
@@ -250,26 +250,26 @@ function EditWorkspacePasswordModal({ ws, onClose }: { ws: WorkspaceListInfo; on
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs px-4 py-3 rounded-xl">
+          <div className="bg-danger-soft dark:bg-danger/20 border border-danger/30 dark:border-danger text-danger dark:text-danger text-xs px-4 py-3 rounded-xl">
             {error}
           </div>
         )}
         {success && (
-          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-xs px-4 py-3 rounded-xl">
+          <div className="bg-success-soft dark:bg-success/20 border border-success/30 dark:border-success text-success dark:text-success text-xs px-4 py-3 rounded-xl">
             Password berhasil disimpan!
           </div>
         )}
         <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Password Baru</label>
+          <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">Password Baru</label>
           <input
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="Kosongkan untuk menghapus password"
-            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-2.5 bg-muted border border-line rounded-xl text-sm text-heading outline-none focus:ring-2 focus:ring-primary"
             autoFocus
           />
-          <p className="text-[10px] text-slate-400 mt-1.5">
+          <p className="text-[10px] text-dim mt-1.5">
             Kosongkan dan simpan jika ingin workspace ini dapat diakses tanpa password.
           </p>
         </div>

@@ -72,14 +72,14 @@ function MainContent({
       return <Settings />;
     default:
       return (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 p-16 text-center h-full flex flex-col items-center justify-center shadow-sm">
-          <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-full mb-6">
-            <Package size={48} className="text-slate-500" />
+        <div className="bg-card border border-line rounded-xl p-16 text-center h-full flex flex-col items-center justify-center">
+          <div className="p-6 bg-muted rounded-full mb-6">
+            <Package size={48} className="text-dim" />
           </div>
-          <h3 className="text-2xl font-bold tracking-tight">
+          <h3 className="text-2xl font-bold tracking-tight text-heading">
             {activeMenu.charAt(0).toUpperCase() + activeMenu.slice(1)} Module
           </h3>
-          <p className="text-slate-600">Sedang dalam pengembangan.</p>
+          <p className="text-body">Sedang dalam pengembangan.</p>
         </div>
       );
   }
@@ -96,6 +96,7 @@ export default function App() {
   const { token, user, setAuth, clearAuth } = useAuthStore();
   const [isVerifying, setIsVerifying] = useState(true);
   const [hasCompletedSetup, setHasCompletedSetup] = useState<boolean | null>(null);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -218,7 +219,9 @@ export default function App() {
 
       console.log('📡 Subscribing to Supabase Realtime for workspace:', workspaceId);
 
-      let channel = supabase.channel(`kivo-sync-${workspaceId}`);
+      // Use a unique channel name each time to avoid getting a cached, already-subscribed channel from Supabase
+      const channelName = `kivo-sync-${workspaceId}-${Date.now()}`;
+      let channel = supabase.channel(channelName);
 
       const tablesToSync = [
         'sales', 'stock_ledger', 'categories', 'brands', 'items', 'item_units', 'item_prices',
@@ -282,42 +285,48 @@ export default function App() {
 
   if (isVerifying || hasCompletedSetup === null) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-[#09090b]">
-        <Loader2 className="animate-spin text-brand" size={32} />
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="animate-spin text-primary" size={32} />
       </div>
     );
   }
 
-  if (hasCompletedSetup === false) {
+  if (hasCompletedSetup === false || showSetupWizard) {
     return (
-      <SetupWizard onComplete={() => setHasCompletedSetup(true)} />
+      <SetupWizard
+        onComplete={() => {
+          setHasCompletedSetup(true);
+          setShowSetupWizard(false);
+        }}
+        onCancel={hasCompletedSetup ? () => setShowSetupWizard(false) : undefined}
+      />
     );
   }
 
   if (!token || !user) {
     return (
-      <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-[#09090b]">
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
         <TitleBar />
         <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative">
-          <LoginPage />
+          <LoginPage onOpenSetupWizard={() => setShowSetupWizard(true)} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-[#09090b] transition-colors duration-300">
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-background transition-colors duration-300">
       <ContextMenu />
       <TitleBar />
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <Sidebar 
-          activeMenu={activeMenu} 
-          setActiveMenu={setActiveMenu} 
-          onOpenAIChat={() => setIsAIChatOpen(true)} 
+        <Sidebar
+          activeMenu={activeMenu}
+          setActiveMenu={setActiveMenu}
+          onOpenAIChat={() => setIsAIChatOpen(true)}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={toggleSidebar}
         />
-        <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50 dark:bg-[#0B0F19]">
+        <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-background">
           <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
           <div className={`flex-1 min-h-0 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-3 sm:p-4 lg:p-5'}`}>
             <MainContent

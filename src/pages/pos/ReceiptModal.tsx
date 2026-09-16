@@ -197,8 +197,8 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
                 <div className="flex items-center justify-between w-full">
                     <div>
                         {timeLeft !== null && printStatus === 'success' && (
-                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                Menutup otomatis dalam <strong className="text-brand">{timeLeft}s</strong>
+                            <span className="text-xs font-semibold text-dim">
+                                Menutup otomatis dalam <strong className="text-primary">{timeLeft}s</strong>
                             </span>
                         )}
                     </div>
@@ -206,7 +206,7 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            className="px-4 py-2 text-xs font-bold rounded-xl border border-line text-heading hover:bg-muted transition-colors"
                         >
                             Tutup
                         </button>
@@ -214,7 +214,7 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
                             type="button"
                             onClick={handleManualPrint}
                             disabled={loadingDetail || printStatus === 'printing'}
-                            className="px-4 py-2 bg-brand hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-brand/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                            className="px-4 py-2 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-primary/20 transition-all flex items-center gap-1.5 cursor-pointer"
                         >
                             <RefreshCw size={13} className={printStatus === 'printing' ? 'animate-spin' : ''} />
                             <span>Cetak Ulang</span>
@@ -226,40 +226,40 @@ export default function ReceiptModal({ saleId, onClose }: ReceiptModalProps) {
             <div className="space-y-4 py-2">
                 {/* Status Indicator Banner */}
                 {printStatus === 'printing' && (
-                    <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/40 flex items-center gap-3 text-blue-700 dark:text-blue-300 animate-pulse">
-                        <Loader2 size={20} className="animate-spin text-brand shrink-0" />
+                    <div className="p-4 rounded-xl bg-accent-soft dark:bg-blue-950/30 border border-accent/30 dark:border-accent/40 flex items-center gap-3 text-accent dark:text-accent animate-pulse">
+                        <Loader2 size={20} className="animate-spin text-primary shrink-0" />
                         <span className="text-xs font-semibold">{printMsg}</span>
                     </div>
                 )}
 
                 {printStatus === 'success' && (
-                    <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-3 text-emerald-700 dark:text-emerald-300">
-                        <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
+                    <div className="p-4 rounded-xl bg-success-soft dark:bg-success/30 border border-success/30 dark:border-success/40 flex items-center gap-3 text-success dark:text-success">
+                        <CheckCircle2 size={20} className="text-success shrink-0" />
                         <div className="text-xs">
                             <p className="font-bold">Transaksi Selesai & Dicetak</p>
-                            <p className="text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">{printMsg}</p>
+                            <p className="text-success/80 dark:text-success/80 mt-0.5">{printMsg}</p>
                         </div>
                     </div>
                 )}
 
                 {printStatus === 'error' && (
-                    <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40 flex items-center gap-3 text-rose-700 dark:text-rose-300">
-                        <AlertTriangle size={20} className="text-rose-500 shrink-0" />
+                    <div className="p-4 rounded-xl bg-danger-soft dark:bg-danger/30 border border-danger/30 dark:border-danger/40 flex items-center gap-3 text-danger dark:text-danger">
+                        <AlertTriangle size={20} className="text-danger shrink-0" />
                         <div className="text-xs">
                             <p className="font-bold">Gagal Mencetak Struk</p>
-                            <p className="text-rose-600/80 dark:text-rose-400/80 mt-0.5">{printMsg}</p>
+                            <p className="text-danger/80 dark:text-danger/80 mt-0.5">{printMsg}</p>
                         </div>
                     </div>
                 )}
 
                 {/* Struk Summary Box */}
                 {detail?.sale && (
-                    <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-2 font-mono text-xs">
-                        <div className="flex justify-between text-slate-500 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    <div className="bg-muted/60 p-4 rounded-xl border border-line space-y-2 font-mono text-xs">
+                        <div className="flex justify-between text-dim border-b border-line pb-2">
                             <span>Faktur: {detail.sale.transaction_no}</span>
                             <span>{new Date(detail.sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
-                        <div className="flex justify-between font-bold text-slate-800 dark:text-slate-200 pt-1">
+                        <div className="flex justify-between font-bold text-heading pt-1">
                             <span>Total Tagihan:</span>
                             <span>Rp {Math.round(detail.sale.grand_total).toLocaleString('id-ID')}</span>
                         </div>

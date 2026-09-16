@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, Package, ShoppingCart, Users, Settings, 
+import {
+  LayoutDashboard, Package, ShoppingCart, Users, Settings,
   FileText, LogOut, Truck, RefreshCw, PanelLeftClose, PanelLeftOpen,
   CheckCircle2, AlertTriangle
 } from 'lucide-react';
@@ -131,7 +131,7 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
     { id: 'purchasing',   icon: Truck,           label: 'Purchasing',     show: can('purchasing.view') || can('purchasing.create') },
     { id: 'customers',    icon: Users,           label: 'Customers',      show: can('crm.customers') || can('promos.manage') },
     { id: 'reports',      icon: FileText,        label: 'Reports',        show: can('reports.view') || can('accounting.manage') },
-    { id: 'settings',     icon: Settings,        label: 'Settings',          show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') || can('settings.lan') },
+    { id: 'settings',     icon: Settings,        label: 'Settings',       show: can('settings.general') || can('settings.hardware') || can('settings.users') || can('settings.database') || can('settings.lan') },
   ].filter(item => item.show);
 
   const roleLabel = () => {
@@ -143,87 +143,103 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
 
   return (
     <>
-      <aside 
+      <aside
         className={`${
           isCollapsed ? 'w-16' : 'w-64'
-        } bg-white dark:bg-[#0B0F19] flex flex-col h-full shrink-0 border-r border-slate-200 dark:border-slate-800/60 z-20 transition-all duration-300 select-none`}
+        } bg-sidebar flex flex-col h-full shrink-0 border-r border-sidebar-line z-20 transition-all duration-300 select-none`}
       >
-        {/* Brand & Branch Header */}
-        <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4 justify-between'} border-b border-slate-200 dark:border-slate-800/60 transition-colors mt-2`}>
-          <div className="flex items-center min-w-0">
-            <div className="shrink-0 flex items-center justify-center">
-              <KivoLogo size={32} />
-            </div>
-            {!isCollapsed && (
-              <div className="ml-3 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="text-sm leading-tight text-slate-900 dark:text-slate-100 font-semibold truncate">{companyName}</h1>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-brand/10 text-brand rounded-md border border-brand/20">v1.2</span>
-                </div>
-                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mt-0.5 truncate">{branchName}</p>
-              </div>
-            )}
-          </div>
-          {onToggleCollapse && (
+        {/* Brand & Collapse Header */}
+        <div className={`h-14 flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4 justify-between'} border-b border-sidebar-line transition-colors`}>
+          {isCollapsed ? (
             <button
               onClick={onToggleCollapse}
-              title={isCollapsed ? "Buka Sidebar (Ctrl+B)" : "Kecilkan Sidebar (Ctrl+B)"}
-              className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors ${
-                isCollapsed ? 'mt-2' : 'ml-1'
-              }`}
+              title="Buka Sidebar (Ctrl+B)"
+              className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-primary-soft transition-all relative group cursor-pointer border border-transparent hover:border-primary/20"
             >
-              {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+              <div className="flex items-center justify-center group-hover:opacity-0 transition-opacity">
+                <KivoLogo size={28} />
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-primary">
+                <PanelLeftOpen size={18} />
+              </div>
             </button>
+          ) : (
+            <>
+              <div className="flex items-center min-w-0">
+                <div className="shrink-0 flex items-center justify-center">
+                  <KivoLogo size={28} />
+                </div>
+                <div className="ml-3 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h1 className="text-sm leading-tight text-heading font-semibold truncate">{companyName}</h1>
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-primary-soft text-primary rounded-md">v1.3</span>
+                  </div>
+                  <p className="text-[11px] font-medium text-dim uppercase tracking-wider mt-0.5 truncate">{branchName}</p>
+                </div>
+              </div>
+              {onToggleCollapse && (
+                <button
+                  onClick={onToggleCollapse}
+                  title="Kecilkan Sidebar (Ctrl+B)"
+                  className="p-1.5 rounded-lg text-dim hover:text-heading hover:bg-muted transition-colors ml-1 cursor-pointer"
+                >
+                  <PanelLeftClose size={16} />
+                </button>
+              )}
+            </>
           )}
         </div>
-        
+
         {/* Navigation List */}
-        <nav className={`flex-1 py-4 flex flex-col gap-1.5 ${isCollapsed ? 'px-2 items-center' : 'px-3'} overflow-y-auto custom-scrollbar`}>
+        <nav className={`flex-1 py-3 flex flex-col gap-1.5 ${isCollapsed ? 'px-2 items-center' : 'px-3'} overflow-y-auto custom-scrollbar`}>
           {!isCollapsed && (
-            <p className="px-3 text-[10px] font-semibold text-slate-500 dark:text-slate-500/80 uppercase tracking-wider mb-1">
+            <p className="px-3 text-[10px] font-semibold text-dim uppercase tracking-wider mb-1">
               Navigasi Utama
             </p>
           )}
-          
+
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeMenu === item.id;
-            
+
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveMenu(item.id)}
                 title={isCollapsed ? item.label : undefined}
                 className={`relative flex items-center ${
-                  isCollapsed ? 'w-11 h-11 justify-center p-0 rounded-xl' : 'w-full px-3 py-2.5 rounded-xl text-left'
-                } transition-all duration-200 group ${
-                  isActive 
-                    ? 'bg-brand/10 text-brand font-semibold shadow-xs' 
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40 hover:text-slate-900 dark:hover:text-slate-200'
+                  isCollapsed ? 'w-10 h-10 justify-center p-0 rounded-xl' : 'w-full px-3 py-2.5 rounded-lg text-left'
+                } transition-all duration-150 group cursor-pointer ${
+                  isActive
+                    ? 'bg-primary-soft text-primary font-semibold border border-primary/20 shadow-xs'
+                    : 'text-body hover:bg-muted hover:text-heading border border-transparent'
                 }`}
               >
-                <Icon 
-                  size={19} 
-                  strokeWidth={isActive ? 2.5 : 2} 
-                  className={`transition-colors ${
+                {!isCollapsed && isActive && (
+                  <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-primary" />
+                )}
+                <Icon
+                  size={19}
+                  strokeWidth={isActive ? 2.5 : 2}
+                  className={`transition-colors shrink-0 ${
                     isCollapsed ? '' : 'mr-3'
-                  } ${isActive ? 'text-brand' : 'text-slate-500 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'}`} 
+                  } ${isActive ? 'text-primary' : 'text-dim group-hover:text-heading'}`}
                 />
                 {!isCollapsed && (
                   <span className="text-sm truncate">
                     {item.label}
                   </span>
                 )}
-                
+
                 {/* Badge */}
                 {item.badge !== null && item.badge !== undefined && (
                   isCollapsed ? (
-                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white dark:border-slate-900" />
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-danger ring-2 ring-sidebar" />
                   ) : (
-                    <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
-                      isActive 
-                        ? 'bg-brand/20 text-brand' 
-                        : 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'
+                    <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full tnum transition-colors ${
+                      isActive
+                        ? 'bg-primary text-white'
+                        : 'bg-danger-soft text-danger'
                     }`}>
                       {item.badge}
                     </span>
@@ -235,107 +251,111 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
         </nav>
 
         {/* User Profile & Sync Footer */}
-        <div className={`mt-auto ${isCollapsed ? 'mx-1 mb-2 items-center' : 'mx-3 mb-3'} flex flex-col gap-1.5`}>
+        <div className={`mt-auto ${isCollapsed ? 'px-2 pb-3 items-center' : 'px-3 pb-3'} flex flex-col gap-1.5 border-t border-sidebar-line pt-3`}>
           {bgSyncProgress?.active && (
-            <div 
+            <div
               title={`Cloud Sync (${bgSyncProgress.type === 'push' ? 'Push' : 'Pull'}): ${bgSyncProgress.percent}% - ${bgSyncProgress.table_name}`}
-              className={`${isCollapsed ? 'p-1.5 w-11 mx-auto' : 'px-3 py-2.5'} bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/90 dark:border-emerald-800/60 rounded-xl space-y-1.5 animate-in fade-in duration-200 shadow-xs`}
+              className={`${isCollapsed ? 'w-10 h-10 p-0 justify-center' : 'px-3 py-2.5'} bg-success-soft border border-success/20 rounded-xl flex items-center animate-fade-in`}
             >
-              {!isCollapsed && (
-                <div className="flex items-center justify-between text-[11px] font-bold">
-                  <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 truncate mr-1">
-                    <RefreshCw size={12} className="animate-spin text-emerald-500 shrink-0" />
-                    <span className="truncate">{bgSyncProgress.type === 'push' ? 'Push ke Cloud...' : 'Pull dari Cloud...'}</span>
-                  </span>
-                  <span className="text-emerald-700 dark:text-emerald-300 font-mono text-[10px] font-extrabold shrink-0">
-                    {bgSyncProgress.percent}%
-                  </span>
+              {isCollapsed ? (
+                <RefreshCw size={16} className="animate-spin text-success" />
+              ) : (
+                <div className="w-full space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="flex items-center gap-1.5 text-success truncate mr-1">
+                      <RefreshCw size={12} className="animate-spin shrink-0" />
+                      <span className="truncate">{bgSyncProgress.type === 'push' ? 'Push ke Cloud...' : 'Pull dari Cloud...'}</span>
+                    </span>
+                    <span className="text-success font-mono text-[10px] font-extrabold shrink-0 tnum">
+                      {bgSyncProgress.percent}%
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-line rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-success rounded-full transition-all duration-300"
+                      style={{ width: `${bgSyncProgress.percent}%` }}
+                    />
+                  </div>
                 </div>
               )}
-              <div className="w-full h-1.5 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-linear-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-300 shadow-xs"
-                  style={{ width: `${bgSyncProgress.percent}%` }}
-                />
-              </div>
             </div>
           )}
 
-          {/* LAN Sync Progress Bar (on top of workspace container) */}
+          {/* LAN Sync Progress Bar */}
           {lanSyncProgress && (lanSyncProgress.active || lanSyncProgress.stage === 'complete' || lanSyncProgress.stage === 'error') && (
-            <div 
+            <div
               title={`LAN Sync: ${lanSyncProgress.message} (${lanSyncProgress.percent}%)`}
-              className={`${isCollapsed ? 'p-1.5 w-11 mx-auto' : 'px-3 py-2.5'} ${
+              className={`${isCollapsed ? 'w-10 h-10 p-0 justify-center' : 'px-3 py-2.5'} ${
                 lanSyncProgress.stage === 'error'
-                  ? 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-200/90 dark:border-rose-800/60'
+                  ? 'bg-danger-soft border-danger/20 text-danger'
                   : lanSyncProgress.stage === 'complete'
-                  ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-200/90 dark:border-emerald-800/60'
-                  : 'bg-blue-50/90 dark:bg-blue-950/40 border-blue-200/90 dark:border-blue-800/60'
-              } border rounded-xl space-y-1.5 animate-in fade-in duration-200 shadow-xs`}
+                  ? 'bg-success-soft border-success/20 text-success'
+                  : 'bg-accent-soft border-accent/20 text-accent'
+              } border rounded-xl flex items-center animate-fade-in`}
             >
-              {!isCollapsed && (
-                <div className="flex items-center justify-between text-[11px] font-bold">
-                  <span className={`flex items-center gap-1.5 truncate mr-1 ${
-                    lanSyncProgress.stage === 'error'
-                      ? 'text-rose-700 dark:text-rose-300'
-                      : lanSyncProgress.stage === 'complete'
-                      ? 'text-emerald-700 dark:text-emerald-300'
-                      : 'text-blue-700 dark:text-blue-300'
-                  }`}>
-                    {lanSyncProgress.active ? (
-                      <RefreshCw size={12} className="animate-spin text-blue-500 shrink-0" />
-                    ) : lanSyncProgress.stage === 'error' ? (
-                      <AlertTriangle size={12} className="text-rose-500 shrink-0" />
-                    ) : (
-                      <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
-                    )}
-                    <span className="truncate">{lanSyncProgress.message}</span>
-                  </span>
-                  <span className={`font-mono text-[10px] font-extrabold shrink-0 ${
-                    lanSyncProgress.stage === 'error'
-                      ? 'text-rose-700 dark:text-rose-300'
-                      : lanSyncProgress.stage === 'complete'
-                      ? 'text-emerald-700 dark:text-emerald-300'
-                      : 'text-blue-700 dark:text-blue-300'
-                  }`}>
-                    {lanSyncProgress.percent}%
-                  </span>
+              {isCollapsed ? (
+                lanSyncProgress.active ? (
+                  <RefreshCw size={16} className="animate-spin" />
+                ) : lanSyncProgress.stage === 'error' ? (
+                  <AlertTriangle size={16} />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )
+              ) : (
+                <div className="w-full space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="flex items-center gap-1.5 truncate mr-1">
+                      {lanSyncProgress.active ? (
+                        <RefreshCw size={12} className="animate-spin shrink-0" />
+                      ) : lanSyncProgress.stage === 'error' ? (
+                        <AlertTriangle size={12} className="shrink-0" />
+                      ) : (
+                        <CheckCircle2 size={12} className="shrink-0" />
+                      )}
+                      <span className="truncate">{lanSyncProgress.message}</span>
+                    </span>
+                    <span className="font-mono text-[10px] font-extrabold shrink-0 tnum">
+                      {lanSyncProgress.percent}%
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-line rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        lanSyncProgress.stage === 'error'
+                          ? 'bg-danger'
+                          : lanSyncProgress.stage === 'complete'
+                          ? 'bg-success'
+                          : 'bg-accent'
+                      }`}
+                      style={{ width: `${lanSyncProgress.percent}%` }}
+                    />
+                  </div>
                 </div>
               )}
-              <div className="w-full h-1.5 bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 shadow-xs ${
-                    lanSyncProgress.stage === 'error'
-                      ? 'bg-rose-500'
-                      : lanSyncProgress.stage === 'complete'
-                      ? 'bg-emerald-500'
-                      : 'bg-linear-to-r from-blue-500 to-indigo-500'
-                  }`}
-                  style={{ width: `${lanSyncProgress.percent}%` }}
-                />
-              </div>
             </div>
           )}
 
           {/* Live LAN Parent Host Indicator (Model B) */}
           {lanParentInfo && (
-            <div 
+            <div
               title={`Terhubung ke Server Induk: ${lanParentInfo.name || lanParentInfo.ip} (Mode B Live Induk)`}
-              className={`px-3 py-2 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/50 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in duration-200 ${isCollapsed ? 'p-1.5 w-11 mx-auto justify-center' : ''}`}
+              className={`bg-success-soft border border-success/20 rounded-xl flex items-center ${
+                isCollapsed ? 'w-10 h-10 justify-center' : 'px-3 py-2 justify-between'
+              } animate-fade-in`}
             >
               <div className="flex items-center gap-1.5 truncate mr-1">
                 <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
                 </span>
                 {!isCollapsed && (
-                  <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 truncate">
+                  <span className="text-[11px] font-bold text-success truncate">
                     {lanParentInfo.name || 'Server Induk'}
                   </span>
                 )}
               </div>
               {!isCollapsed && (
-                <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded shrink-0">
+                <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 bg-success/15 text-success rounded shrink-0">
                   Live Induk
                 </span>
               )}
@@ -343,39 +363,51 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
           )}
 
           {!isCollapsed && syncStatus?.workspace_name && (
-            <div className="px-3 py-2 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/30 rounded-xl flex items-center justify-between">
-              <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 truncate mr-2">{syncStatus.workspace_name}</span>
-              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 bg-white dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded shadow-sm shrink-0">{syncStatus.workspace_code}</span>
+            <div className="px-3 py-2 bg-primary-soft border border-primary/15 rounded-lg flex items-center justify-between">
+              <span className="text-xs font-bold text-primary truncate mr-2">{syncStatus.workspace_name}</span>
+              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 bg-card text-primary rounded shrink-0">{syncStatus.workspace_code}</span>
             </div>
           )}
 
-          <div
-            onClick={() => setShowLogoutModal(true)}
-            title={isCollapsed ? `${user?.name} (${roleLabel()}) - Klik untuk Keluar` : undefined}
-            className={`${
-              isCollapsed 
-                ? 'w-11 h-11 justify-center rounded-xl p-0 mx-auto' 
-                : 'p-3 rounded-xl justify-between'
-            } bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700/30 flex items-center group hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:border-rose-200 dark:hover:border-rose-800/50 transition-all cursor-pointer`}
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div 
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-inner shrink-0"
+          {/* User Profile / Logout Button */}
+          {isCollapsed ? (
+            <button
+              onClick={() => setShowLogoutModal(true)}
+              title={`${user?.name} (${roleLabel()}) • Klik untuk Keluar`}
+              className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-danger-soft transition-all cursor-pointer group relative border border-transparent hover:border-danger/30"
+            >
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-xs group-hover:scale-90 transition-transform"
                 style={{ backgroundColor: user?.avatar_color || '#3B82F6' }}
               >
-                {user?.name.substring(0, 2).toUpperCase() || 'U'}
+                {user?.name?.substring(0, 2).toUpperCase() || 'U'}
               </div>
-              {!isCollapsed && (
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold leading-tight text-slate-900 dark:text-slate-200 truncate">{user?.name}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5 truncate">{roleLabel()}</p>
+              {/* Subtle logout overlay on hover */}
+              <div className="absolute inset-0 rounded-xl bg-danger text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <LogOut size={16} />
+              </div>
+            </button>
+          ) : (
+            <div
+              onClick={() => setShowLogoutModal(true)}
+              title={`${user?.name} (${roleLabel()}) • Klik untuk Keluar`}
+              className="p-2.5 rounded-xl bg-muted/60 border border-line flex items-center justify-between group hover:bg-danger-soft hover:border-danger/30 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-xs"
+                  style={{ backgroundColor: user?.avatar_color || '#3B82F6' }}
+                >
+                  {user?.name?.substring(0, 2).toUpperCase() || 'U'}
                 </div>
-              )}
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold leading-tight text-heading truncate">{user?.name}</p>
+                  <p className="text-[10px] text-dim mt-0.5 truncate">{roleLabel()}</p>
+                </div>
+              </div>
+              <LogOut size={15} className="text-dim group-hover:text-danger transition-colors shrink-0 ml-1" />
             </div>
-            {!isCollapsed && (
-              <LogOut size={15} className="text-slate-400 group-hover:text-rose-500 dark:group-hover:text-rose-400 transition-colors shrink-0 ml-1" />
-            )}
-          </div>
+          )}
         </div>
       </aside>
 

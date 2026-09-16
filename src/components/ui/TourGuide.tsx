@@ -28,7 +28,7 @@ export default function TourGuide({ steps, run, onFinish }: TourGuideProps) {
         arrowColor: '#0F172A', // slate-900 (matches dark mode theme nicely)
         backgroundColor: '#0F172A', // slate-900
         overlayColor: 'rgba(15, 23, 42, 0.5)',
-        primaryColor: '#0EA5E9', // brand color (sky-500)
+        primaryColor: '#0EA5E9', // brand color (accent)
         textColor: '#F8FAFC', // slate-50
         zIndex: 1000,
       },

@@ -45,25 +45,44 @@ export async function getSelectedAIModel(): Promise<string> {
 
 function buildConversationPrompt(messages: ChatMessage[], user: UserInfo, branchId: string): ChatMessage[] {
   let conversation = [...messages];
-  const hasSystem = conversation.some(m => m.role === 'system');
-  if (!hasSystem) {
-    conversation.unshift({
-      role: 'system',
-      content: `Kamu adalah Achira, asisten AI cerdas untuk platform bisnis Kivo (Kivo AI).
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayIso = `${year}-${month}-${day}`;
+  const todayReadable = now.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  const timeReadable = now.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const systemContent = `Kamu adalah Kivo AI, asisten AI cerdas untuk platform bisnis dan kasir Kivo (Kivo 1.3).
 Pengguna: ${user.username} | Role: ${user.role} | Branch: ${branchId}
+Waktu Saat Ini: ${todayReadable}, pukul ${timeReadable} (ISO: ${todayIso}).
+
+INFORMASI TANGGAL & TRANSAKSI PENTING:
+- Tanggal hari ini adalah ${todayReadable} (${todayIso}).
+- Jika pengguna menanyakan transaksi "hari ini", penjualan "hari ini", omset "hari ini", atau performa "hari ini", SELALU gunakan "${todayIso}" sebagai nilai date_from dan date_to saat memanggil tool get_sales_summary.
+- Jangan pernah berhalusinasi atau berasumsi tahun lama (seperti 2023 atau 2024). Waktu nyata saat ini adalah tahun ${year}.
 
 Aturan:
 - Gunakan format Markdown (bold, italic, list) dalam jawabanmu.
-- Kamu punya akses ke tools untuk mengontrol aplikasi. SELALU gunakan tools jika diminta tindakan (cek stok, buat promo, ubah harga, dll).
-- Jangan menyuruh pengguna melakukan manual jika kamu bisa melakukannya.
+- Kamu punya akses ke tools untuk mengontrol aplikasi. SELALU gunakan tools jika diminta tindakan (cek stok, cek penjualan/transaksi, buat promo, ubah harga, dll).
+- Jangan menyuruh pengguna melakukan manual jika kamu bisa melakukannya dengan tools yang tersedia.
 - Jika tools mengembalikan error Permission Denied, jelaskan bahwa role '${user.role}' tidak punya izin.
 - Untuk promo bundle: gunakan tool create_promo dengan promo_type='bundle', bundle_items berisi array item, applies_to='item', dan sertakan discount_percent atau discount_value.
-- Saat membuat bundle, kamu TIDAK perlu mengisi item_id tunggal — cukup isi bundle_items saja.`
-    });
-  }
+- Saat membuat bundle, kamu TIDAK perlu mengisi item_id tunggal — cukup isi bundle_items saja.`;
 
-  const systemMsg = conversation.find(m => m.role === 'system');
   const otherMsgs = conversation.filter(m => m.role !== 'system');
+  const systemMsg: ChatMessage = {
+    role: 'system',
+    content: systemContent
+  };
 
   // Keep last 14 messages while ensuring no orphan tool message at the start of recent list
   let recentMsgs = otherMsgs.slice(-14);
@@ -71,7 +90,7 @@ Aturan:
     recentMsgs.shift();
   }
 
-  return systemMsg ? [systemMsg, ...recentMsgs] : recentMsgs;
+  return [systemMsg, ...recentMsgs];
 }
 
 async function fetchChatCompletion(conversation: ChatMessage[], apiKey?: string): Promise<any> {

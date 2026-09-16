@@ -147,6 +147,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), String> {
         (include_str!("./migrations/057_disable_auto_sync.sql"), 57),
         (include_str!("./migrations/058_staff_lan_permission.sql"), 58),
         (include_str!("./migrations/059_disable_auto_connect.sql"), 59),
+        (include_str!("./migrations/060_disable_network_sync_defaults.sql"), 60),
     ];
 
     for (sql, version) in migrations {

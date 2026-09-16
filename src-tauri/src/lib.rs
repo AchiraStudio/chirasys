@@ -216,6 +216,7 @@ pub fn run() {
             commands::sync::sysadmin_create_workspace,
             commands::sync::sysadmin_create_workspace_invite,
             commands::sync::sysadmin_update_workspace_password,
+            commands::sync::sysadmin_delete_workspace,
 
             // Phase 10 - Maintenance
             commands::maintenance::optimize_database,

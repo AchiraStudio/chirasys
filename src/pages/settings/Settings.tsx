@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, Loader2, Save, AlertTriangle, Settings as SettingsIcon, Globe, RefreshCw, Wifi, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown, Network, Link2, Zap } from 'lucide-react';
-import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, joinWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData } from '../../lib/api';
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, Globe, RefreshCw, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown, Network, Link2, Zap, Flame, Activity, Plus } from 'lucide-react';
+import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, joinWorkspace, createWorkspace, getAvailableWorkspaces, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminDeleteWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData } from '../../lib/api';
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
+import { supabase } from '../../lib/supabase';
 import UserManagement from './UserManagement';
 import HardwareSettings from './HardwareSettings';
 import LanSyncSettings from './LanSyncSettings';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import Modal from '../../components/ui/Modal';
+import TabBar, { TabItem } from '../../components/ui/TabBar';
+import { toast } from '../../components/ui/Toast';
 
 import { usePermissions } from '../../lib/permissions';
 
-// Keys that should render as a custom styled <select> instead of a text input
+import Select from '../../components/ui/Select';
+// Keys that should render as a custom styled <Select> instead of a text input
 const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
   hpp_method: [
     { label: 'Average (AVG)', value: 'avg' },
@@ -105,6 +109,32 @@ const SELECT_OPTIONS: Record<string, { label: string; value: string }[]> = {
 const PROFILE_KEYS = ['company_name', 'branch_name'];
 const MEMBER_KEYS = ['tier_member_discount', 'tier_vip_discount', 'tier_member_duration_months', 'tier_vip_duration_months'];
 
+// Internal/diagnostic keys owned by other screens (LAN tab, Cloud tab, SetupWizard) — never editable here
+const INTERNAL_KEYS = new Set([
+  'has_completed_setup', 'workspace_id', 'workspace_name', 'workspace_code', 'last_pull_at', 'auto_sync',
+  'lan_role', 'lan_udp_port', 'lan_http_port', 'lan_device_name', 'lan_auto_connect',
+  'lan_last_pull_at', 'lan_last_sync_error', 'lan_last_sync_status', 'lan_last_sync_time',
+]);
+
+// Curated, ordered system fields with proper labels (raw DB key names never shown)
+const SYSTEM_SETTING_FIELDS: { key: string; label: string }[] = [
+  { key: 'company_address', label: 'Alamat Toko' },
+  { key: 'company_phone', label: 'Nomor Telepon' },
+  { key: 'receipt_header', label: 'Header Struk' },
+  { key: 'receipt_footer', label: 'Footer Struk' },
+  { key: 'tax_rate', label: 'Tarif Pajak (PPN)' },
+  { key: 'hpp_method_default', label: 'Metode HPP Default' },
+  { key: 'fiscal_year_start', label: 'Awal Tahun Fiskal' },
+  { key: 'language', label: 'Bahasa Aplikasi' },
+  { key: 'openai_api_key', label: 'OpenAI API Key' },
+  { key: 'openai_model', label: 'Model OpenAI' },
+];
+
+const FIELD_LABELS: Record<string, string> = Object.fromEntries(
+  SYSTEM_SETTING_FIELDS.map(f => [f.key, f.label])
+);
+
+
 export default function Settings() {
   const { user } = useAuthStore();
   const { can, isOwner, isAdmin } = usePermissions();
@@ -156,6 +186,15 @@ export default function Settings() {
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [showSwitchWorkspace, setShowSwitchWorkspace] = useState(false);
+  const [syncSubTab, setSyncSubTab] = useState<'connection' | 'manage'>('connection');
+
+  // Supabase Cloud interactive states
+  const [connectMode, setConnectMode] = useState<'join' | 'create'>('join');
+  const [createWsName, setCreateWsName] = useState('');
+  const [createWsCode, setCreateWsCode] = useState('');
+  const [isCreatingWs, setIsCreatingWs] = useState(false);
+  const [supabasePing, setSupabasePing] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; latency?: number; error?: string }>({ status: 'idle' });
+  const [availableWorkspaces, setAvailableWorkspaces] = useState<WorkspaceListInfo[]>([]);
 
   useEffect(() => {
     // If user lacks general settings, redirect to allowed tab
@@ -187,6 +226,53 @@ export default function Settings() {
       setJoinError(err.message || String(err));
     } finally {
       setIsJoining(false);
+    }
+  };
+
+  const handleTestSupabase = async () => {
+    setSupabasePing({ status: 'testing' });
+    const start = performance.now();
+    try {
+      const { error } = await supabase.from('workspaces').select('id', { count: 'exact', head: true });
+      const latency = Math.round(performance.now() - start);
+      if (error) throw error;
+      setSupabasePing({ status: 'success', latency });
+      setTimeout(() => setSupabasePing({ status: 'idle' }), 7000);
+    } catch (e: any) {
+      setSupabasePing({ status: 'error', error: e.message || String(e) });
+    }
+  };
+
+  const handleFetchAvailableWorkspaces = async () => {
+    try {
+      const list = await getAvailableWorkspaces();
+      setAvailableWorkspaces(list);
+    } catch (e) {
+      console.warn('Could not fetch available workspaces:', e);
+    }
+  };
+
+  const handleCreateWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedName = createWsName.trim() || companyName || 'Toko Kivo';
+    const trimmedCode = (createWsCode.trim() || trimmedName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)).toUpperCase();
+    if (!trimmedName) {
+      setJoinError('Silakan masukkan nama workspace.');
+      return;
+    }
+    setIsCreatingWs(true);
+    setJoinError(null);
+    try {
+      const ws = await createWorkspace(trimmedName, trimmedCode);
+      setSuccessMsg(`Berhasil membuat & terhubung ke Workspace: ${ws.name} (${ws.code})`);
+      setCreateWsName('');
+      setCreateWsCode('');
+      await loadSyncStatus();
+      setTimeout(() => setSuccessMsg(''), 6000);
+    } catch (err: any) {
+      setJoinError(err.message || String(err));
+    } finally {
+      setIsCreatingWs(false);
     }
   };
 
@@ -253,6 +339,7 @@ export default function Settings() {
       const s = await getSyncStatus();
       setSyncStatus(s);
     } catch { /* offline */ }
+    handleFetchAvailableWorkspaces();
   };
 
   const loadSettings = async () => {
@@ -322,7 +409,7 @@ export default function Settings() {
     if (!resetTarget) return;
     const role = (user?.role || 'staff').toLowerCase();
     if (resetTarget !== 'maintenance' && role !== 'owner' && role !== 'admin' && role !== 'sysadmin') {
-      alert('Akses Ditolak: Hanya Admin / Owner yang dapat menghapus / mereset database.');
+      toast.error('Akses Ditolak', 'Hanya Admin / Owner yang dapat menghapus / mereset database.');
       return;
     }
     if (resetTarget !== 'maintenance' && confirmText !== 'DELETE') return;
@@ -410,117 +497,39 @@ export default function Settings() {
     });
   };
 
-  // General configs minus the profile keys and member keys
-  const generalConfigs = configs.filter(c => !PROFILE_KEYS.includes(c.key) && !MEMBER_KEYS.includes(c.key));
+  // Curated fields in registry order; anything non-internal and not whitelisted goes to the collapsed advanced block
+  const byKey = new Map(configs.map(c => [c.key, c]));
+  const knownKeys = new Set(SYSTEM_SETTING_FIELDS.map(f => f.key));
+  const generalConfigs = SYSTEM_SETTING_FIELDS
+    .map(f => byKey.get(f.key))
+    .filter((c): c is { key: string; value: string; description?: string } => Boolean(c));
+  const advancedConfigs = configs.filter(
+    c => !INTERNAL_KEYS.has(c.key) && !PROFILE_KEYS.includes(c.key) && !MEMBER_KEYS.includes(c.key) && !knownKeys.has(c.key)
+  );
   const memberConfigs = configs.filter(c => MEMBER_KEYS.includes(c.key));
 
+  type TabType = 'system' | 'hardware' | 'sync' | 'lan' | 'users';
+
+  const settingTabs: TabItem<TabType>[] = [
+    ...(can('settings.general') ? [{ id: 'system' as TabType, label: 'Konfigurasi Umum', icon: Sliders }] : []),
+    ...(can('settings.hardware') ? [{ id: 'hardware' as TabType, label: 'Printer & Hardware POS', icon: Printer }] : []),
+    ...(can('settings.database') ? [{ id: 'sync' as TabType, label: 'Cloud & Workspace', icon: Globe, badge: syncStatus?.pending_count ? syncStatus.pending_count : undefined }] : []),
+    { id: 'lan' as TabType, label: 'Jaringan Lokal (LAN)', icon: Network },
+    ...((can('settings.users') || isAdmin) ? [{ id: 'users' as TabType, label: 'Manajemen Pengguna', icon: UserCheck }] : []),
+  ];
+
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar pb-8 flex flex-col gap-6 animate-in fade-in duration-300 w-full">
-      
-      {/* Top Header Banner (Subtle & Theme Adaptive) */}
-      <div className="shrink-0 bg-white dark:bg-[#0B0F19] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-brand/10 text-brand border border-brand/20 flex items-center gap-1.5">
-              <SettingsIcon size={13} /> Control Panel
-            </span>
-            <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-              v1.2.0
-            </span>
-            {syncStatus?.workspace_name && (
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-                <Globe size={13} /> {syncStatus.workspace_name}
-              </span>
-            )}
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Pengaturan System & Hardware POS
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed mt-0.5">
-              Kelola preferensi bisnis, profil cabang, integrasi printer thermal, manajemen pengguna, dan sinkronisasi cloud secara terpusat.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-          <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center font-extrabold text-xs">
-            {user?.role?.substring(0, 2).toUpperCase() || 'US'}
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{user?.name || 'Operator'}</p>
-            <p className="text-[10px] font-mono text-slate-500 capitalize">{user?.role || 'Staff'}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab Navigation (Shrink-0 & Robust Styling) */}
-      <div className="shrink-0 flex items-center gap-2 border-b border-slate-200/80 dark:border-slate-800/80 pb-3 overflow-x-auto custom-scrollbar">
-        {can('settings.general') && (
-          <button
-            onClick={() => setActiveTab('system')}
-            className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeTab === 'system'
-                ? 'bg-brand text-white shadow-md shadow-brand/20'
-                : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Sliders size={15} /> Konfigurasi Umum
-          </button>
-        )}
-
-        {can('settings.hardware') && (
-          <button
-            onClick={() => setActiveTab('hardware')}
-            className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeTab === 'hardware'
-                ? 'bg-brand text-white shadow-md shadow-brand/20'
-                : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Printer size={15} /> Printer & Hardware POS
-          </button>
-        )}
-
-        {can('settings.database') && (
-          <button
-            onClick={() => { setActiveTab('sync'); loadSyncStatus(); }}
-            className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeTab === 'sync'
-                ? 'bg-brand text-white shadow-md shadow-brand/20'
-                : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Globe size={15} /> Cloud & Workspace
-            {syncStatus?.pending_count ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">{syncStatus.pending_count}</span>
-            ) : null}
-          </button>
-        )}
-
-        <button
-          onClick={() => setActiveTab('lan')}
-          className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'lan'
-              ? 'bg-brand text-white shadow-md shadow-brand/20'
-              : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-          }`}
-        >
-          <Network size={15} /> Jaringan Lokal (LAN)
-        </button>
-
-        {(can('settings.users') || isAdmin) && (
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeTab === 'users'
-                ? 'bg-brand text-white shadow-md shadow-brand/20'
-                : 'bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <UserCheck size={15} /> Manajemen Pengguna
-          </button>
-        )}
+    <div className="flex-1 overflow-y-auto custom-scrollbar pb-8 flex flex-col gap-5 animate-fade-in w-full">
+      {/* Top Navigation Bar with Unified TabBar */}
+      <div className="shrink-0 flex items-center justify-between gap-3">
+        <TabBar
+          tabs={settingTabs}
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            if (tab === 'sync') loadSyncStatus();
+          }}
+        />
       </div>
 
       {/* Main Content Areas */}
@@ -531,249 +540,389 @@ export default function Settings() {
       ) : activeTab === 'lan' ? (
         <LanSyncSettings />
       ) : activeTab === 'sync' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
-          {/* Workspace Status (12 cols) */}
-          <div className="lg:col-span-12 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 flex flex-col justify-between space-y-6">
-            <div className="space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-brand/10 text-brand rounded-2xl"><Globe size={22} /></div>
-                  <div>
-                    <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Koneksi Workspace Cloud</h2>
-                    <p className="text-xs text-slate-500">Status sinkronisasi data antar cabang</p>
-                  </div>
-                </div>
-                <button onClick={loadSyncStatus} className="p-2.5 text-slate-400 hover:text-brand rounded-xl hover:bg-brand/10 transition-all cursor-pointer" title="Refresh Sync Status">
-                  <RefreshCw size={18} />
-                </button>
-              </div>
+        <div className="flex flex-col gap-4 w-full">
+          {/* Sub Tab Switcher: Only show if user is admin / sysadmin */}
+          {(user?.username === 'admin' || isAdmin) && (
+            <div className="bg-card p-1 rounded-xl border border-line flex items-center gap-1 overflow-x-auto custom-scrollbar shrink-0 w-fit">
+              <button
+                type="button"
+                onClick={() => setSyncSubTab('connection')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  syncSubTab === 'connection'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-body hover:text-heading hover:bg-muted'
+                }`}
+              >
+                Koneksi & Sinkronisasi
+              </button>
+              <button
+                type="button"
+                onClick={() => setSyncSubTab('manage')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  syncSubTab === 'manage'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-body hover:text-heading hover:bg-muted'
+                }`}
+              >
+                Kelola Semua Workspace
+              </button>
+            </div>
+          )}
 
-              {syncStatus?.workspace_id ? (
-                <>
-                  <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl">
-                    <CheckCircle2 size={24} className="text-emerald-500 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-extrabold text-emerald-800 dark:text-emerald-300 truncate">{syncStatus.workspace_name}</p>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-500 font-mono mt-0.5">KODE: {syncStatus.workspace_code}</p>
-                    </div>
-                    <Wifi size={20} className="text-emerald-500 shrink-0 animate-pulse" />
-                  </div>
+          {/* Sub-Tab 2: Sysadmin Global Workspace Management */}
+          {syncSubTab === 'manage' && (user?.username === 'admin' || isAdmin) ? (
+            <SysadminWorkspaceManagement />
+          ) : (
+            /* Sub-Tab 1: Workspace Connection & Sync Status */
+            <div className="flex flex-col gap-4 w-full">
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800/80">
-                      <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Antrian Pending</p>
-                      <p className={`text-3xl font-black mt-1 font-mono ${syncStatus.pending_count > 0 ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.pending_count}</p>
+              {/* ── Status Card ── */}
+              <div className="bg-card rounded-xl border border-line shadow-xs p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl shrink-0 ${syncStatus?.workspace_id ? 'bg-success-soft text-success' : 'bg-primary-soft text-primary'}`}>
+                      <Globe size={20} />
                     </div>
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800/80">
-                      <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Gagal Sync</p>
-                      <p className={`text-3xl font-black mt-1 font-mono ${syncStatus.failed_count > 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>{syncStatus.failed_count}</p>
-                    </div>
-                  </div>
-
-                  {/* Auto Sync Toggle Switch */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4">
-                    <div className="space-y-0.5">
+                    <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-extrabold text-slate-900 dark:text-white">Sinkronisasi Otomatis Supabase</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          syncStatus.auto_sync
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700'
-                        }`}>
-                          {syncStatus.auto_sync ? 'Aktif' : 'Nonaktif'}
-                        </span>
+                        <h2 className="text-sm font-bold text-heading">Cloud &amp; Workspace</h2>
+                        {syncStatus?.workspace_id ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-soft text-success border border-success/30 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                            Terhubung
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-dim border border-line">
+                            Belum Terhubung
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                        Otomatis mengunggah & mengunduh data dengan Supabase Cloud di latar belakang.
+                      <p className="text-xs text-dim mt-0.5">
+                        {syncStatus?.workspace_id
+                          ? `${syncStatus.workspace_name} · ${syncStatus.workspace_code}`
+                          : 'Sinkronisasi multi-cabang via Supabase Cloud'}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleAutoSync(!syncStatus.auto_sync)}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        syncStatus.auto_sync ? 'bg-brand' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                      role="switch"
-                      aria-checked={syncStatus.auto_sync}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          syncStatus.auto_sync ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
                   </div>
 
-                  {syncStatus.last_synced && (
-                    <p className="text-xs text-slate-400 font-mono">Terakhir Sinkron: {new Date(syncStatus.last_synced).toLocaleString('id-ID')}</p>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleTestSupabase}
+                      disabled={supabasePing.status === 'testing'}
+                      className="px-3 py-1.5 rounded-lg border border-line bg-muted/60 hover:bg-muted text-body hover:text-heading text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                      title="Uji koneksi ke Supabase Cloud"
+                    >
+                      {supabasePing.status === 'testing' ? (
+                        <Loader2 size={12} className="animate-spin text-primary" />
+                      ) : (
+                        <Activity size={12} className="text-primary" />
+                      )}
+                      <span>
+                        {supabasePing.status === 'testing'
+                          ? 'Menguji...'
+                          : supabasePing.status === 'success'
+                          ? `${supabasePing.latency}ms`
+                          : supabasePing.status === 'error'
+                          ? 'Gagal'
+                          : 'Ping'}
+                      </span>
+                    </button>
+                    <button
+                      onClick={loadSyncStatus}
+                      className="p-1.5 text-dim hover:text-heading rounded-lg hover:bg-muted border border-line transition-all cursor-pointer"
+                      title="Segarkan Status"
+                    >
+                      <RefreshCw size={13} />
+                    </button>
+                  </div>
+                </div>
 
-                  {/* Manual Push / Pull Action Buttons - Available for ALL roles */}
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-3">
+                {/* Metrics row when connected */}
+                {syncStatus?.workspace_id && (
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg bg-muted/40 border border-line flex flex-col gap-0.5">
+                      <p className="text-[10px] font-semibold text-dim uppercase tracking-wide">Pending</p>
+                      <p className={`text-lg font-bold font-mono ${syncStatus.pending_count > 0 ? 'text-warning' : 'text-heading'}`}>
+                        {syncStatus.pending_count}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/40 border border-line flex flex-col gap-0.5">
+                      <p className="text-[10px] font-semibold text-dim uppercase tracking-wide">Gagal</p>
+                      <p className={`text-lg font-bold font-mono ${syncStatus.failed_count > 0 ? 'text-danger' : 'text-heading'}`}>
+                        {syncStatus.failed_count}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/40 border border-line flex flex-col gap-0.5">
+                      <p className="text-[10px] font-semibold text-dim uppercase tracking-wide">Auto Sync</p>
+                      <div className="flex items-center justify-between">
+                        <p className={`text-xs font-bold ${syncStatus.auto_sync ? 'text-success' : 'text-dim'}`}>
+                          {syncStatus.auto_sync ? 'Aktif' : 'Nonaktif'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAutoSync(!syncStatus.auto_sync)}
+                          className={`relative inline-flex h-4 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${syncStatus.auto_sync ? 'bg-primary' : 'bg-line'}`}
+                          role="switch"
+                          aria-checked={syncStatus.auto_sync}
+                        >
+                          <span className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-card shadow ring-0 transition duration-200 ${syncStatus.auto_sync ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/40 border border-line flex flex-col gap-0.5">
+                      <p className="text-[10px] font-semibold text-dim uppercase tracking-wide">Terakhir Sync</p>
+                      <p className="text-xs font-medium text-heading truncate">
+                        {syncStatus.last_synced ? new Date(syncStatus.last_synced).toLocaleTimeString('id-ID') : '—'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Pending Queue Banner ── */}
+              {syncStatus && syncStatus.pending_count > 0 && (
+                <div className="p-4 rounded-xl bg-warning-soft/70 border border-warning/30 flex items-center justify-between gap-3 animate-fade-in">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <UploadCloud size={16} className="text-warning shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-heading">
+                        {syncStatus.pending_count} perubahan menunggu diunggah ke Cloud
+                      </p>
+                      <p className="text-[11px] text-dim mt-0.5 truncate">
+                        {!syncStatus.workspace_id
+                          ? 'Hubungkan ke workspace untuk mengunggah otomatis.'
+                          : 'Klik Push untuk mengunggah sekarang.'}
+                      </p>
+                    </div>
+                  </div>
+                  {syncStatus.workspace_id && (
                     <button
                       onClick={handleManualPush}
                       disabled={isPushing || isPulling}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-sm disabled:opacity-50 cursor-pointer"
-                      title="Upload semua antrian data lokal ke Supabase Cloud secara manual"
+                      className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
                     >
-                      {isPushing ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
-                      Push ke Cloud (Upload)
+                      {isPushing ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
+                      Push ({syncStatus.pending_count})
                     </button>
-
-                    <button
-                      onClick={() => handleManualPull(true)}
-                      disabled={isPushing || isPulling}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-brand hover:bg-brand-dark text-white font-extrabold text-xs rounded-2xl transition-all shadow-sm disabled:opacity-50 cursor-pointer"
-                      title="Download data terbaru dari Supabase Cloud ke database lokal"
-                    >
-                      {isPulling ? <Loader2 size={16} className="animate-spin" /> : <DownloadCloud size={16} />}
-                      Pull dari Cloud (Download)
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-4">
-                  <div className="bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-brand/10 text-brand rounded-xl">
-                        <Link2 size={18} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Hubungkan ke Workspace Cloud</h3>
-                        <p className="text-xs text-slate-500">Masukkan Kode Workspace (misal: <code>WS-XXXX</code>) atau Token Undangan untuk menghubungkan toko ini ke cloud Supabase.</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                          Kode Workspace / Token Undangan <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={joinCode}
-                          onChange={(e) => setJoinCode(e.target.value)}
-                          placeholder="Contoh: WS-ABC123 atau Token"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono font-bold focus:border-brand outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                          Password Workspace (Opsional)
-                        </label>
-                        <input
-                          type="password"
-                          value={joinPassword}
-                          onChange={(e) => setJoinPassword(e.target.value)}
-                          placeholder="Kosongkan jika tanpa sandi"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:border-brand outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {joinError && (
-                      <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl flex items-center gap-2 text-rose-600 dark:text-rose-400 text-xs font-bold">
-                        <AlertTriangle size={15} className="shrink-0" />
-                        <span>{joinError}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-end">
-                      <button
-                        onClick={handleJoinWorkspace}
-                        disabled={isJoining || !joinCode.trim()}
-                        className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
-                      >
-                        {isJoining ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                        {isJoining ? 'Menghubungkan ke Cloud...' : 'Hubungkan Sekarang'}
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
-            </div>
 
-            {isAdmin && syncStatus?.workspace_id && (
-              <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  onClick={() => setShowSwitchWorkspace(!showSwitchWorkspace)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all cursor-pointer"
-                >
-                  <Link2 size={15} /> Ganti / Pindah Workspace
-                </button>
-                <button
-                  onClick={handleLeaveWorkspace}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-rose-200 dark:border-rose-900/50 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs font-extrabold transition-all cursor-pointer"
-                >
-                  <LogOut size={15} /> Putuskan Koneksi Workspace
-                </button>
-              </div>
-            )}
+              {/* ── Actions Card (when connected) ── */}
+              {syncStatus?.workspace_id ? (
+                <div className="bg-card rounded-xl border border-line shadow-xs p-4 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleManualPush}
+                    disabled={isPushing || isPulling}
+                    className="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer transition-all"
+                  >
+                    {isPushing ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
+                    Push ke Cloud
+                  </button>
+                  <button
+                    onClick={() => handleManualPull(true)}
+                    disabled={isPushing || isPulling}
+                    className="px-4 py-2 bg-muted hover:bg-line text-heading font-semibold text-xs rounded-lg border border-line flex items-center gap-1.5 disabled:opacity-50 cursor-pointer transition-all"
+                  >
+                    {isPulling ? <Loader2 size={13} className="animate-spin" /> : <DownloadCloud size={13} />}
+                    Pull dari Cloud
+                  </button>
 
-            {showSwitchWorkspace && syncStatus?.workspace_id && (
-              <div className="bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Link2 size={16} className="text-brand" />
-                  <h4 className="text-xs font-extrabold text-slate-900 dark:text-white">Pindah ke Workspace Cloud Lain</h4>
+                  <div className="flex-1" />
+
+                  {isAdmin && (
+                    <>
+                      <button
+                        onClick={() => setShowSwitchWorkspace(!showSwitchWorkspace)}
+                        className="px-3 py-2 rounded-lg border border-line text-body hover:text-heading hover:bg-muted text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-all"
+                      >
+                        <Link2 size={13} /> Ganti Workspace
+                      </button>
+                      <button
+                        onClick={handleLeaveWorkspace}
+                        className="px-3 py-2 rounded-lg border border-danger/30 text-danger hover:bg-danger-soft text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all"
+                      >
+                        <LogOut size={13} /> Putuskan
+                      </button>
+                    </>
+                  )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                      Kode Workspace / Token Baru
-                    </label>
+              ) : (
+                /* ── Connect / Create Workspace Card ── */
+                <div className="bg-card rounded-xl border border-line shadow-xs p-5 space-y-4">
+                  {/* Mode Tabs */}
+                  <div className="flex items-center gap-1 p-1 bg-muted/60 rounded-lg border border-line w-fit">
+                    <button
+                      type="button"
+                      onClick={() => setConnectMode('join')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${connectMode === 'join' ? 'bg-card text-heading shadow-xs' : 'text-dim hover:text-heading'}`}
+                    >
+                      <Link2 size={12} /> Hubungkan Workspace
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setConnectMode('create'); if (!createWsName && companyName) setCreateWsName(companyName); }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${connectMode === 'create' ? 'bg-card text-heading shadow-xs' : 'text-dim hover:text-heading'}`}
+                    >
+                      <Plus size={12} /> Buat Workspace Baru
+                    </button>
+                  </div>
+
+                  {joinError && (
+                    <div className="p-3 bg-danger-soft border border-danger/30 rounded-lg flex items-center gap-2 text-danger text-xs font-medium">
+                      <AlertTriangle size={13} className="shrink-0" />
+                      <span>{joinError}</span>
+                    </div>
+                  )}
+
+                  {connectMode === 'join' ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-heading uppercase tracking-wider mb-1">
+                            Kode Workspace / Token <span className="text-danger">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={joinCode}
+                            onChange={(e) => setJoinCode(e.target.value)}
+                            placeholder="Contoh: WS-ABC123"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-line bg-muted/50 text-heading text-xs font-mono font-bold focus:border-primary focus:bg-card outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-heading uppercase tracking-wider mb-1">
+                            Password (Opsional)
+                          </label>
+                          <input
+                            type="password"
+                            value={joinPassword}
+                            onChange={(e) => setJoinPassword(e.target.value)}
+                            placeholder="Kosongkan jika tidak ada"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-line bg-muted/50 text-heading text-xs focus:border-primary focus:bg-card outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      {availableWorkspaces.length > 0 && (
+                        <div className="p-3 rounded-lg bg-muted/30 border border-line flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] font-semibold text-dim">Terdeteksi:</span>
+                          {availableWorkspaces.map(ws => (
+                            <button
+                              key={ws.id}
+                              type="button"
+                              onClick={() => setJoinCode(ws.code)}
+                              className="px-2.5 py-1 rounded-lg bg-card border border-line hover:border-primary text-xs font-mono font-bold transition-all cursor-pointer hover:text-primary"
+                            >
+                              {ws.name} <span className="text-primary opacity-70">({ws.code})</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-end pt-1">
+                        <button
+                          onClick={handleJoinWorkspace}
+                          disabled={isJoining || !joinCode.trim()}
+                          className="px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50 transition-all"
+                        >
+                          {isJoining ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+                          {isJoining ? 'Menghubungkan...' : 'Hubungkan Sekarang'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleCreateWorkspace} className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-heading uppercase tracking-wider mb-1">
+                            Nama Workspace <span className="text-danger">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={createWsName}
+                            onChange={(e) => {
+                              setCreateWsName(e.target.value);
+                              if (!createWsCode) setCreateWsCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase());
+                            }}
+                            placeholder="Contoh: Kivo Store Pusat"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-line bg-muted/50 text-heading text-xs focus:border-primary focus:bg-card outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-heading uppercase tracking-wider mb-1">
+                            Kode Workspace
+                          </label>
+                          <input
+                            type="text"
+                            value={createWsCode}
+                            onChange={(e) => setCreateWsCode(e.target.value.toUpperCase())}
+                            placeholder="KIVOPST"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-line bg-muted/50 text-heading text-xs font-mono font-bold focus:border-primary focus:bg-card outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end">
+                        <button
+                          type="submit"
+                          disabled={isCreatingWs || !createWsName.trim()}
+                          className="px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50 transition-all"
+                        >
+                          {isCreatingWs ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                          {isCreatingWs ? 'Membuat...' : 'Buat & Hubungkan'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {/* Switch Workspace Panel */}
+              {showSwitchWorkspace && syncStatus?.workspace_id && (
+                <div className="bg-muted/50 rounded-xl border border-line p-4 space-y-3 animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <Link2 size={14} className="text-primary" />
+                    <h4 className="text-xs font-bold text-heading">Pindah ke Workspace Lain</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input
                       type="text"
                       value={joinCode}
                       onChange={(e) => setJoinCode(e.target.value)}
-                      placeholder="Contoh: WS-XYZ999"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono font-bold focus:border-brand outline-none"
+                      placeholder="Kode Workspace / Token Baru"
+                      className="w-full px-3 py-2 rounded-lg border border-line bg-card text-heading text-xs font-mono font-bold focus:border-primary outline-none"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                      Password (Opsional)
-                    </label>
                     <input
                       type="password"
                       value={joinPassword}
                       onChange={(e) => setJoinPassword(e.target.value)}
-                      placeholder="Sandi jika ada"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs focus:border-brand outline-none"
+                      placeholder="Password (opsional)"
+                      className="w-full px-3 py-2 rounded-lg border border-line bg-card text-heading text-xs focus:border-primary outline-none"
                     />
                   </div>
-                </div>
-
-                {joinError && (
-                  <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl flex items-center gap-2 text-rose-600 dark:text-rose-400 text-xs font-bold">
-                    <AlertTriangle size={15} className="shrink-0" />
-                    <span>{joinError}</span>
+                  {joinError && (
+                    <div className="p-2.5 bg-danger-soft border border-danger/30 rounded-lg flex items-center gap-2 text-danger text-xs">
+                      <AlertTriangle size={13} className="shrink-0" />
+                      <span>{joinError}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => setShowSwitchWorkspace(false)} className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-dim hover:bg-line cursor-pointer">
+                      Batal
+                    </button>
+                    <button
+                      onClick={handleJoinWorkspace}
+                      disabled={isJoining || !joinCode.trim()}
+                      className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      {isJoining ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+                      {isJoining ? 'Menghubungkan...' : 'Hubungkan'}
+                    </button>
                   </div>
-                )}
-
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => setShowSwitchWorkspace(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    onClick={handleJoinWorkspace}
-                    disabled={isJoining || !joinCode.trim()}
-                    className="px-5 py-2 rounded-xl bg-brand text-white text-xs font-extrabold flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
-                  >
-                    {isJoining ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                    {isJoining ? 'Menghubungkan...' : 'Hubungkan ke Workspace Baru'}
-                  </button>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          {/* Sysadmin Only: Global Workspace Management */}
-          {user?.username === 'admin' && (
-            <div className="lg:col-span-12">
-              <SysadminWorkspaceManagement />
             </div>
           )}
         </div>
@@ -782,19 +931,24 @@ export default function Settings() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
 
           {/* ── Profil Perusahaan & Cabang (8 Cols) ── */}
-          <div className="lg:col-span-8 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="lg:col-span-8 bg-card rounded-xl border border-line shadow-sm p-6 sm:p-7 space-y-6">
+            <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-brand/10 text-brand rounded-2xl">
+                <div className="p-3 bg-primary-soft text-primary rounded-xl">
                   <Building2 size={22} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Profil Perusahaan & Cabang</h2>
-                  <p className="text-xs text-slate-500">Identitas utama bisnis yang ditampilkan pada sidebar & nota transaksi</p>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-extrabold text-heading">Profil Perusahaan & Cabang</h2>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-primary-soft text-primary border border-primary/20">
+                      Kivo v1.3
+                    </span>
+                  </div>
+                  <p className="text-xs text-dim">Identitas utama bisnis yang ditampilkan pada sidebar & nota transaksi</p>
                 </div>
               </div>
               {profileSuccess && (
-                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-full border border-emerald-200 animate-in fade-in duration-200">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-success bg-success-soft dark:bg-success/30 px-3 py-1 rounded-full border border-success/30 animate-fade-in">
                   <CheckCircle2 size={14} /> {profileSuccess}
                 </span>
               )}
@@ -803,9 +957,9 @@ export default function Settings() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {/* Company Name */}
               <div className="space-y-2">
-                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  <Building2 size={13} className="text-brand" /> Nama Perusahaan / Toko
-                  {!isOwner && <Lock size={11} className="text-slate-400 ml-1" />}
+                <label className="flex items-center gap-1.5 text-xs font-bold text-heading uppercase tracking-wide">
+                  <Building2 size={13} className="text-primary" /> Nama Perusahaan / Toko
+                  {!isOwner && <Lock size={11} className="text-dim ml-1" />}
                 </label>
                 <input
                   type="text"
@@ -813,19 +967,19 @@ export default function Settings() {
                   onChange={e => setCompanyName(e.target.value)}
                   disabled={!isOwner}
                   placeholder="Contoh: Apotek Terang"
-                  className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white font-bold outline-none transition-all ${
+                  className={`w-full bg-muted border rounded-xl px-4 py-3 text-sm text-heading font-bold outline-none transition-all ${
                     isOwner
-                      ? 'border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-brand'
-                      : 'border-slate-100 dark:border-slate-900 opacity-60 cursor-not-allowed'
+                      ? 'border-line focus:ring-2 focus:ring-primary'
+                      : 'border-line dark:border-line opacity-60 cursor-not-allowed'
                   }`}
                 />
               </div>
 
               {/* Branch Name */}
               <div className="space-y-2">
-                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  <MapPin size={13} className="text-brand" /> Nama Cabang POS
-                  {!isAdmin && <Lock size={11} className="text-slate-400 ml-1" />}
+                <label className="flex items-center gap-1.5 text-xs font-bold text-heading uppercase tracking-wide">
+                  <MapPin size={13} className="text-primary" /> Nama Cabang POS
+                  {!isAdmin && <Lock size={11} className="text-dim ml-1" />}
                 </label>
                 <input
                   type="text"
@@ -833,10 +987,10 @@ export default function Settings() {
                   onChange={e => setBranchName(e.target.value)}
                   disabled={!isAdmin}
                   placeholder="Contoh: Cabang Utama"
-                  className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white font-bold outline-none transition-all ${
+                  className={`w-full bg-muted border rounded-xl px-4 py-3 text-sm text-heading font-bold outline-none transition-all ${
                     isAdmin
-                      ? 'border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-brand'
-                      : 'border-slate-100 dark:border-slate-900 opacity-60 cursor-not-allowed'
+                      ? 'border-line focus:ring-2 focus:ring-primary'
+                      : 'border-line dark:border-line opacity-60 cursor-not-allowed'
                   }`}
                 />
               </div>
@@ -847,7 +1001,7 @@ export default function Settings() {
                 <button
                   onClick={handleSaveProfile}
                   disabled={profileSaving}
-                  className="py-3 px-6 bg-brand hover:bg-blue-600 text-white font-bold text-xs rounded-2xl shadow-md shadow-brand/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="py-3 px-6 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-xl shadow-md shadow-primary/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {profileSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   Simpan Profil Bisnis
@@ -858,19 +1012,19 @@ export default function Settings() {
 
           {/* ── Quick Database Health & Maintenance (4 Cols) ── */}
           {isAdmin && (
-            <div className="lg:col-span-4 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 flex flex-col justify-between space-y-4">
+            <div className="lg:col-span-4 bg-card rounded-xl border border-line shadow-sm p-6 sm:p-7 flex flex-col justify-between space-y-4">
               <div className="space-y-3">
-                <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-                  <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-2xl">
+                <div className="flex items-center gap-3 border-b border-line pb-4">
+                  <div className="p-3 bg-success/10 text-success rounded-xl">
                     <Database size={22} />
                   </div>
                   <div>
-                    <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Kesehatan Database</h2>
-                    <p className="text-xs text-slate-500">SQLite Engine Optimizations</p>
+                    <h2 className="text-base font-extrabold text-heading">Kesehatan Database</h2>
+                    <p className="text-xs text-dim">SQLite Engine Optimizations</p>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className="text-xs text-body leading-relaxed">
                   Jalankan pembersihan rutin VACUUM untuk mengompresi ukuran file database dan mempercepat kueri transaksi kasir.
                 </p>
               </div>
@@ -879,7 +1033,7 @@ export default function Settings() {
                 <button
                   onClick={handleExportDB}
                   disabled={loading}
-                  className="w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/20"
+                  className="w-full py-3 px-4 bg-success hover:bg-success text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-success/20"
                 >
                   <Download size={15} /> Export Database Backup (.db)
                 </button>
@@ -887,14 +1041,14 @@ export default function Settings() {
                 <button
                   onClick={() => setResetTarget('maintenance')}
                   disabled={loading}
-                  className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3 px-4 bg-muted hover:bg-line dark:hover:bg-line-strong text-heading font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Database size={15} /> Optimize DB (VACUUM)
                 </button>
 
                 {successMsg && (
-                  <p className="text-xs text-center font-bold text-emerald-600 animate-in fade-in">
-                    ✓ {successMsg}
+                  <p className="text-xs text-center font-bold text-success animate-fade-in flex items-center justify-center gap-1.5">
+                    <CheckCircle2 size={13} /> {successMsg}
                   </p>
                 )}
               </div>
@@ -902,39 +1056,52 @@ export default function Settings() {
           )}
 
           {/* ── System Preferences & Accounting Config (7 Cols) ── */}
-          <div className="lg:col-span-7 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7 space-y-5">
-            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl">
+          <div className="lg:col-span-7 bg-card rounded-xl border border-line shadow-sm p-6 sm:p-7 space-y-5">
+            <div className="flex items-center gap-3 border-b border-line pb-4">
+              <div className="p-3 bg-primary-soft text-primary rounded-xl">
                 <Sliders size={22} />
               </div>
               <div>
-                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Konfigurasi Sistem & Keuangan</h2>
-                <p className="text-xs text-slate-500">Metode HPP, mode pajak, dan reset siklus nomor nota</p>
+                <h2 className="text-lg font-extrabold text-heading">Konfigurasi Sistem & Keuangan</h2>
+                <p className="text-xs text-dim">Metode HPP, mode pajak, dan reset siklus nomor nota</p>
               </div>
-              {saving && <Loader2 size={16} className="animate-spin text-brand ml-auto" />}
+              {saving && <Loader2 size={16} className="animate-spin text-primary ml-auto" />}
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
               {generalConfigs.map((c) => (
                 <SettingRow key={c.key} config={c} onSave={handleSaveConfig} disabled={!isAdmin} />
               ))}
               {generalConfigs.length === 0 && (
-                <p className="text-xs text-slate-400 italic py-4 text-center">Tidak ada variabel sistem tambahan.</p>
+                <p className="text-xs text-dim italic py-4 text-center">Tidak ada variabel sistem tambahan.</p>
               )}
             </div>
+
+            {advancedConfigs.length > 0 && (
+              <details className="group border-t border-line pt-3">
+                <summary className="text-[11px] font-bold text-dim uppercase tracking-wider cursor-pointer hover:text-heading select-none">
+                  Pengaturan Lanjutan ({advancedConfigs.length})
+                </summary>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4 pt-3">
+                  {advancedConfigs.map((c) => (
+                    <SettingRow key={c.key} config={c} onSave={handleSaveConfig} disabled={!isAdmin} />
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
 
           {/* ── Danger Zone / Reset Options (5 Cols) ── */}
           {isAdmin && (
-            <div className="lg:col-span-5 bg-white dark:bg-[#0B0F19] rounded-3xl border border-rose-200/80 dark:border-rose-900/60 shadow-sm p-6 sm:p-7 flex flex-col justify-between space-y-5">
+            <div className="lg:col-span-5 bg-card rounded-xl border border-danger/30/80 dark:border-danger/60 shadow-sm p-6 sm:p-7 flex flex-col justify-between space-y-5">
               <div className="space-y-4">
-                <div className="flex items-center gap-3 border-b border-rose-100 dark:border-rose-900/50 pb-4">
-                  <div className="p-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 rounded-2xl">
+                <div className="flex items-center gap-3 border-b border-danger-soft dark:border-danger/50 pb-4">
+                  <div className="p-3 bg-danger-soft dark:bg-danger/30 text-danger rounded-xl">
                     <AlertTriangle size={22} />
                   </div>
                   <div>
-                    <h2 className="text-base font-extrabold text-rose-600 dark:text-rose-400">Danger Zone (Reset Data)</h2>
-                    <p className="text-xs text-slate-500">Hanya untuk Admin — Pembersihan Data</p>
+                    <h2 className="text-base font-extrabold text-danger dark:text-danger">Danger Zone (Reset Data)</h2>
+                    <p className="text-xs text-dim">Hanya untuk Admin — Pembersihan Data</p>
                   </div>
                 </div>
 
@@ -943,45 +1110,45 @@ export default function Settings() {
                     <button
                       onClick={() => setResetTarget('sales')}
                       disabled={loading}
-                      className="w-full py-3 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 rounded-2xl font-bold text-xs transition-all cursor-pointer"
+                      className="w-full py-3 bg-danger-soft dark:bg-danger/30 hover:bg-danger-soft dark:hover:bg-danger/40 text-danger dark:text-danger border border-danger/30 dark:border-danger/60 rounded-xl font-bold text-xs transition-all cursor-pointer"
                     >
                       Reset Data Penjualan (Sales)
                     </button>
-                    <p className="text-[10px] text-slate-400 text-center">Menghapus riwayat transaksi POS & jurnal kasir.</p>
+                    <p className="text-[10px] text-dim text-center">Menghapus riwayat transaksi POS & jurnal kasir.</p>
                   </div>
 
                   <div className="space-y-1">
                     <button
                       onClick={() => setResetTarget('inventory')}
                       disabled={loading}
-                      className="w-full py-3 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 rounded-2xl font-bold text-xs transition-all cursor-pointer"
+                      className="w-full py-3 bg-danger-soft dark:bg-danger/30 hover:bg-danger-soft dark:hover:bg-danger/40 text-danger dark:text-danger border border-danger/30 dark:border-danger/60 rounded-xl font-bold text-xs transition-all cursor-pointer"
                     >
                       Reset Data Stok & Pembelian
                     </button>
-                    <p className="text-[10px] text-slate-400 text-center">Menghapus mutasi stok dan kartu stok.</p>
+                    <p className="text-[10px] text-dim text-center">Menghapus mutasi stok dan kartu stok.</p>
                   </div>
 
                   <div className="space-y-1 pt-1">
                     <button
                       onClick={() => setResetTarget('all')}
                       disabled={loading}
-                      className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-md shadow-rose-600/20 cursor-pointer"
+                      className="w-full py-3.5 bg-danger hover:bg-danger text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-danger/20 cursor-pointer"
                     >
                       Reset Semua Data Local (Factory Reset)
                     </button>
-                    <p className="text-[10px] text-slate-400 text-center">Menghapus seluruh Master Data & Transaksi Lokal.</p>
+                    <p className="text-[10px] text-dim text-center">Menghapus seluruh Master Data & Transaksi Lokal.</p>
                   </div>
 
                   {(user?.role === 'owner' || user?.role === 'sysadmin') && (
-                    <div className="space-y-1 pt-3 border-t border-rose-200/60 dark:border-rose-900/60">
+                    <div className="space-y-1 pt-3 border-t border-danger/30/60 dark:border-danger/60">
                       <button
                         onClick={() => setNukeStep(1)}
                         disabled={loading}
-                        className="w-full py-3.5 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-black text-xs rounded-2xl transition-all shadow-lg shadow-red-600/30 cursor-pointer flex items-center justify-center gap-2"
+                        className="w-full py-3.5 bg-danger hover:opacity-90 text-white font-black text-xs rounded-lg transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-2"
                       >
                         <Trash2 size={16} /> Nuke Supabase Cloud Data (Owner Only)
                       </button>
-                      <p className="text-[10px] text-rose-500 font-bold text-center">PERINGATAN: Menghapus SELURUH database di Supabase Cloud!</p>
+                      <p className="text-[10px] text-danger font-bold text-center">PERINGATAN: Menghapus SELURUH database di Supabase Cloud!</p>
                     </div>
                   )}
                 </div>
@@ -991,16 +1158,16 @@ export default function Settings() {
 
           {/* Membership Configurations Card */}
           {memberConfigs.length > 0 && (
-            <div className="lg:col-span-12 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-7">
-              <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                <div className="p-3 bg-blue-500/10 text-blue-500 rounded-2xl">
+            <div className="lg:col-span-12 bg-card rounded-xl border border-line shadow-sm p-6 sm:p-7">
+              <div className="flex items-center gap-3 border-b border-line pb-4 mb-5">
+                <div className="p-3 bg-accent/10 text-accent rounded-xl">
                   <UserCheck size={22} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Membership Settings</h2>
-                  <p className="text-xs text-slate-500">Konfigurasi durasi dan diskon untuk tier Member dan VIP</p>
+                  <h2 className="text-lg font-extrabold text-heading">Membership Settings</h2>
+                  <p className="text-xs text-dim">Konfigurasi durasi dan diskon untuk tier Member dan VIP</p>
                 </div>
-                {saving && <Loader2 size={14} className="animate-spin text-slate-400 ml-auto" />}
+                {saving && <Loader2 size={14} className="animate-spin text-dim ml-auto" />}
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {memberConfigs.map((c) => (
@@ -1020,13 +1187,13 @@ export default function Settings() {
           size="md"
           title={resetTarget === 'maintenance' ? 'Optimize Database?' : 'Konfirmasi Wipe Database'}
           icon={AlertTriangle}
-          iconBg="bg-rose-100 dark:bg-rose-900/30 text-rose-600"
+          iconBg="bg-danger-soft dark:bg-danger/30 text-danger"
           footer={
             <div className="flex gap-3 w-full">
               <button
                 type="button"
                 onClick={() => setResetTarget(null)}
-                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="flex-1 py-3 border border-line rounded-xl text-xs font-bold text-body hover:bg-muted transition-colors"
               >
                 Batal
               </button>
@@ -1034,7 +1201,7 @@ export default function Settings() {
                 type="button"
                 onClick={handleResetDB}
                 disabled={resetTarget !== 'maintenance' && confirmText !== 'DELETE'}
-                className="flex-[1.5] py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-rose-600/20"
+                className="flex-[1.5] py-3 bg-danger hover:bg-danger text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-danger/20"
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
                 {loading ? 'Memproses...' : 'Ya, Eksekusi'}
@@ -1045,24 +1212,26 @@ export default function Settings() {
           <div className="space-y-4">
             {resetTarget === 'maintenance' ? (
               <>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Menjalankan <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">VACUUM</code> dan <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">ANALYZE</code> untuk mengompresi database SQLite.
+                <p className="text-xs text-body leading-relaxed">
+                  Menjalankan <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">VACUUM</code> dan <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">ANALYZE</code> untuk mengompresi database SQLite.
                 </p>
-                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <p className="text-xs font-bold text-success dark:text-success">
                   Aplikasi mungkin jeda sejenak. Tidak ada data yang dihapus.
                 </p>
               </>
             ) : (
               <>
-                <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/50 rounded-2xl space-y-2">
-                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">⚠ Tindakan Permanen</p>
-                  <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+                <div className="p-4 bg-danger-soft dark:bg-danger/20 border border-danger/30 dark:border-danger/50 rounded-xl space-y-2">
+                  <p className="text-xs font-bold text-danger uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle size={13} /> Tindakan Permanen
+                  </p>
+                  <p className="text-xs text-danger dark:text-danger leading-relaxed">
                     {resetTarget === 'sales' && 'Seluruh transaksi kasir, pembayaran, dan laporan penjualan akan dihapus permanen.'}
                     {resetTarget === 'inventory' && 'Seluruh kartu stok, mutasi barang, dan PO pembelian akan dihapus.'}
                     {resetTarget === 'all' && 'SELURUH DATA (Master Data, Stok, Sales) akan dihapus total dan aplikasi kembali ke kondisi awal.'}
                   </p>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-dim">
                   Ketik <strong>DELETE</strong> untuk mengonfirmasi:
                 </p>
                 <input
@@ -1070,7 +1239,7 @@ export default function Settings() {
                   value={confirmText}
                   onChange={e => setConfirmText(e.target.value)}
                   placeholder="DELETE"
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-rose-200 dark:border-rose-800/80 rounded-2xl px-4 py-3 text-sm font-bold text-rose-600 outline-none uppercase font-mono"
+                  className="w-full bg-muted border border-danger/30 dark:border-danger/80 rounded-xl px-4 py-3 text-sm font-bold text-danger outline-none uppercase font-mono"
                 />
               </>
             )}
@@ -1086,20 +1255,20 @@ export default function Settings() {
           size="md"
           title="Peringatan Bahaya (Owner)"
           icon={AlertTriangle}
-          iconBg="bg-rose-500/10 text-rose-500"
+          iconBg="bg-danger/10 text-danger"
           footer={
             <div className="flex gap-3 w-full">
               <button
                 type="button"
                 onClick={() => setNukeStep(0)}
-                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="flex-1 py-3 border border-line rounded-xl text-xs font-bold text-body hover:bg-muted transition-colors"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={() => setNukeStep(2)}
-                className="flex-[1.5] py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-black transition-all cursor-pointer shadow-md shadow-rose-600/20"
+                className="flex-[1.5] py-3 bg-danger hover:bg-danger text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-danger/20"
               >
                 Lanjut ke Konfirmasi Akhir →
               </button>
@@ -1107,10 +1276,10 @@ export default function Settings() {
           }
         >
           <div className="text-center space-y-4 py-2">
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">Hapus Seluruh Data Supabase Cloud?</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            <h3 className="text-lg font-black text-heading">Hapus Seluruh Data Supabase Cloud?</h3>
+            <p className="text-xs text-dim leading-relaxed">
               Tindakan ini akan mengosongkan <strong>SELURUH master data, produk, dan transaksi</strong> pada database Cloud Supabase untuk workspace ini.<br/><br/>
-              <strong className="text-rose-500">TINDAKAN INI TIDAK DAPAT DIBATALKAN ATAU DIKEMBALIKAN!</strong>
+              <strong className="text-danger">TINDAKAN INI TIDAK DAPAT DIBATALKAN ATAU DIKEMBALIKAN!</strong>
             </p>
           </div>
         </Modal>
@@ -1124,13 +1293,13 @@ export default function Settings() {
           size="md"
           title="Konfirmasi Akhir Nuke Cloud"
           icon={Trash2}
-          iconBg="bg-red-600/15 text-red-600"
+          iconBg="bg-danger/15 text-danger"
           footer={
             <div className="flex gap-3 w-full">
               <button
                 type="button"
                 onClick={() => { setNukeStep(0); setNukeConfirmText(''); }}
-                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="flex-1 py-3 border border-line rounded-xl text-xs font-bold text-body hover:bg-muted transition-colors"
               >
                 Batal
               </button>
@@ -1138,25 +1307,29 @@ export default function Settings() {
                 type="button"
                 onClick={handleNukeCloudData}
                 disabled={nukeConfirmText !== 'NUKE CLOUD DATA' || loading}
-                className="flex-[1.5] py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-xs font-black transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-600/30"
+                className="flex-[1.5] py-3 bg-danger hover:bg-danger text-white rounded-xl text-xs font-black transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-danger/30"
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
-                {loading ? 'Memproses Nuke...' : '🔥 EKSEKUSI HAPUS CLOUD'}
+                {loading ? 'Memproses Nuke...' : (
+                  <span className="flex items-center gap-1.5">
+                    <Flame size={14} /> EKSEKUSI HAPUS CLOUD
+                  </span>
+                )}
               </button>
             </div>
           }
         >
           <div className="text-center space-y-4 py-2">
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">Ketik untuk Mengonfirmasi Nuke</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Ketik frasa <code className="bg-rose-100 dark:bg-rose-950 text-rose-600 font-mono px-1.5 py-0.5 rounded font-bold">NUKE CLOUD DATA</code> di bawah ini untuk membuka tombol eksekusi:
+            <h3 className="text-lg font-black text-heading">Ketik untuk Mengonfirmasi Nuke</h3>
+            <p className="text-xs text-dim leading-relaxed">
+              Ketik frasa <code className="bg-danger-soft dark:bg-danger text-danger font-mono px-1.5 py-0.5 rounded font-bold">NUKE CLOUD DATA</code> di bawah ini untuk membuka tombol eksekusi:
             </p>
             <input
               type="text"
               placeholder="NUKE CLOUD DATA"
               value={nukeConfirmText}
               onChange={e => setNukeConfirmText(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-red-500/50 rounded-2xl px-4 py-3 text-sm font-black text-red-600 outline-none uppercase font-mono text-center tracking-wider focus:ring-2 focus:ring-red-600"
+              className="w-full bg-muted border-2 border-danger/50 rounded-xl px-4 py-3 text-sm font-black text-danger outline-none uppercase font-mono text-center tracking-wider focus:ring-2 focus:ring-danger"
             />
           </div>
         </Modal>
@@ -1197,17 +1370,17 @@ function CustomSelect({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-extrabold text-slate-900 dark:text-white outline-none transition-all shadow-xs ${
+        className={`w-full flex items-center justify-between bg-card border border-line rounded-xl px-4 py-2.5 text-xs font-extrabold text-heading outline-none transition-all shadow-xs ${
           disabled
             ? 'opacity-50 cursor-not-allowed'
-            : 'hover:border-brand dark:hover:border-brand focus:ring-2 focus:ring-brand/30 cursor-pointer'
+            : 'hover:border-primary dark:hover:border-primary focus:ring-2 focus:ring-primary/30 cursor-pointer'
         }`}
       >
         <span className="truncate">{selectedOpt?.label || value}</span>
         <ChevronDown
           size={15}
-          className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 shrink-0 ml-2 ${
-            isOpen ? 'rotate-180 text-brand' : ''
+          className={`text-dim transition-transform duration-200 shrink-0 ml-2 ${
+            isOpen ? 'rotate-180 text-primary' : ''
           }`}
         />
       </button>
@@ -1218,7 +1391,7 @@ function CustomSelect({
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 left-0 top-full mt-1.5 z-50 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl py-1.5 max-h-56 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-150">
+          <div className="absolute right-0 left-0 top-full mt-1.5 z-50 bg-card dark:bg-[#0F172A] border border-line rounded-xl shadow-2xl py-1.5 max-h-56 overflow-y-auto custom-scrollbar animate-fade-in duration-150">
             {options.map((opt) => {
               const isSelected = opt.value === value;
               return (
@@ -1231,12 +1404,12 @@ function CustomSelect({
                   }}
                   className={`w-full flex items-center justify-between px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer text-left ${
                     isSelected
-                      ? 'bg-brand/10 text-brand dark:bg-brand/20 dark:text-blue-400 font-extrabold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                      ? 'bg-primary-soft text-primary dark:bg-primary-soft dark:text-accent font-extrabold'
+                      : 'text-heading hover:bg-muted/80'
                   }`}
                 >
                   <span className="truncate">{opt.label}</span>
-                  {isSelected && <CheckCircle2 size={14} className="text-brand shrink-0 ml-2" />}
+                  {isSelected && <CheckCircle2 size={14} className="text-primary shrink-0 ml-2" />}
                 </button>
               );
             })}
@@ -1272,19 +1445,19 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
   const handleApplyHpp = async () => {
     setApplyingHpp(true);
     try {
-      const msg = await invoke('apply_hpp_retroactive', { method: val });
-      alert(msg);
+      const msg = await invoke<string>('apply_hpp_retroactive', { method: val });
+      toast.success('HPP diterapkan', msg);
     } catch (e) {
-      alert(`Failed to apply HPP: ${e}`);
+      toast.error('Gagal menerapkan HPP', String(e));
     } finally {
       setApplyingHpp(false);
     }
   };
 
   return (
-    <div className="p-4 bg-slate-50/70 dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-800/80 space-y-2">
-      <label className="block text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-        {config.key.replace(/_/g, ' ')}
+    <div className="space-y-1.5 min-w-0">
+      <label className="block text-xs font-bold text-heading">
+        {FIELD_LABELS[config.key] || config.key.replace(/_/g, ' ')}
       </label>
       <div className="flex gap-2 items-center">
         {options ? (
@@ -1309,21 +1482,21 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
                 onSave(config.key, val);
               }
             }}
-            className="flex-1 bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+            className="flex-1 bg-input border border-line rounded-lg px-3 py-2 text-xs font-semibold text-heading outline-none focus:ring-2 focus:ring-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
           />
         )}
-        
+
         {(config.key === 'hpp_method' || config.key === 'hpp_method_default') && (
-          <button 
+          <button
             onClick={handleApplyHpp}
             disabled={applyingHpp || disabled}
-            className="px-4 py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:bg-blue-600 transition-all shadow-xs disabled:opacity-50 whitespace-nowrap cursor-pointer"
+            className="px-3.5 py-2 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 whitespace-nowrap cursor-pointer"
           >
             {applyingHpp ? 'Applying...' : 'Apply HPP'}
           </button>
         )}
       </div>
-      {config.description && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{config.description}</p>}
+      {config.description && <p className="text-[11px] text-dim">{config.description}</p>}
     </div>
   );
 }
@@ -1338,7 +1511,10 @@ function SysadminWorkspaceManagement() {
   const [newCode, setNewCode] = useState('');
   const [creating, setCreating] = useState(false);
   const [expandedWs, setExpandedWs] = useState<string | null>(null);
+  const [assignPick, setAssignPick] = useState('');
   const [assigningUser, setAssigningUser] = useState<string | null>(null); // user_id being assigned
+  const [wsToDelete, setWsToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deletingWsId, setDeletingWsId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -1377,13 +1553,28 @@ function SysadminWorkspaceManagement() {
     }
   };
 
+  const handleDeleteWorkspace = async () => {
+    if (!wsToDelete) return;
+    setDeletingWsId(wsToDelete.id);
+    try {
+      await sysadminDeleteWorkspace(wsToDelete.id);
+      toast.success('Workspace Dihapus', `Workspace "${wsToDelete.name}" berhasil dihapus.`);
+      setWsToDelete(null);
+      await loadData();
+    } catch (e: any) {
+      toast.error('Gagal Menghapus Workspace', e.message || String(e));
+    } finally {
+      setDeletingWsId(null);
+    }
+  };
+
   const handleAssignWorkspace = async (userId: string, workspaceId: string | null) => {
     setAssigningUser(userId);
     try {
       await assignUserWorkspace(userId, workspaceId);
       await loadData();
     } catch (e: any) {
-      alert('Gagal mengassign workspace: ' + (e.message || e));
+      toast.error('Gagal Mengassign Workspace', e.message || String(e));
     } finally {
       setAssigningUser(null);
     }
@@ -1393,62 +1584,62 @@ function SysadminWorkspaceManagement() {
   const getUnassignedUsers = () => allUsers.filter(u => !u.workspace_id);
 
   return (
-    <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-indigo-200/80 dark:border-indigo-900/60 shadow-sm p-6 sm:p-7 space-y-5 mt-2">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+    <div className="bg-card rounded-xl border border-line shadow-xs p-5 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3.5">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl">
-            <Globe size={22} />
+          <div className="p-2.5 bg-primary-soft text-primary rounded-xl shrink-0">
+            <Globe size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">System Admin Workspaces</h2>
-            <p className="text-xs text-slate-500">Kelola seluruh workspace cloud dan assign anggota tim</p>
+            <h2 className="text-base font-bold text-heading">System Admin Workspaces</h2>
+            <p className="text-xs text-dim">Kelola seluruh workspace cloud dan assign anggota tim</p>
           </div>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer"
+          className="px-3.5 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
         >
           + Workspace Baru
         </button>
       </div>
 
       {error && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs">
+        <div className="p-3 bg-danger-soft border border-danger/30 text-danger rounded-lg text-xs font-medium">
           {error}
         </div>
       )}
 
       {showCreate && (
-        <form onSubmit={handleCreate} className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-indigo-200 dark:border-indigo-900/40 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form onSubmit={handleCreate} className="p-4 bg-muted/50 rounded-xl border border-line space-y-3 animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Nama Workspace</label>
+              <label className="text-[11px] font-semibold text-dim uppercase tracking-wider block mb-1">Nama Workspace</label>
               <input
                 type="text"
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="e.g. Apotek Terang Pusat"
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-xs font-semibold text-slate-900 dark:text-white"
+                className="w-full px-3 py-2 bg-card border border-line rounded-lg focus:outline-none focus:border-primary text-xs font-semibold text-heading"
                 required
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Kode Unik</label>
+              <label className="text-[11px] font-semibold text-dim uppercase tracking-wider block mb-1">Kode Unik</label>
               <input
                 type="text"
                 value={newCode}
                 onChange={e => setNewCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
                 placeholder="e.g. TERANG-01"
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 uppercase font-mono text-xs font-bold text-slate-900 dark:text-white"
+                className="w-full px-3 py-2 bg-card border border-line rounded-lg focus:outline-none focus:border-primary uppercase font-mono text-xs font-bold text-heading"
                 maxLength={32}
                 required
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl">Batal</button>
-            <button type="submit" disabled={creating} className="px-4 py-2 text-xs font-bold bg-indigo-500 text-white hover:bg-indigo-600 rounded-xl flex items-center gap-2">
-              {creating && <Loader2 size={14} className="animate-spin" />}
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={() => setShowCreate(false)} className="px-3.5 py-1.5 text-xs font-medium text-dim hover:bg-line rounded-lg">Batal</button>
+            <button type="submit" disabled={creating} className="px-4 py-1.5 text-xs font-semibold bg-primary text-white hover:bg-primary-hover rounded-lg flex items-center gap-1.5 shadow-xs">
+              {creating && <Loader2 size={13} className="animate-spin" />}
               Buat Workspace
             </button>
           </div>
@@ -1456,53 +1647,72 @@ function SysadminWorkspaceManagement() {
       )}
 
       {loading ? (
-        <div className="flex justify-center p-8"><Loader2 size={24} className="animate-spin text-indigo-500" /></div>
+        <div className="flex justify-center p-8"><Loader2 size={24} className="animate-spin text-primary" /></div>
       ) : workspaces.length === 0 ? (
-        <div className="text-center p-8 text-slate-500 text-xs">Tidak ada workspace cloud.</div>
+        <div className="text-center p-8 text-dim text-xs">Tidak ada workspace cloud.</div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {workspaces.map(ws => {
             const wsUsers = getUsersInWorkspace(ws.id);
             const isExpanded = expandedWs === ws.id;
             return (
-              <div key={ws.id} className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+              <div key={ws.id} className="border border-line rounded-xl overflow-hidden bg-card">
                 {/* Workspace header */}
                 <div
-                  className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                  className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-muted/40 transition-colors"
                   onClick={() => setExpandedWs(isExpanded ? null : ws.id)}
                 >
-                  <div>
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">{ws.name}</h3>
-                    <div className="flex items-center gap-3 mt-1">
-                      <code className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">{ws.code}</code>
-                      <span className="text-[10px] text-slate-500">{wsUsers.length} anggota</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                      <Globe size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-xs text-heading truncate">{ws.name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <code className="text-[10px] font-mono text-primary bg-primary-soft px-1.5 py-0.2 rounded font-semibold">{ws.code}</code>
+                        <span className="text-[10px] text-dim">{wsUsers.length} anggota</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+
+                  <div className="flex items-center gap-1.5">
+                    {/* Delete Workspace Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setWsToDelete({ id: ws.id, name: ws.name });
+                      }}
+                      disabled={deletingWsId === ws.id}
+                      className="p-1.5 text-dim hover:text-danger hover:bg-danger-soft rounded-lg transition-colors cursor-pointer"
+                      title="Hapus Workspace Ini"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <span className="text-dim text-xs p-1">{isExpanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
 
                 {/* Expanded: member list + assign new member */}
                 {isExpanded && (
-                  <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-3 space-y-2">
+                  <div className="border-t border-line bg-muted/40 p-3 space-y-2">
                     {wsUsers.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-1">Belum ada anggota di workspace ini.</p>
+                      <p className="text-xs text-dim italic py-1">Belum ada anggota di workspace ini.</p>
                     ) : wsUsers.map(u => (
-                      <div key={u.id} className="flex items-center justify-between py-1.5 px-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-brand/10 text-brand flex items-center justify-center text-xs font-bold shrink-0">
+                      <div key={u.id} className="flex items-center justify-between py-1.5 px-2.5 bg-card rounded-lg border border-line">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-primary-soft text-primary flex items-center justify-center text-xs font-bold shrink-0">
                             {u.name.substring(0, 2).toUpperCase()}
                           </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{u.name}</p>
-                            <p className="text-[10px] text-slate-500">@{u.username} · {u.role}</p>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-heading truncate">{u.name}</p>
+                            <p className="text-[10px] text-dim truncate">@{u.username} · {u.role}</p>
                           </div>
                         </div>
                         <button
                           onClick={() => handleAssignWorkspace(u.id, null)}
                           disabled={assigningUser === u.id}
-                          className="text-[10px] px-2 py-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-md font-semibold transition-colors disabled:opacity-50"
+                          className="text-[10px] px-2 py-1 text-danger hover:bg-danger-soft border border-danger/30 rounded-md font-semibold transition-colors disabled:opacity-50"
                           title="Lepas dari workspace ini"
                         >
                           {assigningUser === u.id ? '...' : 'Lepas'}
@@ -1513,13 +1723,13 @@ function SysadminWorkspaceManagement() {
                     {/* Add user to workspace */}
                     {getUnassignedUsers().length > 0 && (
                       <div className="flex items-center gap-2 pt-1">
-                        <select
-                          className="flex-1 text-xs px-2 py-1.5 border border-dashed border-indigo-300 dark:border-indigo-700 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none"
-                          defaultValue=""
-                          onChange={e => {
-                            if (e.target.value) {
-                              handleAssignWorkspace(e.target.value, ws.id);
-                              e.target.value = '';
+                        <Select
+                          className="flex-1"
+                          value={assignPick}
+                          onChange={v => {
+                            if (v) {
+                              handleAssignWorkspace(v, ws.id);
+                              setAssignPick('');
                             }
                           }}
                         >
@@ -1527,11 +1737,11 @@ function SysadminWorkspaceManagement() {
                           {getUnassignedUsers().map(u => (
                             <option key={u.id} value={u.id}>{u.name} (@{u.username})</option>
                           ))}
-                        </select>
+                        </Select>
                       </div>
                     )}
                     {getUnassignedUsers().length === 0 && wsUsers.length > 0 && (
-                      <p className="text-[10px] text-slate-400 italic pt-1">Semua user sudah di-assign ke workspace.</p>
+                      <p className="text-[10px] text-dim italic pt-1">Semua user sudah di-assign ke workspace.</p>
                     )}
                   </div>
                 )}
@@ -1543,29 +1753,46 @@ function SysadminWorkspaceManagement() {
 
       {/* Unassigned users section */}
       {!loading && getUnassignedUsers().length > 0 && (
-        <div className="mt-2 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl">
-          <p className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-2">⚠ User Tanpa Workspace ({getUnassignedUsers().length})</p>
+        <div className="mt-2 p-3.5 bg-warning-soft border border-warning/30 rounded-xl">
+          <p className="text-xs font-bold text-warning uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <AlertTriangle size={13} /> User Tanpa Workspace ({getUnassignedUsers().length})
+          </p>
           <div className="space-y-1.5">
             {getUnassignedUsers().map(u => (
               <div key={u.id} className="flex items-center justify-between">
-                <span className="text-xs text-slate-700 dark:text-slate-300">{u.name} <span className="text-slate-400">(@{u.username})</span></span>
-                <select
-                  className="text-[10px] px-2 py-1 border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 outline-none"
-                  defaultValue=""
-                  onChange={e => {
-                    if (e.target.value) handleAssignWorkspace(u.id, e.target.value);
-                    e.currentTarget.value = '';
+                <span className="text-xs text-heading">{u.name} <span className="text-dim">(@{u.username})</span></span>
+                <Select
+                  className="text-[10px]"
+                  value={assignPick}
+                  onChange={v => {
+                    if (v) {
+                      handleAssignWorkspace(u.id, v);
+                      setAssignPick('');
+                    }
                   }}
                 >
                   <option value="" disabled>Assign ke workspace...</option>
                   {workspaces.map(ws => (
                     <option key={ws.id} value={ws.id}>{ws.name}</option>
                   ))}
-                </select>
+                </Select>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {/* Delete Workspace Confirmation Modal */}
+      {wsToDelete && (
+        <ConfirmModal
+          title="Hapus Workspace Cloud?"
+          message={`Anda yakin ingin menghapus workspace "${wsToDelete.name}"? Tindakan ini akan menghapus workspace dari database Supabase Cloud secara permanen.`}
+          confirmLabel={deletingWsId ? 'Menghapus...' : 'Ya, Hapus Workspace'}
+          cancelLabel="Batal"
+          variant="danger"
+          onConfirm={handleDeleteWorkspace}
+          onCancel={() => setWsToDelete(null)}
+        />
       )}
     </div>
   );

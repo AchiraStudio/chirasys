@@ -65,19 +65,19 @@ export default function PurchasingDashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in h-full">
-      <div className="flex justify-between items-end">
+    <div className="flex flex-col gap-4 animate-in fade-in h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Penerimaan Barang (Receive Goods)</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Riwayat penerimaan barang masuk dan pencatatan faktur pembelian pemasok.</p>
+          <h1 className="text-lg font-bold tracking-tight text-heading">Penerimaan Barang (Goods Receipt)</h1>
+          <p className="text-xs text-dim mt-0.5">Riwayat penerimaan barang masuk dan pencatatan faktur pembelian pemasok.</p>
         </div>
         {view === 'po' ? (
-          <button onClick={() => setIsPoDrawerOpen(true)} className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm hover:bg-blue-600 transition-colors cursor-pointer">
-            <Plus size={18} /> New Purchase Order
+          <button onClick={() => setIsPoDrawerOpen(true)} className="flex items-center gap-1.5 bg-primary text-white px-3.5 py-1.5 rounded-lg font-semibold text-xs shadow-xs hover:bg-primary-hover transition-colors cursor-pointer">
+            <Plus size={15} /> Buat PO Baru
           </button>
         ) : (
-          <button onClick={() => setIsDirectReceiveOpen(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-colors cursor-pointer">
-            <Plus size={18} /> Terima Barang Masuk
+          <button onClick={() => setIsDirectReceiveOpen(true)} className="flex items-center gap-1.5 bg-success hover:bg-success/90 text-white px-3.5 py-1.5 rounded-lg font-semibold text-xs shadow-xs transition-colors cursor-pointer">
+            <Plus size={15} /> Terima Barang Masuk
           </button>
         )}
       </div>

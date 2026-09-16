@@ -50,7 +50,7 @@ export default function Modal({
   title,
   subtitle,
   icon: IconOrElement,
-  iconBg = 'bg-brand/10 text-brand dark:bg-brand/20',
+  iconBg = 'bg-primary-soft text-primary',
   badge,
   headerRight,
   footer,
@@ -103,7 +103,7 @@ export default function Modal({
     }
     const IconComponent = IconOrElement as React.ComponentType<{ size?: number; className?: string }>;
     return (
-      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${iconBg}`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
         <IconComponent size={20} />
       </div>
     );
@@ -118,9 +118,9 @@ export default function Modal({
       aria-modal="true"
       aria-labelledby={title ? titleId : undefined}
     >
-      {/* Global Fullscreen Backdrop Blur */}
+      {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/55 backdrop-blur-sm animate-fade-in"
         onClick={() => {
           if (closeOnBackdropClick && onClose) {
             onClose();
@@ -131,29 +131,27 @@ export default function Modal({
 
       {/* Modal Dialog Card */}
       <div
-        className={`relative z-10 w-full ${SIZE_CLASSES[size]} bg-white dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-2xl shadow-slate-900/20 dark:shadow-black/60 flex flex-col max-h-[92vh] overflow-hidden animate-in zoom-in-95 fade-in duration-200 transition-colors ${className}`}
+        className={`relative z-10 w-full ${SIZE_CLASSES[size]} bg-elevated text-heading rounded-xl border border-line shadow-2xl shadow-black/40 flex flex-col max-h-[92vh] overflow-hidden animate-pop-in ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {hasHeader && (
           <div
-            className={`px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/40 shrink-0 ${headerClassName}`}
+            className={`px-6 py-4 border-b border-line flex items-center justify-between gap-4 shrink-0 ${headerClassName}`}
           >
             <div className="flex items-center gap-3.5 min-w-0 flex-1">
               {renderIcon()}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {title && (
-                    <h2 id={titleId} className="text-lg font-bold text-slate-900 dark:text-white truncate">
+                    <h2 id={titleId} className="text-base font-bold text-heading truncate">
                       {title}
                     </h2>
                   )}
                   {badge}
                 </div>
                 {subtitle && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                    {subtitle}
-                  </p>
+                  <p className="text-xs text-dim mt-0.5 truncate">{subtitle}</p>
                 )}
               </div>
             </div>
@@ -165,7 +163,7 @@ export default function Modal({
                   type="button"
                   onClick={onClose}
                   aria-label="Tutup"
-                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  className="w-8 h-8 flex items-center justify-center text-dim hover:text-heading hover:bg-muted rounded-lg transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -186,7 +184,7 @@ export default function Modal({
         {/* Footer */}
         {footer && (
           <div
-            className={`px-6 py-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/50 flex items-center justify-end gap-3 shrink-0 ${footerClassName}`}
+            className={`px-6 py-4 border-t border-line flex items-center justify-end gap-3 shrink-0 ${footerClassName}`}
           >
             {footer}
           </div>
@@ -208,7 +206,7 @@ Modal.Header = function ModalHeader({
 }) {
   return (
     <div
-      className={`px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/40 shrink-0 ${className}`}
+      className={`px-6 py-4 border-b border-line flex items-center justify-between gap-4 shrink-0 ${className}`}
     >
       {children}
     </div>
@@ -246,7 +244,7 @@ Modal.Footer = function ModalFooter({
 }) {
   return (
     <div
-      className={`px-6 py-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/50 flex items-center justify-end gap-3 shrink-0 ${className}`}
+      className={`px-6 py-4 border-t border-line flex items-center justify-end gap-3 shrink-0 ${className}`}
     >
       {children}
     </div>

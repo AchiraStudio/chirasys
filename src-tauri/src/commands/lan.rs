@@ -259,7 +259,7 @@ async fn handle_lan_info(AxumState(ctx): AxumState<ServerContext>) -> Json<serde
 
     Json(serde_json::json!({
         "app": "chirasys",
-        "version": "1.2.0",
+        "version": "1.3.0",
         "device_id": get_device_unique_id(),
         "device_name": device_name,
         "role": role,
@@ -1152,7 +1152,7 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
 
             let packet = LanBeaconPacket {
                 app: "chirasys".to_string(),
-                version: "1.2.0".to_string(),
+                version: "1.3.0".to_string(),
                 workspace_id,
                 device_id: device_id.clone(),
                 device_name,
@@ -1278,9 +1278,13 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
                 .fetch_optional(&pool)
                 .await
                 .unwrap_or_default()
-                .unwrap_or_else(|| "true".to_string());
+                .unwrap_or_else(|| "false".to_string());
 
-            let auto_connect = auto_connect_str != "false" && auto_connect_str != "0";
+            let auto_connect = auto_connect_str == "true" || auto_connect_str == "1";
+
+            if !auto_connect {
+                continue;
+            }
 
             let target_parent: Option<(String, u16, String)> = if let Some(ip) = paired_parent_ip {
                 let port_str: String = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_port'")
@@ -1295,11 +1299,9 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
                     .unwrap_or_default()
                     .unwrap_or_default();
                 Some((ip, port, ws_id))
-            } else if auto_connect {
+            } else {
                 let peers = PEER_REGISTRY.read().await;
                 peers.values().find(|p| p.role == "parent" && !p.is_self).map(|p| (p.ip_address.clone(), p.http_port, p.workspace_id.clone()))
-            } else {
-                None
             };
 
             if let Some((parent_ip, parent_port, parent_ws_id)) = target_parent {
@@ -1453,9 +1455,9 @@ pub async fn get_lan_status(state: tauri::State<'_, crate::AppState>) -> Result<
         .fetch_optional(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?
-        .unwrap_or_else(|| "true".to_string());
+        .unwrap_or_else(|| "false".to_string());
 
-    let auto_connect = auto_connect_str != "false" && auto_connect_str != "0";
+    let auto_connect = auto_connect_str == "true" || auto_connect_str == "1";
 
     let paired_parent_ip: Option<String> = sqlx::query_scalar("SELECT value FROM global_settings WHERE key = 'lan_paired_parent_ip' AND value != ''")
         .fetch_optional(&state.db_pool)
@@ -1711,7 +1713,7 @@ pub async fn test_lan_connection(
                     role: info.get("role").and_then(|v| v.as_str()).unwrap_or("parent").to_string(),
                     workspace_id: info.get("workspace_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                     items_count: info.get("items_count").and_then(|v| v.as_i64()).unwrap_or(0),
-                    version: info.get("version").and_then(|v| v.as_str()).unwrap_or("1.2.0").to_string(),
+                    version: info.get("version").and_then(|v| v.as_str()).unwrap_or("1.3.0").to_string(),
                     server_time: info.get("timestamp").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                     error: None,
                 })

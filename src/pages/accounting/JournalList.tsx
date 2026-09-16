@@ -7,6 +7,7 @@ import ManualJournalModal from './ManualJournalModal';
 import { invoke } from '@tauri-apps/api/core';
 import Modal from '../../components/ui/Modal';
 
+import { toast } from '../../components/ui/Toast';
 export default function JournalList() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +32,7 @@ export default function JournalList() {
       setDeleteConfirmEntry(null);
       fetchEntries();
     } catch (e: any) {
-      alert('Gagal menghapus: ' + (e?.message || String(e)));
+      toast.error('Gagal menghapus: ' + (e?.message || String(e)));
     } finally {
       setDeleting(false);
     }
@@ -74,10 +75,10 @@ export default function JournalList() {
     <div className="flex flex-col h-full fade-in">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-xl font-bold tracking-tight text-heading flex items-center gap-2">
              Journal Entries
           </h2>
-          <p className="text-slate-600 text-sm mt-1">Review all automated and manual ledger postings.</p>
+          <p className="text-body text-sm mt-1">Review all automated and manual ledger postings.</p>
         </div>
         <div className="flex gap-3">
           <div className="flex gap-2">
@@ -85,24 +86,24 @@ export default function JournalList() {
               type="date" 
               value={startDate} 
               onChange={e => { setStartDate(e.target.value); setPage(1); }} 
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:border-brand"
+              className="bg-card border border-line rounded-xl px-3 py-2 text-sm text-heading outline-none focus:border-primary"
             />
-            <span className="self-center text-slate-500 text-sm">to</span>
+            <span className="self-center text-dim text-sm">to</span>
             <input 
               type="date" 
               value={endDate} 
               onChange={e => { setEndDate(e.target.value); setPage(1); }} 
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none focus:border-brand"
+              className="bg-card border border-line rounded-xl px-3 py-2 text-sm text-heading outline-none focus:border-primary"
             />
           </div>
           <div className="relative w-64">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-dim" size={16} />
              <input 
                  type="text" 
                  value={search}
                  onChange={e => { setSearch(e.target.value); setPage(1); }}
                  placeholder="Search journals..." 
-                 className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand outline-none"
+                 className="w-full pl-9 pr-4 py-2 text-sm bg-card border border-line rounded-xl focus:ring-2 focus:ring-primary outline-none"
              />
           </div>
           <button onClick={() => setIsManualModalOpen(true)} className="btn-primary flex items-center gap-2">
@@ -111,10 +112,10 @@ export default function JournalList() {
         </div>
       </div>
 
-      <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+      <div className="flex-1 bg-card rounded-xl border border-line shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto flex-1 custom-scrollbar">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 uppercase font-semibold sticky top-0 z-10">
+            <thead className="text-xs text-body bg-background border-b border-line uppercase font-semibold sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 rounded-tl-xl">Date</th>
                 <th className="px-6 py-4">Entry No</th>
@@ -123,25 +124,25 @@ export default function JournalList() {
                 <th className="px-6 py-4 text-right rounded-tr-xl">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-line dark:divide-line">
               {loading ? (
-                <tr><td colSpan={5} className="text-center py-10 text-slate-600">Loading journals...</td></tr>
+                <tr><td colSpan={5} className="text-center py-10 text-body">Loading journals...</td></tr>
               ) : paginatedEntries.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-10 text-slate-600">No journal entries found.</td></tr>
+                <tr><td colSpan={5} className="text-center py-10 text-body">No journal entries found.</td></tr>
               ) : (
                 paginatedEntries.map(entry => (
-                  <tr key={entry.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors fast-render-row">
-                    <td className="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-400">
+                  <tr key={entry.id} className="hover:bg-muted/50 dark:hover:bg-muted/20 transition-colors fast-render-row">
+                    <td className="px-6 py-3 whitespace-nowrap text-body">
                       {new Date(entry.date).toLocaleDateString()} {new Date(entry.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </td>
-                    <td className="px-6 py-3 font-medium text-slate-900 dark:text-white">{entry.entry_no}</td>
-                    <td className="px-6 py-3 capitalize text-slate-600 dark:text-slate-400">{entry.source_type.replace('_', ' ')}</td>
-                    <td className="px-6 py-3 text-slate-600 dark:text-slate-400 truncate max-w-xs">{entry.description || '-'}</td>
+                    <td className="px-6 py-3 font-medium text-heading">{entry.entry_no}</td>
+                    <td className="px-6 py-3 capitalize text-body">{entry.source_type.replace('_', ' ')}</td>
+                    <td className="px-6 py-3 text-body truncate max-w-xs">{entry.description || '-'}</td>
                     <td className="px-6 py-3 text-right">
                       <div className="flex justify-end gap-1">
                         <button 
                           onClick={() => { setSelectedEntryId(entry.id); setIsVoucherOpen(true); }} 
-                          className="p-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-medium"
+                          className="p-1.5 text-primary hover:bg-primary-soft dark:hover:bg-primary-soft rounded-lg transition-colors inline-flex items-center gap-1 text-xs font-medium"
                         >
                           <FileText size={14} /> View
                         </button>
@@ -149,7 +150,7 @@ export default function JournalList() {
                           <button
                             onClick={() => setDeleteConfirmEntry(entry)}
                             title="Hapus transaksi penjualan ini"
-                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                            className="p-1.5 text-dim hover:text-danger hover:bg-danger-soft dark:hover:bg-danger/10 rounded-lg transition-colors"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -163,22 +164,22 @@ export default function JournalList() {
           </table>
         </div>
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
-            <span className="text-sm text-slate-500">
+          <div className="px-6 py-4 border-t border-line bg-muted/50 flex justify-between items-center">
+            <span className="text-sm text-dim">
               Showing {(page - 1) * itemsPerPage + 1} to {Math.min(page * itemsPerPage, filteredEntries.length)} of {filteredEntries.length} entries
             </span>
             <div className="flex gap-2">
               <button 
                 disabled={page === 1} 
                 onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700"
+                className="px-3 py-1.5 bg-card dark:bg-muted border border-line rounded-lg text-sm disabled:opacity-50 hover:bg-muted dark:hover:bg-line-strong"
               >
                 Previous
               </button>
               <button 
                 disabled={page === totalPages} 
                 onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700"
+                className="px-3 py-1.5 bg-card dark:bg-muted border border-line rounded-lg text-sm disabled:opacity-50 hover:bg-muted dark:hover:bg-line-strong"
               >
                 Next
               </button>
@@ -208,13 +209,13 @@ export default function JournalList() {
           title="Hapus Transaksi Penjualan?"
           subtitle="Tindakan ini tidak dapat dibatalkan"
           icon={AlertTriangle}
-          iconBg="bg-rose-500/10 text-rose-500"
+          iconBg="bg-danger/10 text-danger"
           footer={
             <div className="flex gap-3 w-full">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmEntry(null)}
-                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="flex-1 py-2.5 border border-line rounded-xl text-sm font-bold text-body hover:bg-muted transition-colors"
               >
                 Batal
               </button>
@@ -222,7 +223,7 @@ export default function JournalList() {
                 type="button"
                 onClick={() => handleDeleteSale(deleteConfirmEntry)}
                 disabled={deleting}
-                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                className="flex-1 py-2.5 bg-danger hover:bg-danger text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
               >
                 {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 {deleting ? 'Menghapus...' : 'Ya, Hapus'}
@@ -231,13 +232,13 @@ export default function JournalList() {
           }
         >
           <div className="space-y-3">
-            <p className="text-xs text-slate-600 dark:text-slate-400">
-              No. Jurnal: <span className="font-mono font-bold text-slate-900 dark:text-white">{deleteConfirmEntry.entry_no}</span>
+            <p className="text-xs text-body">
+              No. Jurnal: <span className="font-mono font-bold text-heading">{deleteConfirmEntry.entry_no}</span>
             </p>
-            <p className="text-xs text-slate-600 dark:text-slate-400">
-              Keterangan: <span className="font-mono font-bold text-slate-900 dark:text-white">{deleteConfirmEntry.description}</span>
+            <p className="text-xs text-body">
+              Keterangan: <span className="font-mono font-bold text-heading">{deleteConfirmEntry.description}</span>
             </p>
-            <div className="text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-xl border border-rose-200 dark:border-rose-800/40">
+            <div className="text-xs text-danger dark:text-danger bg-danger-soft dark:bg-danger/20 p-3 rounded-xl border border-danger/30 dark:border-danger/40">
               Tindakan ini akan menghapus transaksi penjualan beserta seluruh baris jurnal akuntansi terkait secara permanen.
             </div>
           </div>

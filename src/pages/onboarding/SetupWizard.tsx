@@ -26,10 +26,12 @@ import KivoLogo from '../../components/common/KivoLogo';
 import TitleBar from '../../components/TitleBar';
 import { useTheme } from '../../components/ThemeProvider';
 
+import Select from '../../components/ui/Select';
 type SetupMode = 'new' | 'join' | 'restore';
 
 interface SetupWizardProps {
   onComplete: () => void;
+  onCancel?: () => void;
 }
 
 const BUSINESS_TYPES = [
@@ -40,7 +42,7 @@ const BUSINESS_TYPES = [
   { id: 'general', label: 'Usaha Dagang & Jasa', icon: Briefcase, desc: 'Katalog fleksibel serbaguna' },
 ];
 
-export default function SetupWizard({ onComplete }: SetupWizardProps) {
+export default function SetupWizard({ onComplete, onCancel }: SetupWizardProps) {
   const [step, setStep] = useState<number>(0);
   const [mode, setMode] = useState<SetupMode>('new');
   const [loading, setLoading] = useState(false);
@@ -325,8 +327,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
         await setSetting('company_name', createdWorkspace.name);
       }
       await setSetting('branch_name', 'Titik Kasir');
-      await setSetting('auto_sync', 'true');
-      await setSetting('lan_auto_connect', 'true');
+      await setSetting('auto_sync', 'false');
+      await setSetting('lan_auto_connect', 'false');
       await triggerSyncPull(true).catch(() => {});
       onComplete();
     } catch (err: any) {
@@ -379,8 +381,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
       if (createdWorkspace?.name) {
         await setSetting('company_name', createdWorkspace.name);
       }
-      await setSetting('auto_sync', 'true');
-      await setSetting('lan_auto_connect', 'true');
+      await setSetting('auto_sync', 'false');
+      await setSetting('lan_auto_connect', 'false');
 
       setStep(3);
     } catch (err: any) {
@@ -391,27 +393,25 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   };
 
   return (
-    <div className="h-full w-full bg-slate-50 dark:bg-[#0B0F19] text-slate-800 dark:text-slate-100 flex flex-col justify-between relative overflow-hidden select-none">
-      {/* Dynamic Background Glows */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[450px] h-[450px] bg-brand/10 dark:bg-indigo-600/15 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[450px] h-[450px] bg-purple-500/10 dark:bg-purple-600/15 blur-[120px] rounded-full" />
-      </div>
+    <div className="h-full w-full bg-background text-heading dark:text-heading flex flex-col justify-between relative overflow-hidden select-none">
 
       {/* Top Custom Headbar - Unified TitleBar matching the app theme */}
       <TitleBar
         theme="auto"
         leftContent={
           <div className="flex items-center gap-2">
-            <KivoLogo size={20} showText={true} textClassName="text-xs font-bold text-slate-800 dark:text-white tracking-tight" />
+            <KivoLogo size={20} showText={true} textClassName="text-xs font-bold text-heading dark:text-white tracking-tight" />
           </div>
         }
         centerContent={
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-dim">
               Kivo Setup
             </span>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.2 rounded-full bg-brand/10 text-brand dark:bg-brand/20 dark:text-brand-light border border-brand/20 dark:border-brand/30">
+            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-primary-soft text-primary dark:bg-primary-soft dark:text-brand-light border border-primary/20 dark:border-primary/30">
+              v1.3
+            </span>
+            <span className="text-[10px] font-mono font-bold px-2 py-0.2 rounded-full bg-muted text-dim border border-line">
               {mode === 'new' ? 'Buat Toko Baru' : mode === 'join' ? 'Gabung Workspace' : 'Pulihkan Cloud'}
             </span>
           </div>
@@ -420,7 +420,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
           <button
             onMouseDown={e => e.stopPropagation()}
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="h-full px-2.5 flex items-center justify-center text-slate-500 hover:text-amber-500 dark:text-slate-400 dark:hover:text-amber-400 transition-colors"
+            className="h-full px-2.5 flex items-center justify-center text-dim hover:text-warning dark:text-body dark:hover:text-warning transition-colors"
             title="Ganti Tema (Terang / Gelap)"
           >
             {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
@@ -433,28 +433,28 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
         {/* Global Error Banner */}
         {error && (
-          <div className="mb-3 p-3 rounded-xl bg-rose-100 dark:bg-rose-900/30 border border-rose-300 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2.5 animate-in fade-in duration-200 shrink-0">
-            <AlertCircle size={15} className="text-rose-500 dark:text-rose-400 shrink-0" />
+          <div className="mb-3 p-3 rounded-xl bg-danger-soft dark:bg-danger/30 border border-danger dark:border-danger/60 text-danger dark:text-danger text-xs flex items-center gap-2.5 animate-fade-in shrink-0">
+            <AlertCircle size={15} className="text-danger dark:text-danger shrink-0" />
             <p className="flex-1">{error}</p>
           </div>
         )}
 
         {/* Step Cards Container - Fits 100vh with inner scrolling if window is tiny */}
-        <div className="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xl dark:shadow-2xl backdrop-blur-xl overflow-y-auto max-h-full custom-scrollbar flex flex-col justify-between">
+        <div className="bg-card border border-line rounded-xl p-5 sm:p-6 shadow-sm overflow-y-auto max-h-full custom-scrollbar flex flex-col justify-between">
 
           {/* ══════════════════════════════════════════════════════════════
               SCREEN 0: Welcome & Mode Selection
              ══════════════════════════════════════════════════════════════ */}
           {step === 0 && (
-            <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-4 animate-fade-in">
               <div className="text-center max-w-lg mx-auto space-y-1">
-                <div className="inline-flex p-2.5 bg-brand/10 border border-brand/20 rounded-xl mb-1">
-                  <Sparkles size={22} className="text-brand dark:text-brand-light" />
+                <div className="inline-flex p-2.5 bg-primary-soft border border-primary/20 rounded-xl mb-1">
+                  <Sparkles size={22} className="text-primary dark:text-brand-light" />
                 </div>
-                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-heading">
                   Selamat Datang di Kivo
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
+                <p className="text-dim text-xs leading-relaxed">
                   Platform manajemen bisnis, kasir pintar (POS), dan multi-cabang Anda. Pilih bagaimana Anda ingin memulai:
                 </p>
               </div>
@@ -465,20 +465,20 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                   onClick={() => setMode('new')}
                   className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
                     mode === 'new'
-                      ? 'border-brand bg-brand/5 dark:bg-brand/10 ring-1 ring-brand shadow-lg shadow-brand/10'
-                      : 'border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+                      ? 'border-primary bg-primary-soft ring-1 ring-primary shadow-sm'
+                      : 'border-line bg-muted/70 dark:bg-muted/40 hover:border-line-strong dark:hover:border-line-strong hover:bg-muted/70 dark:hover:bg-muted/70'
                   }`}
                 >
                   <div className="space-y-2">
-                    <div className="w-9 h-9 rounded-lg bg-brand/20 text-brand dark:text-brand-light flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-lg bg-primary-soft text-primary dark:text-brand-light flex items-center justify-center">
                       <Store size={20} />
                     </div>
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Buat Toko Baru</h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    <h3 className="font-bold text-heading text-sm">Buat Toko Baru</h3>
+                    <p className="text-[11px] text-dim leading-relaxed">
                       Instalasi baru untuk toko atau cabang ini. Data tersimpan lokal di komputer Anda dan siap offline.
                     </p>
                   </div>
-                  <div className="pt-3 flex items-center gap-1 text-[11px] font-semibold text-brand dark:text-brand-light">
+                  <div className="pt-3 flex items-center gap-1 text-[11px] font-semibold text-primary dark:text-brand-light">
                     <span>Disarankan</span>
                     <ArrowRight size={13} />
                   </div>
@@ -489,20 +489,20 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                   onClick={() => setMode('join')}
                   className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
                     mode === 'join'
-                      ? 'border-brand bg-brand/5 dark:bg-brand/10 ring-1 ring-brand shadow-lg shadow-brand/10'
-                      : 'border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+                      ? 'border-primary bg-primary-soft ring-1 ring-primary shadow-sm'
+                      : 'border-line bg-muted/70 dark:bg-muted/40 hover:border-line-strong dark:hover:border-line-strong hover:bg-muted/70 dark:hover:bg-muted/70'
                   }`}
                 >
                   <div className="space-y-2">
-                    <div className="w-9 h-9 rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-lg bg-primary-soft text-primary  flex items-center justify-center">
                       <Cloud size={20} />
                     </div>
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Gabung Workspace</h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    <h3 className="font-bold text-heading text-sm">Gabung Workspace</h3>
+                    <p className="text-[11px] text-dim leading-relaxed">
                       Hubungkan perangkat kasir ini ke toko yang sudah berjalan menggunakan Kode Workspace.
                     </p>
                   </div>
-                  <div className="pt-3 flex items-center gap-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                  <div className="pt-3 flex items-center gap-1 text-[11px] font-semibold text-primary ">
                     <span>Multi-Perangkat</span>
                     <ArrowRight size={13} />
                   </div>
@@ -513,30 +513,42 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                   onClick={() => setMode('restore')}
                   className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
                     mode === 'restore'
-                      ? 'border-brand bg-brand/5 dark:bg-brand/10 ring-1 ring-brand shadow-lg shadow-brand/10'
-                      : 'border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+                      ? 'border-primary bg-primary-soft ring-1 ring-primary shadow-sm'
+                      : 'border-line bg-muted/70 dark:bg-muted/40 hover:border-line-strong dark:hover:border-line-strong hover:bg-muted/70 dark:hover:bg-muted/70'
                   }`}
                 >
                   <div className="space-y-2">
-                    <div className="w-9 h-9 rounded-lg bg-sky-500/20 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-lg bg-accent/20 text-accent dark:text-accent flex items-center justify-center">
                       <Server size={20} />
                     </div>
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Pulihkan Cloud</h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    <h3 className="font-bold text-heading text-sm">Pulihkan Cloud</h3>
+                    <p className="text-[11px] text-dim leading-relaxed">
                       Masuk dengan akun Pemilik yang telah ada di Cloud untuk unduh otomatis seluruh data toko.
                     </p>
                   </div>
-                  <div className="pt-3 flex items-center gap-1 text-[11px] font-semibold text-sky-600 dark:text-sky-400">
+                  <div className="pt-3 flex items-center gap-1 text-[11px] font-semibold text-accent dark:text-accent">
                     <span>Sinkronisasi</span>
                     <ArrowRight size={13} />
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-between items-center pt-2">
+                {onCancel ? (
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
+                  >
+                    <ArrowLeft size={14} />
+                    <span>Kembali ke Login</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
                 <button
                   onClick={() => { setError(''); setStep(1); }}
-                  className="px-5 py-2.5 bg-brand hover:bg-brand-hover text-white font-bold rounded-xl shadow-md shadow-brand/30 flex items-center gap-2 text-xs sm:text-sm transition-all"
+                  className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center gap-2 text-xs sm:text-sm transition-colors"
                 >
                   <span>Lanjutkan</span>
                   <ArrowRight size={15} />
@@ -551,10 +563,10 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 1: Identitas Bisnis */}
           {mode === 'new' && step === 1 && (
-            <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Identitas Bisnis & Toko</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                <h2 className="text-lg sm:text-xl font-bold text-heading">Identitas Bisnis & Toko</h2>
+                <p className="text-dim text-xs mt-0.5">
                   Informasi ini tercantum pada struk kasir, faktur penjualan, dan laporan operasional.
                 </p>
               </div>
@@ -562,71 +574,71 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Store Name */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Nama Toko / Perusahaan <span className="text-rose-500">*</span>
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                    Nama Toko / Perusahaan <span className="text-danger">*</span>
                   </label>
                   <div className="relative flex items-center">
-                    <Building2 size={16} className="absolute left-3 text-slate-400" />
+                    <Building2 size={16} className="absolute left-3 text-dim" />
                     <input
                       type="text"
                       value={companyName}
                       onChange={(e) => handleCompanyNameChange(e.target.value)}
                       placeholder="Contoh: Kivo Mart, Apotek Sehat"
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      className="w-full pl-9 pr-3 py-2 bg-muted border border-line rounded-xl text-heading placeholder:text-dim text-xs sm:text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
                 {/* Branch Name */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                     Nama Cabang / Titik Kasir
                   </label>
                   <div className="relative flex items-center">
-                    <Store size={16} className="absolute left-3 text-slate-400" />
+                    <Store size={16} className="absolute left-3 text-dim" />
                     <input
                       type="text"
                       value={branchName}
                       onChange={(e) => setBranchName(e.target.value)}
                       placeholder="Contoh: Cabang Utama, Kasir 1"
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      className="w-full pl-9 pr-3 py-2 bg-muted border border-line rounded-xl text-heading placeholder:text-dim text-xs sm:text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
                 {/* Currency */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                     Mata Uang Utama
                   </label>
                   <div className="relative flex items-center">
-                    <DollarSign size={16} className="absolute left-3 text-slate-400" />
-                    <select
+                    <DollarSign size={16} className="absolute left-3 text-dim" />
+                    <Select
                       value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      onChange={(v) => setCurrency(v)}
+                      className="w-full pl-9 pr-3 py-2 bg-muted border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                     >
                       <option value="IDR">Rupiah Indonesia (Rp / IDR)</option>
                       <option value="USD">US Dollar ($ / USD)</option>
                       <option value="SGD">Singapore Dollar (S$ / SGD)</option>
                       <option value="MYR">Malaysian Ringgit (RM / MYR)</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
 
                 {/* Phone */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                     Nomor Kontak / WhatsApp
                   </label>
                   <div className="relative flex items-center">
-                    <Phone size={16} className="absolute left-3 text-slate-400" />
+                    <Phone size={16} className="absolute left-3 text-dim" />
                     <input
                       type="text"
                       value={companyPhone}
                       onChange={(e) => setCompanyPhone(e.target.value)}
                       placeholder="Contoh: 08123456789"
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      className="w-full pl-9 pr-3 py-2 bg-muted border border-line rounded-xl text-heading placeholder:text-dim text-xs sm:text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
@@ -634,24 +646,24 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
               {/* Address */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                   Alamat Lengkap Toko
                 </label>
                 <div className="relative flex items-start">
-                  <MapPin size={16} className="absolute left-3 top-2.5 text-slate-400" />
+                  <MapPin size={16} className="absolute left-3 top-2.5 text-dim" />
                   <textarea
                     value={companyAddress}
                     onChange={(e) => setCompanyAddress(e.target.value)}
                     rows={2}
                     placeholder="Contoh: Jl. Ahmad Yani No. 45, Jakarta Pusat"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:border-brand"
+                    className="w-full pl-9 pr-3 py-2 bg-muted border border-line rounded-xl text-heading placeholder:text-dim text-xs sm:text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
 
               {/* Business Type Selector - with React Lucide Icons */}
               <div className="space-y-1.5 pt-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                   Kategori / Jenis Usaha
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -664,15 +676,15 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                         onClick={() => setBusinessType(b.id)}
                         className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col items-center text-center gap-1.5 ${
                           isSelected
-                            ? 'border-brand bg-brand/5 dark:bg-brand/10 ring-1 ring-brand'
-                            : 'border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-600'
+                            ? 'border-primary bg-primary-soft ring-1 ring-primary'
+                            : 'border-line/80 bg-muted/70 dark:bg-card/60 hover:border-line-strong dark:hover:border-line-strong'
                         }`}
                       >
-                        <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-brand/20 text-brand' : 'bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                        <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-primary-soft text-primary' : 'bg-line/60 dark:bg-muted text-body'}`}>
                           <IconComp size={18} />
                         </div>
-                        <p className="font-bold text-xs text-slate-900 dark:text-white truncate w-full">{b.label}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">{b.desc}</p>
+                        <p className="font-bold text-xs text-heading truncate w-full">{b.label}</p>
+                        <p className="text-[10px] text-dim line-clamp-1">{b.desc}</p>
                       </div>
                     );
                   })}
@@ -683,7 +695,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="flex justify-between pt-2">
                 <button
                   onClick={() => setStep(0)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
+                  className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
                 >
                   <ArrowLeft size={14} />
                   <span>Kembali</span>
@@ -697,7 +709,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                     setError('');
                     setStep(2);
                   }}
-                  className="px-5 py-2 bg-brand hover:bg-brand-hover text-white font-bold rounded-xl shadow-md shadow-brand/30 flex items-center gap-1.5 text-xs sm:text-sm transition-all"
+                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center gap-1.5 text-xs sm:text-sm transition-all"
                 >
                   <span>Lanjutkan</span>
                   <ArrowRight size={14} />
@@ -708,10 +720,10 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 2: Kivo Cloud & Workspace */}
           {mode === 'new' && step === 2 && (
-            <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Hubungkan ke Kivo Cloud</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                <h2 className="text-lg sm:text-xl font-bold text-heading">Hubungkan ke Kivo Cloud</h2>
+                <p className="text-dim text-xs mt-0.5">
                   Kivo Cloud memungkinkan sinkronisasi real-time antar perangkat kasir dan backup cloud otomatis.
                 </p>
               </div>
@@ -721,32 +733,32 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                   onClick={() => setEnableCloud(!enableCloud)}
                   className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start gap-3.5 ${
                     enableCloud 
-                      ? 'border-brand bg-brand/5 dark:bg-brand/10 ring-1 ring-brand' 
-                      : 'border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-600'
+                      ? 'border-primary bg-primary-soft ring-1 ring-primary' 
+                      : 'border-line bg-muted/70 dark:bg-card/50 hover:border-line-strong dark:hover:border-line-strong'
                   }`}
                 >
                   <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center ${
-                    enableCloud ? 'bg-brand text-white' : 'border border-slate-300 dark:border-slate-600'
+                    enableCloud ? 'bg-primary text-white' : 'border border-line-strong dark:border-line-strong'
                   }`}>
                     {enableCloud && <Check size={14} strokeWidth={3} />}
                   </div>
                   <div className="flex-1 space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">Aktifkan Kivo Cloud untuk Toko Ini</h4>
-                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full bg-brand/10 dark:bg-brand/20 text-brand dark:text-brand-light">
+                      <h4 className="font-bold text-heading text-sm">Aktifkan Kivo Cloud untuk Toko Ini</h4>
+                      <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full bg-primary-soft text-primary dark:text-brand-light">
                         Multi-Cabang
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    <p className="text-[11px] text-dim leading-relaxed">
                       Membuat workspace cloud baru di mana cabang lain dapat bergabung menggunakan kode toko Anda.
                     </p>
                   </div>
                 </div>
 
                 {enableCloud && (
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 space-y-3 animate-in fade-in duration-200">
+                  <div className="p-4 rounded-xl bg-muted/80 border border-line/80 space-y-3 animate-fade-in">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                         Nama Cloud Workspace
                       </label>
                       <input
@@ -754,33 +766,33 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                         value={workspaceName}
                         onChange={(e) => setWorkspaceName(e.target.value)}
                         placeholder="Nama Workspace Toko"
-                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                        className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                       />
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                           Kode Workspace Unik (Shareable)
                         </label>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400">Huruf besar & angka</span>
+                        <span className="text-[10px] text-dim">Huruf besar & angka</span>
                       </div>
                       <input
                         type="text"
                         value={workspaceCode}
                         onChange={(e) => setWorkspaceCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
                         placeholder="Contoh: KV-TOKO-01"
-                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono text-xs sm:text-sm tracking-wider focus:outline-none focus:border-brand"
+                        className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading font-mono text-xs sm:text-sm tracking-wider focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
                 )}
 
                 {!enableCloud && (
-                  <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2.5">
-                    <ShieldCheck size={16} className="text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="p-3 rounded-xl bg-muted/40 border border-line text-xs text-body flex items-start gap-2.5">
+                    <ShieldCheck size={16} className="text-success dark:text-success shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-slate-800 dark:text-slate-300 text-xs">Mode Lokal (Offline-First)</p>
+                      <p className="font-semibold text-heading dark:text-body text-xs">Mode Lokal (Offline-First)</p>
                       <p className="text-[11px] mt-0.5">Seluruh data penjualan dan inventaris disimpan secara lokal di komputer ini tanpa ketergantungan cloud.</p>
                     </div>
                   </div>
@@ -791,7 +803,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="flex justify-between pt-2">
                 <button
                   onClick={() => setStep(1)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
+                  className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
                 >
                   <ArrowLeft size={14} />
                   <span>Kembali</span>
@@ -799,7 +811,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <button
                   onClick={handleNewStep2Next}
                   disabled={loading}
-                  className="px-5 py-2 bg-brand hover:bg-brand-hover text-white font-bold rounded-xl shadow-md shadow-brand/30 flex items-center gap-1.5 text-xs sm:text-sm transition-all disabled:opacity-50"
+                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center gap-1.5 text-xs sm:text-sm transition-all disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -819,10 +831,10 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 3: Akun Pemilik */}
           {mode === 'new' && step === 3 && (
-            <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Buat Akun Pemilik (Owner)</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                <h2 className="text-lg sm:text-xl font-bold text-heading">Buat Akun Pemilik (Owner)</h2>
+                <p className="text-dim text-xs mt-0.5">
                   Akun ini memegang hak akses utama (Owner) yang tidak dapat dihapus dan memiliki wewenang penuh atas sistem.
                 </p>
               </div>
@@ -830,54 +842,54 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="space-y-3">
                 {/* Full Name */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Nama Lengkap Pemilik <span className="text-rose-500">*</span>
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                    Nama Lengkap Pemilik <span className="text-danger">*</span>
                   </label>
                   <div className="relative flex items-center">
-                    <Users size={16} className="absolute left-3 text-slate-400" />
+                    <Users size={16} className="absolute left-3 text-dim" />
                     <input
                       type="text"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
                       placeholder="Contoh: Budi Santoso"
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      className="w-full pl-9 pr-3 py-2 bg-muted border border-line rounded-xl text-heading placeholder:text-dim text-xs sm:text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
                 {/* Username */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Username Login <span className="text-rose-500">*</span>
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                    Username Login <span className="text-danger">*</span>
                   </label>
                   <input
                     type="text"
                     value={ownerUsername}
                     onChange={(e) => setOwnerUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
                     placeholder="Contoh: owner, budi"
-                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono text-xs sm:text-sm focus:outline-none focus:border-brand"
+                    className="w-full px-3.5 py-2 bg-muted border border-line rounded-xl text-heading font-mono text-xs sm:text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 {/* Password Fields */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Password <span className="text-rose-500">*</span>
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                      Password <span className="text-danger">*</span>
                     </label>
                     <div className="relative flex items-center">
-                      <Lock size={16} className="absolute left-3 text-slate-400" />
+                      <Lock size={16} className="absolute left-3 text-dim" />
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={ownerPassword}
                         onChange={(e) => setOwnerPassword(e.target.value)}
                         placeholder="Min. 6 karakter"
-                        className="w-full pl-9 pr-9 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:border-brand"
+                        className="w-full pl-9 pr-9 py-2 bg-muted border border-line rounded-xl text-heading placeholder:text-dim text-xs sm:text-sm focus:outline-none focus:border-primary"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        className="absolute right-3 text-dim hover:text-body dark:hover:text-heading"
                       >
                         {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
@@ -885,24 +897,24 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Ulangi Password <span className="text-rose-500">*</span>
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                      Ulangi Password <span className="text-danger">*</span>
                     </label>
                     <div className="relative flex items-center">
-                      <Lock size={16} className="absolute left-3 text-slate-400" />
+                      <Lock size={16} className="absolute left-3 text-dim" />
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="Ketik ulang password"
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:border-brand"
+                        className="w-full pl-9 pr-3 py-2 bg-muted border border-line rounded-xl text-heading placeholder:text-dim text-xs sm:text-sm focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-700 dark:text-purple-300 text-[11px] flex items-center gap-2">
-                  <ShieldCheck size={16} className="text-purple-500 dark:text-purple-400 shrink-0" />
+                <div className="p-2.5 rounded-xl bg-primary-soft border border-primary/20  text-[11px] flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-primary  shrink-0" />
                   <span>Password dienkripsi menggunakan hashing Bcrypt standard.</span>
                 </div>
               </div>
@@ -911,14 +923,14 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="flex justify-between pt-2">
                 <button
                   onClick={() => setStep(2)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
+                  className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
                 >
                   <ArrowLeft size={14} />
                   <span>Kembali</span>
                 </button>
                 <button
                   onClick={handleNewStep3Next}
-                  className="px-5 py-2 bg-brand hover:bg-brand-hover text-white font-bold rounded-xl shadow-md shadow-brand/30 flex items-center gap-1.5 text-xs sm:text-sm transition-all"
+                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center gap-1.5 text-xs sm:text-sm transition-all"
                 >
                   <span>Lanjutkan</span>
                   <ArrowRight size={14} />
@@ -929,10 +941,10 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 4: Konfigurasi Bisnis Awal */}
           {mode === 'new' && step === 4 && (
-            <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Konfigurasi Operasional & Data</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                <h2 className="text-lg sm:text-xl font-bold text-heading">Konfigurasi Operasional & Data</h2>
+                <p className="text-dim text-xs mt-0.5">
                   Tentukan metode perhitungan modal/HPP, tarif pajak, dan opsi import katalog produk awal.
                 </p>
               </div>
@@ -940,7 +952,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {/* HPP Method */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                     Metode Perhitungan HPP (COGS)
                   </label>
                   <div className="space-y-1.5">
@@ -954,8 +966,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                         onClick={() => setHppMethod(m.id as any)}
                         className={`p-2.5 rounded-xl border cursor-pointer flex items-start gap-2.5 transition-all ${
                           hppMethod === m.id
-                            ? 'border-brand bg-brand/5 dark:bg-brand/10 ring-1 ring-brand'
-                            : 'border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-600'
+                            ? 'border-primary bg-primary-soft ring-1 ring-primary'
+                            : 'border-line bg-muted/70 dark:bg-card/50 hover:border-line-strong dark:hover:border-line-strong'
                         }`}
                       >
                         <input
@@ -963,11 +975,11 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                           name="hpp"
                           checked={hppMethod === m.id}
                           onChange={() => {}}
-                          className="mt-0.5 accent-brand"
+                          className="mt-0.5 accent-primary"
                         />
                         <div>
-                          <p className="font-bold text-xs text-slate-900 dark:text-white">{m.title}</p>
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400">{m.desc}</p>
+                          <p className="font-bold text-xs text-heading">{m.title}</p>
+                          <p className="text-[10px] text-dim">{m.desc}</p>
                         </div>
                       </label>
                     ))}
@@ -977,7 +989,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 {/* Tax & Tier Discounts */}
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                       Tarif PPN / Pajak (%)
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -988,8 +1000,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                           onClick={() => setTaxRate(val)}
                           className={`py-1.5 rounded-xl border text-xs font-bold transition-all ${
                             taxRate === val
-                              ? 'border-brand bg-brand text-white shadow-xs'
-                              : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
+                              ? 'border-primary bg-primary text-white shadow-xs'
+                              : 'border-line bg-muted text-heading hover:border-line-strong dark:hover:border-line-strong'
                           }`}
                         >
                           {val === '0' ? 'Bebas (0%)' : `${val}% PPN`}
@@ -1000,7 +1012,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
                   <div className="grid grid-cols-2 gap-2.5 pt-1">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                         Diskon Member (%)
                       </label>
                       <input
@@ -1009,11 +1021,11 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                         max={100}
                         value={memberDiscount}
                         onChange={(e) => setMemberDiscount(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:border-brand"
+                        className="w-full px-3 py-1.5 bg-muted border border-line rounded-xl text-heading text-xs font-mono focus:outline-none focus:border-primary"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                         Diskon VIP Tier (%)
                       </label>
                       <input
@@ -1022,7 +1034,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                         max={100}
                         value={vipDiscount}
                         onChange={(e) => setVipDiscount(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:border-brand"
+                        className="w-full px-3 py-1.5 bg-muted border border-line rounded-xl text-heading text-xs font-mono focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
@@ -1030,19 +1042,19 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               </div>
 
               {/* Initial Product Catalog Seed / Import */}
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-700/80">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+              <div className="pt-2 border-t border-line/80">
+                <div className="p-3 rounded-xl bg-muted/60 border border-line flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-success/20 text-success dark:text-success flex items-center justify-center shrink-0">
                       <FileSpreadsheet size={16} />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                      <p className="font-bold text-xs text-heading truncate">
                         {importedRowCount !== null
                           ? `Berhasil Memuat ${importedRowCount} Produk dari Excel!`
                           : 'Import Produk dari File Excel (.xlsx)'}
                       </p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                      <p className="text-[10px] text-dim truncate">
                         {importedFileName ? `File: ${importedFileName}` : 'Opsional. Anda dapat memasukkan produk satu per satu nanti.'}
                       </p>
                     </div>
@@ -1052,7 +1064,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                     type="button"
                     onClick={handlePickExcel}
                     disabled={loading}
-                    className="px-3 py-1.5 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-[11px] flex items-center gap-1.5 border border-slate-300 dark:border-slate-600 transition-colors shrink-0"
+                    className="px-3 py-1.5 bg-card hover:bg-muted dark:hover:bg-line-strong text-body dark:text-heading font-semibold rounded-xl text-[11px] flex items-center gap-1.5 border border-line-strong dark:border-line-strong transition-colors shrink-0"
                   >
                     <Upload size={13} />
                     <span>{importedRowCount !== null ? 'Ganti File' : 'Pilih File'}</span>
@@ -1064,14 +1076,14 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="flex justify-between pt-2">
                 <button
                   onClick={() => setStep(3)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
+                  className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
                 >
                   <ArrowLeft size={14} />
                   <span>Kembali</span>
                 </button>
                 <button
                   onClick={() => setStep(5)}
-                  className="px-5 py-2 bg-brand hover:bg-brand-hover text-white font-bold rounded-xl shadow-md shadow-brand/30 flex items-center gap-1.5 text-xs sm:text-sm transition-all"
+                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center gap-1.5 text-xs sm:text-sm transition-all"
                 >
                   <span>Lanjutkan</span>
                   <ArrowRight size={14} />
@@ -1082,43 +1094,43 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 5: Review & Selesai */}
           {mode === 'new' && step === 5 && (
-            <div className="space-y-4 text-center animate-in fade-in duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+            <div className="space-y-4 text-center animate-fade-in">
+              <div className="w-12 h-12 rounded-xl bg-success text-white flex items-center justify-center mx-auto shadow-sm">
                 <CheckCircle2 size={28} />
               </div>
 
               <div className="space-y-0.5">
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">Semua Siap! Mulai Gunakan Kivo</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs max-w-sm mx-auto">
+                <h2 className="text-xl font-black text-heading">Semua Siap! Mulai Gunakan Kivo</h2>
+                <p className="text-dim text-xs max-w-sm mx-auto">
                   Konfigurasi dasar siap. Klik tombol di bawah untuk menyimpan dan membuka Dashboard Kivo.
                 </p>
               </div>
 
               {/* Summary Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-left py-1">
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400">Bisnis</span>
-                  <p className="font-bold text-xs text-slate-900 dark:text-white truncate mt-0.5">{companyName}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{branchName}</p>
+                <div className="p-2.5 rounded-xl bg-muted border border-line/80">
+                  <span className="text-[9px] uppercase font-bold text-dim">Bisnis</span>
+                  <p className="font-bold text-xs text-heading truncate mt-0.5">{companyName}</p>
+                  <p className="text-[10px] text-dim truncate">{branchName}</p>
                 </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400">Owner</span>
-                  <p className="font-bold text-xs text-slate-900 dark:text-white truncate mt-0.5">{ownerName}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">@{ownerUsername}</p>
+                <div className="p-2.5 rounded-xl bg-muted border border-line/80">
+                  <span className="text-[9px] uppercase font-bold text-dim">Owner</span>
+                  <p className="font-bold text-xs text-heading truncate mt-0.5">{ownerName}</p>
+                  <p className="text-[10px] text-dim font-mono">@{ownerUsername}</p>
                 </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400">Cloud / Sync</span>
-                  <p className="font-bold text-xs text-emerald-600 dark:text-emerald-400 truncate mt-0.5">
+                <div className="p-2.5 rounded-xl bg-muted border border-line/80">
+                  <span className="text-[9px] uppercase font-bold text-dim">Cloud / Sync</span>
+                  <p className="font-bold text-xs text-success dark:text-success truncate mt-0.5">
                     {createdWorkspace ? createdWorkspace.code : enableCloud ? workspaceCode : 'Lokal (Offline)'}
                   </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">SQLite Ready</p>
+                  <p className="text-[10px] text-dim">SQLite Ready</p>
                 </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400">Katalog</span>
-                  <p className="font-bold text-xs text-slate-900 dark:text-white truncate mt-0.5">
+                <div className="p-2.5 rounded-xl bg-muted border border-line/80">
+                  <span className="text-[9px] uppercase font-bold text-dim">Katalog</span>
+                  <p className="font-bold text-xs text-heading truncate mt-0.5">
                     {importedRowCount !== null ? `${importedRowCount} Produk` : 'Katalog Baru'}
                   </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">PPN: {taxRate}%</p>
+                  <p className="text-[10px] text-dim">PPN: {taxRate}%</p>
                 </div>
               </div>
 
@@ -1127,14 +1139,14 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <button
                   onClick={() => setStep(4)}
                   disabled={loading}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-xs transition-colors"
+                  className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl text-xs transition-colors"
                 >
                   Ubah
                 </button>
                 <button
                   onClick={handleNewFinish}
                   disabled={loading}
-                  className="px-6 py-2.5 bg-gradient-to-r from-brand to-purple-600 hover:from-brand-hover hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-brand/30 flex items-center justify-center gap-2 text-xs sm:text-sm transition-all transform active:scale-95 disabled:opacity-50"
+                  className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center justify-center gap-2 text-xs sm:text-sm transition-colors active:scale-[0.98] disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -1158,49 +1170,49 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 1: Hubungkan ke Workspace */}
           {mode === 'join' && step === 1 && (
-            <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Gabung ke Workspace Toko</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                <h2 className="text-lg sm:text-xl font-bold text-heading">Gabung ke Workspace Toko</h2>
+                <p className="text-dim text-xs mt-0.5">
                   Hubungkan komputer kasir ini ke sistem toko yang sudah berjalan menggunakan Kode Workspace atau Token Undangan.
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 space-y-3">
+              <div className="p-4 rounded-xl bg-muted/80 border border-line/80 space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Kode Workspace / Token Undangan <span className="text-rose-500">*</span>
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                    Kode Workspace / Token Undangan <span className="text-danger">*</span>
                   </label>
                   <div className="relative flex items-center">
-                    <KeyRound size={16} className="absolute left-3 text-slate-400" />
+                    <KeyRound size={16} className="absolute left-3 text-dim" />
                     <input
                       type="text"
                       value={joinCodeOrToken}
                       onChange={(e) => setJoinCodeOrToken(e.target.value.trim())}
                       placeholder="Contoh: KV-TOKO-01 atau token invite"
-                      className="w-full pl-9 pr-3 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono text-xs sm:text-sm tracking-wider focus:outline-none focus:border-brand"
+                      className="w-full pl-9 pr-3 py-2.5 bg-card dark:bg-input border border-line rounded-xl text-heading font-mono text-xs sm:text-sm tracking-wider focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                     Password Workspace (Opsional)
                   </label>
                   <div className="relative flex items-center">
-                    <Lock size={16} className="absolute left-3 text-slate-400" />
+                    <Lock size={16} className="absolute left-3 text-dim" />
                     <input
                       type="password"
                       value={joinPassword}
                       onChange={(e) => setJoinPassword(e.target.value)}
                       placeholder="Kosongi jika toko tidak diproteksi password"
-                      className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      className="w-full pl-9 pr-3 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-700 dark:text-purple-300 text-[11px] flex items-center gap-2">
-                  <Cloud size={16} className="text-purple-500 dark:text-purple-400 shrink-0" />
+                <div className="p-2.5 rounded-xl bg-primary-soft border border-primary/20  text-[11px] flex items-center gap-2">
+                  <Cloud size={16} className="text-primary  shrink-0" />
                   <span>Katalog produk, harga, dan pengaturan cabang akan otomatis diunduh dari cloud.</span>
                 </div>
               </div>
@@ -1209,7 +1221,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="flex justify-between pt-2">
                 <button
                   onClick={() => setStep(0)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
+                  className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
                 >
                   <ArrowLeft size={14} />
                   <span>Kembali</span>
@@ -1217,7 +1229,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <button
                   onClick={handleJoinStep1Next}
                   disabled={loading}
-                  className="px-5 py-2 bg-brand hover:bg-brand-hover text-white font-bold rounded-xl shadow-md shadow-brand/30 flex items-center gap-1.5 text-xs sm:text-sm transition-all disabled:opacity-50"
+                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center gap-1.5 text-xs sm:text-sm transition-all disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -1237,27 +1249,27 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 2: Akun Kasir di Komputer Ini */}
           {mode === 'join' && step === 2 && (
-            <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-4 animate-fade-in">
               <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold mb-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-success-soft dark:bg-success/10 text-success dark:text-success text-[11px] font-semibold mb-1">
                   <Check size={12} strokeWidth={3} />
                   <span>Terhubung ke: {createdWorkspace?.name} ({createdWorkspace?.code})</span>
                 </div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Akun Pengguna di Komputer Ini</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                <h2 className="text-lg sm:text-xl font-bold text-heading">Akun Pengguna di Komputer Ini</h2>
+                <p className="text-dim text-xs mt-0.5">
                   Tentukan profil pengguna yang akan digunakan untuk mengoperasikan kasir pada komputer ini.
                 </p>
               </div>
 
               {/* Tab Selector */}
-              <div className="flex rounded-xl bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200 dark:border-slate-800">
+              <div className="flex rounded-xl bg-muted dark:bg-input p-1 border border-line">
                 <button
                   type="button"
                   onClick={() => setJoinTab('existing')}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     joinTab === 'existing'
-                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-card dark:bg-muted text-heading shadow-xs'
+                      : 'text-dim hover:text-heading dark:hover:text-white'
                   }`}
                 >
                   Login Akun yang Ada
@@ -1267,8 +1279,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                   onClick={() => setJoinTab('new_cashier')}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     joinTab === 'new_cashier'
-                      ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-card dark:bg-muted text-heading shadow-xs'
+                      : 'text-dim hover:text-heading dark:hover:text-white'
                   }`}
                 >
                   Daftar Akun Kasir Baru
@@ -1277,29 +1289,29 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
               {/* Tab: Existing User */}
               {joinTab === 'existing' && (
-                <div className="space-y-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 animate-in fade-in duration-200">
+                <div className="space-y-3 p-4 rounded-xl bg-muted/80 border border-line/80 animate-fade-in">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Username <span className="text-rose-500">*</span>
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                      Username <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
                       value={joinUsername}
                       onChange={(e) => setJoinUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
                       placeholder="Username staf / kasir yang terdaftar"
-                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Password <span className="text-rose-500">*</span>
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                      Password <span className="text-danger">*</span>
                     </label>
                     <input
                       type="password"
                       value={joinUserPassword}
                       onChange={(e) => setJoinUserPassword(e.target.value)}
                       placeholder="Masukkan password akun Anda"
-                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
@@ -1307,55 +1319,55 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
               {/* Tab: New Cashier */}
               {joinTab === 'new_cashier' && (
-                <div className="space-y-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 animate-in fade-in duration-200">
+                <div className="space-y-3 p-4 rounded-xl bg-muted/80 border border-line/80 animate-fade-in">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Nama Kasir / Perangkat <span className="text-rose-500">*</span>
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                      Nama Kasir / Perangkat <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
                       value={joinCashierName}
                       onChange={(e) => setJoinCashierName(e.target.value)}
                       placeholder="Contoh: Kasir Depan, Kasir 2"
-                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Username Login <span className="text-rose-500">*</span>
+                      <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                        Username Login <span className="text-danger">*</span>
                       </label>
                       <input
                         type="text"
                         value={joinUsername}
                         onChange={(e) => setJoinUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
                         placeholder="Contoh: kasir1"
-                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono text-xs sm:text-sm focus:outline-none focus:border-brand"
+                        className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading font-mono text-xs sm:text-sm focus:outline-none focus:border-primary"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Password <span className="text-rose-500">*</span>
+                      <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                        Password <span className="text-danger">*</span>
                       </label>
                       <input
                         type="password"
                         value={joinUserPassword}
                         onChange={(e) => setJoinUserPassword(e.target.value)}
                         placeholder="Min. 6 karakter"
-                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                        className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Konfirmasi Password <span className="text-rose-500">*</span>
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                      Konfirmasi Password <span className="text-danger">*</span>
                     </label>
                     <input
                       type="password"
                       value={joinConfirmPassword}
                       onChange={(e) => setJoinConfirmPassword(e.target.value)}
                       placeholder="Ulangi password"
-                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                      className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
@@ -1365,7 +1377,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="flex justify-between pt-2">
                 <button
                   onClick={() => setStep(1)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
+                  className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
                 >
                   <ArrowLeft size={14} />
                   <span>Kembali</span>
@@ -1373,7 +1385,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <button
                   onClick={handleJoinStep2Next}
                   disabled={loading}
-                  className="px-5 py-2 bg-brand hover:bg-brand-hover text-white font-bold rounded-xl shadow-md shadow-brand/30 flex items-center gap-1.5 text-xs sm:text-sm transition-all disabled:opacity-50"
+                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center gap-1.5 text-xs sm:text-sm transition-all disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -1393,33 +1405,33 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 3: Selesai Gabung Workspace */}
           {mode === 'join' && step === 3 && (
-            <div className="space-y-4 text-center animate-in fade-in duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+            <div className="space-y-4 text-center animate-fade-in">
+              <div className="w-12 h-12 rounded-xl bg-success text-white flex items-center justify-center mx-auto shadow-sm">
                 <CheckCircle2 size={28} />
               </div>
 
               <div className="space-y-0.5">
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">Kasir Berhasil Terhubung!</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs max-w-sm mx-auto">
+                <h2 className="text-xl font-black text-heading">Kasir Berhasil Terhubung!</h2>
+                <p className="text-dim text-xs max-w-sm mx-auto">
                   Komputer ini sekarang siap digunakan sebagai titik penjualan kasir toko Anda.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-left py-1">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400">Workspace Toko</span>
-                  <p className="font-bold text-xs text-slate-900 dark:text-white truncate mt-0.5">{createdWorkspace?.name}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{createdWorkspace?.code}</p>
+                <div className="p-3 rounded-xl bg-muted border border-line/80">
+                  <span className="text-[9px] uppercase font-bold text-dim">Workspace Toko</span>
+                  <p className="font-bold text-xs text-heading truncate mt-0.5">{createdWorkspace?.name}</p>
+                  <p className="text-[10px] text-dim font-mono">{createdWorkspace?.code}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400">Akun Pengguna</span>
-                  <p className="font-bold text-xs text-slate-900 dark:text-white truncate mt-0.5">@{joinUsername}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">{joinTab === 'new_cashier' ? joinCashierName : 'Staf Aktif'}</p>
+                <div className="p-3 rounded-xl bg-muted border border-line/80">
+                  <span className="text-[9px] uppercase font-bold text-dim">Akun Pengguna</span>
+                  <p className="font-bold text-xs text-heading truncate mt-0.5">@{joinUsername}</p>
+                  <p className="text-[10px] text-dim">{joinTab === 'new_cashier' ? joinCashierName : 'Staf Aktif'}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400">Mode Sinkronisasi</span>
-                  <p className="font-bold text-xs text-emerald-600 dark:text-emerald-400 truncate mt-0.5">Real-Time Cloud</p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">LAN Mesh Aktif</p>
+                <div className="p-3 rounded-xl bg-muted border border-line/80">
+                  <span className="text-[9px] uppercase font-bold text-dim">Mode Sinkronisasi</span>
+                  <p className="font-bold text-xs text-success dark:text-success truncate mt-0.5">Real-Time Cloud</p>
+                  <p className="text-[10px] text-dim">LAN Mesh Aktif</p>
                 </div>
               </div>
 
@@ -1427,7 +1439,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <button
                   onClick={handleJoinFinish}
                   disabled={loading}
-                  className="px-6 py-2.5 bg-gradient-to-r from-brand to-purple-600 hover:from-brand-hover hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-brand/30 flex items-center justify-center gap-2 text-xs sm:text-sm transition-all transform active:scale-95 disabled:opacity-50"
+                  className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center justify-center gap-2 text-xs sm:text-sm transition-colors active:scale-[0.98] disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -1451,67 +1463,67 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 1: Kredensial Pemilik Cloud */}
           {mode === 'restore' && step === 1 && (
-            <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-4 animate-fade-in">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Pulihkan Toko dari Kivo Cloud</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                <h2 className="text-lg sm:text-xl font-bold text-heading">Pulihkan Toko dari Kivo Cloud</h2>
+                <p className="text-dim text-xs mt-0.5">
                   Masukkan Kode Toko dan kredensial Akun Pemilik Anda untuk memverifikasi dan menarik seluruh data toko ke komputer ini.
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 space-y-3">
+              <div className="p-4 rounded-xl bg-muted/80 border border-line/80 space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Kode Toko / Workspace Cloud <span className="text-rose-500">*</span>
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                    Kode Toko / Workspace Cloud <span className="text-danger">*</span>
                   </label>
                   <div className="relative flex items-center">
-                    <KeyRound size={16} className="absolute left-3 text-slate-400" />
+                    <KeyRound size={16} className="absolute left-3 text-dim" />
                     <input
                       type="text"
                       value={restoreCode}
                       onChange={(e) => setRestoreCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
                       placeholder="Contoh: KV-TOKO-01"
-                      className="w-full pl-9 pr-3 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono text-xs sm:text-sm tracking-wider focus:outline-none focus:border-brand"
+                      className="w-full pl-9 pr-3 py-2.5 bg-card dark:bg-input border border-line rounded-xl text-heading font-mono text-xs sm:text-sm tracking-wider focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Username Pemilik <span className="text-rose-500">*</span>
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                      Username Pemilik <span className="text-danger">*</span>
                     </label>
                     <div className="relative flex items-center">
-                      <Users size={16} className="absolute left-3 text-slate-400" />
+                      <Users size={16} className="absolute left-3 text-dim" />
                       <input
                         type="text"
                         value={restoreUsername}
                         onChange={(e) => setRestoreUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
                         placeholder="Contoh: owner, budi"
-                        className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                        className="w-full pl-9 pr-3 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Password Pemilik <span className="text-rose-500">*</span>
+                    <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
+                      Password Pemilik <span className="text-danger">*</span>
                     </label>
                     <div className="relative flex items-center">
-                      <Lock size={16} className="absolute left-3 text-slate-400" />
+                      <Lock size={16} className="absolute left-3 text-dim" />
                       <input
                         type="password"
                         value={restorePassword}
                         onChange={(e) => setRestorePassword(e.target.value)}
                         placeholder="Password akun Anda"
-                        className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                        className="w-full pl-9 pr-3 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-heading uppercase tracking-wider">
                     Password Workspace (Opsional)
                   </label>
                   <input
@@ -1519,7 +1531,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                     value={restoreWsPassword}
                     onChange={(e) => setRestoreWsPassword(e.target.value)}
                     placeholder="Kosongi jika toko tidak diproteksi password"
-                    className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:border-brand"
+                    className="w-full px-3.5 py-2 bg-card dark:bg-input border border-line rounded-xl text-heading text-xs sm:text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -1528,7 +1540,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="flex justify-between pt-2">
                 <button
                   onClick={() => setStep(0)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
+                  className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl flex items-center gap-1.5 text-xs sm:text-sm transition-colors"
                 >
                   <ArrowLeft size={14} />
                   <span>Kembali</span>
@@ -1536,7 +1548,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <button
                   onClick={handleRestoreStep1Next}
                   disabled={loading}
-                  className="px-5 py-2 bg-brand hover:bg-brand-hover text-white font-bold rounded-xl shadow-md shadow-brand/30 flex items-center gap-1.5 text-xs sm:text-sm transition-all disabled:opacity-50"
+                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center gap-1.5 text-xs sm:text-sm transition-all disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -1556,34 +1568,34 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 2: Konfirmasi Pemulihan & Unduh Data */}
           {mode === 'restore' && step === 2 && (
-            <div className="space-y-4 text-center animate-in fade-in duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto">
+            <div className="space-y-4 text-center animate-fade-in">
+              <div className="w-12 h-12 rounded-xl bg-accent/10 text-accent dark:text-accent flex items-center justify-center mx-auto">
                 <Server size={26} />
               </div>
 
               <div className="space-y-0.5">
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">Toko Ditemukan di Cloud</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs max-w-sm mx-auto">
+                <h2 className="text-xl font-black text-heading">Toko Ditemukan di Cloud</h2>
+                <p className="text-dim text-xs max-w-sm mx-auto">
                   Database toko siap diunduh dan disinkronkan ke komputer lokal ini.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 text-left space-y-2.5 max-w-md mx-auto">
+              <div className="p-4 rounded-xl bg-muted border border-line/80 text-left space-y-2.5 max-w-md mx-auto">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 dark:text-slate-400">Nama Toko</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{createdWorkspace?.name}</span>
+                  <span className="text-dim">Nama Toko</span>
+                  <span className="font-bold text-heading">{createdWorkspace?.name}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 dark:text-slate-400">Kode Workspace</span>
-                  <span className="font-mono font-bold text-brand dark:text-brand-light">{createdWorkspace?.code}</span>
+                  <span className="text-dim">Kode Workspace</span>
+                  <span className="font-mono font-bold text-primary dark:text-brand-light">{createdWorkspace?.code}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 dark:text-slate-400">Akun Pemilik</span>
-                  <span className="font-bold text-slate-900 dark:text-white">@{restoreUsername}</span>
+                  <span className="text-dim">Akun Pemilik</span>
+                  <span className="font-bold text-heading">@{restoreUsername}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 dark:text-slate-400">Data Yang Dipulihkan</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Produk, Harga, Pelanggan & Laporan</span>
+                  <span className="text-dim">Data Yang Dipulihkan</span>
+                  <span className="text-success dark:text-success font-semibold">Produk, Harga, Pelanggan & Laporan</span>
                 </div>
               </div>
 
@@ -1591,14 +1603,14 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <button
                   onClick={() => setStep(1)}
                   disabled={loading}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-xs transition-colors"
+                  className="px-4 py-2 border border-line hover:bg-muted text-heading font-semibold rounded-xl text-xs transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   onClick={handleRestoreDownload}
                   disabled={loading}
-                  className="px-6 py-2.5 bg-gradient-to-r from-sky-600 to-brand hover:from-sky-700 hover:to-brand-hover text-white font-bold rounded-xl shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 text-xs sm:text-sm transition-all disabled:opacity-50"
+                  className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center justify-center gap-2 text-xs sm:text-sm transition-all disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -1618,28 +1630,28 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 3: Pemulihan Selesai */}
           {mode === 'restore' && step === 3 && (
-            <div className="space-y-4 text-center animate-in fade-in duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+            <div className="space-y-4 text-center animate-fade-in">
+              <div className="w-12 h-12 rounded-xl bg-success text-white flex items-center justify-center mx-auto shadow-sm">
                 <CheckCircle2 size={28} />
               </div>
 
               <div className="space-y-0.5">
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">Pemulihan Data Selesai!</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs max-w-sm mx-auto">
+                <h2 className="text-xl font-black text-heading">Pemulihan Data Selesai!</h2>
+                <p className="text-dim text-xs max-w-sm mx-auto">
                   Seluruh data toko dari Kivo Cloud telah berhasil diunduh dan tersimpan di database lokal komputer ini.
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 text-left max-w-sm mx-auto text-xs space-y-1.5">
-                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+              <div className="p-4 rounded-xl bg-muted border border-line/80 text-left max-w-sm mx-auto text-xs space-y-1.5">
+                <div className="flex items-center gap-2 text-success dark:text-success font-semibold">
                   <Check size={15} strokeWidth={3} />
                   <span>Katalog Produk & Satuan Harga Pulih</span>
                 </div>
-                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+                <div className="flex items-center gap-2 text-success dark:text-success font-semibold">
                   <Check size={15} strokeWidth={3} />
                   <span>Daftar Pelanggan, Pemasok & Promosi Pulih</span>
                 </div>
-                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+                <div className="flex items-center gap-2 text-success dark:text-success font-semibold">
                   <Check size={15} strokeWidth={3} />
                   <span>Hak Akses Pengguna & Cloud Sync Aktif</span>
                 </div>
@@ -1648,7 +1660,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="flex items-center justify-center pt-2">
                 <button
                   onClick={onComplete}
-                  className="px-6 py-2.5 bg-gradient-to-r from-brand to-purple-600 hover:from-brand-hover hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-brand/30 flex items-center justify-center gap-2 text-xs sm:text-sm transition-all transform active:scale-95"
+                  className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-sm shadow-primary/25 flex items-center justify-center gap-2 text-xs sm:text-sm transition-colors active:scale-[0.98]"
                 >
                   <span>Buka Dashboard Kivo</span>
                   <ArrowRight size={15} />
@@ -1661,7 +1673,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
       </main>
 
       {/* Footer Branding - Compact */}
-      <footer className="relative z-10 py-1.5 text-center text-[10px] text-slate-400 dark:text-slate-500 border-t border-slate-200/80 dark:border-slate-800/60 shrink-0">
+      <footer className="relative z-10 py-1.5 text-center text-[10px] text-dim border-t border-line/60 shrink-0">
         <span>Kivo Platform &copy; {new Date().getFullYear()} — Solusi Cerdas Manajemen Bisnis &amp; Kasir Multi-Perangkat</span>
       </footer>
     </div>

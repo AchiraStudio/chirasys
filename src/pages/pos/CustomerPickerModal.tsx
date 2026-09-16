@@ -1,6 +1,6 @@
 // src/pages/pos/CustomerPickerModal.tsx
 import { useState, useEffect } from 'react';
-import { Search, UserCheck, Loader2, Users } from 'lucide-react';
+import { Search, UserCheck, Loader2, Users, Check } from 'lucide-react';
 import { getCustomers, Customer } from '../../lib/api';
 import Modal from '../../components/ui/Modal';
 
@@ -12,9 +12,9 @@ interface Props {
 }
 
 const TIER_CONFIG = {
-    regular: { label: 'Regular', color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
-    member:  { label: 'Member',  color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'  },
-    vip:     { label: 'VIP',     color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    regular: { label: 'Regular', color: 'bg-muted text-body dark:bg-muted dark:text-body' },
+    member:  { label: 'Member',  color: 'bg-accent-soft text-accent dark:bg-accent/30 dark:text-accent'  },
+    vip:     { label: 'VIP',     color: 'bg-warning-soft text-warning dark:bg-warning/30 dark:text-warning' },
 };
 
 export default function CustomerPickerModal({ isOpen, onClose, onSelect, selectedId }: Props) {
@@ -75,16 +75,16 @@ export default function CustomerPickerModal({ isOpen, onClose, onSelect, selecte
             noPadding={true}
         >
             {/* Search */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2">
-                    <Search size={16} className="text-slate-400" />
+            <div className="p-4 border-b border-line">
+                <div className="flex items-center gap-2 bg-muted border border-line rounded-xl px-3 py-2">
+                    <Search size={16} className="text-dim" />
                     <input
                         type="text"
                         autoFocus
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         placeholder="Cari nama atau nomor HP... (Panah Bawah untuk memilih)"
-                        className="flex-1 bg-transparent outline-none text-sm text-slate-900 dark:text-white placeholder-slate-400"
+                        className="flex-1 bg-transparent outline-none text-sm text-heading placeholder:text-dim"
                     />
                 </div>
             </div>
@@ -92,24 +92,24 @@ export default function CustomerPickerModal({ isOpen, onClose, onSelect, selecte
             <button
                 type="button"
                 onClick={() => { onSelect(null); onClose(); }}
-                className={`w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 focus:outline-none focus:bg-brand/10 ${(!selectedId || selectedId === 'cust_umum') ? 'bg-brand/5' : ''} ${focusedIndex === 0 ? 'ring-2 ring-inset ring-brand bg-brand/10' : ''}`}
+                className={`w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/50 transition-colors border-b border-line focus:outline-none focus:bg-primary-soft ${(!selectedId || selectedId === 'cust_umum') ? 'bg-primary-soft' : ''} ${focusedIndex === 0 ? 'ring-2 ring-inset ring-primary bg-primary-soft' : ''}`}
             >
-                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                    <UserCheck size={16} className="text-slate-500" />
+                <div className="w-8 h-8 rounded-full bg-line flex items-center justify-center">
+                    <UserCheck size={16} className="text-dim" />
                 </div>
                 <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">Pelanggan Umum</p>
-                    <p className="text-xs text-slate-500">Tanpa pencatatan pelanggan</p>
+                    <p className="text-sm font-semibold text-heading">Pelanggan Umum</p>
+                    <p className="text-xs text-dim">Tanpa pencatatan pelanggan</p>
                 </div>
-                {(!selectedId || selectedId === 'cust_umum') && <span className="ml-auto text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-full">Dipilih</span>}
+                {(!selectedId || selectedId === 'cust_umum') && <span className="ml-auto text-[10px] font-bold text-primary bg-primary-soft px-2 py-0.5 rounded-full">Dipilih</span>}
             </button>
 
             {/* Customer list */}
-            <div className="max-h-72 overflow-y-auto custom-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60">
+            <div className="max-h-72 overflow-y-auto custom-scrollbar divide-y divide-line dark:divide-line/60">
                 {loading ? (
-                    <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-brand" /></div>
+                    <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-primary" /></div>
                 ) : customers.length === 0 ? (
-                    <p className="text-center text-sm text-slate-500 py-8">{search ? 'Pelanggan tidak ditemukan' : 'Belum ada pelanggan'}</p>
+                    <p className="text-center text-sm text-dim py-8">{search ? 'Pelanggan tidak ditemukan' : 'Belum ada pelanggan'}</p>
                 ) : (
                     customers.map((c, idx) => {
                         const tier = TIER_CONFIG[c.customer_tier as keyof typeof TIER_CONFIG] || TIER_CONFIG.regular;
@@ -120,18 +120,18 @@ export default function CustomerPickerModal({ isOpen, onClose, onSelect, selecte
                                 key={c.id}
                                 type="button"
                                 onClick={() => { onSelect(c); onClose(); }}
-                                className={`w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors focus:outline-none focus:bg-brand/10 ${isSelected ? 'bg-brand/5' : ''} ${isFocused ? 'ring-2 ring-inset ring-brand bg-brand/10' : ''}`}
+                                className={`w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-muted/50 transition-colors focus:outline-none focus:bg-primary-soft ${isSelected ? 'bg-primary-soft' : ''} ${isFocused ? 'ring-2 ring-inset ring-primary bg-primary-soft' : ''}`}
                             >
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand to-indigo-400 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
                                     {c.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{c.name}</p>
-                                    <p className="text-xs text-slate-500 truncate">{c.phone || 'Tidak ada telepon'}</p>
+                                    <p className="text-sm font-semibold text-heading truncate">{c.name}</p>
+                                    <p className="text-xs text-dim truncate">{c.phone || 'Tidak ada telepon'}</p>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tier.color}`}>{tier.label}</span>
-                                    {isSelected && <span className="text-[10px] font-bold text-brand">✓</span>}
+                                    {isSelected && <Check size={13} className="text-primary stroke-[3]" />}
                                 </div>
                             </button>
                         );

@@ -33,99 +33,105 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
   }, []);
 
   const PAGE_TITLES: Record<string, string> = {
-    dashboard: 'Kivo Overview',
-    pos: 'Kivo POS — Kasir & Point of Sale',
-    inventory: 'Kivo Inventory — Katalog & Stok',
-    purchasing: 'Kivo Purchasing — Penerimaan & Pemasok',
-    customers: 'Kivo Customers — Pelanggan & Promosi',
-    reports: 'Kivo Reports — Laporan & Akuntansi',
-    settings: 'Kivo Admin — Pengaturan & Cloud Sync',
+    dashboard: 'Overview',
+    pos: 'Point of Sale',
+    inventory: 'Inventaris & Produk',
+    purchasing: 'Pembelian & Pemasok',
+    customers: 'Pelanggan & Promo',
+    reports: 'Laporan & Keuangan',
+    settings: 'Pengaturan',
   };
 
   const title = PAGE_TITLES[activeMenu] ?? activeMenu.replace(/-/g, ' ');
 
   return (
-    <header className="h-16 bg-white dark:bg-[#0B0F19] border-b border-slate-200/80 dark:border-slate-800 flex items-center px-4 sm:px-6 justify-between sticky top-0 z-10 shrink-0">
+    <header className="h-13 sm:h-14 bg-card border-b border-line flex items-center px-4 sm:px-6 justify-between sticky top-0 z-10 shrink-0">
 
       {/* Dynamic Page Title */}
-      <div className="min-w-0 mr-2">
-        <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white capitalize tracking-tight truncate">
+      <div className="min-w-0 mr-3">
+        <h2 className="text-sm sm:text-base font-bold text-heading tracking-tight truncate">
           {title}
         </h2>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
 
         {/* LAN Mesh Status */}
-        <div className="hidden sm:flex items-center text-xs font-semibold" title={`LAN Mesh: ${lanPeerCount} perangkat terdeteksi di jaringan lokal`}>
-          <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800/60">
-            <Radio size={13} className={lanPeerCount > 1 ? "animate-pulse text-emerald-500" : "text-indigo-500"} />
-            <span>LAN ({lanPeerCount})</span>
+        <div 
+          className="hidden sm:flex items-center" 
+          title={`LAN: ${lanPeerCount} perangkat terdeteksi di jaringan lokal`}
+        >
+          <span className="flex items-center gap-1.5 text-xs font-medium text-dim bg-muted/70 px-2.5 py-1 rounded-full border border-line">
+            <Radio size={12} className={lanPeerCount > 1 ? "animate-pulse text-success" : "text-dim"} />
+            <span>LAN {lanPeerCount}</span>
           </span>
         </div>
 
         {/* Sync Status */}
-        <div className="hidden sm:flex items-center text-xs font-semibold" title={lastSyncTime ? `Last sync: ${lastSyncTime.toLocaleTimeString('id-ID')}` : 'Syncing...'}>
+        <div 
+          className="hidden sm:flex items-center" 
+          title={status === 'connected' ? (lastSyncTime ? `Online • Terakhir: ${lastSyncTime.toLocaleTimeString('id-ID')}` : 'Online') : status === 'connecting' ? 'Menghubungkan ke Cloud...' : 'Mode Lokal (Offline)'}
+        >
           {status === 'connected' ? (
-            <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-full">
-              <Cloud size={14} /> Online
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-success bg-success-soft px-2.5 py-1 rounded-full border border-success/20">
+              <Cloud size={13} /> Online
             </span>
           ) : status === 'connecting' ? (
-            <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-full">
-              <RefreshCw size={14} className="animate-spin" /> Connecting
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-warning bg-warning-soft px-2.5 py-1 rounded-full border border-warning/20">
+              <RefreshCw size={12} className="animate-spin" /> Sinkron...
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 px-3 py-1.5 rounded-full">
-              <CloudOff size={14} /> Offline
+            <span className="flex items-center gap-1.5 text-xs font-medium text-dim bg-muted/70 px-2.5 py-1 rounded-full border border-line">
+              <CloudOff size={13} /> Lokal
             </span>
           )}
         </div>
 
-        <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
+        <div className="h-5 w-px bg-line mx-0.5 hidden sm:block"></div>
 
         {/* Zoom Controls */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full p-1">
+        <div className="flex items-center gap-0.5 bg-muted/60 border border-line rounded-lg p-0.5">
           <button
             onClick={zoomOut}
-            className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-1.5 rounded-full hover:bg-white dark:hover:bg-slate-800"
-            title="Zoom Out (Ctrl -)"
+            className="text-dim hover:text-heading transition-colors p-1 rounded hover:bg-card cursor-pointer"
+            title="Perkecil Tampilan (Ctrl -)"
           >
-            <ZoomOut size={14} />
+            <ZoomOut size={13} />
           </button>
           <button
             onClick={reset}
-            className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-2 py-0.5 rounded transition-colors hover:bg-white dark:hover:bg-slate-800"
-            title="Reset Zoom (Ctrl 0)"
+            className="text-[11px] font-semibold text-dim hover:text-heading px-1.5 py-0.5 rounded transition-colors hover:bg-card font-mono cursor-pointer"
+            title="Reset Zoom 100% (Ctrl 0)"
           >
             {zoom}%
           </button>
           <button
             onClick={zoomIn}
-            className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-1.5 rounded-full hover:bg-white dark:hover:bg-slate-800"
-            title="Zoom In (Ctrl +)"
+            className="text-dim hover:text-heading transition-colors p-1 rounded hover:bg-card cursor-pointer"
+            title="Perbesar Tampilan (Ctrl +)"
           >
-            <ZoomIn size={14} />
+            <ZoomIn size={13} />
           </button>
         </div>
 
         {/* Theme Toggle */}
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="text-slate-600 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
-          title="Toggle Theme"
+          className="text-dim hover:text-heading transition-colors p-1.5 rounded-lg hover:bg-muted cursor-pointer"
+          title="Ganti Tema (Light / Dark)"
         >
-          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
         </button>
 
         {/* AI Chat CTA — opens AI Assistant modal */}
         {onOpenAIChat && (
           <button
             onClick={onOpenAIChat}
-            className="ml-1 sm:ml-2 flex items-center gap-1.5 sm:gap-2 bg-gradient-to-tr from-brand to-indigo-600 hover:from-blue-600 hover:to-indigo-500 text-white px-3.5 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98] group"
-            title="Tanya Achira"
+            className="ml-0.5 flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-white px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold text-xs transition-all active:scale-[0.98] shadow-xs cursor-pointer"
+            title="Tanya Kivo AI Assistant"
           >
-            <Sparkles size={16} className="group-hover:animate-pulse" aria-hidden="true" />
-            <span className="hidden sm:inline">Tanya Achira</span>
+            <Sparkles size={14} aria-hidden="true" />
+            <span className="hidden sm:inline">Tanya Kivo AI</span>
           </button>
         )}
       </div>

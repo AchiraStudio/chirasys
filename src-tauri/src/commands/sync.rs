@@ -170,7 +170,18 @@ async fn process_sync_queue(
             .unwrap_or_else(|_| serde_json::json!({}));
 
         if let serde_json::Value::Object(ref mut map) = json_payload {
-            map.insert("workspace_id".to_string(), serde_json::Value::String(workspace_id.to_string()));
+            // Tables that do NOT have a workspace_id column in Supabase:
+            // - sale_lines: child of sales, workspace is on the parent
+            // - journal_entries / journal_lines: accounting tables without workspace isolation column
+            let no_workspace_id = matches!(
+                table_name.as_str(),
+                "sale_lines" | "journal_entries" | "journal_lines"
+            );
+            if no_workspace_id {
+                map.remove("workspace_id");
+            } else {
+                map.insert("workspace_id".to_string(), serde_json::Value::String(workspace_id.to_string()));
+            }
             map.remove("image_blob");
 
             let now_iso = chrono::Utc::now().to_rfc3339();
@@ -197,6 +208,13 @@ async fn process_sync_queue(
             }
 
             if table_name == "stock_ledger" {
+                // source_id and source_type are local-only FK/enum columns not in Supabase schema
+                map.remove("source_id");
+                map.remove("source_type");
+            }
+
+            if table_name == "journal_entries" || table_name == "journal_lines" {
+                // These accounting tables don't expose source_id in Supabase either
                 map.remove("source_id");
             }
 
@@ -750,6 +768,18 @@ pub async fn trigger_sync_push(
 }
 
 pub async fn trigger_auto_push(pool: &SqlitePool) {
+    let auto_sync: String = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'auto_sync'"
+    )
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None)
+    .unwrap_or_else(|| "false".to_string());
+
+    if auto_sync != "true" && auto_sync != "1" {
+        return;
+    }
+
     let (supabase_url, supabase_key) = get_supabase_credentials();
     if supabase_url.is_empty() || supabase_key.is_empty() {
         return;
@@ -1199,6 +1229,54 @@ pub async fn sysadmin_update_workspace_password(
         let err = resp.text().await.unwrap_or_default();
         return Err(format!("Failed to update workspace password: {}", err));
     }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn sysadmin_delete_workspace(
+    workspace_id: String,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<(), String> {
+    let (supabase_url, supabase_key) = get_supabase_credentials();
+    let client = Client::builder().build().map_err(|e| e.to_string())?;
+
+    // 1. Delete workspace in Supabase Cloud
+    let resp = client
+        .delete(format!("{}/rest/v1/workspaces?id=eq.{}", supabase_url, workspace_id))
+        .header("apikey", &supabase_key)
+        .header("Authorization", format!("Bearer {}", &supabase_key))
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Failed to delete workspace from cloud: {}", resp.text().await.unwrap_or_default()));
+    }
+
+    // 2. If this workspace was the locally active one, clear it
+    let current_ws: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'workspace_id'"
+    )
+    .fetch_optional(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    if current_ws.as_deref() == Some(&workspace_id) {
+        let _ = sqlx::query(
+            "UPDATE global_settings SET value = '' WHERE key IN ('workspace_id', 'workspace_name', 'workspace_code')"
+        )
+        .execute(&state.db_pool)
+        .await;
+    }
+
+    // 3. Clear workspace_id in local users
+    let _ = sqlx::query(
+        "UPDATE users SET workspace_id = NULL WHERE workspace_id = ?"
+    )
+    .bind(&workspace_id)
+    .execute(&state.db_pool)
+    .await;
 
     Ok(())
 }

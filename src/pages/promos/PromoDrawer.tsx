@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, Percent, Coins, Gift, Layers, Package, Calendar, Search, Sparkles, Tag, AlertCircle, ShoppingBag } from 'lucide-react';
+import { Save, Plus, Trash2, Percent, Coins, Gift, Layers, Package, Calendar, Search, Sparkles, Tag, AlertCircle, ShoppingBag, Check } from 'lucide-react';
 import { CreatePromoInput, getPromoDetail, createPromo, updatePromo, getItemsFiltered, getCategories, Category, Item, getItem } from '../../lib/api';
 import { useDebounce } from '../../lib/hooks/useDebounce';
 import Modal from '../../components/ui/Modal';
 
+import Select from '../../components/ui/Select';
 interface PromoDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -278,11 +279,11 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
   };
 
   const PROMO_TYPES = [
-    { id: 'percentage', label: 'Diskon Persen', sub: 'Contoh: Diskon 20%', icon: Percent, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' },
-    { id: 'fixed_amount', label: 'Potongan Nominal', sub: 'Contoh: Potongan Rp 10.000', icon: Coins, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' },
-    { id: 'bogo', label: 'Beli X Gratis Y', sub: 'Contoh: Beli 2 Gratis 1', icon: Gift, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800' },
-    { id: 'tiered', label: 'Diskon Bertingkat', sub: 'Contoh: Beli 5 diskon 10%, beli 10 diskon 20%', icon: Layers, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
-    { id: 'bundle', label: 'Paket Bundle', sub: 'Contoh: Paket Hemat 3 Produk', icon: Package, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' },
+    { id: 'percentage', label: 'Diskon Persen', sub: 'Contoh: Diskon 20%', icon: Percent, color: 'text-success bg-success-soft dark:bg-success/30 border-success/30 dark:border-success' },
+    { id: 'fixed_amount', label: 'Potongan Nominal', sub: 'Contoh: Potongan Rp 10.000', icon: Coins, color: 'text-accent bg-accent-soft dark:bg-blue-950/30 border-accent/30 dark:border-accent' },
+    { id: 'bogo', label: 'Beli X Gratis Y', sub: 'Contoh: Beli 2 Gratis 1', icon: Gift, color: 'text-warning bg-warning-soft dark:bg-amber-950/30 border-warning/30 dark:border-warning' },
+    { id: 'tiered', label: 'Diskon Bertingkat', sub: 'Contoh: Beli 5 diskon 10%, beli 10 diskon 20%', icon: Layers, color: 'text-primary bg-primary-soft dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
+    { id: 'bundle', label: 'Paket Bundle', sub: 'Contoh: Paket Hemat 3 Produk', icon: Package, color: 'text-primary bg-primary-soft dark:bg-primary/30 border-primary/30 dark:border-primary' },
   ];
 
   const APPLIES_TO_OPTIONS = [
@@ -301,14 +302,14 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
       icon={Sparkles}
       footer={
         <div className="flex items-center justify-between w-full">
-          <div className="text-xs text-slate-400 font-medium">
+          <div className="text-xs text-dim font-medium">
             * Pastikan semua parameter diskon telah terisi dengan benar.
           </div>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl font-bold text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="px-5 py-2.5 rounded-xl font-bold text-xs text-body hover:bg-muted transition-colors"
             >
               Batal
             </button>
@@ -316,7 +317,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
               type="submit"
               form="promo-form"
               disabled={loading}
-              className="px-6 py-2.5 bg-brand hover:bg-brand/90 active:scale-[0.98] text-white rounded-xl font-bold text-xs shadow-lg shadow-brand/20 transition-all flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-2.5 bg-primary hover:bg-primary/90 active:scale-[0.98] text-white rounded-xl font-bold text-xs shadow-lg shadow-primary/20 transition-all flex items-center gap-2 disabled:opacity-50"
             >
               <Save size={15} />
               {loading ? 'Menyimpan...' : editPromoId ? 'Simpan Perubahan' : 'Buat Promo'}
@@ -328,7 +329,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
       <form id="promo-form" onSubmit={handleSubmit} className="space-y-6">
         {/* Error Alert */}
         {errorMessage && (
-          <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-2xl flex items-start gap-3 text-rose-700 dark:text-rose-300 animate-in fade-in">
+          <div className="p-4 bg-danger-soft dark:bg-danger/40 border border-danger/30 dark:border-danger rounded-xl flex items-start gap-3 text-danger dark:text-danger animate-fade-in">
             <AlertCircle size={18} className="shrink-0 mt-0.5" />
             <div className="flex-1 text-xs font-semibold leading-relaxed">
               <span className="font-bold block">Gagal Menyimpan:</span>
@@ -340,27 +341,27 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
         {/* 1. Basic Info */}
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-              Nama Promo <span className="text-rose-500">*</span>
+            <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-1.5">
+              Nama Promo <span className="text-danger">*</span>
             </label>
             <input 
               type="text" 
               required 
               value={formData.name} 
               onChange={e => setFormData({...formData, name: e.target.value})} 
-              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand/35 focus:border-brand font-semibold text-sm" 
+              className="w-full px-4 py-3 bg-muted/60 border border-line rounded-xl text-heading placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-primary/35 focus:border-primary font-semibold text-sm" 
               placeholder="Contoh: Flash Sale Gajian 20% atau Promo Paracetamol Beli 2 Gratis 1" 
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-1.5">
               Deskripsi & Syarat Ketentuan
             </label>
             <textarea 
               value={formData.description || ''} 
               onChange={e => setFormData({...formData, description: e.target.value})} 
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand/35 focus:border-brand text-xs font-medium resize-none" 
+              className="w-full px-4 py-2.5 bg-muted/60 border border-line rounded-xl text-heading placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-primary/35 focus:border-primary text-xs font-medium resize-none" 
               rows={2} 
               placeholder="Keterangan singkat tentang mekanisme atau syarat promo ini..." 
             />
@@ -369,8 +370,8 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
 
         {/* 2. Promo Strategy Type Cards */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-            Pilih Jenis / Tipe Promo <span className="text-rose-500">*</span>
+          <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-2">
+            Pilih Jenis / Tipe Promo <span className="text-danger">*</span>
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
             {PROMO_TYPES.map(type => {
@@ -390,20 +391,20 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                       tiers: type.id === 'tiered' && formData.tiers.length === 0 ? [{ min_qty: 3, discount_percent: 10 }] : formData.tiers
                     });
                   }}
-                  className={`flex flex-col text-left p-3.5 rounded-2xl border transition-all ${
+                  className={`flex flex-col text-left p-3.5 rounded-xl border transition-all ${
                     isSelected 
-                      ? 'border-brand bg-brand/5 dark:bg-brand/10 ring-2 ring-brand/30 shadow-sm' 
-                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                      ? 'border-primary bg-primary-soft dark:bg-primary-soft ring-2 ring-primary/30 shadow-sm' 
+                      : 'border-line hover:bg-muted/50'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className={`p-2 rounded-xl border ${type.color}`}>
                       <Icon size={16} />
                     </div>
-                    {isSelected && <span className="w-2 h-2 rounded-full bg-brand"></span>}
+                    {isSelected && <span className="w-2 h-2 rounded-full bg-primary"></span>}
                   </div>
-                  <div className="font-bold text-xs text-slate-900 dark:text-white">{type.label}</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">{type.sub}</div>
+                  <div className="font-bold text-xs text-heading">{type.label}</div>
+                  <div className="text-[11px] text-dim mt-0.5">{type.sub}</div>
                 </button>
               );
             })}
@@ -413,8 +414,8 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
         {/* 3. Applies To Selection (Disabled when bundle) */}
         {formData.promo_type !== 'bundle' && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-              Berlaku Untuk (Target Promo) <span className="text-rose-500">*</span>
+            <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-2">
+              Berlaku Untuk (Target Promo) <span className="text-danger">*</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {APPLIES_TO_OPTIONS.map(opt => {
@@ -425,18 +426,18 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                     key={opt.id}
                     type="button"
                     onClick={() => setFormData({ ...formData, applies_to: opt.id as any })}
-                    className={`flex items-start gap-3 p-3 rounded-2xl border text-left transition-all ${
+                    className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
                       isSelected 
-                        ? 'border-brand bg-brand/5 dark:bg-brand/10 ring-2 ring-brand/30' 
-                        : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                        ? 'border-primary bg-primary-soft dark:bg-primary-soft ring-2 ring-primary/30' 
+                        : 'border-line hover:bg-muted/50'
                     }`}
                   >
-                    <div className={`p-2 rounded-xl ${isSelected ? 'bg-brand text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                    <div className={`p-2 rounded-xl ${isSelected ? 'bg-primary text-white' : 'bg-muted text-body'}`}>
                       <Icon size={16} />
                     </div>
                     <div>
-                      <div className="font-bold text-xs text-slate-900 dark:text-white">{opt.label}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{opt.desc}</div>
+                      <div className="font-bold text-xs text-heading">{opt.label}</div>
+                      <div className="text-[10px] text-dim mt-0.5">{opt.desc}</div>
                     </div>
                   </button>
                 );
@@ -447,20 +448,20 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
 
         {/* Target Item Search (if applies_to == 'item') */}
         {formData.applies_to === 'item' && formData.promo_type !== 'bundle' && (
-          <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-              Pilih Item / Produk Target <span className="text-rose-500">*</span>
+          <div className="p-4 bg-muted/40 rounded-xl border border-line space-y-3">
+            <label className="block text-xs font-bold uppercase tracking-wider text-body">
+              Pilih Item / Produk Target <span className="text-danger">*</span>
             </label>
 
             {selectedItem ? (
-              <div className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-emerald-200 dark:border-emerald-800/60 shadow-sm">
+              <div className="flex items-center justify-between p-3.5 bg-card rounded-xl border border-success/30 dark:border-success/60 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                    ✓
+                  <div className="w-9 h-9 rounded-xl bg-success-soft dark:bg-success/40 text-success flex items-center justify-center font-bold text-xs">
+                    <Check size={16} />
                   </div>
                   <div>
-                    <div className="font-bold text-xs text-slate-900 dark:text-white">{selectedItem.name}</div>
-                    <div className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                    <div className="font-bold text-xs text-heading">{selectedItem.name}</div>
+                    <div className="text-[10px] font-semibold text-dim mt-0.5">
                       SKU: {selectedItem.sku} {selectedItem.category_name && `· Kategori: ${selectedItem.category_name}`}
                     </div>
                   </div>
@@ -472,7 +473,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                     setFormData({ ...formData, item_id: undefined });
                     setItemSearchQuery('');
                   }}
-                  className="px-3 py-1.5 text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-xs font-bold text-danger hover:bg-danger-soft dark:hover:bg-danger/20 rounded-lg transition-colors"
                 >
                   Ganti Item
                 </button>
@@ -488,21 +489,21 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                       setShowItemDropdown(true);
                     }} 
                     onFocus={() => setShowItemDropdown(true)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand text-xs font-medium" 
+                    className="w-full pl-10 pr-4 py-2.5 bg-card border border-line rounded-xl text-heading placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-primary text-xs font-medium" 
                     placeholder="Ketik nama obat / produk atau barcode..." 
                   />
-                  <Search className="absolute left-3.5 top-3 text-slate-400" size={15} />
+                  <Search className="absolute left-3.5 top-3 text-dim" size={15} />
                 </div>
 
                 {showItemDropdown && itemSearchQuery && (
-                  <div className="absolute z-50 w-full mt-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-h-56 overflow-y-auto custom-scrollbar">
+                  <div className="absolute z-50 w-full mt-1.5 bg-card dark:bg-input border border-line rounded-xl shadow-xl max-h-56 overflow-y-auto custom-scrollbar">
                     {isSearchingItem ? (
-                      <div className="p-4 text-xs text-slate-400 text-center font-medium">Mencari item...</div>
+                      <div className="p-4 text-xs text-dim text-center font-medium">Mencari item...</div>
                     ) : searchResults.length > 0 ? (
                       searchResults.map(item => (
                         <div 
                           key={item.id}
-                          className="p-3 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer border-b border-slate-100 dark:border-slate-800/40 last:border-0 transition-colors"
+                          className="p-3 hover:bg-muted cursor-pointer border-b border-line/40 last:border-0 transition-colors"
                           onClick={() => {
                             setFormData({...formData, item_id: item.id});
                             setSelectedItem(item);
@@ -510,12 +511,12 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                             setShowItemDropdown(false);
                           }}
                         >
-                          <div className="font-bold text-slate-900 dark:text-white text-xs">{item.name}</div>
-                          <div className="text-[10px] font-semibold text-slate-400 mt-0.5">SKU: {item.sku}</div>
+                          <div className="font-bold text-heading text-xs">{item.name}</div>
+                          <div className="text-[10px] font-semibold text-dim mt-0.5">SKU: {item.sku}</div>
                         </div>
                       ))
                     ) : (
-                      <div className="p-4 text-xs text-slate-400 text-center font-medium">Produk tidak ditemukan</div>
+                      <div className="p-4 text-xs text-dim text-center font-medium">Produk tidak ditemukan</div>
                     )}
                   </div>
                 )}
@@ -526,32 +527,32 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
 
         {/* Target Category Selection (if applies_to == 'category') */}
         {formData.applies_to === 'category' && (
-          <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-              Pilih Kategori Produk <span className="text-rose-500">*</span>
+          <div className="p-4 bg-muted/40 rounded-xl border border-line space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-body">
+              Pilih Kategori Produk <span className="text-danger">*</span>
             </label>
-            <select 
+            <Select 
               value={formData.category_id || ''} 
-              onChange={e => setFormData({...formData, category_id: e.target.value || undefined})} 
-              className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand"
+              onChange={v => setFormData({...formData, category_id: v || undefined})} 
+              className="w-full px-4 py-2.5 bg-card border border-line rounded-xl text-heading text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">-- Pilih Kategori --</option>
               {categories.map(cat => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
 
         {/* Bundle Items Builder (if promo_type == 'bundle') */}
         {formData.promo_type === 'bundle' && (
-          <div className="p-5 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-3xl border border-indigo-100 dark:border-indigo-900/50 space-y-4">
+          <div className="p-5 bg-primary-soft/40 dark:bg-primary-soft rounded-xl border border-primary-soft dark:border-primary/50 space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+              <div className="flex items-center gap-2 text-primary dark:text-primary">
                 <Package size={18} />
                 <h3 className="font-extrabold text-xs uppercase tracking-wide">Komposisi Paket Bundle</h3>
               </div>
-              <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100/70 dark:bg-indigo-900/50 px-2.5 py-0.5 rounded-full">
+              <span className="text-[11px] font-bold text-primary dark:text-primary bg-primary-soft/70 dark:bg-primary-soft px-2.5 py-0.5 rounded-full">
                 {formData.bundle_items?.length || 0} Item Terpilih
               </span>
             </div>
@@ -567,21 +568,21 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                     setShowBundleDropdown(true);
                   }} 
                   onFocus={() => setShowBundleDropdown(true)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand text-xs font-medium" 
+                  className="w-full pl-10 pr-4 py-2.5 bg-card border border-line rounded-xl text-heading placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-primary text-xs font-medium" 
                   placeholder="Cari item untuk dimasukkan ke dalam paket bundle..." 
                 />
-                <Search className="absolute left-3 top-3 text-slate-400" size={15} />
+                <Search className="absolute left-3 top-3 text-dim" size={15} />
               </div>
 
               {showBundleDropdown && bundleSearchQuery && (
-                <div className="absolute z-50 w-full mt-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar">
+                <div className="absolute z-50 w-full mt-1.5 bg-card dark:bg-input border border-line rounded-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar">
                   {isSearchingBundle ? (
-                    <div className="p-3 text-xs text-slate-400 text-center font-medium">Mencari...</div>
+                    <div className="p-3 text-xs text-dim text-center font-medium">Mencari...</div>
                   ) : bundleSearchResults.length > 0 ? (
                     bundleSearchResults.map(item => (
                       <div 
                         key={item.id}
-                        className="p-3 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer border-b border-slate-100 dark:border-slate-800/40 last:border-0 transition-colors flex items-center justify-between"
+                        className="p-3 hover:bg-muted cursor-pointer border-b border-line/40 last:border-0 transition-colors flex items-center justify-between"
                         onClick={() => {
                           const exists = formData.bundle_items?.some(bi => bi.item_id === item.id);
                           if (!exists) {
@@ -596,14 +597,14 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                         }}
                       >
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-white text-xs">{item.name}</div>
-                          <div className="text-[10px] font-semibold text-slate-400 mt-0.5">SKU: {item.sku}</div>
+                          <div className="font-bold text-heading text-xs">{item.name}</div>
+                          <div className="text-[10px] font-semibold text-dim mt-0.5">SKU: {item.sku}</div>
                         </div>
-                        <span className="text-[10px] font-bold text-brand">+ Tambah</span>
+                        <span className="text-[10px] font-bold text-primary">+ Tambah</span>
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 text-xs text-slate-400 text-center font-medium">Item tidak ditemukan</div>
+                    <div className="p-3 text-xs text-dim text-center font-medium">Item tidak ditemukan</div>
                   )}
                 </div>
               )}
@@ -612,9 +613,9 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
             {/* Bundle Items List */}
             <div className="space-y-2">
               {(!formData.bundle_items || formData.bundle_items.length === 0) ? (
-                <div className="text-center py-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white/50 dark:bg-slate-900/30">
-                  <Package size={24} className="mx-auto text-slate-300 dark:text-slate-700 mb-1.5" />
-                  <p className="text-xs font-semibold text-slate-400">Belum ada item dalam bundle. Cari dan pilih produk di atas.</p>
+                <div className="text-center py-6 border-2 border-dashed border-line rounded-xl bg-card/50 dark:bg-card/30">
+                  <Package size={24} className="mx-auto text-dim dark:text-body mb-1.5" />
+                  <p className="text-xs font-semibold text-dim">Belum ada item dalam bundle. Cari dan pilih produk di atas.</p>
                 </div>
               ) : (
                 formData.bundle_items.map((bi) => {
@@ -622,18 +623,18 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                   return (
                     <div 
                       key={bi.item_id} 
-                      className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm"
+                      className="flex items-center justify-between p-3 bg-card rounded-xl border border-line shadow-sm"
                     >
                       <div className="min-w-0 flex-1 pr-4">
-                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        <p className="text-xs font-bold text-heading truncate">
                           {itemInfo?.name || `Item ID: ${bi.item_id}`}
                         </p>
-                        <p className="text-[10px] font-semibold text-slate-400 truncate mt-0.5">
+                        <p className="text-[10px] font-semibold text-dim truncate mt-0.5">
                           SKU: {itemInfo?.sku || '-'}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-950 p-1 border border-slate-200 dark:border-slate-800 rounded-lg">
+                        <div className="flex items-center gap-1 bg-muted p-1 border border-line rounded-lg">
                           <button 
                             type="button"
                             onClick={() => {
@@ -642,7 +643,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                                 bundle_items: (prev.bundle_items || []).map(b => b.item_id === bi.item_id ? { ...b, qty: Math.max(1, b.qty - 1) } : b)
                               }));
                             }}
-                            className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-xs font-bold"
+                            className="w-6 h-6 flex items-center justify-center text-dim hover:bg-line dark:hover:bg-muted rounded text-xs font-bold"
                           >
                             -
                           </button>
@@ -657,7 +658,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                                 bundle_items: (prev.bundle_items || []).map(b => b.item_id === bi.item_id ? { ...b, qty: Math.max(1, val) } : b)
                               }));
                             }}
-                            className="w-10 bg-transparent text-center text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
+                            className="w-10 bg-transparent text-center text-xs font-bold text-heading focus:outline-none"
                           />
                           <button 
                             type="button"
@@ -667,7 +668,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                                 bundle_items: (prev.bundle_items || []).map(b => b.item_id === bi.item_id ? { ...b, qty: b.qty + 1 } : b)
                               }));
                             }}
-                            className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-xs font-bold"
+                            className="w-6 h-6 flex items-center justify-center text-dim hover:bg-line dark:hover:bg-muted rounded text-xs font-bold"
                           >
                             +
                           </button>
@@ -680,7 +681,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                               bundle_items: (prev.bundle_items || []).filter(b => b.item_id !== bi.item_id)
                             }));
                           }}
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition-all"
+                          className="p-1.5 text-danger hover:bg-danger-soft dark:hover:bg-danger/20 rounded-lg transition-all"
                         >
                           <Trash2 size={15} />
                         </button>
@@ -694,10 +695,10 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
         )}
 
         {/* 4. Strategy Config (Discount Value / BOGO / Tiered) */}
-        <div className="p-5 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4">
+        <div className="p-5 bg-muted/40 rounded-xl border border-line space-y-4">
           {(formData.promo_type === 'percentage' || formData.promo_type === 'fixed_amount' || formData.promo_type === 'bundle') && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-brand">
+              <div className="flex items-center gap-2 text-primary">
                 {formData.promo_type === 'percentage' ? <Percent size={17} /> : <Coins size={17} />}
                 <h3 className="font-extrabold text-xs uppercase tracking-wide">Besaran Potongan / Diskon</h3>
               </div>
@@ -705,27 +706,27 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {formData.promo_type === 'bundle' && (
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Metrik Diskon Bundle</label>
-                    <select 
+                    <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-1.5">Metrik Diskon Bundle</label>
+                    <Select 
                       value={formData.discount_percent > 0 ? 'percent' : 'fixed'}
-                      onChange={e => {
-                        if (e.target.value === 'percent') {
+                      onChange={v => {
+                        if (v === 'percent') {
                           setFormData({ ...formData, discount_percent: 10, discount_value: undefined });
                         } else {
                           setFormData({ ...formData, discount_value: 5000, discount_percent: 0 });
                         }
                       }}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-brand"
+                      className="w-full px-4 py-2.5 bg-card border border-line rounded-xl text-heading font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-primary"
                     >
                       <option value="percent">Diskon Persentase (%)</option>
                       <option value="fixed">Potongan Nominal (Rp)</option>
-                    </select>
+                    </Select>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                    Nilai Diskon {(formData.promo_type === 'percentage' || (formData.promo_type === 'bundle' && formData.discount_percent > 0)) ? '(%)' : '(Rp)'} <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-1.5">
+                    Nilai Diskon {(formData.promo_type === 'percentage' || (formData.promo_type === 'bundle' && formData.discount_percent > 0)) ? '(%)' : '(Rp)'} <span className="text-danger">*</span>
                   </label>
                   <input 
                     type="number" 
@@ -747,19 +748,19 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                         setFormData({...formData, discount_value: val, discount_percent: 0});
                       }
                     }} 
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand font-bold text-xs" 
+                    className="w-full px-4 py-2.5 bg-card border border-line rounded-xl text-heading placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-primary font-bold text-xs" 
                     placeholder={formData.promo_type === 'percentage' ? 'Contoh: 15' : 'Contoh: 10000'}
                   />
                 </div>
 
                 {((formData.promo_type === 'percentage') || (formData.promo_type === 'bundle' && formData.discount_percent > 0)) && (
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Maksimal Diskon (Rp)</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-1.5">Maksimal Diskon (Rp)</label>
                     <input 
                       type="number" 
                       value={formData.max_discount_amount || ''} 
                       onChange={e => setFormData({...formData, max_discount_amount: e.target.value ? parseFloat(e.target.value) : undefined})} 
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand font-semibold text-xs" 
+                      className="w-full px-4 py-2.5 bg-card border border-line rounded-xl text-heading placeholder:text-dim focus:outline-none focus:ring-2 focus:ring-primary font-semibold text-xs" 
                       placeholder="Opsional, contoh: 50000" 
                     />
                   </div>
@@ -771,7 +772,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
           {/* Tiered Discount Configuration */}
           {formData.promo_type === 'tiered' && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center text-purple-600 dark:text-purple-400">
+              <div className="flex justify-between items-center text-primary dark:text-purple-400">
                 <div className="flex items-center gap-2">
                   <Layers size={17} />
                   <h3 className="font-extrabold text-xs uppercase tracking-wide">Tingkatan Diskon Bertingkat (Tier)</h3>
@@ -779,7 +780,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                 <button 
                   type="button" 
                   onClick={handleAddTier} 
-                  className="text-xs font-bold bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-950/80 text-purple-700 dark:text-purple-300 px-3 py-1.5 rounded-xl flex items-center gap-1 transition-all"
+                  className="text-xs font-bold bg-primary-soft dark:bg-purple-950/40 hover:bg-primary-soft dark:hover:bg-purple-950/80 text-purple-700 dark:text-purple-300 px-3 py-1.5 rounded-xl flex items-center gap-1 transition-all"
                 >
                   <Plus size={14} /> Tambah Tier
                 </button>
@@ -790,7 +791,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                   <div key={idx} className="flex gap-3 items-center">
                     <div className="flex-1 grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Minimal Beli (Qty)</label>
+                        <label className="block text-[10px] font-bold uppercase text-dim mb-1">Minimal Beli (Qty)</label>
                         <input 
                           type="number" 
                           min="1"
@@ -800,11 +801,11 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                             newTiers[idx].min_qty = parseFloat(e.target.value) || 1;
                             setFormData({...formData, tiers: newTiers});
                           }} 
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs font-semibold" 
+                          className="w-full px-3 py-2 bg-card border border-line rounded-xl text-heading text-xs font-semibold" 
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Diskon (%)</label>
+                        <label className="block text-[10px] font-bold uppercase text-dim mb-1">Diskon (%)</label>
                         <input 
                           type="number" 
                           min="0.1"
@@ -815,14 +816,14 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                             newTiers[idx].discount_percent = parseFloat(e.target.value) || 0;
                             setFormData({...formData, tiers: newTiers});
                           }} 
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs font-bold text-purple-600 dark:text-purple-400" 
+                          className="w-full px-3 py-2 bg-card border border-line rounded-xl text-heading text-xs font-bold text-primary dark:text-purple-400" 
                         />
                       </div>
                     </div>
                     <button 
                       type="button" 
                       onClick={() => handleRemoveTier(idx)} 
-                      className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl transition-all mt-4"
+                      className="p-2 text-danger hover:bg-danger-soft dark:hover:bg-danger/20 rounded-xl transition-all mt-4"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -835,7 +836,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
           {/* BOGO Configuration */}
           {formData.promo_type === 'bogo' && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <div className="flex items-center gap-2 text-warning dark:text-warning">
                 <Gift size={17} />
                 <h3 className="font-extrabold text-xs uppercase tracking-wide">Aturan Beli X Gratis Y (BOGO)</h3>
               </div>
@@ -846,14 +847,14 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                   onClick={() => {
                     setFormData({...formData, bogo_rules: [{buy_qty: 2, get_qty: 1, free_item_discount_percent: 100}]});
                   }} 
-                  className="w-full py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-amber-600 font-bold rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all text-xs border-dashed"
+                  className="w-full py-3 bg-card border border-line text-warning font-bold rounded-xl hover:bg-muted transition-all text-xs border-dashed"
                 >
                   Aktifkan Aturan BOGO
                 </button>
               ) : (
-                <div className="grid grid-cols-2 gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="grid grid-cols-2 gap-4 bg-card p-4 rounded-xl border border-line">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Beli Kuantitas</label>
+                    <label className="block text-xs font-bold text-dim uppercase mb-1.5">Beli Kuantitas</label>
                     <input 
                       type="number" 
                       min="1" 
@@ -863,11 +864,11 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                         rules[0].buy_qty = parseInt(e.target.value) || 1;
                         setFormData({...formData, bogo_rules: rules});
                       }} 
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs font-bold" 
+                      className="w-full px-3 py-2 bg-muted border border-line rounded-xl text-heading text-xs font-bold" 
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Gratis Kuantitas</label>
+                    <label className="block text-xs font-bold text-dim uppercase mb-1.5">Gratis Kuantitas</label>
                     <input 
                       type="number" 
                       min="1" 
@@ -877,7 +878,7 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                         rules[0].get_qty = parseInt(e.target.value) || 1;
                         setFormData({...formData, bogo_rules: rules});
                       }} 
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs font-bold text-emerald-600" 
+                      className="w-full px-3 py-2 bg-muted border border-line rounded-xl text-heading text-xs font-bold text-success" 
                     />
                   </div>
                 </div>
@@ -887,59 +888,59 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
         </div>
 
         {/* 5. Validation Rules & Membership */}
-        <div className="p-5 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+        <div className="p-5 bg-muted/40 rounded-xl border border-line space-y-4">
+          <div className="flex items-center gap-2 text-heading">
             <Calendar size={17} />
             <h3 className="font-extrabold text-xs uppercase tracking-wide">Periode & Kriteria Member</h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Minimal Pembelian (Qty)</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-1.5">Minimal Pembelian (Qty)</label>
               <input 
                 type="number" 
                 min="1"
                 value={formData.min_qty} 
                 onChange={e => setFormData({...formData, min_qty: parseFloat(e.target.value) || 1})} 
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-brand" 
+                className="w-full px-4 py-2.5 bg-card border border-line rounded-xl text-heading font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-primary" 
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Prioritas Eksekusi</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-1.5">Prioritas Eksekusi</label>
               <input 
                 type="number" 
                 min="1"
                 value={formData.priority} 
                 onChange={e => setFormData({...formData, priority: parseInt(e.target.value) || 1})} 
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-brand" 
+                className="w-full px-4 py-2.5 bg-card border border-line rounded-xl text-heading font-semibold text-xs focus:outline-none focus:ring-2 focus:ring-primary" 
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Tanggal Mulai (Opsional)</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-1.5">Tanggal Mulai (Opsional)</label>
               <input 
                 type="date" 
                 value={formData.start_date || ''} 
                 onChange={e => setFormData({...formData, start_date: e.target.value || undefined})} 
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand" 
+                className="w-full px-4 py-2.5 bg-card border border-line rounded-xl text-heading text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary" 
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Tanggal Berakhir (Opsional)</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-1.5">Tanggal Berakhir (Opsional)</label>
               <input 
                 type="date" 
                 value={formData.end_date || ''} 
                 onChange={e => setFormData({...formData, end_date: e.target.value || undefined})} 
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand" 
+                className="w-full px-4 py-2.5 bg-card border border-line rounded-xl text-heading text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary" 
               />
             </div>
           </div>
 
           {/* Membership Tier Pills */}
-          <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+          <div className="pt-2 border-t border-line/60 dark:border-line">
+            <label className="block text-xs font-bold uppercase tracking-wider text-dim mb-2">
               Khusus Member Tertentu
             </label>
             <div className="flex flex-wrap gap-2">
@@ -963,8 +964,8 @@ export default function PromoDrawer({ isOpen, onClose, onSaved, editPromoId }: P
                     }}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                       isSelected
-                        ? 'bg-brand text-white shadow-sm'
-                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'bg-card border border-line text-body hover:border-line-strong'
                     }`}
                   >
                     {tier.label}

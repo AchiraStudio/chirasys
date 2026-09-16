@@ -3,6 +3,7 @@ import { Save, Building2, Loader2, Phone, Mail, MapPin, CreditCard, FileText, Us
 import { Supplier, addSupplier, updateSupplier } from '../../lib/api';
 import Modal from '../../components/ui/Modal';
 
+import { toast } from '../../components/ui/Toast';
 interface SupplierDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -35,7 +36,7 @@ export default function SupplierDrawer({ isOpen, onClose, onSuccess, supplierToE
   }, [isOpen, supplierToEdit]);
 
   const handleSubmit = async () => {
-    if (!formData.name.trim()) return alert("Nama Pemasok / Distributor wajib diisi.");
+    if (!formData.name.trim()) return toast.info("Nama Pemasok / Distributor wajib diisi.");
     setIsSubmitting(true);
     try {
       if (supplierToEdit) { 
@@ -46,7 +47,7 @@ export default function SupplierDrawer({ isOpen, onClose, onSuccess, supplierToE
       onSuccess();
       onClose();
     } catch (error) { 
-      alert(`Gagal menyimpan pemasok: ${error}`); 
+      toast.error(`Gagal menyimpan pemasok: ${error}`); 
     } finally { 
       setIsSubmitting(false); 
     }
@@ -68,7 +69,7 @@ export default function SupplierDrawer({ isOpen, onClose, onSuccess, supplierToE
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="px-5 py-2.5 rounded-xl text-xs font-bold text-body hover:bg-muted transition-colors cursor-pointer"
           >
             Batal
           </button>
@@ -76,7 +77,7 @@ export default function SupplierDrawer({ isOpen, onClose, onSuccess, supplierToE
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex items-center gap-2 bg-brand hover:bg-blue-600 text-white px-6 py-2.5 rounded-2xl font-bold text-xs transition-all shadow-md shadow-brand/20 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-6 py-2.5 rounded-xl font-bold text-xs transition-all shadow-md shadow-primary/20 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {supplierToEdit ? 'Simpan Perubahan' : 'Simpan Pemasok Baru'}
@@ -88,58 +89,58 @@ export default function SupplierDrawer({ isOpen, onClose, onSuccess, supplierToE
         
         {/* Section 1: Profil & Identitas */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <div className="p-1.5 bg-brand/10 text-brand rounded-lg">
+          <div className="flex items-center gap-2 pb-2 border-b border-line">
+            <div className="p-1.5 bg-primary-soft text-primary rounded-lg">
               <Building2 size={16} />
             </div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">1. Identitas & Legalitas Pemasok</h3>
+            <h3 className="font-extrabold text-sm text-heading">1. Identitas & Legalitas Pemasok</h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-bold text-heading mb-1">
                 Nama Perusahaan / Pemasok *
               </label>
-              <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-brand/20">
-                <Building2 size={16} className="text-slate-400 mr-2 shrink-0" />
+              <div className="relative flex items-center bg-muted border border-line rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/20">
+                <Building2 size={16} className="text-dim mr-2 shrink-0" />
                 <input
                   type="text"
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white p-0"
+                  className="w-full bg-transparent border-none outline-none text-xs font-bold text-heading p-0"
                   placeholder="contoh: PT. Kimia Farma Trading & Distribution"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-bold text-heading mb-1">
                 Contact Person (PIC)
               </label>
-              <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
-                <User size={15} className="text-slate-400 mr-2 shrink-0" />
+              <div className="relative flex items-center bg-muted border border-line rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-primary/20">
+                <User size={15} className="text-dim mr-2 shrink-0" />
                 <input
                   type="text"
                   value={formData.contact_person}
                   onChange={e => setFormData({...formData, contact_person: e.target.value})}
-                  className="w-full bg-transparent border-none outline-none text-xs text-slate-900 dark:text-white p-0"
+                  className="w-full bg-transparent border-none outline-none text-xs text-heading p-0"
                   placeholder="e.g. Bpk. Hendra"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-bold text-heading mb-1">
                 Syarat Pembayaran (TOP)
               </label>
-              <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
-                <CreditCard size={15} className="text-slate-400 mr-2 shrink-0" />
+              <div className="relative flex items-center bg-muted border border-line rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-primary/20">
+                <CreditCard size={15} className="text-dim mr-2 shrink-0" />
                 <input
                   type="text"
                   value={formData.payment_terms}
                   onChange={e => setFormData({...formData, payment_terms: e.target.value})}
                   placeholder="contoh: NET 30 Hari, COD, Tempo 14 Hari"
-                  className="w-full bg-transparent border-none outline-none text-xs text-slate-900 dark:text-white p-0"
+                  className="w-full bg-transparent border-none outline-none text-xs text-heading p-0"
                 />
               </div>
             </div>
@@ -148,42 +149,42 @@ export default function SupplierDrawer({ isOpen, onClose, onSuccess, supplierToE
 
         {/* Section 2: Kontak & Komunikasi */}
         <div className="space-y-4 pt-1">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <div className="p-1.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg">
+          <div className="flex items-center gap-2 pb-2 border-b border-line">
+            <div className="p-1.5 bg-success-soft dark:bg-success/10 text-success dark:text-success rounded-lg">
               <Phone size={16} />
             </div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">2. Saluran Kontak & Komunikasi</h3>
+            <h3 className="font-extrabold text-sm text-heading">2. Saluran Kontak & Komunikasi</h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-bold text-heading mb-1">
                 No. Telepon / WhatsApp
               </label>
-              <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
-                <Phone size={15} className="text-slate-400 mr-2 shrink-0" />
+              <div className="relative flex items-center bg-muted border border-line rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-primary/20">
+                <Phone size={15} className="text-dim mr-2 shrink-0" />
                 <input
                   type="text"
                   value={formData.phone}
                   onChange={e => setFormData({...formData, phone: e.target.value})}
                   placeholder="0812-3456-7890"
-                  className="w-full bg-transparent border-none outline-none text-xs text-slate-900 dark:text-white font-mono p-0"
+                  className="w-full bg-transparent border-none outline-none text-xs text-heading font-mono p-0"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-bold text-heading mb-1">
                 Email Perusahaan
               </label>
-              <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
-                <Mail size={15} className="text-slate-400 mr-2 shrink-0" />
+              <div className="relative flex items-center bg-muted border border-line rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-primary/20">
+                <Mail size={15} className="text-dim mr-2 shrink-0" />
                 <input
                   type="email"
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
                   placeholder="order@kimiafarma.co.id"
-                  className="w-full bg-transparent border-none outline-none text-xs text-slate-900 dark:text-white p-0"
+                  className="w-full bg-transparent border-none outline-none text-xs text-heading p-0"
                 />
               </div>
             </div>
@@ -192,38 +193,38 @@ export default function SupplierDrawer({ isOpen, onClose, onSuccess, supplierToE
 
         {/* Section 3: Alamat & Catatan */}
         <div className="space-y-4 pt-1">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <div className="p-1.5 bg-blue-50 dark:bg-blue-500/10 text-brand rounded-lg">
+          <div className="flex items-center gap-2 pb-2 border-b border-line">
+            <div className="p-1.5 bg-accent-soft dark:bg-accent/10 text-primary rounded-lg">
               <MapPin size={16} />
             </div>
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">3. Alamat Gudang & Catatan Tambahan</h3>
+            <h3 className="font-extrabold text-sm text-heading">3. Alamat Gudang & Catatan Tambahan</h3>
           </div>
 
           <div className="space-y-3.5">
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-bold text-heading mb-1">
                 Alamat Kantor / Gudang Pengiriman
               </label>
               <textarea
                 value={formData.address}
                 onChange={e => setFormData({...formData, address: e.target.value})}
                 placeholder="Jl. Gatot Subroto No. 123, Komplek Pergudangan Blok A"
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand/20 h-20 resize-none"
+                className="w-full bg-muted border border-line rounded-xl p-3 text-xs text-heading outline-none focus:ring-2 focus:ring-primary/20 h-20 resize-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-bold text-heading mb-1">
                 Catatan Khusus (Diskon Pembelian, Rekening Bank, dll.)
               </label>
-              <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
-                <FileText size={15} className="text-slate-400 mr-2 shrink-0" />
+              <div className="relative flex items-center bg-muted border border-line rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-primary/20">
+                <FileText size={15} className="text-dim mr-2 shrink-0" />
                 <input
                   type="text"
                   value={formData.notes}
                   onChange={e => setFormData({...formData, notes: e.target.value})}
                   placeholder="Rek Mandiri: 123-00-1234567-8 a.n PT Kimia Farma"
-                  className="w-full bg-transparent border-none outline-none text-xs text-slate-900 dark:text-white p-0"
+                  className="w-full bg-transparent border-none outline-none text-xs text-heading p-0"
                 />
               </div>
             </div>

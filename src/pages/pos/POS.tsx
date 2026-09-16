@@ -605,17 +605,17 @@ export default function POS() {
   const TIER_LABEL: Record<string, string> = { regular: 'Regular', member: 'Member', vip: 'VIP' };
 
   return (
-    <div className="flex h-full w-full bg-slate-100 dark:bg-[#070A11] p-2.5 sm:p-3 gap-3 animate-in fade-in select-none">
+    <div className="flex h-full w-full bg-muted p-2.5 sm:p-3 gap-3 animate-fade-in select-none">
       
       {/* ─── LEFT: CATALOG & OMNICHANNEL SEARCH SECTION ─── */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-[#0B0F19] rounded-3xl shadow-sm border border-slate-200/80 dark:border-slate-800/80 overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col bg-card rounded-xl shadow-sm border border-line overflow-hidden min-w-0">
         
         {/* Top Control Bar */}
-        <div className="p-3.5 border-b border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-slate-50/50 dark:bg-slate-900/30 shrink-0">
+        <div className="p-3.5 border-b border-line flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-muted/50 dark:bg-card/30 shrink-0">
           
           {/* Main Search Box */}
           <div className="flex-1 relative tour-pos-search">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dim" size={17} />
             <input
               ref={searchInputRef}
               type="text"
@@ -623,13 +623,13 @@ export default function POS() {
               onChange={e => setSearch(e.target.value)}
               onKeyDown={handleBarcodeEnter}
               placeholder="Scan barcode obat atau ketik nama produk... (F1 / F2)"
-              className="w-full pl-10 pr-9 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-2xl text-xs font-semibold focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none text-slate-900 dark:text-white placeholder-slate-400 transition-all shadow-xs"
+              className="w-full pl-10 pr-9 py-2.5 bg-card border border-line/80 rounded-xl text-xs font-semibold focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-heading placeholder:text-dim transition-all shadow-xs"
               autoFocus
             />
             {search && (
               <button 
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-body p-0.5 rounded-full"
               >
                 <XIcon size={14} />
               </button>
@@ -637,13 +637,13 @@ export default function POS() {
           </div>
 
           {/* Pricing Switcher (Retail vs Wholesale) */}
-          <div className="flex items-center bg-slate-200/60 dark:bg-slate-800/60 p-1 rounded-2xl shrink-0">
+          <div className="flex items-center bg-line/60 dark:bg-muted/60 p-1 rounded-xl shrink-0">
             <button
               onClick={() => setPriceType('retail')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 priceType === 'retail' 
-                  ? 'bg-white dark:bg-slate-700 shadow-xs text-brand dark:text-white' 
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  ? 'bg-card dark:bg-line-strong shadow-xs text-primary dark:text-white' 
+                  : 'text-body hover:text-heading'
               }`}
             >
               Eceran
@@ -652,8 +652,8 @@ export default function POS() {
               onClick={() => setPriceType('wholesale')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 priceType === 'wholesale' 
-                  ? 'bg-white dark:bg-slate-700 shadow-xs text-brand dark:text-white' 
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  ? 'bg-card dark:bg-line-strong shadow-xs text-primary dark:text-white' 
+                  : 'text-body hover:text-heading'
               }`}
             >
               Grosir
@@ -661,13 +661,13 @@ export default function POS() {
           </div>
 
           {/* View Mode Toggle (Grid vs List) */}
-          <div className="hidden md:flex items-center bg-slate-200/60 dark:bg-slate-800/60 p-1 rounded-2xl shrink-0">
+          <div className="hidden md:flex items-center bg-line/60 dark:bg-muted/60 p-1 rounded-xl shrink-0">
             <button
               onClick={() => setViewMode('grid')}
               className={`p-1.5 rounded-xl transition-all ${
                 viewMode === 'grid' 
-                  ? 'bg-white dark:bg-slate-700 text-brand dark:text-white shadow-xs' 
-                  : 'text-slate-400 hover:text-slate-700'
+                  ? 'bg-card dark:bg-line-strong text-primary dark:text-white shadow-xs' 
+                  : 'text-dim hover:text-body'
               }`}
               title="Tampilan Grid Card"
             >
@@ -677,8 +677,8 @@ export default function POS() {
               onClick={() => setViewMode('table')}
               className={`p-1.5 rounded-xl transition-all ${
                 viewMode === 'table' 
-                  ? 'bg-white dark:bg-slate-700 text-brand dark:text-white shadow-xs' 
-                  : 'text-slate-400 hover:text-slate-700'
+                  ? 'bg-card dark:bg-line-strong text-primary dark:text-white shadow-xs' 
+                  : 'text-dim hover:text-body'
               }`}
               title="Tampilan Daftar List"
             >
@@ -689,7 +689,7 @@ export default function POS() {
           {/* Help Tour */}
           <button
             onClick={() => setRunTour(true)}
-            className="p-2 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-2xl transition-colors shrink-0"
+            className="p-2 text-dim hover:text-primary hover:bg-primary-soft rounded-xl transition-colors shrink-0"
             title="Panduan Kasir"
           >
             <HelpCircle size={18} />
@@ -697,13 +697,13 @@ export default function POS() {
         </div>
 
         {/* Category Quick Pills */}
-        <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-1.5 overflow-x-auto custom-scrollbar shrink-0 bg-white dark:bg-[#0B0F19]">
+        <div className="px-3.5 py-2 border-b border-line/60 flex items-center gap-1.5 overflow-x-auto custom-scrollbar shrink-0 bg-card">
           <button
             onClick={() => setSelectedCategory('all')}
             className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all ${
               selectedCategory === 'all'
-                ? 'bg-brand text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                ? 'bg-primary text-white shadow-xs'
+                : 'bg-muted/80 text-body hover:bg-line'
             }`}
           >
             Semua Produk
@@ -714,8 +714,8 @@ export default function POS() {
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all ${
                 selectedCategory === cat.id
-                  ? 'bg-brand text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                  ? 'bg-primary text-white shadow-xs'
+                  : 'bg-muted/80 text-body hover:bg-line'
               }`}
             >
               {cat.name}
@@ -727,16 +727,16 @@ export default function POS() {
         <div className="flex-1 overflow-y-auto p-3.5 custom-scrollbar tour-pos-catalog">
           {loading ? (
             <div className="h-full flex flex-col justify-center items-center gap-2.5">
-              <Loader2 className="animate-spin text-brand" size={32} />
-              <span className="text-xs text-slate-400 font-bold">Memuat data produk...</span>
+              <Loader2 className="animate-spin text-primary" size={32} />
+              <span className="text-xs text-dim font-bold">Memuat data produk...</span>
             </div>
           ) : items.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
-              <div className="w-14 h-14 rounded-3xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-400 mb-3 border border-slate-200/80 dark:border-slate-700/80">
+            <div className="h-full flex flex-col items-center justify-center text-dim p-8 text-center">
+              <div className="w-14 h-14 rounded-xl bg-muted/80 flex items-center justify-center text-dim mb-3 border border-line/80 dark:border-line-strong/80">
                 <Search size={24} className="opacity-50" />
               </div>
-              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Tidak ada produk ditemukan</p>
-              <p className="text-xs text-slate-400 mt-1">Coba pilih kategori lain atau ubah kata kunci pencarian.</p>
+              <p className="text-sm font-bold text-heading">Tidak ada produk ditemukan</p>
+              <p className="text-xs text-dim mt-1">Coba pilih kategori lain atau ubah kata kunci pencarian.</p>
             </div>
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
@@ -747,40 +747,40 @@ export default function POS() {
                     key={item.id}
                     ref={el => { itemRefs.current[idx] = el; }}
                     onClick={() => addToCart(item)}
-                    className="flex flex-col text-left bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 hover:border-brand hover:shadow-md hover:scale-[1.01] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-brand shadow-xs transition-all group cursor-pointer relative"
+                    className="flex flex-col text-left bg-card border border-line/90 dark:border-line rounded-xl p-3.5 hover:border-primary hover:shadow-md hover:scale-[1.01] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-primary shadow-xs transition-all group cursor-pointer relative"
                   >
                     <div className="flex items-start justify-between gap-1 mb-2">
-                      <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-lg truncate max-w-[120px]">
+                      <span className="text-[10px] font-mono font-bold text-dim bg-muted px-1.5 py-0.5 rounded-lg truncate max-w-[120px]">
                         {item.sku}
                       </span>
                       {item.current_stock !== undefined && (
                         <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 font-mono ${
                           item.current_stock > 0
-                            ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
+                            ? 'text-success bg-success-soft dark:bg-success/40 dark:text-success border border-success/30 dark:border-success/40'
                             : item.current_stock === 0
-                            ? 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
-                            : 'text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800/40 font-black'
+                            ? 'text-body bg-muted dark:text-body border border-line'
+                            : 'text-danger bg-danger-soft dark:bg-danger/40 dark:text-danger border border-danger/30 dark:border-danger/40 font-black'
                         }`}>
                           Stok: {item.current_stock}
                         </span>
                       )}
                     </div>
 
-                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-white line-clamp-2 leading-snug group-hover:text-brand transition-colors mb-1.5">
+                    <h4 className="font-extrabold text-xs text-heading line-clamp-2 leading-snug group-hover:text-primary transition-colors mb-1.5">
                       {item.name}
                     </h4>
 
                     {item.category_name && (
-                      <span className="text-[10px] text-slate-400 mb-2 truncate">
+                      <span className="text-[10px] text-dim mb-2 truncate">
                         {item.category_name}
                       </span>
                     )}
 
-                    <div className="mt-auto pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                      <span className="font-black text-brand text-xs sm:text-sm font-mono">
+                    <div className="mt-auto pt-2 border-t border-line flex items-center justify-between">
+                      <span className="font-black text-primary text-xs sm:text-sm font-mono">
                         Rp {activePrice.toLocaleString('id-ID')}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-semibold">
+                      <span className="text-[10px] text-dim font-semibold">
                         /{item.base_unit_name || 'Unit'}
                       </span>
                     </div>
@@ -790,9 +790,9 @@ export default function POS() {
             </div>
           ) : (
             /* Table View */
-            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+            <div className="border border-line rounded-xl overflow-hidden bg-card">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-400">
+                <thead className="bg-muted dark:bg-muted/60 border-b border-line text-[11px] font-bold uppercase text-dim">
                   <tr>
                     <th className="py-2.5 px-4">SKU</th>
                     <th className="py-2.5 px-4">Nama Produk</th>
@@ -802,34 +802,34 @@ export default function POS() {
                     <th className="py-2.5 px-3 text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-line dark:divide-line">
                   {items.map((item) => {
                     const activePrice = priceType === 'wholesale' && item.wholesale_price ? item.wholesale_price : (item.price || 0);
                     return (
                       <tr 
                         key={item.id} 
                         onClick={() => addToCart(item)}
-                        className="hover:bg-brand/5 dark:hover:bg-brand/10 transition-colors cursor-pointer"
+                        className="hover:bg-primary-soft dark:hover:bg-primary-soft transition-colors cursor-pointer"
                       >
-                        <td className="py-2.5 px-4 font-mono font-bold text-slate-500 text-[11px]">{item.sku}</td>
-                        <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-white">{item.name}</td>
-                        <td className="py-2.5 px-3 text-slate-400 text-[11px]">{item.category_name || '-'}</td>
+                        <td className="py-2.5 px-4 font-mono font-bold text-dim text-[11px]">{item.sku}</td>
+                        <td className="py-2.5 px-4 font-bold text-heading">{item.name}</td>
+                        <td className="py-2.5 px-3 text-dim text-[11px]">{item.category_name || '-'}</td>
                         <td className="py-2.5 px-3 text-center">
                           {item.current_stock !== undefined ? (
                             <span className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-bold ${
                               item.current_stock > 0
-                                ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                ? 'text-success bg-success-soft dark:bg-success/40 dark:text-success'
                                 : item.current_stock === 0
-                                ? 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300'
-                                : 'text-rose-700 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400 font-black'
+                                ? 'text-body bg-muted dark:text-body'
+                                : 'text-danger bg-danger-soft dark:bg-danger/40 dark:text-danger font-black'
                             }`}>
                               {item.current_stock}
                             </span>
                           ) : '-'}
                         </td>
-                        <td className="py-2.5 px-4 text-right font-black text-brand font-mono">Rp {activePrice.toLocaleString('id-ID')}</td>
+                        <td className="py-2.5 px-4 text-right font-black text-primary font-mono">Rp {activePrice.toLocaleString('id-ID')}</td>
                         <td className="py-2.5 px-3 text-center">
-                          <button className="px-2 py-1 bg-brand text-white rounded-lg font-bold text-[10px] shadow-xs cursor-pointer">
+                          <button className="px-2 py-1 bg-primary text-white rounded-lg font-bold text-[10px] shadow-xs cursor-pointer">
                             + Tambah
                           </button>
                         </td>
@@ -843,7 +843,7 @@ export default function POS() {
         </div>
 
         {/* Accessible Keyboard Hint Bar */}
-        <div className="py-2.5 px-4 bg-slate-50/90 dark:bg-slate-950/80 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500 font-medium shrink-0">
+        <div className="py-2.5 px-4 bg-muted/90 dark:bg-input/80 border-t border-line flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-dim font-medium shrink-0">
           {[
             ['F1', 'Cari Barang'],
             ['F2', 'Buka Laci'],
@@ -856,7 +856,7 @@ export default function POS() {
             ['End', 'Bayar'],
           ].map(([key, label]) => (
             <span key={key} className="flex items-center gap-1.5">
-              <kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs px-2 py-0.5 rounded-lg text-[10px] font-black text-slate-700 dark:text-slate-200">
+              <kbd className="bg-card dark:bg-muted border border-line shadow-xs px-2 py-0.5 rounded-lg text-[10px] font-black text-body dark:text-heading">
                 {key}
               </kbd>
               <span>{label}</span>
@@ -866,28 +866,28 @@ export default function POS() {
       </div>
 
       {/* ─── RIGHT: ERGONOMIC CART & CHECKOUT PANEL ─── */}
-      <div className="flex flex-col bg-white dark:bg-[#0B0F19] rounded-3xl shadow-sm border border-slate-200/80 dark:border-slate-800/80 overflow-hidden w-84 lg:w-96 2xl:w-[410px] shrink-0">
+      <div className="flex flex-col bg-card rounded-xl shadow-sm border border-line overflow-hidden w-84 lg:w-96 2xl:w-[410px] shrink-0">
         
         {/* Customer Header Button */}
         <button
           onClick={() => setShowCustomerPicker(true)}
-          className="w-full px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50 via-slate-50 to-indigo-50/30 dark:from-slate-900/60 dark:via-slate-900/60 dark:to-indigo-950/20 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all tour-pos-customer group"
+          className="w-full px-4 py-3 border-b border-line bg-card flex items-center justify-between cursor-pointer hover:bg-muted transition-all tour-pos-customer group"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-brand/10 text-brand flex items-center justify-center font-black shrink-0 border border-brand/20 group-hover:scale-105 transition-transform">
+            <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center font-black shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
               <UserCheck size={18} />
             </div>
             <div className="text-left min-w-0">
-              <div className="text-xs font-black text-slate-900 dark:text-white truncate group-hover:text-brand transition-colors">
+              <div className="text-xs font-black text-heading truncate group-hover:text-primary transition-colors">
                 {selectedCustomer ? selectedCustomer.name : 'Pelanggan Umum'}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span className="text-[10px] font-bold text-slate-400">
+                <span className="w-2 h-2 rounded-full bg-success"></span>
+                <span className="text-[10px] font-bold text-dim">
                   {selectedCustomer ? (TIER_LABEL[selectedCustomer.customer_tier] || 'Regular') : 'Non-Member'}
                 </span>
                 {selectedCustomer?.loyalty_points ? (
-                  <span className="text-[9px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 px-1.5 py-0.2 rounded-full">
+                  <span className="text-[9px] font-extrabold bg-warning-soft text-warning dark:bg-amber-950/40 dark:text-warning px-1.5 py-0.2 rounded-full">
                     {selectedCustomer.loyalty_points} Poin
                   </span>
                 ) : null}
@@ -895,16 +895,16 @@ export default function POS() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-[11px] font-bold shadow-xs group-hover:border-brand transition-all">
-            <span className="text-[10px] text-brand">F3</span>
+          <div className="flex items-center gap-1 px-2.5 py-1 bg-card dark:bg-muted border border-line text-body dark:text-heading rounded-xl text-[11px] font-bold shadow-xs group-hover:border-primary transition-all">
+            <span className="text-[10px] text-primary">F3</span>
             <span>Ubah</span>
           </div>
         </button>
 
         {/* Cart Item Header & Held Transactions Pill */}
-        <div className="px-4 py-2 bg-slate-50/80 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-slate-500 shrink-0">
+        <div className="px-4 py-2 bg-muted/80 dark:bg-card/40 border-b border-line flex items-center justify-between text-xs font-bold text-dim shrink-0">
           <div className="flex items-center gap-1.5">
-            <ShoppingCart size={14} className="text-brand" />
+            <ShoppingCart size={14} className="text-primary" />
             <span>Keranjang ({cart.length})</span>
           </div>
           
@@ -912,13 +912,13 @@ export default function POS() {
             {holds.length > 0 && (
               <button
                 onClick={() => handleResume(holds[0])}
-                className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-lg text-[10px] font-extrabold animate-pulse"
+                className="flex items-center gap-1 px-2 py-0.5 bg-warning-soft dark:bg-amber-950/40 text-warning dark:text-warning border border-warning/30 dark:border-warning rounded-lg text-[10px] font-extrabold animate-pulse"
                 title="Lanjutkan Transaksi Tertahan (F5)"
               >
                 <PlayCircle size={11} /> {holds.length} Tertahan
               </button>
             )}
-            <span className="text-[11px] font-extrabold text-slate-400">
+            <span className="text-[11px] font-extrabold text-dim">
               {cart.reduce((s, l) => s + l.qty, 0)} Pcs
             </span>
           </div>
@@ -927,12 +927,12 @@ export default function POS() {
         {/* Cart Item List */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2.5 tour-pos-cart">
           {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center select-none">
-              <div className="w-16 h-16 rounded-3xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-400 mb-3 border border-slate-200/80 dark:border-slate-700/80">
+            <div className="h-full flex flex-col items-center justify-center text-dim p-6 text-center select-none">
+              <div className="w-16 h-16 rounded-xl bg-muted/80 flex items-center justify-center text-dim mb-3 border border-line/80 dark:border-line-strong/80">
                 <ShoppingCart size={28} className="opacity-40" />
               </div>
-              <p className="text-sm font-extrabold text-slate-700 dark:text-slate-300">Keranjang Masih Kosong</p>
-              <p className="text-xs text-slate-400 mt-1 max-w-[200px] leading-relaxed">
+              <p className="text-sm font-extrabold text-heading">Keranjang Masih Kosong</p>
+              <p className="text-xs text-dim mt-1 max-w-[200px] leading-relaxed">
                 Scan barcode atau klik produk dari katalog untuk memulai transaksi
               </p>
             </div>
@@ -948,23 +948,23 @@ export default function POS() {
                   tabIndex={0}
                   onFocus={() => setSelectedCartIdx(idx)}
                   onClick={() => setSelectedCartIdx(idx)}
-                  className={`p-3.5 rounded-2xl border transition-all relative ${
+                  className={`p-3.5 rounded-xl border transition-all relative ${
                     isSelected
-                      ? 'border-brand ring-2 ring-brand/20 bg-brand/5 dark:bg-brand/10 shadow-xs'
+                      ? 'border-primary ring-2 ring-primary/20 bg-primary-soft dark:bg-primary-soft shadow-xs'
                       : l.is_bogo_free
-                        ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50'
-                        : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800/80 hover:border-slate-300'
+                        ? 'bg-success-soft/60 dark:bg-success/20 border-success/30 dark:border-success/50'
+                        : 'bg-card border-line hover:border-line-strong'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         {l.is_bogo_free && (
-                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-emerald-500 text-white shrink-0">
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-success text-white shrink-0">
                             GRATIS
                           </span>
                         )}
-                        <h4 className="font-extrabold text-xs text-slate-900 dark:text-white line-clamp-1 leading-snug">
+                        <h4 className="font-extrabold text-xs text-heading line-clamp-1 leading-snug">
                           {l.item_name}
                         </h4>
                       </div>
@@ -972,23 +972,23 @@ export default function POS() {
                       {/* Click-to-Edit Price Row */}
                       {isEditingPrice ? (
                         <div className="flex items-center gap-1.5 mt-2">
-                          <span className="text-[11px] font-bold text-slate-400">Rp</span>
+                          <span className="text-[11px] font-bold text-dim">Rp</span>
                           <input
                             ref={priceEditInputRef}
                             type="number"
                             value={editingPriceVal}
                             onChange={e => setEditingPriceVal(e.target.value)}
-                            className="w-24 text-xs font-bold px-2 py-1 border-2 border-brand rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white outline-none"
+                            className="w-24 text-xs font-bold px-2 py-1 border-2 border-primary rounded-xl bg-card dark:bg-input text-heading outline-none"
                           />
                           <button
                             onClick={e => { e.stopPropagation(); commitPriceEdit(); }}
-                            className="p-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg"
+                            className="p-1 bg-success hover:bg-success text-white rounded-lg"
                           >
                             <Check size={13} />
                           </button>
                           <button
                             onClick={e => { e.stopPropagation(); cancelPriceEdit(); }}
-                            className="p-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-rose-500 hover:text-white rounded-lg"
+                            className="p-1 bg-line text-body hover:bg-danger hover:text-white rounded-lg"
                           >
                             <XIcon size={13} />
                           </button>
@@ -1004,19 +1004,19 @@ export default function POS() {
                           className={`flex items-center gap-1.5 mt-1 group/price ${!l.is_bogo_free ? 'cursor-pointer' : ''}`}
                           title="Klik untuk ubah harga satuan (Alt+H)"
                         >
-                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover/price:text-brand group-hover/price:underline">
+                          <span className="text-xs font-semibold text-dim group-hover/price:text-primary group-hover/price:underline">
                             Rp {l.price.toLocaleString('id-ID')}
                           </span>
-                          <span className="text-[10px] text-slate-400">/ {l.unit_name}</span>
+                          <span className="text-[10px] text-dim">/ {l.unit_name}</span>
                           {!l.is_bogo_free && (
-                            <Edit3 size={11} className="text-slate-400 opacity-60 group-hover/price:opacity-100 group-hover/price:text-brand" />
+                            <Edit3 size={11} className="text-dim opacity-60 group-hover/price:opacity-100 group-hover/price:text-primary" />
                           )}
                         </div>
                       )}
 
                       {l.discount_amount > 0 && (
                         <div className="mt-1">
-                          <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/40">
+                          <span className="text-[10px] font-bold bg-success-soft dark:bg-success/40 text-success dark:text-success px-1.5 py-0.5 rounded-md border border-success/30 dark:border-success/40">
                             Diskon -Rp {l.discount_amount.toLocaleString('id-ID')}
                           </span>
                         </div>
@@ -1025,7 +1025,7 @@ export default function POS() {
 
                     <button
                       onClick={e => { e.stopPropagation(); removeItem(l.item_id); }}
-                      className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 p-1.5 rounded-xl transition-all"
+                      className="text-dim hover:text-danger hover:bg-danger-soft dark:hover:bg-danger/30 p-1.5 rounded-xl transition-all"
                       title="Hapus Item (Delete)"
                     >
                       <Trash2 size={15} />
@@ -1033,10 +1033,10 @@ export default function POS() {
                   </div>
 
                   {/* Subtotal & Accessible Quantity Steppers */}
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <div className="mt-3 pt-2.5 border-t border-line flex items-center justify-between">
                     {isEditingSubtotal ? (
                       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                        <span className="text-[11px] font-bold text-slate-400">Rp</span>
+                        <span className="text-[11px] font-bold text-dim">Rp</span>
                         <input
                           ref={subtotalEditInputRef}
                           type="number"
@@ -1046,19 +1046,19 @@ export default function POS() {
                             if (e.key === 'Enter') { e.preventDefault(); commitSubtotalEdit(); }
                             if (e.key === 'Escape') { e.preventDefault(); cancelSubtotalEdit(); }
                           }}
-                          className="w-24 text-xs font-bold px-2 py-1 border-2 border-brand rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white outline-none"
+                          className="w-24 text-xs font-bold px-2 py-1 border-2 border-primary rounded-xl bg-card dark:bg-input text-heading outline-none"
                           autoFocus
                         />
                         <button
                           onClick={e => { e.stopPropagation(); commitSubtotalEdit(); }}
-                          className="p-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg cursor-pointer"
+                          className="p-1 bg-success hover:bg-success text-white rounded-lg cursor-pointer"
                           title="Simpan Subtotal"
                         >
                           <Check size={13} />
                         </button>
                         <button
                           onClick={e => { e.stopPropagation(); cancelSubtotalEdit(); }}
-                          className="p-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-rose-500 hover:text-white rounded-lg cursor-pointer"
+                          className="p-1 bg-line text-body hover:bg-danger hover:text-white rounded-lg cursor-pointer"
                           title="Batal"
                         >
                           <XIcon size={13} />
@@ -1075,29 +1075,29 @@ export default function POS() {
                         className={`group/subtotal flex flex-col ${!l.is_bogo_free ? 'cursor-pointer' : ''}`}
                         title="Klik untuk ubah subtotal item ini"
                       >
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block group-hover/subtotal:text-brand transition-colors">
-                          Subtotal {!l.is_bogo_free && <Edit3 size={9} className="inline ml-0.5 opacity-60 group-hover/subtotal:opacity-100 text-brand" />}
+                        <span className="text-[10px] uppercase font-bold text-dim block group-hover/subtotal:text-primary transition-colors">
+                          Subtotal {!l.is_bogo_free && <Edit3 size={9} className="inline ml-0.5 opacity-60 group-hover/subtotal:opacity-100 text-primary" />}
                         </span>
-                        <span className="font-black text-xs sm:text-sm text-brand font-mono group-hover/subtotal:underline">
+                        <span className="font-black text-xs sm:text-sm text-primary font-mono group-hover/subtotal:underline">
                           Rp {((l.qty * l.price) - l.discount_amount).toLocaleString('id-ID')}
                         </span>
                       </div>
                     )}
 
                     {!l.is_bogo_free && (
-                      <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+                      <div className="flex items-center bg-muted/80 rounded-xl p-1 border border-line/80 dark:border-line-strong/80 shadow-xs">
                         <button
                           onClick={e => { e.stopPropagation(); updateQty(l.item_id, -1); }}
-                          className="w-7 h-7 flex items-center justify-center bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all font-bold shadow-xs active:scale-95 cursor-pointer"
+                          className="w-7 h-7 flex items-center justify-center bg-card dark:bg-line-strong text-body dark:text-heading hover:bg-danger-soft hover:text-danger rounded-xl transition-all font-bold shadow-xs active:scale-95 cursor-pointer"
                         >
                           <Minus size={13} />
                         </button>
-                        <span className="w-8 text-center text-xs font-black text-slate-900 dark:text-white font-mono">
+                        <span className="w-8 text-center text-xs font-black text-heading font-mono">
                           {l.qty}
                         </span>
                         <button
                           onClick={e => { e.stopPropagation(); updateQty(l.item_id, 1); }}
-                          className="w-7 h-7 flex items-center justify-center bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-brand hover:text-white rounded-xl transition-all font-bold shadow-xs active:scale-95 cursor-pointer"
+                          className="w-7 h-7 flex items-center justify-center bg-card dark:bg-line-strong text-body dark:text-heading hover:bg-primary hover:text-white rounded-xl transition-all font-bold shadow-xs active:scale-95 cursor-pointer"
                         >
                           <Plus size={13} />
                         </button>
@@ -1111,25 +1111,25 @@ export default function POS() {
         </div>
 
         {/* ─── CART FOOTER & TOTAL PRICE OVERRIDE HERO SECTION ─── */}
-        <div className="p-3.5 bg-slate-50/90 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-800/80 shrink-0 space-y-3">
+        <div className="p-3.5 bg-muted/90 dark:bg-card/60 border-t border-line shrink-0 space-y-3">
           
           {/* Detailed Breakdown */}
           {(cartDiscount > 0 || currentTierDiscountPercent > 0 || taxRate > 0) && (
-            <div className="space-y-1.5 py-1 text-xs border-b border-slate-200/60 dark:border-slate-800/60">
+            <div className="space-y-1.5 py-1 text-xs border-b border-line">
               {cartDiscount > 0 && (
-                <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                <div className="flex justify-between items-center text-body">
                   <span>Diskon Promo</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">-Rp {cartDiscount.toLocaleString('id-ID')}</span>
+                  <span className="font-bold text-success dark:text-success">-Rp {cartDiscount.toLocaleString('id-ID')}</span>
                 </div>
               )}
               {currentTierDiscountPercent > 0 && (
-                <div className="flex justify-between items-center text-indigo-600 dark:text-indigo-400 font-semibold">
+                <div className="flex justify-between items-center text-primary dark:text-primary font-semibold">
                   <span className="flex items-center gap-1"><Crown size={12} /> Diskon Member ({currentTierDiscountPercent}%)</span>
                   <span>-Rp {tierDiscountAmount.toLocaleString('id-ID')}</span>
                 </div>
               )}
               {taxRate > 0 && (
-                <div className="flex justify-between items-center text-slate-500">
+                <div className="flex justify-between items-center text-dim">
                   <span>Pajak ({taxRate}% - {taxMode})</span>
                   <span>{taxMode === 'exclude' ? '+' : ''}Rp {taxAmount.toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                 </div>
@@ -1140,20 +1140,20 @@ export default function POS() {
           {/* 🌟 HERO TOTAL BOX (WITH DIRECT CLICK-TO-EDIT & OLD PRICE VISIBLE) 🌟 */}
           <div 
             onClick={cart.length > 0 ? startEditGrandTotal : undefined}
-            className={`p-3.5 rounded-2xl border transition-all cursor-pointer tour-pos-total relative overflow-hidden group ${
+            className={`p-3.5 rounded-xl border transition-all cursor-pointer tour-pos-total relative overflow-hidden group ${
               customGrandTotal !== null
-                ? 'bg-amber-500/10 border-amber-400/60 dark:bg-amber-950/20 dark:border-amber-700/60'
-                : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-brand hover:shadow-md'
+                ? 'bg-warning/10 border-warning/60 dark:bg-amber-950/20 dark:border-warning/60'
+                : 'bg-card border-line hover:border-primary hover:shadow-md'
             }`}
             title="Klik untuk ubah / negosiasi total harga (F8 / Alt+T)"
           >
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-dim">
                     TOTAL AKHIR
                   </span>
-                  <span className="text-[9px] font-bold bg-brand/10 text-brand px-1.5 py-0.2 rounded-md group-hover:bg-brand group-hover:text-white transition-all">
+                  <span className="text-[9px] font-bold bg-primary-soft text-primary px-1.5 py-0.2 rounded-md group-hover:bg-primary group-hover:text-white transition-all">
                     F8 / Klik Edit
                   </span>
                 </div>
@@ -1161,10 +1161,10 @@ export default function POS() {
                 {/* Show Old Price when Custom Override is Active */}
                 {customGrandTotal !== null && (
                   <div className="mt-1 flex items-center gap-1.5 text-xs">
-                    <span className="text-slate-400 line-through font-mono font-bold">
+                    <span className="text-dim line-through font-mono font-bold">
                       Rp {Math.round(calculatedGrandTotal).toLocaleString('id-ID')}
                     </span>
-                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.2 rounded-md">
+                    <span className="text-[10px] font-bold text-warning dark:text-warning bg-warning-soft dark:bg-amber-950/60 px-1.5 py-0.2 rounded-md">
                       Harga Disesuaikan
                     </span>
                   </div>
@@ -1178,7 +1178,7 @@ export default function POS() {
                     e.stopPropagation();
                     resetGrandTotalOverride();
                   }}
-                  className="flex items-center gap-1 px-2 py-1 bg-amber-200/80 hover:bg-amber-300 dark:bg-amber-900/60 dark:hover:bg-amber-800 text-amber-900 dark:text-amber-100 text-[10px] font-bold rounded-lg transition-all"
+                  className="flex items-center gap-1 px-2 py-1 bg-warning/30/80 hover:bg-warning dark:bg-warning/60 dark:hover:bg-warning text-warning dark:text-warning-soft text-[10px] font-bold rounded-lg transition-all"
                   title="Kembalikan ke Total Hitungan Normal"
                 >
                   <RotateCcw size={11} /> Reset
@@ -1189,34 +1189,34 @@ export default function POS() {
             {/* Total Price Display / Inline Edit Mode */}
             {isEditingTotal ? (
               <div className="mt-2 flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                <span className="text-base font-black text-brand">Rp</span>
+                <span className="text-base font-black text-primary">Rp</span>
                 <input
                   ref={totalEditInputRef}
                   type="number"
                   value={customTotalInput}
                   onChange={e => setCustomTotalInput(e.target.value)}
                   placeholder={calculatedGrandTotal.toString()}
-                  className="w-full text-xl font-black px-3 py-1.5 border-2 border-brand rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white outline-none font-mono"
+                  className="w-full text-xl font-black px-3 py-1.5 border-2 border-primary rounded-xl bg-card dark:bg-input text-heading outline-none font-mono"
                 />
                 <button
                   onClick={commitGrandTotalEdit}
-                  className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-xs"
+                  className="px-3 py-2 bg-success hover:bg-success text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-xs"
                 >
                   <Check size={14} /> OK
                 </button>
                 <button
                   onClick={cancelGrandTotalEdit}
-                  className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs"
+                  className="px-3 py-2 bg-line hover:bg-line-strong text-body dark:text-heading font-bold rounded-xl text-xs"
                 >
                   Batal
                 </button>
               </div>
             ) : (
               <div className="mt-1 flex items-baseline justify-between">
-                <span className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white font-mono tracking-tight group-hover:text-brand transition-colors">
+                <span className="text-2xl lg:text-3xl font-black text-heading font-mono tracking-tight group-hover:text-primary transition-colors">
                   Rp {Math.round(finalPayableTotal).toLocaleString('id-ID')}
                 </span>
-                <Edit3 size={16} className="text-slate-300 group-hover:text-brand transition-colors ml-2" />
+                <Edit3 size={16} className="text-dim group-hover:text-primary transition-colors ml-2" />
               </div>
             )}
           </div>
@@ -1226,7 +1226,7 @@ export default function POS() {
             <button
               onClick={handleHold}
               disabled={cart.length === 0}
-              className="col-span-2 flex items-center justify-center gap-1.5 py-3 rounded-2xl text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 transition-all cursor-pointer shadow-xs"
+              className="col-span-2 flex items-center justify-center gap-1.5 py-3 rounded-xl text-xs font-bold bg-card dark:bg-muted border border-line text-heading hover:bg-muted dark:hover:bg-line-strong disabled:opacity-40 transition-all cursor-pointer shadow-xs"
             >
               <PauseCircle size={15} /> Tahan (F4)
             </button>
@@ -1234,7 +1234,7 @@ export default function POS() {
             <button
               onClick={() => setShowPayment(true)}
               disabled={cart.length === 0}
-              className="col-span-3 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-black bg-gradient-to-r from-brand via-blue-600 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md shadow-brand/20 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none transition-all tour-pos-payment cursor-pointer"
+              className="col-span-3 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-black bg-primary hover:bg-primary-hover text-white shadow-sm shadow-primary/25 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none transition-all tour-pos-payment cursor-pointer"
             >
               <span>BAYAR SEKARANG</span>
               <ArrowRight size={16} />

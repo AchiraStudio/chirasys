@@ -44,44 +44,44 @@ export default function ContextMenu() {
 
   return (
     <div
-      className="fixed z-[9999] w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+      className="fixed z-[9999] w-52 bg-card border border-line rounded-xl shadow-xl py-1.5 overflow-hidden animate-pop-in duration-150 origin-top-left"
       style={{ top: position.y, left: position.x }}
     >
-      <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kivo Actions</span>
+      <div className="px-3 py-1.5 border-b border-line mb-1">
+        <span className="text-[10px] font-bold text-dim uppercase tracking-wider">Kivo Actions</span>
       </div>
 
       <button
         onClick={() => { navigator.clipboard.writeText(window.getSelection()?.toString() || ''); setShow(false); }}
-        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-heading hover:bg-muted transition-colors"
       >
-        <Copy size={14} className="text-slate-400" /> Copy
+        <Copy size={14} className="text-dim" /> Copy
       </button>
 
       <button
         onClick={() => { document.execCommand('paste'); setShow(false); }}
-        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-heading hover:bg-muted transition-colors"
       >
-        <ClipboardPaste size={14} className="text-slate-400" /> Paste
+        <ClipboardPaste size={14} className="text-dim" /> Paste
       </button>
 
-      <div className="h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
+      <div className="h-px bg-muted my-1"></div>
 
       <button
         onClick={() => window.location.reload()}
-        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-heading hover:bg-muted transition-colors"
       >
-        <RefreshCw size={14} className="text-brand" /> Reload App
+        <RefreshCw size={14} className="text-primary" /> Reload App
       </button>
       
       <button
         onClick={() => { window.history.back(); setShow(false); }}
-        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-heading hover:bg-muted transition-colors"
       >
-        <Navigation size={14} className="text-slate-400 -rotate-90" /> Go Back
+        <Navigation size={14} className="text-dim -rotate-90" /> Go Back
       </button>
 
-      <div className="h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
+      <div className="h-px bg-muted my-1"></div>
       <button
         onClick={async () => {
           setShow(false);
@@ -91,7 +91,7 @@ export default function ContextMenu() {
             console.error('Failed to open devtools:', err);
           }
         }}
-        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors cursor-pointer"
+        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-warning dark:text-warning hover:bg-warning-soft dark:hover:bg-warning/20 transition-colors cursor-pointer"
       >
         <Code2 size={14} /> Inspect Element
       </button>

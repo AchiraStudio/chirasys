@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, Square, X, Copy } from 'lucide-react';
-import { useTheme } from './ThemeProvider';
 
 interface TitleBarProps {
   className?: string;
@@ -13,13 +12,11 @@ interface TitleBarProps {
 
 export default function TitleBar({
   className = '',
-  theme = 'auto',
   leftContent,
   centerContent,
   rightExtra,
 }: TitleBarProps) {
   const [isMaximized, setIsMaximized] = useState(false);
-  const themeContext = useTheme();
 
   useEffect(() => {
     const win = getCurrentWindow();
@@ -38,33 +35,26 @@ export default function TitleBar({
   const toggleMax  = () => isMaximized ? getCurrentWindow().unmaximize() : getCurrentWindow().maximize();
   const close      = () => getCurrentWindow().close();
 
-  // Determine active theme
-  const effectiveTheme = theme === 'auto' ? (themeContext?.theme || 'dark') : theme;
-  const isDark = effectiveTheme === 'dark';
-
-  const barBg = isDark
-    ? 'bg-[#0B0F19] border-b border-slate-800/80 text-slate-300'
-    : 'bg-white border-b border-slate-200 text-slate-700';
-
-  const btnStyle = isDark
-    ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100';
-
   return (
     <div
       data-tauri-drag-region
       className={`
         h-9 shrink-0 w-full
-        ${barBg}
+        bg-card border-b border-line text-body
         select-none relative flex items-center justify-between
         transition-colors duration-200
         z-50
         ${className}
       `}
     >
-      {/* Left side: custom leftContent or spacer */}
-      <div data-tauri-drag-region className="flex items-center h-full z-10 pl-3">
-        {leftContent}
+      {/* Left side: custom leftContent or default brand logo */}
+      <div data-tauri-drag-region className="flex items-center gap-2 h-full z-10 pl-3">
+        {leftContent || (
+          <div className="flex items-center gap-2 select-none">
+            <img src="/kivo.png" alt="Kivo" className="w-4 h-4 rounded-sm object-contain" />
+            <span className="text-[11px] font-bold text-heading tracking-tight">Kivo</span>
+          </div>
+        )}
       </div>
 
       {/* Centered title – absolutely positioned for perfect balance */}
@@ -73,11 +63,9 @@ export default function TitleBar({
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
       >
         {centerContent || (
-          <span className={`text-[11px] font-bold tracking-widest uppercase flex items-center gap-1.5 ${
-            isDark ? 'text-slate-300' : 'text-slate-700'
-          }`}>
+          <span className="text-[11px] font-bold tracking-widest uppercase flex items-center gap-1.5 text-body">
             <span>Kivo</span>
-            <span className="text-[9px] px-1.5 py-0.2 rounded bg-brand/10 text-brand font-mono">Platform</span>
+            <span className="text-[9px] px-1.5 py-px rounded bg-primary-soft text-primary font-mono">Platform</span>
           </span>
         )}
       </div>
@@ -90,7 +78,7 @@ export default function TitleBar({
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={minimize}
-          className={`h-full w-11 flex items-center justify-center transition-colors ${btnStyle}`}
+          className="h-full w-11 flex items-center justify-center text-dim hover:text-heading hover:bg-muted transition-colors"
           title="Minimize"
         >
           <Minus size={14} strokeWidth={2} />
@@ -100,7 +88,7 @@ export default function TitleBar({
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={toggleMax}
-          className={`h-full w-11 flex items-center justify-center transition-colors ${btnStyle}`}
+          className="h-full w-11 flex items-center justify-center text-dim hover:text-heading hover:bg-muted transition-colors"
           title={isMaximized ? "Restore" : "Maximize"}
         >
           {isMaximized
@@ -112,7 +100,7 @@ export default function TitleBar({
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={close}
-          className="h-full w-11 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors text-slate-400 hover:text-white"
+          className="h-full w-11 flex items-center justify-center text-dim hover:bg-danger hover:text-white transition-colors"
           title="Close"
         >
           <X size={14} strokeWidth={2} />
@@ -121,4 +109,3 @@ export default function TitleBar({
     </div>
   );
 }
-

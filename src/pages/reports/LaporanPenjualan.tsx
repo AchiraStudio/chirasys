@@ -3,7 +3,7 @@ import {
   ArrowLeft, Loader2, TrendingUp, ShoppingCart, Tag, DollarSign, 
   FileText, Filter, Printer, Download, Eye, Search,
   RefreshCw, BarChart3, CreditCard, Banknote, Smartphone, ArrowRightLeft,
-  ChevronRight
+  ChevronDown, ChevronUp, X, RotateCcw
 } from 'lucide-react';
 import { 
   getSalesRecapReport, getDetailedSalesLines, getSalesByCashierSummary, getDailySalesRecap,
@@ -15,6 +15,7 @@ import { downloadCsv } from '../../lib/exportCsv';
 import SaleDetailModal from '../../components/pos/SaleDetailModal';
 import PrintReportModal from '../../components/reports/PrintReportModal';
 import { useAuthStore } from '../../store/AuthStore';
+import Select from '../../components/ui/Select';
 
 interface Props { 
   onBack: () => void; 
@@ -24,14 +25,24 @@ interface Props {
 type ReportSubtype = 'recap' | 'detailed' | 'daily' | 'payment_methods' | 'customer' | 'cashier' | 'product_margin';
 
 const METHOD_CONFIG: Record<string, { label: string; icon: any; color: string; badgeBg: string; textCol: string }> = {
-  cash:     { label: 'Tunai (Cash)',       icon: Banknote,      color: 'bg-emerald-500', badgeBg: 'bg-emerald-50 dark:bg-emerald-950/40', textCol: 'text-emerald-700 dark:text-emerald-300' },
-  transfer: { label: 'Transfer Bank',      icon: ArrowRightLeft, color: 'bg-blue-500',    badgeBg: 'bg-blue-50 dark:bg-blue-950/40',    textCol: 'text-blue-700 dark:text-blue-300' },
-  debit:    { label: 'Kartu Debit / EDC',  icon: CreditCard,    color: 'bg-indigo-500',  badgeBg: 'bg-indigo-50 dark:bg-indigo-950/40',textCol: 'text-indigo-700 dark:text-indigo-300' },
-  credit:   { label: 'Kartu Kredit',       icon: CreditCard,    color: 'bg-purple-500',  badgeBg: 'bg-purple-50 dark:bg-purple-950/40',textCol: 'text-purple-700 dark:text-purple-300' },
-  qris:     { label: 'QRIS / E-Wallet',    icon: Smartphone,    color: 'bg-amber-500',   badgeBg: 'bg-amber-50 dark:bg-amber-950/40',  textCol: 'text-amber-700 dark:text-amber-300' },
-  card:     { label: 'Kartu EDC',          icon: CreditCard,    color: 'bg-indigo-500',  badgeBg: 'bg-indigo-50 dark:bg-indigo-950/40',textCol: 'text-indigo-700 dark:text-indigo-300' },
-  tempo:    { label: 'Tempo / Piutang',    icon: FileText,      color: 'bg-rose-500',    badgeBg: 'bg-rose-50 dark:bg-rose-950/40',    textCol: 'text-rose-700 dark:text-rose-300' },
+  cash:     { label: 'Tunai (Cash)',       icon: Banknote,       color: 'bg-emerald-500', badgeBg: 'bg-emerald-500/10', textCol: 'text-emerald-500' },
+  transfer: { label: 'Transfer Bank',      icon: ArrowRightLeft, color: 'bg-blue-500',    badgeBg: 'bg-blue-500/10',    textCol: 'text-blue-500' },
+  debit:    { label: 'Kartu Debit / EDC',  icon: CreditCard,     color: 'bg-indigo-500',  badgeBg: 'bg-indigo-500/10',  textCol: 'text-indigo-500' },
+  credit:   { label: 'Kartu Kredit',       icon: CreditCard,     color: 'bg-purple-500',  badgeBg: 'bg-purple-500/10',  textCol: 'text-purple-500' },
+  qris:     { label: 'QRIS / E-Wallet',    icon: Smartphone,     color: 'bg-amber-500',   badgeBg: 'bg-amber-500/10',   textCol: 'text-amber-500' },
+  card:     { label: 'Kartu EDC',          icon: CreditCard,     color: 'bg-indigo-500',  badgeBg: 'bg-indigo-500/10',  textCol: 'text-indigo-500' },
+  tempo:    { label: 'Tempo / Piutang',    icon: FileText,       color: 'bg-rose-500',    badgeBg: 'bg-rose-500/10',    textCol: 'text-rose-500' },
 };
+
+const SUB_REPORTS: { id: ReportSubtype; label: string; desc: string }[] = [
+  { id: 'recap', label: 'Rekap Faktur', desc: 'Ringkasan per nota faktur penjualan' },
+  { id: 'detailed', label: 'Rincian Item', desc: 'Detail setiap baris produk terjual' },
+  { id: 'payment_methods', label: 'Metode Bayar', desc: 'Distribusi omset per cara pembayaran' },
+  { id: 'daily', label: 'Penjualan Harian', desc: 'Agregasi omset dan laba per hari' },
+  { id: 'customer', label: 'Per Pelanggan', desc: 'Frekuensi & total belanja pelanggan' },
+  { id: 'cashier', label: 'Per Kasir', desc: 'Rekap penjualan & laci per kasir' },
+  { id: 'product_margin', label: 'Profit Per Item', desc: 'Peringkat margin laba produk' },
+];
 
 export default function LaporanPenjualan({ onBack, initialSubtype = 'recap' }: Props) {
   const { user } = useAuthStore();
@@ -60,6 +71,9 @@ export default function LaporanPenjualan({ onBack, initialSubtype = 'recap' }: P
 
   // Search keyword inside loaded data
   const [searchTableQuery, setSearchTableQuery] = useState<string>('');
+
+  // Expandable Advanced Filters Panel
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
   // Dropdown master records
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -129,6 +143,29 @@ export default function LaporanPenjualan({ onBack, initialSubtype = 'recap' }: P
     }
   };
 
+  // Count active advanced filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedCustomerId) count++;
+    if (selectedUserId) count++;
+    if (selectedPaymentMethod !== 'all') count++;
+    if (selectedCategoryId) count++;
+    if (selectedPriceType !== 'all') count++;
+    if (txFrom.trim()) count++;
+    if (txTo.trim()) count++;
+    return count;
+  }, [selectedCustomerId, selectedUserId, selectedPaymentMethod, selectedCategoryId, selectedPriceType, txFrom, txTo]);
+
+  const resetFilters = () => {
+    setSelectedCustomerId('');
+    setSelectedUserId('');
+    setSelectedPaymentMethod('all');
+    setSelectedCategoryId('');
+    setSelectedPriceType('all');
+    setTxFrom('');
+    setTxTo('');
+  };
+
   // Main Fetch Function
   const fetchReportData = async () => {
     setLoading(true);
@@ -146,26 +183,28 @@ export default function LaporanPenjualan({ onBack, initialSubtype = 'recap' }: P
     };
 
     try {
-      // Always fetch payment methods breakdown for the timeframe
+      // Fetch payment methods breakdown for the timeframe
       getSalesByPaymentMethod(branchId, dateFrom, dateTo)
         .then(setPaymentMethodData)
         .catch(console.error);
 
-      if (activeSubtype === 'recap' || activeSubtype === 'customer') {
-        const data = await getSalesRecapReport(filter);
-        setRecapData(data);
-      } else if (activeSubtype === 'detailed') {
+      if (activeSubtype === 'detailed') {
         const data = await getDetailedSalesLines(filter);
         setDetailedData(data);
-      } else if (activeSubtype === 'daily') {
-        const data = await getDailySalesRecap(filter);
-        setDailyData(data);
-      } else if (activeSubtype === 'cashier') {
-        const data = await getSalesByCashierSummary(filter);
-        setCashierData(data);
-      } else if (activeSubtype === 'product_margin') {
-        const data = await getTopSellingItems(branchId, dateFrom, dateTo, 100);
-        setProductMarginData(data);
+      } else {
+        // Always fetch recap to provide stable KPI numbers and customer grouping
+        const recapPromise = getSalesRecapReport(filter).then(setRecapData);
+        if (activeSubtype === 'daily') {
+          const data = await getDailySalesRecap(filter);
+          setDailyData(data);
+        } else if (activeSubtype === 'cashier') {
+          const data = await getSalesByCashierSummary(filter);
+          setCashierData(data);
+        } else if (activeSubtype === 'product_margin') {
+          const data = await getTopSellingItems(branchId, dateFrom, dateTo, 100);
+          setProductMarginData(data);
+        }
+        await recapPromise;
       }
     } catch (e) {
       console.error(e);
@@ -188,7 +227,6 @@ export default function LaporanPenjualan({ onBack, initialSubtype = 'recap' }: P
       const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
       return { revenue, discount, cogs, profit, margin, count: detailedData.length };
     } else {
-      // Default to recap data
       const revenue = recapData.reduce((acc, row) => acc + row.grand_total, 0);
       const discount = recapData.reduce((acc, row) => acc + row.discount_amount, 0);
       const cogs = recapData.reduce((acc, row) => acc + row.total_cogs, 0);
@@ -270,897 +308,834 @@ export default function LaporanPenjualan({ onBack, initialSubtype = 'recap' }: P
     }
   };
 
-  const SUB_REPORTS = [
-    { id: 'recap', label: 'Laporan Penjualan Rekap', desc: 'Ringkasan per Nota Faktur Penjualan' },
-    { id: 'detailed', label: 'Laporan Penjualan Detail', desc: 'Rincian setiap baris obat/item terjual' },
-    { id: 'payment_methods', label: 'Distribusi Metode Pembayaran', desc: 'Rincian omset per metode: Tunai, QRIS, Transfer, Debit, dll' },
-    { id: 'daily', label: 'Laporan Penjualan Harian', desc: 'Agregasi omset, tunai vs non-tunai harian' },
-    { id: 'customer', label: 'Laporan Jual Per Pelanggan', desc: 'Frekuensi & total belanja per pelanggan' },
-    { id: 'cashier', label: 'Laporan Jual Per Kasir', desc: 'Rekap shift kasir & penerimaan laci kasir' },
-    { id: 'product_margin', label: 'Laporan Profit Per Item', desc: 'Peringkat margin laba produk' },
-  ];
-
   return (
-    <div className="flex flex-col h-full gap-5 animate-in fade-in duration-300">
-      {/* Header Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-[#0B0F19] p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+    <div className="flex flex-col h-full gap-4 animate-fade-in">
+      {/* 1. Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card px-4 py-3 rounded-xl border border-line">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            className="p-2 rounded-lg bg-muted text-body hover:text-heading hover:bg-line transition-colors"
             title="Kembali ke Menu Laporan"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
           </button>
           <div>
-            <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              Laporan Penjualan & Analisis Transaksi
+            <h1 className="text-base font-bold text-heading tracking-tight flex items-center gap-2">
+              Laporan Penjualan & Analisis
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Pantau arus kas masuk, distribusi metode pembayaran, laba kotor, dan rincian transaksi kasir
+            <p className="text-xs text-dim">
+              Ringkasan omset, laba kotor, metode pembayaran, dan rincian transaksi kasir
             </p>
           </div>
         </div>
 
-        {/* Export & Print Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Actions */}
+        <div className="flex items-center gap-2">
           <button
             onClick={fetchReportData}
             disabled={loading}
-            className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-bold text-xs transition-all flex items-center gap-1.5"
+            className="p-2 bg-muted text-body hover:text-heading hover:bg-line rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5"
             title="Refresh Data"
           >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
 
           <button
             onClick={() => setIsPrintModalOpen(true)}
-            className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl font-bold text-xs transition-all flex items-center gap-1.5"
+            className="px-3 py-2 bg-muted hover:bg-line text-body hover:text-heading rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5"
           >
-            <Printer size={15} /> Cetak Laporan
+            <Printer size={14} /> Cetak
           </button>
 
           <button
             onClick={handleExportCsv}
-            className="px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-2xl font-bold text-xs transition-all flex items-center gap-1.5"
+            className="px-3 py-2 bg-primary text-white hover:bg-primary-hover rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs"
           >
-            <Download size={15} /> Export CSV
+            <Download size={14} /> Export CSV
           </button>
         </div>
       </div>
 
-      {/* Top KPI Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-        <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase">Total Omset</span>
-            <DollarSign size={16} className="text-emerald-500" />
+      {/* 2. Top KPI Metric Cards (Compact 5-Metric Strip) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="bg-card px-4 py-3 rounded-xl border border-line flex flex-col justify-between">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Total Omset</span>
+            <DollarSign size={14} className="text-primary" />
           </div>
-          <div className="text-lg font-black text-slate-900 dark:text-white mt-1">
-            Rp {kpi.revenue.toLocaleString('id-ID')}
+          <div className="mt-1">
+            <span className="text-base font-bold text-heading">
+              Rp {kpi.revenue.toLocaleString('id-ID')}
+            </span>
           </div>
-          <div className="text-[10px] font-semibold text-slate-400 mt-0.5">
-            {kpi.count} Transaksi
+          <div className="text-[10px] text-dim font-medium mt-0.5">
+            {kpi.count.toLocaleString('id-ID')} {activeSubtype === 'detailed' ? 'Item' : 'Transaksi'}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase">Total Diskon</span>
-            <Tag size={16} className="text-rose-500" />
+        <div className="bg-card px-4 py-3 rounded-xl border border-line flex flex-col justify-between">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Total Diskon</span>
+            <Tag size={14} className="text-danger" />
           </div>
-          <div className="text-lg font-black text-rose-600 dark:text-rose-400 mt-1">
-            Rp {kpi.discount.toLocaleString('id-ID')}
+          <div className="mt-1">
+            <span className="text-base font-bold text-danger">
+              Rp {kpi.discount.toLocaleString('id-ID')}
+            </span>
           </div>
-          <div className="text-[10px] font-semibold text-slate-400 mt-0.5">
+          <div className="text-[10px] text-dim font-medium mt-0.5">
             Potongan Promo & Member
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase">Total HPP (Modal)</span>
-            <ShoppingCart size={16} className="text-blue-500" />
+        <div className="bg-card px-4 py-3 rounded-xl border border-line flex flex-col justify-between">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Total Modal (HPP)</span>
+            <ShoppingCart size={14} className="text-dim" />
           </div>
-          <div className="text-lg font-black text-slate-900 dark:text-white mt-1">
-            Rp {kpi.cogs.toLocaleString('id-ID')}
+          <div className="mt-1">
+            <span className="text-base font-bold text-heading">
+              Rp {kpi.cogs.toLocaleString('id-ID')}
+            </span>
           </div>
-          <div className="text-[10px] font-semibold text-slate-400 mt-0.5">
+          <div className="text-[10px] text-dim font-medium mt-0.5">
             HPP Berjalan Produk
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase">Laba Kotor</span>
-            <TrendingUp size={16} className="text-emerald-500" />
+        <div className="bg-card px-4 py-3 rounded-xl border border-line flex flex-col justify-between">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Laba Kotor</span>
+            <TrendingUp size={14} className="text-success" />
           </div>
-          <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-1">
-            Rp {kpi.profit.toLocaleString('id-ID')}
+          <div className="mt-1">
+            <span className="text-base font-bold text-success">
+              Rp {kpi.profit.toLocaleString('id-ID')}
+            </span>
           </div>
-          <div className="text-[10px] font-semibold text-slate-400 mt-0.5">
+          <div className="text-[10px] text-dim font-medium mt-0.5">
             Omset Bersih - HPP
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm col-span-2 lg:col-span-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase">Margin Profit</span>
-            <BarChart3 size={16} className="text-purple-500" />
+        <div className="bg-card px-4 py-3 rounded-xl border border-line flex flex-col justify-between col-span-2 sm:col-span-1">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Margin Laba</span>
+            <BarChart3 size={14} className="text-primary" />
           </div>
-          <div className="text-lg font-black text-purple-600 dark:text-purple-400 mt-1">
-            {kpi.margin.toFixed(1)}%
+          <div className="mt-1">
+            <span className="text-base font-bold text-primary">
+              {kpi.margin.toFixed(1)}%
+            </span>
           </div>
-          <div className="text-[10px] font-semibold text-slate-400 mt-0.5">
+          <div className="text-[10px] text-dim font-medium mt-0.5">
             Persentase Laba Kotor
           </div>
         </div>
       </div>
 
-      {/* Interactive Quick Payment Method Distribution Bar */}
-      <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CreditCard size={16} className="text-brand" />
-            <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wide">
-              Distribusi Metode Pembayaran
-            </span>
-            <span className="text-[11px] text-slate-400 font-medium">
-              ({paymentMethodData.reduce((acc, curr) => acc + curr.transaction_count, 0)} transaksi pada periode terpilih)
-            </span>
-          </div>
-          <button
-            onClick={() => setActiveSubtype('payment_methods')}
-            className="text-xs font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
-          >
-            Buka Laporan Metode Pembayaran <ChevronRight size={14} />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
-          {paymentMethodData.length === 0 ? (
-            <div className="col-span-full text-center py-2 text-xs text-slate-400">
-              Belum ada transaksi pembayaran pada rentang tanggal ini.
-            </div>
-          ) : (
-            paymentMethodData.map(p => {
-              const m = METHOD_CONFIG[p.method.toLowerCase()] || { 
-                label: p.method.toUpperCase(), 
-                icon: CreditCard, 
-                color: 'bg-slate-500', 
-                badgeBg: 'bg-slate-100 dark:bg-slate-800', 
-                textCol: 'text-slate-700 dark:text-slate-300' 
-              };
-              const Icon = m.icon;
-              const totalAll = paymentMethodData.reduce((acc, curr) => acc + curr.total_amount, 0);
-              const pct = totalAll > 0 ? (p.total_amount / totalAll) * 100 : 0;
-
-              return (
-                <div
-                  key={p.method}
-                  onClick={() => {
-                    setSelectedPaymentMethod(p.method);
-                    setActiveSubtype('recap');
-                  }}
-                  className="p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/80 hover:border-brand/50 hover:bg-slate-100/80 dark:hover:bg-slate-900 transition-all cursor-pointer group"
-                  title={`Klik untuk memfilter faktur dengan cara bayar ${m.label}`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <div className={`w-6 h-6 rounded-lg ${m.color} flex items-center justify-center shrink-0`}>
-                        <Icon size={12} className="text-white" />
-                      </div>
-                      <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate max-w-[80px]">
-                        {m.label}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-500">
-                      {pct.toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="text-sm font-black text-slate-900 dark:text-white truncate">
-                    Rp {p.total_amount.toLocaleString('id-ID')}
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1 font-semibold">
-                    <span>{p.transaction_count} Nota</span>
-                    <span className="text-[9px] text-brand opacity-0 group-hover:opacity-100 transition-opacity font-bold">Filter →</span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+      {/* 3. Horizontal Sub-Reports Tab Strip */}
+      <div className="bg-card p-1.5 rounded-xl border border-line flex items-center gap-1 overflow-x-auto custom-scrollbar">
+        {SUB_REPORTS.map(sub => {
+          const isActive = activeSubtype === sub.id;
+          return (
+            <button
+              key={sub.id}
+              onClick={() => setActiveSubtype(sub.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                isActive
+                  ? 'bg-primary text-white font-semibold shadow-xs'
+                  : 'text-body hover:text-heading hover:bg-muted'
+              }`}
+              title={sub.desc}
+            >
+              <FileText size={13} className={isActive ? 'text-white' : 'text-dim'} />
+              <span>{sub.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Main Layout: Left Filter Panel + Right Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0">
-        {/* Left Filter & Sub-Report Panel (4 cols) */}
-        <div className="lg:col-span-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-1">
-          {/* Sub-report selector buttons */}
-          <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Pilih Format / Jenis Laporan:
-            </label>
-            <div className="space-y-1.5">
-              {SUB_REPORTS.map(sub => {
-                const isActive = activeSubtype === sub.id;
-                return (
-                  <button
-                    key={sub.id}
-                    onClick={() => setActiveSubtype(sub.id as any)}
-                    className={`w-full flex items-start gap-3 p-3 rounded-2xl text-left transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-brand text-white shadow-md shadow-brand/20 font-bold'
-                        : 'bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <FileText size={16} className={`mt-0.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                    <div>
-                      <div className="text-xs font-bold">{sub.label}</div>
-                      <div className={`text-[10px] mt-0.5 ${isActive ? 'text-white/80' : 'text-slate-400'}`}>
-                        {sub.desc}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+      {/* 4. Filter Toolbar & Search Bar */}
+      <div className="bg-card p-3 rounded-xl border border-line flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          {/* Preset Buttons & Date Picker */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg">
+              {[
+                { id: 'today', label: 'Hari Ini' },
+                { id: '7days', label: '7 Hari' },
+                { id: 'month', label: 'Bulan Ini' },
+                { id: 'this_year', label: 'Tahun Ini' },
+                { id: 'all', label: 'Semua' },
+              ].map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => applyPreset(p.id)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                    presetPeriod === p.id 
+                      ? 'bg-card text-heading font-semibold shadow-xs' 
+                      : 'text-dim hover:text-heading'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Date Range */}
+            <div className="flex items-center gap-1.5 text-xs text-dim">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => { setDateFrom(e.target.value); setPresetPeriod('custom'); }}
+                className="px-2 py-1 bg-muted border border-line rounded-lg text-heading text-xs font-medium focus:outline-none focus:border-primary"
+              />
+              <span>s/d</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => { setDateTo(e.target.value); setPresetPeriod('custom'); }}
+                className="px-2 py-1 bg-muted border border-line rounded-lg text-heading text-xs font-medium focus:outline-none focus:border-primary"
+              />
             </div>
           </div>
 
-          {/* Deep Filter Parameters Box */}
-          <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-bold text-xs uppercase tracking-wide">
-              <Filter size={15} /> Parameter Filter
+          {/* Search & Advanced Filters Toggle */}
+          <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
+            <div className="relative w-full sm:w-56">
+              <input
+                type="text"
+                placeholder="Cari tabel..."
+                value={searchTableQuery}
+                onChange={e => setSearchTableQuery(e.target.value)}
+                className="w-full pl-7 pr-7 py-1 bg-muted border border-line rounded-lg text-heading text-xs font-medium focus:outline-none focus:border-primary"
+              />
+              <Search className="absolute left-2 top-2 text-dim" size={12} />
+              {searchTableQuery && (
+                <button
+                  onClick={() => setSearchTableQuery('')}
+                  className="absolute right-2 top-2 text-dim hover:text-heading"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
-            {/* Period Quick Presets */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">Preset Periode Waktu</label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[
-                  { id: 'today', label: 'Hari Ini' },
-                  { id: 'yesterday', label: 'Kemarin' },
-                  { id: '7days', label: '7 Hari' },
-                  { id: '30days', label: '30 Hari' },
-                  { id: 'month', label: 'Bulan Ini' },
-                  { id: 'last_month', label: 'Bulan Lalu' },
-                  { id: 'this_year', label: 'Tahun Ini' },
-                  { id: 'all', label: 'Semua' },
-                ].map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p.id)}
-                    className={`px-2 py-1.5 rounded-xl text-[11px] font-bold transition-all text-center cursor-pointer ${
-                      presetPeriod === p.id 
-                        ? 'bg-brand text-white shadow-sm' 
-                        : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                showAdvancedFilters || activeFilterCount > 0
+                  ? 'bg-primary-soft text-primary border-primary/30'
+                  : 'bg-muted text-body border-line hover:text-heading hover:bg-line'
+              }`}
+            >
+              <Filter size={12} />
+              <span>Filter</span>
+              {activeFilterCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+              {showAdvancedFilters ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+          </div>
+        </div>
 
-            {/* Date Range Inputs */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Dari Tanggal</label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={e => { setDateFrom(e.target.value); setPresetPeriod('custom'); }}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-semibold"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sampai Tanggal</label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={e => { setDateTo(e.target.value); setPresetPeriod('custom'); }}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-semibold"
-                />
-              </div>
-            </div>
-
-            {/* Transaction No Range */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">No. Transaksi Dari</label>
-                <input
-                  type="text"
-                  placeholder="0001/KSR/..."
-                  value={txFrom}
-                  onChange={e => setTxFrom(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sampai</label>
-                <input
-                  type="text"
-                  placeholder="9999/KSR/..."
-                  value={txTo}
-                  onChange={e => setTxTo(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium"
-                />
-              </div>
-            </div>
-
+        {/* Collapsible Advanced Filters Panel */}
+        {showAdvancedFilters && (
+          <div className="pt-3 border-t border-line grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2.5 animate-fade-in">
             {/* Customer Filter */}
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Filter Pelanggan</label>
-              <select
+              <label className="block text-[10px] font-semibold text-dim uppercase mb-1">Pelanggan</label>
+              <Select
                 value={selectedCustomerId}
-                onChange={e => setSelectedCustomerId(e.target.value)}
-                className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-semibold"
+                onChange={v => setSelectedCustomerId(v)}
+                className="w-full text-xs"
               >
-                <option value="">Semua Pelanggan (Umum & Member)</option>
+                <option value="">Semua Pelanggan</option>
                 {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name} ({c.customer_tier.toUpperCase()})</option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
-            {/* Cashier / User Filter */}
+            {/* Cashier Filter */}
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Filter Kasir / User</label>
-              <select
+              <label className="block text-[10px] font-semibold text-dim uppercase mb-1">Kasir / User</label>
+              <Select
                 value={selectedUserId}
-                onChange={e => setSelectedUserId(e.target.value)}
-                className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-semibold"
+                onChange={v => setSelectedUserId(v)}
+                className="w-full text-xs"
               >
-                <option value="">Semua Kasir & Staff</option>
+                <option value="">Semua Kasir</option>
                 {usersList.map(u => (
-                  <option key={u.id} value={u.id}>{u.name || u.username} ({u.role?.toUpperCase() || 'STAFF'})</option>
+                  <option key={u.id} value={u.id}>{u.name || u.username}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             {/* Payment Method Filter */}
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Cara Bayar / Modul</label>
-              <select
+              <label className="block text-[10px] font-semibold text-dim uppercase mb-1">Metode Bayar</label>
+              <Select
                 value={selectedPaymentMethod}
-                onChange={e => setSelectedPaymentMethod(e.target.value)}
-                className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-semibold"
+                onChange={v => setSelectedPaymentMethod(v)}
+                className="w-full text-xs"
               >
-                <option value="all">Semua Metode Pembayaran</option>
+                <option value="all">Semua Metode</option>
                 <option value="cash">Tunai (Cash)</option>
                 <option value="qris">QRIS</option>
                 <option value="transfer">Transfer Bank</option>
                 <option value="debit">Kartu Debit</option>
                 <option value="credit">Kartu Kredit</option>
-              </select>
+              </Select>
             </div>
 
             {/* Category Filter */}
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kategori Produk</label>
-              <select
+              <label className="block text-[10px] font-semibold text-dim uppercase mb-1">Kategori Produk</label>
+              <Select
                 value={selectedCategoryId}
-                onChange={e => setSelectedCategoryId(e.target.value)}
-                className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-semibold"
+                onChange={v => setSelectedCategoryId(v)}
+                className="w-full text-xs"
               >
                 <option value="">Semua Kategori</option>
                 {categories.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             {/* Price Type Filter */}
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tipe Harga Penjualan</label>
-              <select
+              <label className="block text-[10px] font-semibold text-dim uppercase mb-1">Tipe Harga</label>
+              <Select
                 value={selectedPriceType}
-                onChange={e => setSelectedPriceType(e.target.value)}
-                className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-semibold"
+                onChange={v => setSelectedPriceType(v)}
+                className="w-full text-xs"
               >
-                <option value="all">Semua Tipe Harga</option>
+                <option value="all">Semua Tipe</option>
                 <option value="retail">Eceran (Retail)</option>
                 <option value="wholesale">Grosir (Wholesale)</option>
-              </select>
+              </Select>
             </div>
+
+            {/* Reset Action */}
+            <div className="flex flex-col justify-end">
+              <button
+                type="button"
+                onClick={resetFilters}
+                disabled={activeFilterCount === 0}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 border border-line bg-muted hover:bg-line text-body disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <RotateCcw size={12} /> Reset Filter
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 5. Full Width Data Table Area */}
+      <div className="flex-1 min-h-0 bg-card rounded-xl border border-line flex flex-col overflow-hidden">
+        {/* Table Header Bar */}
+        <div className="px-4 py-2.5 border-b border-line flex items-center justify-between gap-3 bg-muted/40">
+          <div className="flex items-center gap-2 text-xs font-semibold text-heading">
+            <span className="w-2 h-2 rounded-full bg-primary"></span>
+            <span>{SUB_REPORTS.find(s => s.id === activeSubtype)?.label}</span>
+            {loading && <Loader2 size={13} className="animate-spin text-primary ml-1" />}
+          </div>
+
+          <div className="text-[11px] text-dim font-medium">
+            {activeSubtype === 'recap' && `${recapData.length} Faktur`}
+            {activeSubtype === 'detailed' && `${detailedData.length} Baris Produk`}
+            {activeSubtype === 'payment_methods' && `${paymentMethodData.length} Metode Bayar`}
+            {activeSubtype === 'daily' && `${dailyData.length} Hari`}
+            {activeSubtype === 'customer' && `${customerGrouped.length} Pelanggan`}
+            {activeSubtype === 'cashier' && `${cashierData.length} Kasir`}
+            {activeSubtype === 'product_margin' && `${productMarginData.length} Produk`}
           </div>
         </div>
 
-        {/* Right Data Table Area (8 cols) */}
-        <div className="lg:col-span-8 bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
-          {/* Table Header Controls */}
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
-              <span className="w-2.5 h-2.5 rounded-full bg-brand"></span>
-              <span>{SUB_REPORTS.find(s => s.id === activeSubtype)?.label}</span>
-              {loading && <Loader2 size={14} className="animate-spin text-brand ml-2" />}
-            </div>
-
-            <div className="relative w-64">
-              <input
-                type="text"
-                placeholder="Cari dalam tabel..."
-                value={searchTableQuery}
-                onChange={e => setSearchTableQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-1 focus:ring-brand"
-              />
-              <Search className="absolute left-2.5 top-2 text-slate-400" size={13} />
-            </div>
-          </div>
-
-          {/* Table Content Switcher */}
-          <div className="flex-1 overflow-auto custom-scrollbar">
-            {/* 1. REKAP PENJUALAN */}
-            {activeSubtype === 'recap' && (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 sticky top-0 z-10">
+        {/* Table Body Content */}
+        <div className="flex-1 overflow-auto custom-scrollbar">
+          {/* SUB-REPORT 1: REKAP FAKTUR */}
+          {activeSubtype === 'recap' && (
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-muted/70 border-b border-line text-[11px] font-semibold uppercase text-dim sticky top-0 z-10">
+                <tr>
+                  <th className="py-2.5 px-4">Waktu</th>
+                  <th className="py-2.5 px-4">No. Transaksi</th>
+                  <th className="py-2.5 px-4">Pelanggan</th>
+                  <th className="py-2.5 px-4">Kasir</th>
+                  <th className="py-2.5 px-4 text-right">Total Jual</th>
+                  <th className="py-2.5 px-4 text-right">HPP</th>
+                  <th className="py-2.5 px-4 text-right">Laba Kotor</th>
+                  <th className="py-2.5 px-4 text-center">Bayar</th>
+                  <th className="py-2.5 px-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {recapData.length === 0 ? (
                   <tr>
-                    <th className="py-3 px-4">Waktu</th>
-                    <th className="py-3 px-4">No. Transaksi</th>
-                    <th className="py-3 px-4">Pelanggan</th>
-                    <th className="py-3 px-4">Kasir</th>
-                    <th className="py-3 px-4 text-right">Total Jual</th>
-                    <th className="py-3 px-4 text-right">HPP</th>
-                    <th className="py-3 px-4 text-right">Laba Kotor</th>
-                    <th className="py-3 px-4 text-center">Bayar</th>
-                    <th className="py-3 px-3 text-center">Aksi</th>
+                    <td colSpan={9} className="text-center py-16 text-dim">
+                      Tidak ada transaksi penjualan pada periode ini.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {recapData.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center py-16 text-slate-400">
-                        Tidak ada transaksi penjualan pada periode ini.
-                      </td>
-                    </tr>
-                  ) : (
-                    recapData
-                      .filter(r => !searchTableQuery || r.transaction_no.toLowerCase().includes(searchTableQuery.toLowerCase()) || r.customer_name.toLowerCase().includes(searchTableQuery.toLowerCase()))
-                      .map((row) => (
-                        <tr key={row.sale_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition-colors">
-                          <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
-                            {new Date(row.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' })} {new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </td>
-                          <td className="py-3 px-4 font-bold text-slate-900 dark:text-white font-mono">
-                            {row.transaction_no}
-                          </td>
-                          <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
-                            {row.customer_name}
-                          </td>
-                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                            {row.cashier_name}
-                          </td>
-                          <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
-                            Rp {row.grand_total.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-3 px-4 text-right text-slate-500 font-medium">
-                            Rp {row.total_cogs.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                            Rp {row.gross_profit.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                              {row.payment_methods}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-center">
-                            <button
-                              onClick={() => setSelectedSaleId(row.sale_id)}
-                              className="p-1 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
-                              title="Lihat Struk Detail"
-                            >
-                              <Eye size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                  )}
-                </tbody>
-              </table>
-            )}
-
-            {/* 2. DETAIL PENJUALAN (PER ITEM) */}
-            {activeSubtype === 'detailed' && (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 sticky top-0 z-10">
-                  <tr>
-                    <th className="py-3 px-3">No. Nota</th>
-                    <th className="py-3 px-3">Nama Produk / Obat</th>
-                    <th className="py-3 px-3">Kategori</th>
-                    <th className="py-3 px-3 text-center">Qty</th>
-                    <th className="py-3 px-3 text-right">Harga Jual</th>
-                    <th className="py-3 px-3 text-right">Subtotal</th>
-                    <th className="py-3 px-3 text-right">HPP</th>
-                    <th className="py-3 px-3 text-right">Laba Baris</th>
-                    <th className="py-3 px-3 text-center">Bayar</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {detailedData.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center py-16 text-slate-400">
-                        Tidak ada rincian item penjualan pada periode ini.
-                      </td>
-                    </tr>
-                  ) : (
-                    detailedData
-                      .filter(r => !searchTableQuery || r.item_name.toLowerCase().includes(searchTableQuery.toLowerCase()) || r.transaction_no.toLowerCase().includes(searchTableQuery.toLowerCase()))
-                      .map((row) => (
-                        <tr key={row.line_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition-colors">
-                          <td className="py-2.5 px-3 font-mono font-semibold text-slate-600 dark:text-slate-400">
-                            {row.transaction_no}
-                          </td>
-                          <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">
-                            {row.item_name}
-                            <span className="block text-[10px] font-normal text-slate-400">SKU: {row.sku}</span>
-                          </td>
-                          <td className="py-2.5 px-3 text-slate-500 text-[11px]">
-                            {row.category_name}
-                          </td>
-                          <td className="py-2.5 px-3 text-center font-bold text-slate-800 dark:text-slate-200">
-                            {row.qty} {row.unit_name}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-medium text-slate-700 dark:text-slate-300">
-                            Rp {row.price.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-white">
-                            Rp {row.subtotal.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-slate-500 font-medium">
-                            Rp {row.line_cogs.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                            Rp {row.line_profit.toLocaleString('id-ID')}
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                              {row.payment_methods}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                  )}
-                </tbody>
-              </table>
-            )}
-
-            {/* 3. DISTRIBUSI METODE PEMBAYARAN */}
-            {activeSubtype === 'payment_methods' && (
-              <div className="p-5 flex flex-col gap-6">
-                {paymentMethodData.length === 0 ? (
-                  <div className="text-center py-20 text-slate-400">
-                    Tidak ada data transaksi pembayaran pada periode ini.
-                  </div>
                 ) : (
-                  <>
-                    {/* Method Distribution Cards Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {paymentMethodData.map(r => {
-                        const m = METHOD_CONFIG[r.method.toLowerCase()] || { 
-                          label: r.method.toUpperCase(), 
-                          icon: CreditCard, 
-                          color: 'bg-slate-500', 
-                          badgeBg: 'bg-slate-100 dark:bg-slate-800', 
-                          textCol: 'text-slate-700 dark:text-slate-300' 
-                        };
-                        const Icon = m.icon;
-                        const totalAll = paymentMethodData.reduce((acc, curr) => acc + curr.total_amount, 0);
-                        const pct = totalAll > 0 ? (r.total_amount / totalAll * 100) : 0;
-                        const avgPerNota = r.transaction_count > 0 ? Math.round(r.total_amount / r.transaction_count) : 0;
+                  recapData
+                    .filter(r => !searchTableQuery || r.transaction_no.toLowerCase().includes(searchTableQuery.toLowerCase()) || r.customer_name.toLowerCase().includes(searchTableQuery.toLowerCase()))
+                    .map((row) => (
+                      <tr key={row.sale_id} className="hover:bg-muted/50 transition-colors">
+                        <td className="py-2.5 px-4 text-dim font-mono text-[11px]">
+                          {new Date(row.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' })} {new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="py-2.5 px-4 font-semibold text-heading font-mono">
+                          {row.transaction_no}
+                        </td>
+                        <td className="py-2.5 px-4 text-heading">
+                          {row.customer_name}
+                        </td>
+                        <td className="py-2.5 px-4 text-body">
+                          {row.cashier_name}
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-bold text-heading">
+                          Rp {row.grand_total.toLocaleString('id-ID')}
+                        </td>
+                        <td className="py-2.5 px-4 text-right text-dim font-medium">
+                          Rp {row.total_cogs.toLocaleString('id-ID')}
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-bold text-success">
+                          Rp {row.gross_profit.toLocaleString('id-ID')}
+                        </td>
+                        <td className="py-2.5 px-4 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-body">
+                            {row.payment_methods}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <button
+                            onClick={() => setSelectedSaleId(row.sale_id)}
+                            className="p-1 text-dim hover:text-primary hover:bg-primary-soft rounded-md transition-colors"
+                            title="Lihat Struk Detail"
+                          >
+                            <Eye size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          )}
 
-                        return (
-                          <div key={r.method} className="bg-slate-50/60 dark:bg-[#080B12] rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 flex flex-col justify-between shadow-sm">
-                            <div>
-                              <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-11 h-11 rounded-2xl ${m.color} flex items-center justify-center shadow-md shadow-slate-900/10`}>
-                                    <Icon size={20} className="text-white"/>
-                                  </div>
-                                  <div>
-                                    <p className="font-bold text-slate-900 dark:text-white text-sm">{m.label}</p>
-                                    <p className="text-xs text-slate-500">{r.transaction_count} transaksi faktur</p>
-                                  </div>
+          {/* SUB-REPORT 2: RINCIAN ITEM */}
+          {activeSubtype === 'detailed' && (
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-muted/70 border-b border-line text-[11px] font-semibold uppercase text-dim sticky top-0 z-10">
+                <tr>
+                  <th className="py-2.5 px-3">No. Nota</th>
+                  <th className="py-2.5 px-3">Nama Produk / Obat</th>
+                  <th className="py-2.5 px-3">Kategori</th>
+                  <th className="py-2.5 px-3 text-center">Qty</th>
+                  <th className="py-2.5 px-3 text-right">Harga Jual</th>
+                  <th className="py-2.5 px-3 text-right">Subtotal</th>
+                  <th className="py-2.5 px-3 text-right">HPP</th>
+                  <th className="py-2.5 px-3 text-right">Laba Baris</th>
+                  <th className="py-2.5 px-3 text-center">Bayar</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {detailedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-16 text-dim">
+                      Tidak ada rincian item penjualan pada periode ini.
+                    </td>
+                  </tr>
+                ) : (
+                  detailedData
+                    .filter(r => !searchTableQuery || r.item_name.toLowerCase().includes(searchTableQuery.toLowerCase()) || r.transaction_no.toLowerCase().includes(searchTableQuery.toLowerCase()))
+                    .map((row) => (
+                      <tr key={row.line_id} className="hover:bg-muted/50 transition-colors">
+                        <td className="py-2 px-3 font-mono text-body">
+                          {row.transaction_no}
+                        </td>
+                        <td className="py-2 px-3 font-medium text-heading">
+                          {row.item_name}
+                          <span className="block text-[10px] text-dim">SKU: {row.sku}</span>
+                        </td>
+                        <td className="py-2 px-3 text-dim text-[11px]">
+                          {row.category_name || '-'}
+                        </td>
+                        <td className="py-2 px-3 text-center font-semibold text-heading">
+                          {row.qty} {row.unit_name}
+                        </td>
+                        <td className="py-2 px-3 text-right text-heading">
+                          Rp {row.price.toLocaleString('id-ID')}
+                        </td>
+                        <td className="py-2 px-3 text-right font-semibold text-heading">
+                          Rp {row.subtotal.toLocaleString('id-ID')}
+                        </td>
+                        <td className="py-2 px-3 text-right text-dim font-medium">
+                          Rp {row.line_cogs.toLocaleString('id-ID')}
+                        </td>
+                        <td className="py-2 px-3 text-right font-bold text-success">
+                          Rp {row.line_profit.toLocaleString('id-ID')}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-body">
+                            {row.payment_methods}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          )}
+
+          {/* SUB-REPORT 3: DISTRIBUSI METODE PEMBAYARAN */}
+          {activeSubtype === 'payment_methods' && (
+            <div className="p-4 flex flex-col gap-5">
+              {paymentMethodData.length === 0 ? (
+                <div className="text-center py-16 text-dim">
+                  Tidak ada data transaksi pembayaran pada periode ini.
+                </div>
+              ) : (
+                <>
+                  {/* Modern Method Cards Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {paymentMethodData.map(r => {
+                      const m = METHOD_CONFIG[r.method.toLowerCase()] || { 
+                        label: r.method.toUpperCase(), 
+                        icon: CreditCard, 
+                        color: 'bg-dim', 
+                        badgeBg: 'bg-muted', 
+                        textCol: 'text-heading' 
+                      };
+                      const Icon = m.icon;
+                      const totalAll = paymentMethodData.reduce((acc, curr) => acc + curr.total_amount, 0);
+                      const pct = totalAll > 0 ? (r.total_amount / totalAll * 100) : 0;
+                      const avgPerNota = r.transaction_count > 0 ? Math.round(r.total_amount / r.transaction_count) : 0;
+
+                      return (
+                        <div key={r.method} className="bg-card rounded-xl border border-line p-4 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className={`w-8 h-8 rounded-lg ${m.color} flex items-center justify-center shrink-0`}>
+                                  <Icon size={16} className="text-white" />
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-base font-extrabold text-slate-900 dark:text-white">
-                                    Rp {r.total_amount.toLocaleString('id-ID')}
-                                  </p>
-                                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand/10 text-brand mt-0.5">
-                                    {pct.toFixed(1)}% Kontribusi
-                                  </span>
+                                <div>
+                                  <p className="font-bold text-heading text-xs">{m.label}</p>
+                                  <p className="text-[11px] text-dim">{r.transaction_count} transaksi</p>
                                 </div>
                               </div>
-
-                              <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-3">
-                                <div 
-                                  className={`h-full ${m.color} rounded-full transition-all duration-500`} 
-                                  style={{ width: `${pct}%` }} 
-                                />
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[11px] text-slate-500">
-                              <span>Rata-rata per Nota:</span>
-                              <span className="font-bold text-slate-800 dark:text-slate-200">
-                                Rp {avgPerNota.toLocaleString('id-ID')}
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-soft text-primary">
+                                {pct.toFixed(1)}%
                               </span>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
 
-                    {/* Detailed Table for Payment Methods */}
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead className="bg-slate-100/70 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500">
-                          <tr>
-                            <th className="py-3 px-4">#</th>
-                            <th className="py-3 px-4">Metode Pembayaran</th>
-                            <th className="py-3 px-4 text-center">Jumlah Nota</th>
-                            <th className="py-3 px-4 text-right">Rata-rata Nota</th>
-                            <th className="py-3 px-4 text-right">Total Penerimaan (Omset)</th>
-                            <th className="py-3 px-4 text-center">Porsi (%)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                          {paymentMethodData.map((row, idx) => {
+                            <div className="text-base font-bold text-heading mb-2">
+                              Rp {r.total_amount.toLocaleString('id-ID')}
+                            </div>
+
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-2">
+                              <div 
+                                className={`h-full ${m.color} rounded-full transition-all duration-500`} 
+                                style={{ width: `${pct}%` }} 
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-line text-[11px] text-dim">
+                            <span>Rata-rata / Nota:</span>
+                            <span className="font-semibold text-heading">
+                              Rp {avgPerNota.toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Summary Table */}
+                  <div className="rounded-xl border border-line overflow-hidden">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-muted/70 border-b border-line text-[11px] font-semibold uppercase text-dim">
+                        <tr>
+                          <th className="py-2.5 px-4">#</th>
+                          <th className="py-2.5 px-4">Metode Pembayaran</th>
+                          <th className="py-2.5 px-4 text-center">Jumlah Nota</th>
+                          <th className="py-2.5 px-4 text-right">Rata-rata Nota</th>
+                          <th className="py-2.5 px-4 text-right">Total Nominal</th>
+                          <th className="py-2.5 px-4 text-center">Porsi (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line">
+                        {paymentMethodData
+                          .filter(r => !searchTableQuery || r.method.toLowerCase().includes(searchTableQuery.toLowerCase()))
+                          .map((row, idx) => {
                             const m = METHOD_CONFIG[row.method.toLowerCase()] || { 
                               label: row.method.toUpperCase(), 
-                              icon: CreditCard, 
-                              color: 'bg-slate-500', 
-                              badgeBg: 'bg-slate-100 dark:bg-slate-800', 
-                              textCol: 'text-slate-700 dark:text-slate-300' 
+                              color: 'bg-dim'
                             };
                             const totalAll = paymentMethodData.reduce((acc, curr) => acc + curr.total_amount, 0);
                             const pct = totalAll > 0 ? (row.total_amount / totalAll * 100) : 0;
                             const avgPerNota = row.transaction_count > 0 ? Math.round(row.total_amount / row.transaction_count) : 0;
 
                             return (
-                              <tr key={row.method} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition-colors">
-                                <td className="py-3 px-4 font-mono text-slate-400 font-bold">{idx + 1}</td>
-                                <td className="py-3 px-4">
-                                  <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                    <span className={`w-2.5 h-2.5 rounded-full ${m.color}`}></span>
+                              <tr key={row.method} className="hover:bg-muted/50 transition-colors">
+                                <td className="py-2.5 px-4 font-mono text-dim">{idx + 1}</td>
+                                <td className="py-2.5 px-4 font-medium text-heading">
+                                  <span className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${m.color}`}></span>
                                     {m.label}
                                   </span>
                                 </td>
-                                <td className="py-3 px-4 text-center font-bold text-slate-800 dark:text-slate-200">
+                                <td className="py-2.5 px-4 text-center font-medium text-heading">
                                   {row.transaction_count}
                                 </td>
-                                <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-400 font-medium">
+                                <td className="py-2.5 px-4 text-right text-body">
                                   Rp {avgPerNota.toLocaleString('id-ID')}
                                 </td>
-                                <td className="py-3 px-4 text-right font-black text-slate-900 dark:text-white">
+                                <td className="py-2.5 px-4 text-right font-bold text-heading">
                                   Rp {row.total_amount.toLocaleString('id-ID')}
                                 </td>
-                                <td className="py-3 px-4 text-center font-bold text-brand">
+                                <td className="py-2.5 px-4 text-center font-bold text-primary">
                                   {pct.toFixed(1)}%
                                 </td>
                               </tr>
                             );
                           })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
-            {/* 4. PENJUALAN HARIAN */}
-            {activeSubtype === 'daily' && (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 sticky top-0 z-10">
+          {/* SUB-REPORT 4: PENJUALAN HARIAN */}
+          {activeSubtype === 'daily' && (
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-muted/70 border-b border-line text-[11px] font-semibold uppercase text-dim sticky top-0 z-10">
+                <tr>
+                  <th className="py-2.5 px-4">Tanggal</th>
+                  <th className="py-2.5 px-4 text-center">Jumlah Nota</th>
+                  <th className="py-2.5 px-4 text-right">Tunai (Cash)</th>
+                  <th className="py-2.5 px-4 text-right">Non-Tunai</th>
+                  <th className="py-2.5 px-4 text-right">Total Omset</th>
+                  <th className="py-2.5 px-4 text-right">HPP</th>
+                  <th className="py-2.5 px-4 text-right">Laba Kotor</th>
+                  <th className="py-2.5 px-4 text-center">Margin</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {dailyData.length === 0 ? (
                   <tr>
-                    <th className="py-3.5 px-4">Tanggal</th>
-                    <th className="py-3.5 px-4 text-center">Jumlah Nota</th>
-                    <th className="py-3.5 px-4 text-right">Tunai (Cash)</th>
-                    <th className="py-3.5 px-4 text-right">Non-Tunai (QRIS/Trf)</th>
-                    <th className="py-3.5 px-4 text-right">Total Omset</th>
-                    <th className="py-3.5 px-4 text-right">HPP</th>
-                    <th className="py-3.5 px-4 text-right">Laba Kotor</th>
-                    <th className="py-3.5 px-4 text-center">Margin</th>
+                    <td colSpan={8} className="text-center py-16 text-dim">
+                      Tidak ada data harian pada periode ini.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {dailyData.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="text-center py-16 text-slate-400">
-                        Tidak ada data harian pada periode ini.
-                      </td>
-                    </tr>
-                  ) : (
-                    dailyData.map((row) => (
-                      <tr key={row.date} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition-colors">
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                ) : (
+                  dailyData
+                    .filter(r => !searchTableQuery || r.date_label.toLowerCase().includes(searchTableQuery.toLowerCase()))
+                    .map((row) => (
+                      <tr key={row.date} className="hover:bg-muted/50 transition-colors">
+                        <td className="py-2.5 px-4 font-semibold text-heading">
                           {row.date_label}
                         </td>
-                        <td className="py-3 px-4 text-center font-bold text-slate-700 dark:text-slate-300">
+                        <td className="py-2.5 px-4 text-center font-semibold text-heading">
                           {row.transaction_count}
                         </td>
-                        <td className="py-3 px-4 text-right font-medium text-slate-700 dark:text-slate-300">
+                        <td className="py-2.5 px-4 text-right text-heading">
                           Rp {row.total_cash.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right font-medium text-slate-700 dark:text-slate-300">
+                        <td className="py-2.5 px-4 text-right text-heading">
                           Rp {row.total_non_cash.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
+                        <td className="py-2.5 px-4 text-right font-bold text-heading">
                           Rp {row.total_revenue.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right text-slate-500 font-medium">
+                        <td className="py-2.5 px-4 text-right text-dim font-medium">
                           Rp {row.total_cogs.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        <td className="py-2.5 px-4 text-right font-bold text-success">
                           Rp {row.gross_profit.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-center font-bold text-purple-600 dark:text-purple-400">
+                        <td className="py-2.5 px-4 text-center font-bold text-primary">
                           {row.gross_margin.toFixed(1)}%
                         </td>
                       </tr>
                     ))
-                  )}
-                </tbody>
-              </table>
-            )}
+                )}
+              </tbody>
+            </table>
+          )}
 
-            {/* 4. PER PELANGGAN */}
-            {activeSubtype === 'customer' && (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 sticky top-0 z-10">
+          {/* SUB-REPORT 5: PER PELANGGAN */}
+          {activeSubtype === 'customer' && (
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-muted/70 border-b border-line text-[11px] font-semibold uppercase text-dim sticky top-0 z-10">
+                <tr>
+                  <th className="py-2.5 px-4">Nama Pelanggan</th>
+                  <th className="py-2.5 px-4">Tier Membership</th>
+                  <th className="py-2.5 px-4 text-center">Jumlah Transaksi</th>
+                  <th className="py-2.5 px-4 text-right">Total Belanja</th>
+                  <th className="py-2.5 px-4 text-right">Rata-rata Nota</th>
+                  <th className="py-2.5 px-4 text-right">Kontribusi Laba</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {customerGrouped.length === 0 ? (
                   <tr>
-                    <th className="py-3.5 px-4">Nama Pelanggan</th>
-                    <th className="py-3.5 px-4">Tier Membership</th>
-                    <th className="py-3.5 px-4 text-center">Jumlah Transaksi</th>
-                    <th className="py-3.5 px-4 text-right">Total Belanja</th>
-                    <th className="py-3.5 px-4 text-right">Rata-rata Nota</th>
-                    <th className="py-3.5 px-4 text-right">Kontribusi Laba</th>
+                    <td colSpan={6} className="text-center py-16 text-dim">
+                      Tidak ada riwayat transaksi pelanggan pada periode ini.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {customerGrouped.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-16 text-slate-400">
-                        Tidak ada riwayat transaksi pelanggan.
-                      </td>
-                    </tr>
-                  ) : (
-                    customerGrouped.map((row) => (
-                      <tr key={row.name} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition-colors">
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                ) : (
+                  customerGrouped
+                    .filter(r => !searchTableQuery || r.name.toLowerCase().includes(searchTableQuery.toLowerCase()))
+                    .map((row) => (
+                      <tr key={row.name} className="hover:bg-muted/50 transition-colors">
+                        <td className="py-2.5 px-4 font-semibold text-heading">
                           {row.name}
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                        <td className="py-2.5 px-4">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-primary-soft text-primary">
                             {row.tier}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center font-bold text-slate-700 dark:text-slate-300">
+                        <td className="py-2.5 px-4 text-center font-semibold text-heading">
                           {row.txCount}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
+                        <td className="py-2.5 px-4 text-right font-bold text-heading">
                           Rp {row.totalSpent.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right font-medium text-slate-600 dark:text-slate-400">
+                        <td className="py-2.5 px-4 text-right text-body">
                           Rp {row.txCount > 0 ? Math.round(row.totalSpent / row.txCount).toLocaleString('id-ID') : 0}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        <td className="py-2.5 px-4 text-right font-bold text-success">
                           Rp {row.totalProfit.toLocaleString('id-ID')}
                         </td>
                       </tr>
                     ))
-                  )}
-                </tbody>
-              </table>
-            )}
+                )}
+              </tbody>
+            </table>
+          )}
 
-            {/* 5. PER KASIR */}
-            {activeSubtype === 'cashier' && (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 sticky top-0 z-10">
+          {/* SUB-REPORT 6: PER KASIR */}
+          {activeSubtype === 'cashier' && (
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-muted/70 border-b border-line text-[11px] font-semibold uppercase text-dim sticky top-0 z-10">
+                <tr>
+                  <th className="py-2.5 px-4">Nama Kasir / Staff</th>
+                  <th className="py-2.5 px-4">Role</th>
+                  <th className="py-2.5 px-4 text-center">Jumlah Nota</th>
+                  <th className="py-2.5 px-4 text-right">Uang Tunai (Laci)</th>
+                  <th className="py-2.5 px-4 text-right">Non-Tunai</th>
+                  <th className="py-2.5 px-4 text-right">Total Penjualan</th>
+                  <th className="py-2.5 px-4 text-right">Total Laba</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {cashierData.length === 0 ? (
                   <tr>
-                    <th className="py-3.5 px-4">Nama Kasir / Staff</th>
-                    <th className="py-3.5 px-4">Role</th>
-                    <th className="py-3.5 px-4 text-center">Jumlah Nota</th>
-                    <th className="py-3.5 px-4 text-right">Uang Tunai (Laci)</th>
-                    <th className="py-3.5 px-4 text-right">Non-Tunai (QRIS/Trf)</th>
-                    <th className="py-3.5 px-4 text-right">Total Penjualan</th>
-                    <th className="py-3.5 px-4 text-right">Total Laba</th>
+                    <td colSpan={7} className="text-center py-16 text-dim">
+                      Tidak ada data kinerja kasir pada periode ini.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {cashierData.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-16 text-slate-400">
-                        Tidak ada data kinerja kasir pada periode ini.
-                      </td>
-                    </tr>
-                  ) : (
-                    cashierData.map((row) => (
-                      <tr key={row.user_id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition-colors">
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                ) : (
+                  cashierData
+                    .filter(r => !searchTableQuery || r.cashier_name.toLowerCase().includes(searchTableQuery.toLowerCase()) || r.role.toLowerCase().includes(searchTableQuery.toLowerCase()))
+                    .map((row) => (
+                      <tr key={row.user_id} className="hover:bg-muted/50 transition-colors">
+                        <td className="py-2.5 px-4 font-semibold text-heading">
                           {row.cashier_name}
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        <td className="py-2.5 px-4">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-muted text-body">
                             {row.role}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center font-bold text-slate-700 dark:text-slate-300">
+                        <td className="py-2.5 px-4 text-center font-semibold text-heading">
                           {row.transaction_count}
                         </td>
-                        <td className="py-3 px-4 text-right font-medium text-emerald-600 dark:text-emerald-400">
+                        <td className="py-2.5 px-4 text-right font-medium text-success">
                           Rp {row.total_cash.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right font-medium text-blue-600 dark:text-blue-400">
+                        <td className="py-2.5 px-4 text-right font-medium text-heading">
                           Rp {row.total_non_cash.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
+                        <td className="py-2.5 px-4 text-right font-bold text-heading">
                           Rp {row.total_revenue.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        <td className="py-2.5 px-4 text-right font-bold text-success">
                           Rp {row.gross_profit.toLocaleString('id-ID')}
                         </td>
                       </tr>
                     ))
-                  )}
-                </tbody>
-              </table>
-            )}
+                )}
+              </tbody>
+            </table>
+          )}
 
-            {/* 6. PROFIT MARGIN PER ITEM */}
-            {activeSubtype === 'product_margin' && (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 sticky top-0 z-10">
+          {/* SUB-REPORT 7: PROFIT MARGIN PER ITEM */}
+          {activeSubtype === 'product_margin' && (
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-muted/70 border-b border-line text-[11px] font-semibold uppercase text-dim sticky top-0 z-10">
+                <tr>
+                  <th className="py-2.5 px-4">#</th>
+                  <th className="py-2.5 px-4">Nama Produk / Obat</th>
+                  <th className="py-2.5 px-4">Kategori</th>
+                  <th className="py-2.5 px-4 text-center">Qty Terjual</th>
+                  <th className="py-2.5 px-4 text-right">Total Omset</th>
+                  <th className="py-2.5 px-4 text-right">Total HPP</th>
+                  <th className="py-2.5 px-4 text-right">Margin (%)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {productMarginData.length === 0 ? (
                   <tr>
-                    <th className="py-3.5 px-4">#</th>
-                    <th className="py-3.5 px-4">Nama Produk / Obat</th>
-                    <th className="py-3.5 px-4">Kategori</th>
-                    <th className="py-3.5 px-4 text-center">Qty Terjual</th>
-                    <th className="py-3.5 px-4 text-right">Total Omset</th>
-                    <th className="py-3.5 px-4 text-right">Total HPP</th>
-                    <th className="py-3.5 px-4 text-right">Margin (%)</th>
+                    <td colSpan={7} className="text-center py-16 text-dim">
+                      Tidak ada data penjualan produk pada periode ini.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {productMarginData.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-16 text-slate-400">
-                        Tidak ada data penjualan produk pada periode ini.
-                      </td>
-                    </tr>
-                  ) : (
-                    productMarginData.map((row, idx) => (
-                      <tr key={row.sku} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition-colors">
-                        <td className="py-3 px-4 font-mono text-slate-400 font-bold">{idx + 1}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                ) : (
+                  productMarginData
+                    .filter(r => !searchTableQuery || r.item_name.toLowerCase().includes(searchTableQuery.toLowerCase()) || r.sku.toLowerCase().includes(searchTableQuery.toLowerCase()))
+                    .map((row, idx) => (
+                      <tr key={row.sku} className="hover:bg-muted/50 transition-colors">
+                        <td className="py-2.5 px-4 font-mono text-dim">{idx + 1}</td>
+                        <td className="py-2.5 px-4 font-medium text-heading">
                           {row.item_name}
-                          <span className="block text-[10px] font-normal text-slate-400">SKU: {row.sku}</span>
+                          <span className="block text-[10px] text-dim">SKU: {row.sku}</span>
                         </td>
-                        <td className="py-3 px-4 text-slate-500 text-[11px]">
+                        <td className="py-2.5 px-4 text-dim text-[11px]">
                           {row.category_name || '-'}
                         </td>
-                        <td className="py-3 px-4 text-center font-bold text-slate-800 dark:text-slate-200">
+                        <td className="py-2.5 px-4 text-center font-semibold text-heading">
                           {row.qty_sold}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">
+                        <td className="py-2.5 px-4 text-right font-bold text-heading">
                           Rp {row.total_revenue.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right text-slate-500 font-medium">
+                        <td className="py-2.5 px-4 text-right text-dim font-medium">
                           Rp {row.total_cogs.toLocaleString('id-ID')}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        <td className="py-2.5 px-4 text-right font-bold text-success">
                           {row.gross_margin.toFixed(1)}%
                         </td>
                       </tr>
                     ))
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

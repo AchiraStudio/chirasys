@@ -1,17 +1,153 @@
 @import "tailwindcss";
+@import "@fontsource-variable/manrope";
 
-@theme {
-  --color-brand: #4f46e5;
-  --color-brand-hover: #4338ca;
-  --color-brand-light: #6366f1;
-  --color-brand-violet: #7c3aed;
-  --color-sidebar: #0f172a;
-  --color-sidebarHover: #1e293b;
+/* ─────────────────────────────────────────────────────────────
+   Kivo Design Tokens — dual theme (light / .dark)
+   Surfaces, text, borders and status colors are semantic vars;
+   utilities like bg-card / border-line / text-heading switch
+   automatically with the .dark class on <html>.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --color-background: #f4f6fb;
+  --color-card: #ffffff;
+  --color-elevated: #ffffff;
+  --color-input: #ffffff;
+  --color-muted: #eef0f8;
+  --color-muted-hover: #e3e6f1;
+  --color-line: #e2e6f0;
+  --color-line-strong: #d3d9e8;
+
+  /* Text */
+  --color-heading: #171c3a;
+  --color-body: #4d5674;
+  --color-dim: #8a94b0;
+
+  /* Primary (magenta, darkened for light bg contrast) */
+  --color-primary: #a21fd0;
+  --color-primary-hover: #8f19b8;
+  --color-primary-soft: #f6e9fb;
+  --color-accent: #0090c8;
+  --color-accent-soft: #e3f4fb;
+
+  /* Status */
+  --color-success: #16a34a;
+  --color-success-soft: #e7f6ec;
+  --color-warning: #b45309;
+  --color-warning-soft: #fdf1e2;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fdeaea;
+  --color-info: #0284c7;
+  --color-info-soft: #e5f3fb;
+
+  /* Sidebar */
+  --color-sidebar: #ffffff;
+  --color-sidebar-line: #e2e6f0;
+}
+
+.dark {
+  /* Surfaces — Dashdark X navy scale */
+  --color-background: #081028;
+  --color-card: #0b1739;
+  --color-elevated: #0b1739;
+  --color-input: #111c44;
+  --color-muted: #111c44;
+  --color-muted-hover: #1a2753;
+  --color-line: #1e2a4a;
+  --color-line-strong: #2a3860;
+
+  /* Text */
+  --color-heading: #ffffff;
+  --color-body: #a3b1d6;
+  --color-dim: #6b7a99;
+
+  /* Primary */
+  --color-primary: #cb3cff;
+  --color-primary-hover: #b428f0;
+  --color-primary-soft: #2b1252;
+  --color-accent: #00c2ff;
+  --color-accent-soft: #0d2c4d;
+
+  /* Status */
+  --color-success: #14ca7a;
+  --color-success-soft: #0c3b2a;
+  --color-warning: #ffb547;
+  --color-warning-soft: #3a2a0d;
+  --color-danger: #ff5a65;
+  --color-danger-soft: #3d1220;
+  --color-info: #40a8f5;
+  --color-info-soft: #0d2c4d;
+
+  /* Sidebar */
+  --color-sidebar: #0b1739;
+  --color-sidebar-line: #1e2a4a;
+}
+
+@theme inline {
+  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--color-background);
+  --color-card: var(--color-card);
+  --color-elevated: var(--color-elevated);
+  --color-input: var(--color-input);
+  --color-muted: var(--color-muted);
+  --color-muted-hover: var(--color-muted-hover);
+  --color-line: var(--color-line);
+  --color-line-strong: var(--color-line-strong);
+  --color-heading: var(--color-heading);
+  --color-body: var(--color-body);
+  --color-dim: var(--color-dim);
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-soft: var(--color-primary-soft);
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-success: var(--color-success);
+  --color-success-soft: var(--color-success-soft);
+  --color-warning: var(--color-warning);
+  --color-warning-soft: var(--color-warning-soft);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-info: var(--color-info);
+  --color-info-soft: var(--color-info-soft);
+  --color-sidebar: var(--color-sidebar);
+  --color-sidebar-line: var(--color-sidebar-line);
+
+  /* Legacy alias — kept so existing `brand` classes keep working
+     until every usage is migrated to `primary`. */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-brand-light: var(--color-primary);
+  --color-brand-violet: var(--color-primary);
+
+  --animate-fade-in: fade-in 0.18s ease-out;
+  --animate-pop-in: pop-in 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-in-right: slide-in-right 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-in-up: slide-in-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.96) translateY(6px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes slide-in-up {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Global Base Typography & Root Layout Setup */
+/* ─────────────────────────────────────────────────────────────
+   Base
+   ───────────────────────────────────────────────────────────── */
 @layer base {
   html, body, #root {
     height: 100%;
@@ -22,112 +158,29 @@
   }
 
   body {
-    @apply bg-slate-50 dark:bg-[#0B0F19] text-slate-700 dark:text-slate-300 antialiased;
+    @apply bg-background text-body font-sans antialiased;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
-    @apply text-slate-900 dark:text-white font-bold tracking-tight;
+    @apply text-heading font-bold tracking-tight;
   }
-  
+
   p {
-    @apply text-slate-600 dark:text-slate-400;
+    @apply text-body;
   }
 
-  /* Ensure inputs and selects are readable and styled */
   input, textarea {
-    @apply text-slate-900 dark:text-white;
-  }
-
-  /* ─────────────────────────────────────────────────────────────
-     Custom Dropbox / Select Styling (Theme-Adaptive)
-     ───────────────────────────────────────────────────────────── */
-  select,
-  .custom-select {
-    @apply text-slate-900 dark:text-white cursor-pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3e%3c/path%3e%3c/svg%3e");
-    background-position: right 0.75rem center;
-    background-repeat: no-repeat;
-    background-size: 1.125rem 1.125rem;
-    padding-right: 2.5rem !important;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.15s ease-in-out;
-  }
-
-  .dark select,
-  .dark .custom-select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3e%3c/path%3e%3c/svg%3e");
-  }
-
-  select:hover:not(:disabled),
-  .custom-select:hover:not(:disabled) {
-    border-color: rgba(99, 102, 241, 0.45);
-  }
-
-  .dark select:hover:not(:disabled),
-  .dark .custom-select:hover:not(:disabled) {
-    border-color: rgba(99, 102, 241, 0.6);
-  }
-
-  select:focus,
-  .custom-select:focus {
-    outline: none;
-    border-color: var(--color-brand, #4f46e5) !important;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18) !important;
-  }
-
-  .dark select:focus,
-  .dark .custom-select:focus {
-    border-color: var(--color-brand-light, #6366f1) !important;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.28) !important;
-  }
-
-  select:disabled,
-  .custom-select:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-    background-color: rgba(241, 245, 249, 0.6);
-  }
-
-  .dark select:disabled,
-  .dark .custom-select:disabled {
-    background-color: rgba(15, 23, 42, 0.6);
-  }
-
-  /* Dropdown Options Popup (Chromium / WebView2) */
-  select option,
-  .custom-select option {
-    background-color: #ffffff;
-    color: #0f172a;
-    padding: 10px 14px;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  .dark select option,
-  .dark .custom-select option {
-    background-color: #0B0F19;
-    color: #f1f5f9;
-  }
-
-  select option:checked,
-  .custom-select option:checked {
-    background-color: #e0e7ff;
-    color: #3730a3;
-    font-weight: 700;
-  }
-
-  .dark select option:checked,
-  .dark .custom-select option:checked {
-    background-color: #1e1b4b;
-    color: #c7d2fe;
-    font-weight: 700;
+    @apply text-heading;
   }
 
   input::placeholder,
   textarea::placeholder {
-    @apply text-slate-400 dark:text-slate-500;
+    @apply text-dim;
+  }
+
+  /* Tabular numerals for dense data */
+  table, .tnum {
+    font-variant-numeric: tabular-nums;
   }
 
   /* Remove default number input spinners globally */
@@ -142,14 +195,79 @@
   }
 }
 
-/* Custom Scrollbar */
+/* ─────────────────────────────────────────────────────────────
+   Native select styling (theme-adaptive, WebView2-safe)
+   ───────────────────────────────────────────────────────────── */
+@layer base {
+  select {
+    @apply text-heading bg-input border border-line rounded-lg text-sm cursor-pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238a94b0'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3e%3c/path%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.125rem 1.125rem;
+    padding-right: 2.5rem !important;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.15s ease-in-out;
+  }
+
+  .dark select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7a99'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3e%3c/path%3e%3c/svg%3e");
+  }
+
+  select:hover:not(:disabled) {
+    border-color: var(--color-primary) !important;
+  }
+
+  select:focus {
+    outline: none;
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent) !important;
+  }
+
+  select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background-color: var(--color-muted);
+  }
+
+  /* Dropdown options popup (Chromium / WebView2) */
+  select option {
+    background-color: #ffffff;
+    color: #171c3a;
+    padding: 10px 14px;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .dark select option {
+    background-color: #0b1739;
+    color: #f1f5f9;
+  }
+
+  select option:checked {
+    background-color: #f6e9fb;
+    color: #8f19b8;
+    font-weight: 700;
+  }
+
+  .dark select option:checked {
+    background-color: #2b1252;
+    color: #e3b6f5;
+    font-weight: 700;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Scrollbars
+   ───────────────────────────────────────────────────────────── */
 .custom-scrollbar,
 .overflow-y-auto,
 .overflow-auto,
 [class*="overflow-y-auto"],
 [class*="overflow-auto"] {
   -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -162,37 +280,41 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full border-[1px] border-transparent bg-clip-padding;
+  @apply bg-line-strong rounded-full border-[1px] border-transparent bg-clip-padding;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-400 dark:bg-slate-600;
+  @apply bg-dim;
 }
 
-/* High-Performance Rendering for Low-End Devices */
+/* Safe scroll container for horizontal tab bars & button rows to avoid cutting off hover/focus/shadows */
+.tab-scroll-safe,
+.overflow-x-safe {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-top: 4px;
+  padding-bottom: 6px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   High-Performance Rendering for Low-End Devices (Without Paint Clipping)
+   ───────────────────────────────────────────────────────────── */
 .fast-render-row {
   content-visibility: auto;
   contain-intrinsic-size: 1px 58px;
-  contain: layout style paint;
+  contain: layout style;
 }
 
 .fast-render-card {
   content-visibility: auto;
   contain-intrinsic-size: 1px 115px;
-  contain: layout style paint;
+  contain: layout style;
   will-change: transform;
 }
 
-/* Glassmorphism Utilities */
-.glass {
-  @apply bg-white/90 dark:bg-[#0B0F19]/90 border border-white/20 dark:border-white/5;
-}
-
-.glass-card {
-  @apply bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-colors;
-}
-
-/* Print styles for thermal receipt printers (58mm / 80mm) */
+/* ─────────────────────────────────────────────────────────────
+   Print styles for thermal receipt printers (58mm / 80mm)
+   ───────────────────────────────────────────────────────────── */
 @media print {
   @page {
     margin: 0;

@@ -1,7 +1,7 @@
 // Force HMR reload
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Users, Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders, Cloud, Search } from 'lucide-react';
+import { Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders, Cloud, Search, Building2, X, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import Modal from '../../components/ui/Modal';
@@ -9,6 +9,7 @@ import { sysadminGetWorkspaces, getAvailableWorkspaces, getSyncStatus, Workspace
 import UserPermissionsModal from './UserPermissionsModal';
 import RoleDefaultsModal from './RoleDefaultsModal';
 
+import Select from '../../components/ui/Select';
 const ROLES = [
   { value: 'staff',  label: 'Staff',           desc: 'Akses POS, inventaris, gudang, dan pelanggan' },
   { value: 'admin',  label: 'Admin',           desc: 'Akses penuh kecuali pengaturan sistem' },
@@ -17,13 +18,13 @@ const ROLES = [
 
 function getRoleColor(role: string) {
   switch (role) {
-    case 'owner': return 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400';
-    case 'admin': return 'bg-brand/10 text-brand';
-    case 'staff': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400';
+    case 'owner': return 'bg-primary-soft text-purple-700 dark:bg-primary-soft dark:text-purple-400';
+    case 'admin': return 'bg-primary-soft text-primary';
+    case 'staff': return 'bg-success-soft text-success dark:bg-success/10 dark:text-success';
     // legacy roles
-    case 'kasir': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400';
-    case 'gudang': return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400';
-    default: return 'bg-slate-100 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400';
+    case 'kasir': return 'bg-success-soft text-success dark:bg-success/10 dark:text-success';
+    case 'gudang': return 'bg-warning-soft text-warning dark:bg-warning/10 dark:text-warning';
+    default: return 'bg-muted text-body dark:bg-muted dark:text-body';
   }
 }
 
@@ -125,59 +126,57 @@ export default function UserManagement() {
   });
 
   return (
-    <div className="flex flex-col flex-1 h-full gap-6 animate-in fade-in duration-300">
+    <div className="flex flex-col flex-1 h-full gap-6 animate-fade-in">
       
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-              <Users className="text-brand" /> Manajemen Pengguna & Hak Akses
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[10px] font-black uppercase flex items-center gap-1 shadow-2xs">
-              <Cloud size={12} className="text-emerald-500" /> Supabase Cloud
+            <h2 className="text-lg font-bold text-heading">Daftar Pengguna</h2>
+            <span className="px-2 py-0.5 rounded-full bg-success-soft text-success border border-success/30 text-[10px] font-bold flex items-center gap-1">
+              <Cloud size={11} /> Cloud Auth
             </span>
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Kelola akun pengguna langsung di Supabase Cloud, batasan akses per peran, dan kustomisasi toggle izin per staff.
+          <p className="text-xs text-dim">
+            Kelola akses, peran, dan penugasan workspace untuk seluruh staf.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowRoleDefaultsModal(true)}
-            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-sm text-sm"
+            className="btn-secondary text-xs px-3.5 py-2 flex items-center gap-1.5"
           >
-            <Sliders size={16} className="text-brand" /> Atur Default Peran
+            <Sliders size={14} className="text-primary" /> Atur Default Peran
           </button>
 
           <button
             onClick={() => setShowModal(true)}
-            className="bg-brand hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-lg shadow-brand/20 text-sm"
+            className="btn-primary text-xs px-3.5 py-2 flex items-center gap-1.5"
           >
-            <Plus size={18} /> Tambah Staff
+            <Plus size={15} /> Tambah Staff
           </button>
         </div>
       </div>
 
       {/* Search & Workspace Filter Bar */}
-      <div className="bg-white dark:bg-[#0B0F19] p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+      <div className="bg-card p-4 rounded-xl border border-line shadow-xs flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
         {/* Search Input */}
         <div className="relative flex-1 max-w-md">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dim" />
           <input
             type="text"
             placeholder="Cari staff berdasarkan nama atau username..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-brand text-slate-900 dark:text-white"
+            className="w-full pl-9 pr-8 py-2 text-sm bg-muted border border-line rounded-xl outline-none focus:ring-2 focus:ring-primary text-heading"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-heading transition-colors"
             >
-              ✕
+              <X size={13} />
             </button>
           )}
         </div>
@@ -188,12 +187,12 @@ export default function UserManagement() {
             onClick={() => setSelectedWsFilter('all')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
               selectedWsFilter === 'all'
-                ? 'bg-brand text-white shadow-sm'
-                : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-primary text-white shadow-xs'
+                : 'bg-muted border border-line text-body hover:bg-muted'
             }`}
           >
             <span>Semua Staff</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${selectedWsFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${selectedWsFilter === 'all' ? 'bg-card/20 text-white' : 'bg-line text-body'}`}>
               {users.length}
             </span>
           </button>
@@ -207,12 +206,13 @@ export default function UserManagement() {
                 onClick={() => setSelectedWsFilter(ws.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
                   isSelected
-                    ? 'bg-brand text-white shadow-sm'
-                    : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'bg-muted border border-line text-body hover:bg-muted'
                 }`}
               >
-                <span>🏢 {ws.name}</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                <Building2 size={12} className="shrink-0" />
+                <span>{ws.name}</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${isSelected ? 'bg-card/20 text-white' : 'bg-line text-body'}`}>
                   {count}
                 </span>
               </button>
@@ -223,12 +223,12 @@ export default function UserManagement() {
             onClick={() => setSelectedWsFilter('unassigned')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
               selectedWsFilter === 'unassigned'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-warning text-white shadow-sm'
+                : 'bg-muted border border-line text-body hover:bg-muted'
             }`}
           >
             <span>Belum Ditugaskan</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${selectedWsFilter === 'unassigned' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${selectedWsFilter === 'unassigned' ? 'bg-card/20 text-white' : 'bg-line text-body'}`}>
               {users.filter(u => !u.workspace_id).length}
             </span>
           </button>
@@ -236,16 +236,16 @@ export default function UserManagement() {
       </div>
 
       {/* Main Table Container */}
-      <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden flex flex-col">
+      <div className="bg-card rounded-xl border border-line shadow-sm flex-1 overflow-hidden flex flex-col">
         {loading ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center text-slate-500">
-            <Loader2 className="animate-spin text-brand mb-4" size={32} />
+          <div className="py-20 text-center flex flex-col items-center justify-center text-dim">
+            <Loader2 className="animate-spin text-primary mb-4" size={32} />
             <p>Memuat data pengguna...</p>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto custom-scrollbar relative">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold">
+              <thead className="sticky top-0 z-10 bg-background border-b border-line text-xs uppercase text-dim font-semibold">
                 <tr>
                   <th className="py-4 px-6">Nama & Username</th>
                   <th className="py-4 px-6">Peran (Role)</th>
@@ -256,27 +256,27 @@ export default function UserManagement() {
                   <th className="py-4 px-6 text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-line dark:divide-line">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <td colSpan={7} className="py-12 text-center text-dim">
                       {searchQuery || selectedWsFilter !== 'all'
                         ? 'Tidak ada pengguna yang cocok dengan filter / pencarian.'
                         : 'Tidak ada pengguna ditemukan.'}
                     </td>
                   </tr>
                 ) : filteredUsers.map(u => (
-                  <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group fast-render-row">
+                  <tr key={u.id} className="hover:bg-muted/30 transition-colors group fast-render-row">
                     
                     {/* User Info */}
                     <td className="py-3 px-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-brand/10 text-brand flex items-center justify-center shrink-0 font-bold text-sm">
+                        <div className="w-10 h-10 rounded-full bg-primary-soft text-primary flex items-center justify-center shrink-0 font-bold text-sm">
                           {u.name.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900 dark:text-white">{u.name}</p>
-                          <p className="text-xs text-slate-500">@{u.username}</p>
+                          <p className="font-bold text-heading">{u.name}</p>
+                          <p className="text-xs text-dim">@{u.username}</p>
                         </div>
                       </div>
                     </td>
@@ -291,15 +291,15 @@ export default function UserManagement() {
                     {/* Permissions Status */}
                     <td className="py-3 px-6">
                       {u.role.toLowerCase() === 'owner' ? (
-                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400">
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-primary-soft text-purple-700 dark:bg-primary-soft dark:text-purple-400">
                           Akses Penuh
                         </span>
                       ) : u.is_custom_perms ? (
-                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 flex items-center gap-1 w-fit">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Kustom
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-warning-soft text-warning dark:bg-warning/10 dark:text-warning flex items-center gap-1 w-fit">
+                          <span className="w-1.5 h-1.5 rounded-full bg-warning"></span> Kustom
                         </span>
                       ) : (
-                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 w-fit block">
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-muted text-body dark:bg-muted dark:text-body w-fit block">
                           Default Role
                         </span>
                       )}
@@ -308,12 +308,12 @@ export default function UserManagement() {
                     {/* Workspace Selector */}
                     <td className="py-3 px-4">
                       <div className="relative flex items-center">
-                        <select
+                        <Select
                           disabled={updatingUserId === u.id}
                           value={u.workspace_id || ''}
-                          className="text-xs px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none focus:ring-1 focus:ring-brand disabled:opacity-50"
-                          onChange={async e => {
-                            const wsId = e.target.value || null;
+                          className="text-xs px-2.5 py-1.5 border border-line rounded-lg bg-card text-heading outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                          onChange={async v => {
+                            const wsId = v || null;
                             setUpdatingUserId(u.id);
                             try {
                               await assignUserWorkspace(u.id, wsId);
@@ -327,11 +327,11 @@ export default function UserManagement() {
                         >
                           <option value="">— Tidak ada —</option>
                           {workspaces.map(ws => (
-                            <option key={ws.id} value={ws.id}>🏢 {ws.name} ({ws.code})</option>
+                            <option key={ws.id} value={ws.id}>{ws.name} ({ws.code})</option>
                           ))}
-                        </select>
+                        </Select>
                         {updatingUserId === u.id && (
-                          <Loader2 size={12} className="animate-spin text-brand ml-2 shrink-0" />
+                          <Loader2 size={12} className="animate-spin text-primary ml-2 shrink-0" />
                         )}
                       </div>
                     </td>
@@ -339,18 +339,18 @@ export default function UserManagement() {
                     {/* Active Status */}
                     <td className="py-3 px-6">
                       {u.is_active ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Aktif
+                        <span className="text-success dark:text-success font-semibold text-xs flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span> Aktif
                         </span>
                       ) : (
-                        <span className="text-slate-400 font-semibold text-xs flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Nonaktif
+                        <span className="text-dim font-semibold text-xs flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-dim"></span> Nonaktif
                         </span>
                       )}
                     </td>
 
                     {/* Created Date */}
-                    <td className="py-3 px-6 text-slate-500 font-mono text-xs">
+                    <td className="py-3 px-6 text-dim font-mono text-xs">
                       {new Date(u.created_at).toLocaleDateString('id-ID')}
                     </td>
 
@@ -362,7 +362,7 @@ export default function UserManagement() {
                         <button
                           onClick={() => setPermModalUserId(u.id)}
                           title="Atur Hak Akses Pengguna"
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-brand/5 hover:bg-brand/15 text-brand dark:bg-brand/10 dark:hover:bg-brand/20 transition-colors flex items-center gap-1.5"
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-primary-soft hover:bg-primary/15 text-primary dark:bg-primary-soft dark:hover:bg-primary-soft transition-colors flex items-center gap-1.5"
                         >
                           <Shield size={13} />
                           <span>Hak Akses</span>
@@ -372,7 +372,7 @@ export default function UserManagement() {
                         <button
                           onClick={() => setEditUserModal(u)}
                           title="Edit User"
-                          className="p-2 rounded-lg text-slate-500 hover:text-brand hover:bg-brand/10 transition-colors"
+                          className="p-2 rounded-lg text-dim hover:text-primary hover:bg-primary-soft transition-colors"
                         >
                           <Pencil size={14} />
                         </button>
@@ -381,7 +381,7 @@ export default function UserManagement() {
                         <button
                           onClick={() => handleToggleActive(u)}
                           title={u.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                          className={`p-2 rounded-lg transition-colors ${u.is_active ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}
+                          className={`p-2 rounded-lg transition-colors ${u.is_active ? 'text-dim hover:text-danger hover:bg-danger-soft dark:hover:bg-danger/20' : 'text-dim hover:text-success hover:bg-success-soft dark:hover:bg-success/20'}`}
                         >
                           <Power size={15} />
                         </button>
@@ -437,27 +437,27 @@ function WorkspaceSelect({ value, onChange, workspaces }: { value: string; onCha
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Workspace</label>
+        <label className="block text-xs font-bold text-body uppercase tracking-wide">Workspace</label>
         {workspaces.length > 0 && (
-          <span className="text-[10px] font-semibold text-brand dark:text-brand-light flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="text-[10px] font-semibold text-primary dark:text-brand-light flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
             {workspaces.length} Workspace Tersedia
           </span>
         )}
       </div>
-      <select
+      <Select
         value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand cursor-pointer"
+        onChange={v => onChange(v)}
+        className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 text-sm text-heading outline-none focus:ring-2 focus:ring-primary cursor-pointer"
       >
         <option value="">— Tidak di-assign ke workspace —</option>
         {workspaces.map(ws => (
           <option key={ws.id} value={ws.id}>
-            🏢 {ws.name} ({ws.code})
+            {ws.name} ({ws.code})
           </option>
         ))}
-      </select>
-      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+      </Select>
+      <p className="text-[11px] text-dim mt-1">
         Pilih workspace agar user otomatis terhubung ke database dan sinkron saat login.
       </p>
     </div>
@@ -506,52 +506,52 @@ function AddStaffModal({ workspaces, currentWorkspaceId, onClose, onSuccess }: {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-sm px-4 py-3 rounded-xl">
+          <div className="bg-danger-soft dark:bg-danger/20 border border-danger/30 dark:border-danger text-danger dark:text-danger text-sm px-4 py-3 rounded-xl">
             {error}
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Nama Lengkap</label>
+          <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">Nama Lengkap</label>
           <input
             type="text" value={name} onChange={e => setName(e.target.value)} required
             placeholder="contoh: Budi Santoso"
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+            className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 text-sm text-heading outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Username Login</label>
+          <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">Username Login</label>
           <input
             type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} required
             placeholder="contoh: budi_kasir"
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
+            className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 text-sm text-heading outline-none focus:ring-2 focus:ring-primary font-mono"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Password</label>
+          <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">Password</label>
           <div className="relative">
             <input
               type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
               placeholder="Min. 6 karakter"
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+              className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 pr-10 text-sm text-heading outline-none focus:ring-2 focus:ring-primary"
             />
-            <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-body">
               {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-2">Peran / Role</label>
+          <label className="block text-xs font-bold text-body uppercase tracking-wide mb-2">Peran / Role</label>
           <div className="space-y-2">
             {ROLES.map(r => (
-              <label key={r.value} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${role === r.value ? 'border-brand bg-brand/5 dark:bg-brand/10' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}>
-                <input type="radio" name="role" value={r.value} checked={role === r.value} onChange={() => setRole(r.value)} className="mt-0.5 accent-brand" />
+              <label key={r.value} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${role === r.value ? 'border-primary bg-primary-soft dark:bg-primary-soft' : 'border-line hover:border-line-strong'}`}>
+                <input type="radio" name="role" value={r.value} checked={role === r.value} onChange={() => setRole(r.value)} className="mt-0.5 accent-primary" />
                 <div>
-                  <p className="font-bold text-sm text-slate-900 dark:text-white">{r.label}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{r.desc}</p>
+                  <p className="font-bold text-sm text-heading">{r.label}</p>
+                  <p className="text-xs text-dim mt-0.5">{r.desc}</p>
                 </div>
               </label>
             ))}
@@ -565,10 +565,10 @@ function AddStaffModal({ workspaces, currentWorkspaceId, onClose, onSuccess }: {
         />
 
         <div className="flex gap-3 pt-3">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-line rounded-xl text-sm font-bold text-heading hover:bg-muted transition-colors">
             Batal
           </button>
-          <button type="submit" disabled={loading} className="flex-[2] py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+          <button type="submit" disabled={loading} className="flex-[2] py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
             {loading ? <><Loader2 size={16} className="animate-spin" /> Menyimpan...</> : <><User size={16} /> Buat Akun</>}
           </button>
         </div>
@@ -636,39 +636,39 @@ function EditUserModal({ user, workspaces, onClose, onSuccess }: { user: UserRow
     >
       <form onSubmit={handleUpdate} className="space-y-5">
         {error && (
-          <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-sm px-4 py-3 rounded-xl flex items-start gap-2">
-            <span>⚠</span>
+          <div className="bg-danger-soft dark:bg-danger/20 border border-danger/30 dark:border-danger text-danger dark:text-danger text-sm px-4 py-3 rounded-xl flex items-start gap-2">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Nama Lengkap</label>
+            <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">Nama Lengkap</label>
             <input
               type="text" value={name} onChange={e => setName(e.target.value)} required
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+              className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 text-sm text-heading outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Username</label>
+            <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">Username</label>
             <input
               type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))} required
-              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
+              className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 text-sm text-heading outline-none focus:ring-2 focus:ring-primary font-mono"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Peran (Role)</label>
-          <select
-            value={role} onChange={e => setRole(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+          <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">Peran (Role)</label>
+          <Select
+            value={role} onChange={v => setRole(v)}
+            className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 text-sm text-heading outline-none focus:ring-2 focus:ring-primary"
           >
             {ROLES.map(r => (
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <WorkspaceSelect
@@ -677,12 +677,12 @@ function EditUserModal({ user, workspaces, onClose, onSuccess }: { user: UserRow
           workspaces={workspaces}
         />
 
-        <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1.5">Reset Password (Opsional)</label>
+        <div className="pt-2 border-t border-line">
+          <label className="block text-xs font-bold text-body uppercase tracking-wide mb-1.5">Reset Password (Opsional)</label>
           <input
             type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)}
             placeholder="Kosongkan jika tidak ingin mengubah password"
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+            className="w-full bg-muted border border-line rounded-xl px-4 py-2.5 text-sm text-heading outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
@@ -691,15 +691,15 @@ function EditUserModal({ user, workspaces, onClose, onSuccess }: { user: UserRow
             type="button" 
             onClick={handleDelete} 
             disabled={loading}
-            className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 rounded-xl text-sm font-bold transition-colors"
+            className="px-4 py-2.5 bg-danger-soft hover:bg-danger-soft text-danger dark:bg-danger/20 dark:hover:bg-danger/40 rounded-xl text-sm font-bold transition-colors"
           >
             Hapus User
           </button>
           <div className="flex-1"></div>
-          <button type="button" onClick={onClose} className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+          <button type="button" onClick={onClose} className="px-5 py-2.5 border border-line rounded-xl text-sm font-bold text-heading hover:bg-muted transition-colors">
             Batal
           </button>
-          <button type="submit" disabled={loading} className="px-5 py-2.5 bg-brand hover:bg-blue-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+          <button type="submit" disabled={loading} className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Simpan
           </button>
         </div>

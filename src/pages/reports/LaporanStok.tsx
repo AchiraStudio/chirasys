@@ -5,6 +5,8 @@ import { downloadCsv } from '../../lib/exportCsv';
 import { save } from '@tauri-apps/plugin-dialog';
 import ReportHeader from '../../components/reports/ReportHeader';
 
+import { toast } from '../../components/ui/Toast';
+import Select from '../../components/ui/Select';
 interface Props { onBack: () => void; }
 
 export default function LaporanStok({ onBack }: Props) {
@@ -35,11 +37,11 @@ export default function LaporanStok({ onBack }: Props) {
       if (filePath) {
         setLoading(true);
         await exportStockExcel(filePath);
-        alert('Data stok berhasil diekspor ke Excel!');
+        toast.error('Data stok berhasil diekspor ke Excel!');
       }
     } catch (e) {
       console.error(e);
-      alert('Gagal mengekspor data: ' + e);
+      toast.error('Gagal mengekspor data: ' + e);
     } finally {
       setLoading(false);
     }
@@ -60,67 +62,107 @@ export default function LaporanStok({ onBack }: Props) {
   const grandTotal = filtered.reduce((s, r) => s + r.total_value, 0);
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-300 h-full">
+    <div className="flex flex-col gap-4 animate-fade-in h-full">
       <ReportHeader
         title="Valuasi Stok"
-        subtitle="Nilai inventaris berdasarkan HPP rata-rata"
+        subtitle="Nilai inventaris berdasarkan HPP rata-rata berjalan"
         onBack={onBack}
         onExportCsv={handleExportCsv}
       >
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dim" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari item..."
-              className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Cari item atau SKU..."
+              className="pl-8 pr-3 py-1.5 bg-muted/50 border border-line rounded-lg text-xs text-heading outline-none focus:ring-1 focus:ring-primary w-44"
             />
           </div>
 
-          <select
+          <Select
             value={selectedCategory}
-            onChange={e => setSelectedCategory(e.target.value)}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand"
+            onChange={v => setSelectedCategory(v)}
+            className="bg-muted/50 border border-line text-heading text-xs font-medium rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">Semua Kategori</option>
             {categories.map((c) => (
               <option key={c.id} value={c.name}>{c.name}</option>
             ))}
-          </select>
+          </Select>
 
           <button
             onClick={handleExportExcel}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-[0.98]"
           >
-            <FileSpreadsheet size={15} />
+            <FileSpreadsheet size={13} />
             Export Excel
           </button>
 
           <button
             onClick={fetchData}
-            className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            title="Refresh"
+            disabled={loading}
+            className="p-1.5 bg-muted text-body hover:text-heading hover:bg-line rounded-lg text-xs transition-colors cursor-pointer"
+            title="Refresh Data"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </ReportHeader>
 
-      {/* Total Value Banner */}
-      <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-6 text-white flex items-center justify-between">
-        <div>
-          <p className="text-amber-100 text-sm font-medium">Total Nilai Inventaris</p>
-          <p className="text-3xl font-extrabold mt-1">Rp {grandTotal.toLocaleString('id-ID')}</p>
+      {/* KPI Metric Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="bg-card px-4 py-3 rounded-xl border border-line flex flex-col justify-between">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Total Nilai Inventaris</span>
+            <Package size={14} className="text-primary" />
+          </div>
+          <div className="mt-1">
+            <span className="text-base font-bold text-heading">
+              Rp {grandTotal.toLocaleString('id-ID')}
+            </span>
+          </div>
+          <div className="text-[10px] text-dim font-medium mt-0.5">
+            Berdasarkan HPP rata-rata berjalan
+          </div>
         </div>
-        <div className="bg-white/20 p-4 rounded-2xl"><Package size={32}/></div>
+
+        <div className="bg-card px-4 py-3 rounded-xl border border-line flex flex-col justify-between">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Jumlah SKU Produk</span>
+            <Package size={14} className="text-emerald-500" />
+          </div>
+          <div className="mt-1">
+            <span className="text-base font-bold text-heading">
+              {filtered.length.toLocaleString('id-ID')} Produk
+            </span>
+          </div>
+          <div className="text-[10px] text-dim font-medium mt-0.5">
+            {selectedCategory ? `Kategori: ${selectedCategory}` : 'Semua kategori'}
+          </div>
+        </div>
+
+        <div className="bg-card px-4 py-3 rounded-xl border border-line flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Total Unit Fisik</span>
+            <Package size={14} className="text-blue-500" />
+          </div>
+          <div className="mt-1">
+            <span className="text-base font-bold text-heading">
+              {filtered.reduce((s, r) => s + r.current_qty, 0).toLocaleString('id-ID')} Unit
+            </span>
+          </div>
+          <div className="text-[10px] text-dim font-medium mt-0.5">
+            Total kuantitas seluruh stok
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 overflow-hidden flex flex-col">
+      <div className="bg-card rounded-xl border border-line shadow-sm flex-1 overflow-hidden flex flex-col">
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-500 font-semibold sticky top-0">
+            <thead className="bg-muted/50 border-b border-line text-xs uppercase text-dim font-semibold sticky top-0">
               <tr>
                 <th className="py-4 px-6">Item</th>
                 <th className="py-4 px-6">SKU</th>
@@ -131,20 +173,20 @@ export default function LaporanStok({ onBack }: Props) {
                 <th className="py-4 px-6 text-right">Nilai Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
+            <tbody className="divide-y divide-line dark:divide-line/60 text-sm">
               {loading ? (
-                <tr><td colSpan={7} className="py-16 text-center"><Loader2 className="animate-spin text-brand mx-auto" size={28}/></td></tr>
+                <tr><td colSpan={7} className="py-16 text-center"><Loader2 className="animate-spin text-primary mx-auto" size={28}/></td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="py-16 text-center text-slate-500">Tidak ada data stok.</td></tr>
+                <tr><td colSpan={7} className="py-16 text-center text-dim">Tidak ada data stok.</td></tr>
               ) : filtered.map(r => (
-                <tr key={r.sku} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                  <td className="py-3 px-6 font-bold text-slate-900 dark:text-white">{r.item_name}</td>
-                  <td className="py-3 px-6 font-mono text-xs text-slate-500">{r.sku}</td>
-                  <td className="py-3 px-6 text-slate-600 dark:text-slate-400">{r.category_name || '-'}</td>
-                  <td className="py-3 px-6 text-slate-600 dark:text-slate-400">{r.unit_name || '-'}</td>
-                  <td className="py-3 px-6 text-right font-mono font-bold text-slate-900 dark:text-white">{r.current_qty.toLocaleString('id-ID')}</td>
-                  <td className="py-3 px-6 text-right font-mono text-slate-600 dark:text-slate-400">Rp {r.avg_hpp.toLocaleString('id-ID')}</td>
-                  <td className="py-3 px-6 text-right font-mono font-bold text-amber-600 dark:text-amber-400">Rp {r.total_value.toLocaleString('id-ID')}</td>
+                <tr key={r.sku} className="hover:bg-muted/30">
+                  <td className="py-3 px-6 font-bold text-heading">{r.item_name}</td>
+                  <td className="py-3 px-6 font-mono text-xs text-dim">{r.sku}</td>
+                  <td className="py-3 px-6 text-body">{r.category_name || '-'}</td>
+                  <td className="py-3 px-6 text-body">{r.unit_name || '-'}</td>
+                  <td className="py-3 px-6 text-right font-mono font-bold text-heading">{r.current_qty.toLocaleString('id-ID')}</td>
+                  <td className="py-3 px-6 text-right font-mono text-body">Rp {r.avg_hpp.toLocaleString('id-ID')}</td>
+                  <td className="py-3 px-6 text-right font-mono font-bold text-warning dark:text-warning">Rp {r.total_value.toLocaleString('id-ID')}</td>
                 </tr>
               ))}
             </tbody>

@@ -48,37 +48,37 @@ export default function JournalVoucher({ isOpen, onClose, entryId }: JournalVouc
     >
       <div>
         {loading ? (
-          <div className="text-center py-16 text-slate-500 flex flex-col items-center justify-center">
-            <Loader2 className="animate-spin mb-3 text-brand" size={28} />
+          <div className="text-center py-16 text-dim flex flex-col items-center justify-center">
+            <Loader2 className="animate-spin mb-3 text-primary" size={28} />
             <p className="text-xs font-medium">Memuat rincian voucher jurnal...</p>
           </div>
         ) : detail ? (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+            <div className="grid grid-cols-2 gap-4 text-xs bg-muted/60 p-4 rounded-xl border border-line">
               <div>
-                <div className="text-slate-500 mb-1 font-semibold uppercase tracking-wider text-[10px]">Tanggal Jurnal</div>
-                <div className="font-semibold text-slate-900 dark:text-white text-sm">{new Date(detail.entry.date).toLocaleString('id-ID')}</div>
+                <div className="text-dim mb-1 font-semibold uppercase tracking-wider text-[10px]">Tanggal Jurnal</div>
+                <div className="font-semibold text-heading text-sm">{new Date(detail.entry.date).toLocaleString('id-ID')}</div>
               </div>
               <div>
-                <div className="text-slate-500 mb-1 font-semibold uppercase tracking-wider text-[10px]">Sumber Transaksi</div>
-                <div className="font-semibold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                <div className="text-dim mb-1 font-semibold uppercase tracking-wider text-[10px]">Sumber Transaksi</div>
+                <div className="font-semibold text-heading text-sm flex items-center gap-2">
                   <span className="capitalize">{detail.entry.source_type.replace('_', ' ')}</span>
                   {detail.entry.source_type !== 'manual' && (
-                    <button title="Lihat sumber asli" className="text-brand hover:underline flex items-center gap-1">
+                    <button title="Lihat sumber asli" className="text-primary hover:underline flex items-center gap-1">
                       <ExternalLink size={12}/>
                     </button>
                   )}
                 </div>
               </div>
-              <div className="col-span-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
-                <div className="text-slate-500 mb-1 font-semibold uppercase tracking-wider text-[10px]">Keterangan Transaksi</div>
-                <div className="font-semibold text-slate-900 dark:text-white text-sm">{detail.entry.description || '-'}</div>
+              <div className="col-span-2 pt-2 border-t border-line/60 dark:border-line">
+                <div className="text-dim mb-1 font-semibold uppercase tracking-wider text-[10px]">Keterangan Transaksi</div>
+                <div className="font-semibold text-heading text-sm">{detail.entry.description || '-'}</div>
               </div>
             </div>
 
-            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            <div className="border border-line rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-xs text-left">
-                <thead className="text-[11px] text-slate-500 bg-slate-50 dark:bg-slate-900 uppercase font-bold border-b border-slate-200 dark:border-slate-800">
+                <thead className="text-[11px] text-dim bg-muted uppercase font-bold border-b border-line">
                   <tr>
                     <th className="px-4 py-3">Akun Rekening</th>
                     <th className="px-4 py-3">Keterangan</th>
@@ -86,26 +86,26 @@ export default function JournalVoucher({ isOpen, onClose, entryId }: JournalVouc
                     <th className="px-4 py-3 text-right">Kredit (Rp)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-line dark:divide-line">
                   {detail.lines.map((line, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 bg-white dark:bg-slate-950">
-                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
+                    <tr key={idx} className="hover:bg-muted/50 dark:hover:bg-card/40 bg-card dark:bg-input">
+                      <td className="px-4 py-3 font-semibold text-heading">
                         <div className="flex flex-col">
-                          <span className="font-mono text-[10px] text-brand">{line.account_code}</span>
+                          <span className="font-mono text-[10px] text-primary">{line.account_code}</span>
                           <span className="text-xs">{line.account_name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-500">{line.notes || '-'}</td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">{line.debit > 0 ? line.debit.toLocaleString('id-ID') : '-'}</td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">{line.credit > 0 ? line.credit.toLocaleString('id-ID') : '-'}</td>
+                      <td className="px-4 py-3 text-dim">{line.notes || '-'}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-heading">{line.debit > 0 ? line.debit.toLocaleString('id-ID') : '-'}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-heading">{line.credit > 0 ? line.credit.toLocaleString('id-ID') : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-slate-50 dark:bg-slate-900/80 font-bold border-t border-slate-200 dark:border-slate-800">
+                <tfoot className="bg-muted/80 font-bold border-t border-line">
                   <tr>
-                    <td colSpan={2} className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">Total Balance</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-900 dark:text-white">Rp {totalDebit.toLocaleString('id-ID')}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-900 dark:text-white">Rp {totalCredit.toLocaleString('id-ID')}</td>
+                    <td colSpan={2} className="px-4 py-3 text-right text-body">Total Balance</td>
+                    <td className="px-4 py-3 text-right font-mono text-heading">Rp {totalDebit.toLocaleString('id-ID')}</td>
+                    <td className="px-4 py-3 text-right font-mono text-heading">Rp {totalCredit.toLocaleString('id-ID')}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -113,16 +113,16 @@ export default function JournalVoucher({ isOpen, onClose, entryId }: JournalVouc
 
             {/* Double-entry explanation note */}
             {detail.entry.source_type === 'sale' && (
-              <div className="p-3.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-2xl flex items-start gap-3">
-                <Info size={16} className="text-brand shrink-0 mt-0.5" />
-                <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+              <div className="p-3.5 bg-accent-soft dark:bg-accent/20 border border-accent/30 dark:border-accent/40 rounded-xl flex items-start gap-3">
+                <Info size={16} className="text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-accent dark:text-accent leading-relaxed">
                   <strong>Catatan Akuntansi:</strong> Total debit/kredit (Rp {totalDebit.toLocaleString('id-ID')}) adalah 2× dari nilai penjualan karena setiap transaksi menghasilkan dua pasang jurnal berpasangan: (1) Kas ↔ Pendapatan Penjualan dan (2) HPP ↔ Persediaan Barang Dagang.
                 </p>
               </div>
             )}
           </div>
         ) : (
-          <div className="text-center py-10 text-slate-500">Gagal memuat voucher jurnal.</div>
+          <div className="text-center py-10 text-dim">Gagal memuat voucher jurnal.</div>
         )}
       </div>
     </Modal>

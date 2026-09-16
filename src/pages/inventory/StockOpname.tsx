@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/AuthStore';
 import { Package, Search, Save, Loader2, ClipboardList, HelpCircle, CheckCircle2, TrendingUp, TrendingDown, Minus, Plus, RefreshCw, Filter, AlertTriangle, X } from 'lucide-react';
 import TourGuide from '../../components/ui/TourGuide';
 
+import { toast } from '../../components/ui/Toast';
 export default function StockOpname() {
   const DEFAULT_BRANCH = 'branch_001';
   const { user } = useAuthStore();
@@ -120,9 +121,9 @@ export default function StockOpname() {
   };
 
   const applyBulkQty = () => {
-    if (selectedItems.size === 0) return alert("Pilih minimal satu item.");
+    if (selectedItems.size === 0) return toast.info("Pilih minimal satu item.");
     const val = parseFloat(bulkQtyInput);
-    if (isNaN(val)) return alert("Masukkan angka yang valid.");
+    if (isNaN(val)) return toast.info("Masukkan angka yang valid.");
     
     setActualQty(prev => {
       const next = { ...prev };
@@ -145,7 +146,7 @@ export default function StockOpname() {
       }));
 
     if (enteredLines.length === 0) {
-      alert("Belum ada stok fisik yang dimasukkan. Isi kolom 'Stok Fisik' untuk item yang sudah dihitung.");
+      toast.info("Belum ada stok fisik yang dimasukkan. Isi kolom 'Stok Fisik' untuk item yang sudah dihitung.");
       return;
     }
 
@@ -155,7 +156,7 @@ export default function StockOpname() {
     });
 
     if (changedLines.length === 0) {
-      alert("Semua item yang diisi memiliki stok fisik sama dengan stok sistem. Tidak ada penyesuaian yang diperlukan.");
+      toast.info("Semua item yang diisi memiliki stok fisik sama dengan stok sistem. Tidak ada penyesuaian yang diperlukan.");
       return;
     }
 
@@ -167,50 +168,50 @@ export default function StockOpname() {
       await submitOpnameLines(sessionId, changedLines);
       await finalizeOpname(sessionId);
       
-      alert(`Stock Opname berhasil! ${changedLines.length} item telah disesuaikan.`);
+      toast.error(`Stock Opname berhasil! ${changedLines.length} item telah disesuaikan.`);
       fetchStock();
     } catch (e: any) {
-      alert("Gagal memproses stock opname: " + e.toString());
+      toast.error("Gagal memproses stock opname: " + e.toString());
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar pb-8 flex flex-col gap-6 animate-in fade-in duration-300 w-full">
+    <div className="flex-1 overflow-y-auto custom-scrollbar pb-8 flex flex-col gap-6 animate-fade-in w-full">
       
       {/* Top Header Banner (Subtle & Theme Adaptive) */}
-      <div className="shrink-0 bg-white dark:bg-[#0B0F19] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="shrink-0 bg-card rounded-xl p-6 border border-line shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-brand/10 text-brand border border-brand/20 flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary-soft text-primary border border-primary/20 flex items-center gap-1.5">
               <ClipboardList size={13} /> Modul Audit Inventory
             </span>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-success/10 text-success dark:text-success border border-success/20 flex items-center gap-1.5">
               <Package size={13} /> {items.length} Barang Terdaftar
             </span>
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-heading">
               Stock Opname & Penyesuaian Fisik
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed mt-0.5">
+            <p className="text-xs sm:text-sm text-dim max-w-2xl leading-relaxed mt-0.5">
               Verifikasi stok riil di toko dengan pencatatan sistem, hitung selisih mutasi, dan perbarui saldo persediaan fisik secara akurat.
             </p>
           </div>
           
-          <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-4">
-            <span className="text-sm font-semibold text-slate-500 whitespace-nowrap">{selectedItems.size} terpilih</span>
+          <div className="flex items-center gap-2 border-l border-line pl-4">
+            <span className="text-sm font-semibold text-dim whitespace-nowrap">{selectedItems.size} terpilih</span>
             <input
               type="number"
               placeholder="Set qty..."
               value={bulkQtyInput}
               onChange={e => setBulkQtyInput(e.target.value)}
-              className="w-24 text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-brand/20"
+              className="w-24 text-sm border border-line rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20"
             />
             <button
               onClick={applyBulkQty}
-              className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition-colors whitespace-nowrap"
+              className="bg-line hover:bg-line-strong dark:bg-muted dark:hover:bg-line-strong text-heading px-4 py-2 rounded-lg text-sm font-bold transition-colors whitespace-nowrap"
             >
               Set Nilai
             </button>
@@ -220,7 +221,7 @@ export default function StockOpname() {
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => setRunTour(true)}
-            className="p-2.5 text-slate-500 dark:text-slate-400 hover:text-brand bg-slate-100 dark:bg-slate-800 rounded-2xl transition-all cursor-pointer"
+            className="p-2.5 text-dim hover:text-primary bg-muted rounded-xl transition-all cursor-pointer"
             title="Panduan Langkah Audit"
           >
             <HelpCircle size={18} />
@@ -229,7 +230,7 @@ export default function StockOpname() {
           <button 
             onClick={handleSubmit} 
             disabled={submitting || countedItems.length === 0} 
-            className="tour-so-process bg-brand hover:bg-blue-600 text-white px-5 py-2.5 rounded-2xl font-black text-xs flex items-center gap-2 transition-all shadow-md shadow-brand/20 disabled:opacity-50 cursor-pointer"
+            className="tour-so-process bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-md shadow-primary/20 disabled:opacity-50 cursor-pointer"
           >
             {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             Proses Penyesuaian ({countedItems.length})
@@ -239,61 +240,61 @@ export default function StockOpname() {
 
       {/* Metric KPI Dashboard (4 Cards Grid) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
+        <div className="bg-card rounded-xl border border-line p-4 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-dim">
             <span className="text-[11px] font-bold uppercase tracking-wider">Item Dihitung</span>
-            <ClipboardList size={16} className="text-brand" />
+            <ClipboardList size={16} className="text-primary" />
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white font-mono">
-            {countedItems.length} <span className="text-xs font-semibold text-slate-400">/ {items.length}</span>
+          <p className="text-2xl font-black text-heading font-mono">
+            {countedItems.length} <span className="text-xs font-semibold text-dim">/ {items.length}</span>
           </p>
         </div>
 
-        <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
+        <div className="bg-card rounded-xl border border-line p-4 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-dim">
             <span className="text-[11px] font-bold uppercase tracking-wider">Stok Sesuai</span>
-            <CheckCircle2 size={16} className="text-emerald-500" />
+            <CheckCircle2 size={16} className="text-success" />
           </div>
-          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-            {matchCount} <span className="text-xs font-semibold text-slate-400">item</span>
+          <p className="text-2xl font-black text-success dark:text-success font-mono">
+            {matchCount} <span className="text-xs font-semibold text-dim">item</span>
           </p>
         </div>
 
-        <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-emerald-200/60 dark:border-emerald-900/40 p-4 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Surplus (+Stok)</span>
-            <TrendingUp size={16} className="text-emerald-500" />
+        <div className="bg-card rounded-xl border border-success/30/60 dark:border-success/40 p-4 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-success dark:text-success">Surplus (+Stok)</span>
+            <TrendingUp size={16} className="text-success" />
           </div>
-          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-            +{totalSurplusQty} <span className="text-xs font-semibold text-slate-400">({surplusItems.length} item)</span>
+          <p className="text-2xl font-black text-success dark:text-success font-mono">
+            +{totalSurplusQty} <span className="text-xs font-semibold text-dim">({surplusItems.length} item)</span>
           </p>
         </div>
 
-        <div className="bg-white dark:bg-[#0B0F19] rounded-2xl border border-rose-200/60 dark:border-rose-900/40 p-4 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Defisit (-Stok)</span>
-            <TrendingDown size={16} className="text-rose-500" />
+        <div className="bg-card rounded-xl border border-danger/30/60 dark:border-danger/40 p-4 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-dim">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-danger dark:text-danger">Defisit (-Stok)</span>
+            <TrendingDown size={16} className="text-danger" />
           </div>
-          <p className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono">
-            -{totalDeficitQty} <span className="text-xs font-semibold text-slate-400">({deficitItems.length} item)</span>
+          <p className="text-2xl font-black text-danger dark:text-danger font-mono">
+            -{totalDeficitQty} <span className="text-xs font-semibold text-dim">({deficitItems.length} item)</span>
           </p>
         </div>
       </div>
 
       {/* Filter Toolbar & Search Bar */}
-      <div className="bg-white dark:bg-[#0B0F19] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col flex-1 min-h-[500px]">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/30">
-          <div className="flex-1 flex items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 w-full focus-within:ring-2 focus-within:ring-brand">
-            <Search size={16} className="text-slate-400 mr-2.5 shrink-0" />
+      <div className="bg-card rounded-xl border border-line shadow-sm overflow-hidden flex flex-col flex-1 min-h-[500px]">
+        <div className="p-4 border-b border-line flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/50 dark:bg-card/30">
+          <div className="flex-1 flex items-center bg-card dark:bg-input border border-line rounded-xl px-4 py-2.5 w-full focus-within:ring-2 focus-within:ring-primary">
+            <Search size={16} className="text-dim mr-2.5 shrink-0" />
             <input
               type="text"
               placeholder="Cari nama obat, kode SKU, atau kategori..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="bg-transparent border-none outline-none w-full text-xs font-bold text-slate-900 dark:text-white"
+              className="bg-transparent border-none outline-none w-full text-xs font-bold text-heading"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="p-1 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setSearch('')} className="p-1 text-dim hover:text-body">
                 <X size={14} />
               </button>
             )}
@@ -302,10 +303,10 @@ export default function StockOpname() {
           <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
             <button
               onClick={() => setOnlyDiffFilter(!onlyDiffFilter)}
-              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 onlyDiffFilter
-                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
+                  ? 'bg-warning text-white shadow-md shadow-warning/20'
+                  : 'bg-card border border-line text-heading hover:bg-muted'
               }`}
             >
               <Filter size={14} />
@@ -315,7 +316,7 @@ export default function StockOpname() {
             <button
               onClick={handleResetAll}
               disabled={Object.keys(actualQty).length === 0}
-              className="px-3 py-2.5 rounded-2xl text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all disabled:opacity-40 cursor-pointer"
+              className="px-3 py-2.5 rounded-xl text-xs font-bold text-dim bg-card border border-line hover:bg-muted transition-all disabled:opacity-40 cursor-pointer"
               title="Reset Input"
             >
               <RefreshCw size={14} />
@@ -326,25 +327,25 @@ export default function StockOpname() {
         {/* Table View */}
         <div className="flex-1 overflow-y-auto custom-scrollbar tour-so-table relative">
           {loading ? (
-            <div className="py-24 flex flex-col items-center justify-center text-slate-400">
-              <Loader2 size={32} className="animate-spin mb-3 text-brand" />
+            <div className="py-24 flex flex-col items-center justify-center text-dim">
+              <Loader2 size={32} className="animate-spin mb-3 text-primary" />
               <p className="text-xs font-bold">Memuat persediaan barang...</p>
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="py-24 text-center text-slate-400 space-y-2">
-              <AlertTriangle size={32} className="mx-auto text-slate-300 dark:text-slate-700" />
+            <div className="py-24 text-center text-dim space-y-2">
+              <AlertTriangle size={32} className="mx-auto text-dim dark:text-body" />
               <p className="text-xs font-bold">Tidak ada barang yang sesuai dengan filter.</p>
             </div>
           ) : (
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 uppercase text-[11px] text-slate-400 font-extrabold sticky top-0 z-10">
+              <thead className="bg-background border-b border-line uppercase text-[11px] text-dim font-extrabold sticky top-0 z-10">
                 <tr>
                   <th className="py-3.5 px-4 w-10 text-center">
                     <input 
                       type="checkbox" 
                       checked={selectedItems.size === filteredItems.length && filteredItems.length > 0} 
                       onChange={toggleSelectAll}
-                      className="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand cursor-pointer"
+                      className="w-4 h-4 rounded border-line-strong text-primary focus:ring-primary cursor-pointer"
                     />
                   </th>
                   <th className="py-3.5 px-6">Produk / Barang</th>
@@ -354,7 +355,7 @@ export default function StockOpname() {
                   <th className="py-3.5 px-6 tour-so-notes">Catatan Alasan Selisih</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+              <tbody className="divide-y divide-line dark:divide-line/80">
                 {filteredItems.map(item => {
                   const hasInput = actualQty[item.item_id] !== undefined;
                   const aq = hasInput ? actualQty[item.item_id] : item.current_qty;
@@ -368,10 +369,10 @@ export default function StockOpname() {
                     <tr 
                       key={item.item_id} 
                       className={`transition-colors fast-render-row ${
-                        isSurplus ? 'bg-emerald-50/40 dark:bg-emerald-950/20' :
-                        isDeficit ? 'bg-rose-50/40 dark:bg-rose-950/20' :
-                        isMatch ? 'bg-slate-50/40 dark:bg-slate-900/20' :
-                        'hover:bg-slate-50 dark:hover:bg-slate-900/40'
+                        isSurplus ? 'bg-success-soft/40 dark:bg-success/20' :
+                        isDeficit ? 'bg-danger-soft/40 dark:bg-danger/20' :
+                        isMatch ? 'bg-muted/40 dark:bg-card/20' :
+                        'hover:bg-muted/40'
                       }`}
                     >
                       {/* Checkbox */}
@@ -380,19 +381,19 @@ export default function StockOpname() {
                           type="checkbox" 
                           checked={selectedItems.has(item.item_id)} 
                           onChange={() => toggleSelect(item.item_id)}
-                          className="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand cursor-pointer"
+                          className="w-4 h-4 rounded border-line-strong text-primary focus:ring-primary cursor-pointer"
                         />
                       </td>
 
                       {/* Item Details */}
                       <td className="py-3 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center shrink-0 font-bold text-xs">
+                          <div className="w-9 h-9 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0 font-bold text-xs">
                             <Package size={17} />
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-900 dark:text-white text-xs truncate">{item.item_name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                            <p className="font-bold text-heading text-xs truncate">{item.item_name}</p>
+                            <p className="text-[10px] text-dim font-mono mt-0.5">
                               {item.sku || 'No SKU'} • {item.category_name || 'Uncategorized'}
                             </p>
                           </div>
@@ -401,7 +402,7 @@ export default function StockOpname() {
 
                       {/* System Stock */}
                       <td className="py-3 px-4 text-center">
-                        <span className="font-mono bg-slate-100 dark:bg-slate-800/80 px-3 py-1 rounded-xl text-slate-800 dark:text-slate-200 font-bold text-xs inline-block">
+                        <span className="font-mono bg-muted/80 px-3 py-1 rounded-xl text-heading font-bold text-xs inline-block">
                           {item.current_qty} {item.unit_name || 'PCS'}
                         </span>
                       </td>
@@ -412,7 +413,7 @@ export default function StockOpname() {
                           <button
                             type="button"
                             onClick={() => handleStepperChange(item.item_id, item.current_qty, -1)}
-                            className="w-7 h-7 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg flex items-center justify-center font-bold transition-all cursor-pointer"
+                            className="w-7 h-7 bg-muted hover:bg-line dark:hover:bg-line-strong text-body dark:text-heading rounded-lg flex items-center justify-center font-bold transition-all cursor-pointer"
                             title="-1 Stok Fisik"
                           >
                             <Minus size={12} />
@@ -434,13 +435,13 @@ export default function StockOpname() {
                               }
                             }}
                             placeholder={String(item.current_qty)}
-                            className="w-20 text-center font-bold font-mono border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 rounded-xl px-2 py-1.5 focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none text-xs"
+                            className="w-20 text-center font-bold font-mono border border-line bg-card dark:bg-input rounded-xl px-2 py-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-xs"
                           />
 
                           <button
                             type="button"
                             onClick={() => handleStepperChange(item.item_id, item.current_qty, 1)}
-                            className="w-7 h-7 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg flex items-center justify-center font-bold transition-all cursor-pointer"
+                            className="w-7 h-7 bg-muted hover:bg-line dark:hover:bg-line-strong text-body dark:text-heading rounded-lg flex items-center justify-center font-bold transition-all cursor-pointer"
                             title="+1 Stok Fisik"
                           >
                             <Plus size={12} />
@@ -449,7 +450,7 @@ export default function StockOpname() {
                           <button
                             type="button"
                             onClick={() => handleMatchButtonClick(item.item_id, item.current_qty)}
-                            className="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-brand hover:text-white rounded-lg text-[10px] font-bold text-slate-500 transition-colors cursor-pointer ml-1"
+                            className="px-2 py-1 bg-muted hover:bg-primary hover:text-white rounded-lg text-[10px] font-bold text-dim transition-colors cursor-pointer ml-1"
                             title="Set Sesuai Stok Sistem"
                           >
                             Match
@@ -460,12 +461,12 @@ export default function StockOpname() {
                       {/* Variance / Diff */}
                       <td className="py-3 px-4 text-center">
                         {!hasInput ? (
-                          <span className="text-[11px] text-slate-400 italic">Belum dihitung</span>
+                          <span className="text-[11px] text-dim italic">Belum dihitung</span>
                         ) : (
                           <span className={`inline-flex items-center gap-1 font-mono font-extrabold text-xs px-2.5 py-1 rounded-full ${
-                            diff > 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
-                            diff < 0 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400' :
-                            'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                            diff > 0 ? 'bg-success/10 text-success dark:text-success' :
+                            diff < 0 ? 'bg-danger/10 text-danger dark:text-danger' :
+                            'bg-muted text-dim'
                           }`}>
                             {diff > 0 ? `+${diff}` : diff}
                           </span>
@@ -480,7 +481,7 @@ export default function StockOpname() {
                           value={notes[item.item_id] || ''}
                           onChange={e => setNotes(prev => ({ ...prev, [item.item_id]: e.target.value }))}
                           disabled={!hasInput}
-                          className="w-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-xl px-3 py-1.5 text-xs font-semibold focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="w-full border border-line bg-card dark:bg-input rounded-xl px-3 py-1.5 text-xs font-semibold focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                         />
                       </td>
                     </tr>

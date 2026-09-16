@@ -8,6 +8,8 @@ import { invoke } from '@tauri-apps/api/core';
 import Modal from '../../components/ui/Modal';
 import { useAuthStore } from '../../store/AuthStore';
 
+import { toast } from '../../components/ui/Toast';
+import Select from '../../components/ui/Select';
 interface PaymentModalProps {
     branchId: string;
     cart: PosLine[];
@@ -23,11 +25,11 @@ interface PaymentModalProps {
 interface Bank { id: string; name: string; code: string; }
 
 const PAYMENT_METHODS = [
-    { key: 'cash',      label: 'Tunai',        icon: Banknote,       colorClass: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
-    { key: 'transfer',  label: 'Transfer',     icon: ArrowRightLeft,  colorClass: 'text-blue-500 bg-blue-500/10 border-blue-500/20'    },
-    { key: 'debit',     label: 'Debit Card',   icon: CreditCard,      colorClass: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20'  },
-    { key: 'credit',    label: 'Kredit Card',  icon: CreditCard,      colorClass: 'text-purple-500 bg-purple-500/10 border-purple-500/20'  },
-    { key: 'qris',      label: 'QRIS',         icon: Smartphone,      colorClass: 'text-amber-500 bg-amber-500/10 border-amber-500/20'   },
+    { key: 'cash',      label: 'Tunai',        icon: Banknote,       colorClass: 'text-success bg-success/10 border-success/20' },
+    { key: 'transfer',  label: 'Transfer',     icon: ArrowRightLeft,  colorClass: 'text-accent bg-accent/10 border-accent/20'    },
+    { key: 'debit',     label: 'Debit Card',   icon: CreditCard,      colorClass: 'text-primary bg-primary-soft border-primary/20'  },
+    { key: 'credit',    label: 'Kredit Card',  icon: CreditCard,      colorClass: 'text-primary bg-primary-soft border-primary/20'  },
+    { key: 'qris',      label: 'QRIS',         icon: Smartphone,      colorClass: 'text-warning bg-warning/10 border-warning/20'   },
 ] as const;
 
 type MethodKey = typeof PAYMENT_METHODS[number]['key'];
@@ -229,7 +231,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
             const saleId = await createSale(input);
             onSuccess(saleId, print);
         } catch (e) {
-            alert('Pembayaran gagal: ' + e);
+            toast.error('Pembayaran gagal: ' + e);
         } finally {
             setLoading(false);
         }
@@ -250,7 +252,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                         
                         {/* Payment Methods Grid Selector */}
                         <div>
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-3">Metode Pembayaran</label>
+                            <label className="text-xs font-bold text-dim uppercase tracking-wider block mb-3">Metode Pembayaran</label>
                             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                 {PAYMENT_METHODS.map((method) => {
                                     const Icon = method.icon;
@@ -260,10 +262,10 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                         <button
                                             key={method.key}
                                             onClick={() => handleSelectMethod(method.key)}
-                                            className={`relative p-3.5 rounded-2xl flex flex-col items-center justify-center gap-2 border transition-all text-center group cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand ${
+                                            className={`relative p-3.5 rounded-xl flex flex-col items-center justify-center gap-2 border transition-all text-center group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary ${
                                                 isActive 
-                                                    ? 'bg-brand/10 border-brand text-brand shadow-sm shadow-brand/10' 
-                                                    : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
+                                                    ? 'bg-primary-soft border-primary text-primary shadow-sm shadow-primary/10' 
+                                                    : 'bg-muted/40 border-line hover:border-line-strong dark:hover:border-line-strong text-body hover:text-heading dark:hover:text-white'
                                             }`}
                                         >
                                             <div className={`p-2.5 rounded-xl transition-colors ${method.colorClass}`}>
@@ -273,8 +275,8 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                             
                                             {/* Badge indicating this method has an entered amount */}
                                             {hasValue && !isActive && (
-                                                <div className="absolute top-2 right-2 text-emerald-500 dark:text-emerald-400">
-                                                    <CheckCircle2 size={14} className="fill-emerald-500/10" />
+                                                <div className="absolute top-2 right-2 text-success dark:text-success">
+                                                    <CheckCircle2 size={14} className="fill-success/10" />
                                                 </div>
                                             )}
                                         </button>
@@ -284,21 +286,21 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                         </div>
 
                         {/* Input Field for Active Method */}
-                        <div className="bg-slate-50/50 dark:bg-slate-900/35 border border-slate-100 dark:border-slate-800/80 rounded-3xl p-5 space-y-4">
+                        <div className="bg-muted/50 dark:bg-card/35 border border-line rounded-xl p-5 space-y-4">
                             <div className="flex items-center justify-between">
-                                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                <span className="text-sm font-bold text-heading">
                                     Jumlah ({PAYMENT_METHODS.find(m => m.key === activeMethod)?.label})
                                 </span>
                                 <button
                                     onClick={handleClear}
-                                    className="text-xs font-bold text-rose-500 dark:text-rose-400 hover:underline focus:outline-none focus:ring-2 focus:ring-rose-500 rounded px-1"
+                                    className="text-xs font-bold text-danger dark:text-danger hover:underline focus:outline-none focus:ring-2 focus:ring-danger rounded px-1"
                                 >
                                     Clear
                                 </button>
                             </div>
 
                             <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-lg font-bold">Rp</span>
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-dim text-lg font-bold">Rp</span>
                                 <input
                                     ref={amountInputRef}
                                     type="text"
@@ -315,47 +317,47 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                         }
                                     }}
                                     placeholder="0"
-                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl text-xl font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-brand focus:border-brand outline-none text-right shadow-inner font-mono"
+                                    className="w-full pl-12 pr-4 py-3 bg-card border border-line rounded-xl text-xl font-black text-heading focus:ring-2 focus:ring-primary focus:border-primary outline-none text-right shadow-inner font-mono"
                                 />
                             </div>
 
                             {/* Bank Selection dropdown if applicable */}
                             {['transfer', 'debit', 'credit'].includes(activeMethod) && (
-                                <div className="space-y-2 pt-2 animate-in slide-in-from-top-2 duration-200">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">Pilih Rekening Bank</label>
-                                    <select
+                                <div className="space-y-2 pt-2 animate-fade-in slide-in-from-top-2 duration-200">
+                                    <label className="text-xs font-bold text-dim">Pilih Rekening Bank</label>
+                                    <Select
                                         value={bankIds[activeMethod] || ''}
-                                        onChange={e => setBankIds(prev => ({ ...prev, [activeMethod]: e.target.value }))}
-                                        className="w-full bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-brand focus:border-brand outline-none shadow-sm"
+                                        onChange={v => setBankIds(prev => ({ ...prev, [activeMethod]: v }))}
+                                        className="w-full bg-card border border-line rounded-xl px-4 py-2.5 text-sm font-semibold text-heading focus:ring-2 focus:ring-primary focus:border-primary outline-none shadow-sm"
                                     >
                                         <option value="">-- Pilih Bank --</option>
                                         {banks.map(b => (
                                             <option key={b.id} value={b.id}>{b.code} — {b.name}</option>
                                         ))}
-                                    </select>
+                                    </Select>
                                 </div>
                             )}
 
                             {/* Quick Cash Buttons (Only for Tunai/Cash) */}
                             {activeMethod === 'cash' && (
                                 <div className="space-y-2 pt-2">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Bantuan Uang Tunai</label>
+                                    <label className="text-xs font-bold text-dim uppercase tracking-wider">Bantuan Uang Tunai</label>
                                     <div className="grid grid-cols-3 gap-2">
                                         <button
                                             onClick={handleExact}
-                                            className="py-2.5 bg-brand/5 dark:bg-brand/10 hover:bg-brand/10 dark:hover:bg-brand/20 text-brand font-bold text-xs rounded-xl border border-brand/10 transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
+                                            className="py-2.5 bg-primary-soft dark:bg-primary-soft hover:bg-primary-soft dark:hover:bg-primary-soft text-primary font-bold text-xs rounded-xl border border-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                         >
                                             Uang Pas
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(50000, 'set')}
-                                            className="py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
+                                            className="py-2.5 bg-muted hover:bg-line dark:hover:bg-line-strong text-heading font-bold text-xs rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                         >
                                             Rp 50.000
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(100000, 'set')}
-                                            className="py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
+                                            className="py-2.5 bg-muted hover:bg-line dark:hover:bg-line-strong text-heading font-bold text-xs rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                         >
                                             Rp 100.000
                                         </button>
@@ -363,25 +365,25 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                     <div className="grid grid-cols-4 gap-2">
                                         <button
                                             onClick={() => handleQuickCash(10000, 'add')}
-                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
+                                            className="py-2 bg-muted/70 dark:bg-muted/60 hover:bg-line dark:hover:bg-line-strong text-body font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                         >
                                             +10.000
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(20000, 'add')}
-                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
+                                            className="py-2 bg-muted/70 dark:bg-muted/60 hover:bg-line dark:hover:bg-line-strong text-body font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                         >
                                             +20.000
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(50000, 'add')}
-                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
+                                            className="py-2 bg-muted/70 dark:bg-muted/60 hover:bg-line dark:hover:bg-line-strong text-body font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                         >
                                             +50.000
                                         </button>
                                         <button
                                             onClick={() => handleQuickCash(100000, 'add')}
-                                            className="py-2 bg-slate-100/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand"
+                                            className="py-2 bg-muted/70 dark:bg-muted/60 hover:bg-line dark:hover:bg-line-strong text-body font-semibold text-xs rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                         >
                                             +100.000
                                         </button>
@@ -392,18 +394,18 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
 
                         {/* Split Tender Overview (Summary of entered payments) */}
                         {PAYMENT_METHODS.some(m => parseFloat(amounts[m.key]) > 0 && m.key !== activeMethod) && (
-                            <div className="border border-slate-100 dark:border-slate-800 rounded-3xl p-5 space-y-3">
-                                <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Rincian Split Payment</span>
+                            <div className="border border-line rounded-xl p-5 space-y-3">
+                                <span className="text-xs font-bold text-dim uppercase tracking-wider block">Rincian Split Payment</span>
                                 <div className="space-y-2">
                                     {PAYMENT_METHODS.map(m => {
                                         const amount = parseFloat(amounts[m.key]) || 0;
                                         if (amount === 0) return null;
                                         return (
                                             <div key={m.key} className="flex justify-between items-center text-sm">
-                                                <span className="font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                                                    <span className="w-2 h-2 rounded-full bg-slate-400"></span> {m.label}
+                                                <span className="font-semibold text-body flex items-center gap-1.5">
+                                                    <span className="w-2 h-2 rounded-full bg-dim"></span> {m.label}
                                                 </span>
-                                                <span className="font-bold text-slate-900 dark:text-white">Rp {amount.toLocaleString('id-ID')}</span>
+                                                <span className="font-bold text-heading">Rp {amount.toLocaleString('id-ID')}</span>
                                             </div>
                                         );
                                     })}
@@ -412,39 +414,39 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                         )}
 
                         {/* Voucher Section */}
-                        <div className="bg-slate-50/30 dark:bg-slate-900/10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-                            <div className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg">
+                        <div className="bg-muted/30 dark:bg-card/10 border border-dashed border-line rounded-xl p-4 flex items-center gap-3">
+                            <div className="p-2 bg-muted text-dim rounded-lg">
                                 <Ticket size={18} />
                             </div>
                             <div className="flex-1">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Kode Voucher / Promo</p>
+                                <p className="text-[10px] font-bold text-dim uppercase tracking-wider mb-0.5">Kode Voucher / Promo</p>
                                 <input
                                     type="text"
                                     value={voucher}
                                     onChange={e => setVoucher(e.target.value.toUpperCase())}
                                     placeholder="Masukkan kode voucher..."
-                                    className="w-full bg-transparent border-none outline-none text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-0 p-0"
+                                    className="w-full bg-transparent border-none outline-none text-sm font-semibold text-heading placeholder:text-dim dark:placeholder:text-dim focus:ring-0 p-0"
                                 />
                             </div>
                         </div>
 
                         {/* Manual Discount Input */}
-                        <div className="bg-rose-50/40 dark:bg-rose-900/10 border border-dashed border-rose-200 dark:border-rose-800/50 rounded-2xl p-4 flex items-center gap-3">
-                            <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-500 rounded-lg">
+                        <div className="bg-danger-soft/40 dark:bg-danger/10 border border-dashed border-danger/30 dark:border-danger/50 rounded-xl p-4 flex items-center gap-3">
+                            <div className="p-2 bg-danger-soft dark:bg-danger/30 text-danger rounded-lg">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/><circle cx="9" cy="9" r="2"/><circle cx="15" cy="15" r="2"/></svg>
                             </div>
                             <div className="flex-1">
-                                <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-0.5">Diskon Manual</p>
+                                <p className="text-[10px] font-bold text-danger uppercase tracking-wider mb-0.5">Diskon Manual</p>
                                 <input
                                     type="text"
                                     value={manualDiscountStr}
                                     onChange={e => setManualDiscountStr(e.target.value)}
                                     placeholder="Rp nominal atau 10% (persen)..."
-                                    className="w-full bg-transparent border-none outline-none text-sm font-semibold text-rose-700 dark:text-rose-300 placeholder-rose-300 dark:placeholder-rose-700 focus:ring-0 p-0"
+                                    className="w-full bg-transparent border-none outline-none text-sm font-semibold text-danger dark:text-danger placeholder-danger dark:placeholder-danger focus:ring-0 p-0"
                                 />
                             </div>
                             {manualDiscountAmt > 0 && (
-                                <span className="text-xs font-extrabold text-rose-500 bg-rose-100 dark:bg-rose-900/40 px-2 py-1 rounded-lg whitespace-nowrap">
+                                <span className="text-xs font-extrabold text-danger bg-danger-soft dark:bg-danger/40 px-2 py-1 rounded-lg whitespace-nowrap">
                                     - Rp {manualDiscountAmt.toLocaleString('id-ID')}
                                 </span>
                             )}
@@ -456,16 +458,16 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                     <div className="md:col-span-5 flex flex-col space-y-5">
                         
                         {/* Summary Sticky/Visual Card */}
-                        <div className="bg-gradient-to-br from-slate-800 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 space-y-5 shadow-xl shadow-indigo-900/30 relative overflow-hidden border border-indigo-800/30 dark:border-slate-700/50">
+                        <div className="bg-card rounded-xl p-6 space-y-5 shadow-sm relative overflow-hidden border border-line">
                             
-                            {/* Abstract gradient backdrop */}
-                            <div className="absolute top-0 right-0 w-48 h-48 bg-brand opacity-25 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                            
+                            
                             
                             <div className="space-y-4 relative z-10">
                                 <div>
-                                    <p className="text-xs font-extrabold tracking-widest text-indigo-200 uppercase mb-2">Total Tagihan</p>
-                                    <div className="relative flex items-center bg-white/15 rounded-2xl border border-white/20 px-4 py-3 focus-within:ring-2 focus-within:ring-white/40 focus-within:border-white/40 shadow-inner transition-all">
-                                        <span className="text-xl font-extrabold text-indigo-200 mr-2">Rp</span>
+                                    <p className="text-xs font-extrabold tracking-widest text-dim uppercase mb-2">Total Tagihan</p>
+                                    <div className="relative flex items-center bg-muted rounded-xl border border-line px-4 py-3 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary transition-colors">
+                                        <span className="text-xl font-extrabold text-dim mr-2">Rp</span>
                                         <input
                                             type="text"
                                             value={adjustedTotalStr}
@@ -477,67 +479,67 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                                     evaluateTotal();
                                                 }
                                             }}
-                                            className="w-full bg-transparent border-none outline-none text-3xl sm:text-4xl font-black text-white focus:ring-0 p-0 text-right font-mono tracking-tight"
+                                            className="w-full bg-transparent border-none outline-none text-3xl sm:text-4xl font-black text-heading focus:ring-0 p-0 text-right font-mono tracking-tight"
                                         />
                                     </div>
                                 </div>
                                 
-                                <div className="h-px bg-slate-800/80"></div>
+                                <div className="h-px bg-muted/80"></div>
 
                                 {/* Discount Breakdown */}
                                 {(discountAmount > 0 || manualDiscountAmt > 0) && (
                                     <div className="space-y-1.5">
                                         {discountAmount > 0 && (
                                             <div className="flex justify-between items-center">
-                                                <span className="text-xs text-slate-300">Diskon Promo{voucher ? ` (${voucher})` : ''}</span>
-                                                <span className="text-xs font-bold text-rose-400">- Rp {discountAmount.toLocaleString('id-ID')}</span>
+                                                <span className="text-xs text-dim">Diskon Promo{voucher ? ` (${voucher})` : ''}</span>
+                                                <span className="text-xs font-bold text-danger">- Rp {discountAmount.toLocaleString('id-ID')}</span>
                                             </div>
                                         )}
                                         {manualDiscountAmt > 0 && (
                                             <div className="flex justify-between items-center">
-                                                <span className="text-xs text-slate-300">Diskon Manual</span>
-                                                <span className="text-xs font-bold text-rose-400">- Rp {manualDiscountAmt.toLocaleString('id-ID')}</span>
+                                                <span className="text-xs text-dim">Diskon Manual</span>
+                                                <span className="text-xs font-bold text-danger">- Rp {manualDiscountAmt.toLocaleString('id-ID')}</span>
                                             </div>
                                         )}
-                                        <div className="flex justify-between items-center border-t border-white/10 pt-1.5">
-                                            <span className="text-xs font-bold text-white">Total Setelah Diskon</span>
-                                            <span className="text-base font-extrabold text-white font-mono">Rp {netTotal.toLocaleString('id-ID')}</span>
+                                        <div className="flex justify-between items-center border-t border-line pt-1.5">
+                                            <span className="text-xs font-bold text-heading">Total Setelah Diskon</span>
+                                            <span className="text-base font-extrabold text-heading font-mono">Rp {netTotal.toLocaleString('id-ID')}</span>
                                         </div>
                                     </div>
                                 )}
 
                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs font-semibold text-slate-300">Total Pembayaran</span>
-                                    <span className="text-base font-bold text-slate-100 font-mono">Rp {totalBayar.toLocaleString('id-ID')}</span>
+                                    <span className="text-xs font-semibold text-dim">Total Pembayaran</span>
+                                    <span className="text-base font-bold text-heading font-mono">Rp {totalBayar.toLocaleString('id-ID')}</span>
                                 </div>
 
                                 {kembali > 0 ? (
                                     <div className="flex justify-between items-center pt-2">
-                                        <span className="text-xs font-bold text-emerald-400">Uang Kembalian</span>
-                                        <span className="text-2xl font-extrabold text-emerald-400 font-mono">Rp {kembali.toLocaleString('id-ID')}</span>
+                                        <span className="text-xs font-bold text-success">Uang Kembalian</span>
+                                        <span className="text-2xl font-extrabold text-success font-mono">Rp {kembali.toLocaleString('id-ID')}</span>
                                     </div>
                                 ) : totalBayar > 0 && totalBayar < netTotal ? (
                                     <div className="flex justify-between items-center pt-2">
-                                        <span className="text-xs font-bold text-rose-400">Kekurangan</span>
-                                        <span className="text-2xl font-extrabold text-rose-400 font-mono">Rp {(netTotal - totalBayar).toLocaleString('id-ID')}</span>
+                                        <span className="text-xs font-bold text-danger">Kekurangan</span>
+                                        <span className="text-2xl font-extrabold text-danger font-mono">Rp {(netTotal - totalBayar).toLocaleString('id-ID')}</span>
                                     </div>
                                 ) : (
                                     <div className="flex justify-between items-center pt-2">
-                                        <span className="text-xs font-bold text-amber-400">Status</span>
-                                        <span className="text-xs font-bold bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full border border-amber-500/20">Belum Lunas</span>
+                                        <span className="text-xs font-bold text-warning">Status</span>
+                                        <span className="text-xs font-bold bg-warning/20 text-warning px-3 py-1 rounded-full border border-warning/20">Belum Lunas</span>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {/* Rincian Item Dibeli Container */}
-                        <div className="bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-4 space-y-3 shadow-sm">
-                            <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-2.5">
-                                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-xs uppercase tracking-wider">
-                                    <ShoppingBag size={15} className="text-brand" />
+                        <div className="bg-muted/80 dark:bg-card/50 border border-line rounded-xl p-4 space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between border-b border-line pb-2.5">
+                                <div className="flex items-center gap-2 text-heading font-bold text-xs uppercase tracking-wider">
+                                    <ShoppingBag size={15} className="text-primary" />
                                     <span>Item Dibeli ({cart.reduce((s, i) => s + i.qty, 0)})</span>
                                 </div>
-                                <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                                <span className="text-[11px] font-semibold text-dim">
                                     {cart.length} Jenis Produk
                                 </span>
                             </div>
@@ -546,26 +548,26 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                 {cart.map((item, idx) => {
                                     const lineSubtotal = item.qty * item.price - (item.discount_amount || 0);
                                     return (
-                                        <div key={idx} className="flex items-center justify-between text-xs py-2 px-3 rounded-2xl bg-white/70 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/60 hover:border-slate-200 dark:hover:border-slate-700/60 transition-colors">
+                                        <div key={idx} className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-card/70 dark:bg-input/40 border border-line/60 hover:border-line dark:hover:border-line transition-colors">
                                             <div className="min-w-0 flex-1 pr-3">
-                                                <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                                <p className="font-semibold text-heading truncate">
                                                     {item.item_name}
                                                     {item.is_bogo_free && (
-                                                        <span className="ml-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 font-bold px-1.5 py-0.5 rounded">
+                                                        <span className="ml-1.5 text-[10px] bg-success/10 text-success font-bold px-1.5 py-0.5 rounded">
                                                             FREE
                                                         </span>
                                                     )}
                                                 </p>
-                                                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
+                                                <p className="text-[11px] text-dim font-mono mt-0.5">
                                                     {item.qty} {item.unit_name} × Rp {item.price.toLocaleString('id-ID')}
                                                 </p>
                                             </div>
                                             <div className="text-right shrink-0">
-                                                <span className="font-bold text-slate-900 dark:text-white font-mono text-xs">
+                                                <span className="font-bold text-heading font-mono text-xs">
                                                     Rp {lineSubtotal.toLocaleString('id-ID')}
                                                 </span>
                                                 {item.discount_amount > 0 && (
-                                                    <p className="text-[10px] text-rose-500 font-mono">
+                                                    <p className="text-[10px] text-danger font-mono">
                                                         -Rp {item.discount_amount.toLocaleString('id-ID')}
                                                     </p>
                                                 )}
@@ -581,7 +583,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                             <button
                                 onClick={() => handlePay(true)}
                                 disabled={!isReady || loading}
-                                className="w-full py-3.5 bg-brand hover:bg-blue-600 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold shadow-lg shadow-brand/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand dark:focus:ring-offset-[#0B0F19]"
+                                className="w-full py-3.5 bg-primary hover:bg-primary-hover text-white disabled:bg-line dark:disabled:bg-muted disabled:text-dim dark:disabled:text-body rounded-xl text-sm font-bold shadow-sm shadow-primary/25 transition-colors active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary "
                             >
                                 {loading ? <Loader2 size={18} className="animate-spin" /> : null}
                                 <span>{loading ? 'Memproses...' : 'Simpan & Cetak (c+End)'}</span>
@@ -590,14 +592,14 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                             <button
                                 onClick={() => handlePay(false)}
                                 disabled={!isReady || loading}
-                                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 rounded-2xl text-sm font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-800 dark:focus:ring-offset-[#0B0F19]"
+                                className="w-full py-3 bg-muted hover:bg-line-strong text-heading disabled:bg-line dark:disabled:bg-muted disabled:text-dim dark:disabled:text-body rounded-xl text-sm font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-line-strong "
                             >
                                 Simpan Transaksi (End)
                             </button>
 
                             <button
                                 onClick={onClose}
-                                className="w-full py-2.5 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                className="w-full py-2.5 border border-line rounded-xl text-xs font-bold text-dim hover:text-heading dark:hover:text-white hover:bg-muted transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-dim"
                             >
                                 Batal (ESC)
                             </button>

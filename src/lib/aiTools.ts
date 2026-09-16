@@ -112,12 +112,12 @@ export const aiTools = [
     type: 'function',
     function: {
       name: 'get_sales_summary',
-      description: 'Get a summary of sales between two dates.',
+      description: 'Get a summary of sales between two dates. Returns total revenue, transaction count, discount, cogs, and gross profit. For queries about today or current period, use the current ISO date for both date_from and date_to.',
       parameters: {
         type: 'object',
         properties: {
-          date_from: { type: 'string', description: 'YYYY-MM-DD' },
-          date_to: { type: 'string', description: 'YYYY-MM-DD' }
+          date_from: { type: 'string', description: 'Start date in YYYY-MM-DD format (e.g. today\'s date)' },
+          date_to: { type: 'string', description: 'End date in YYYY-MM-DD format (e.g. today\'s date)' }
         },
         required: ['date_from', 'date_to']
       }

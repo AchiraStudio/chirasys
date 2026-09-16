@@ -145,36 +145,41 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500 h-full">
-      <div className="flex justify-between items-end">
+    <div className="flex flex-col gap-4 animate-in fade-in duration-500 h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Obat & Barang</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Kelola katalog produk Anda. Total data: {total}</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Katalog Produk</h1>
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-mono font-bold border border-slate-200 dark:border-slate-700">
+              {total} produk
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Kelola data obat, barang, harga jual, dan stok.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {can('reports.export') && (
             <button 
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-xl transition-all font-semibold text-sm border border-emerald-200 dark:border-emerald-500/20 active:scale-[0.98]">
-              <Download size={18} /> Ekspor
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-lg transition-all font-semibold text-xs border border-emerald-200 dark:border-emerald-500/20 active:scale-[0.98] cursor-pointer">
+              <Download size={14} /> Ekspor
             </button>
           )}
           {can('items.create') && (
             <button 
               onClick={handleImport}
               disabled={isImporting}
-              className="tour-inv-import flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-xl transition-all font-semibold text-sm disabled:opacity-50 border border-indigo-200 dark:border-indigo-500/20 active:scale-[0.98]">
-              {isImporting ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
+              className="tour-inv-import flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-lg transition-all font-semibold text-xs disabled:opacity-50 border border-indigo-200 dark:border-indigo-500/20 active:scale-[0.98] cursor-pointer">
+              {isImporting ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
               {isImporting ? 'Mengimpor...' : 'Impor'}
             </button>
           )}
           {can('items.create') && (
-            <button onClick={onAddItem} className="tour-inv-add flex items-center gap-2 bg-brand hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-brand/20 active:scale-[0.98]">
-              <Plus size={18} /> Tambah Item
+            <button onClick={onAddItem} className="tour-inv-add flex items-center gap-1.5 bg-brand hover:bg-blue-600 text-white px-3.5 py-1.5 rounded-lg font-semibold text-xs transition-all shadow-xs active:scale-[0.98] cursor-pointer">
+              <Plus size={15} /> Tambah Item
             </button>
           )}
-          <button onClick={() => setRunTour(true)} className="p-2.5 text-slate-500 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors" title="Bantuan & Panduan">
-            <HelpCircle size={20} />
+          <button onClick={() => setRunTour(true)} className="p-1.5 text-slate-500 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors cursor-pointer" title="Bantuan & Panduan">
+            <HelpCircle size={16} />
           </button>
         </div>
       </div>
