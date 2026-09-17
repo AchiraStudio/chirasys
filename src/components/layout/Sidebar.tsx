@@ -234,7 +234,6 @@ function SidebarBrand({
         <div className="ml-3 min-w-0">
           <div className="flex items-center gap-1.5">
             <h1 className="text-sm leading-tight text-heading font-semibold truncate">{companyName}</h1>
-            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-primary-soft text-primary rounded-md">v1.3</span>
           </div>
           <p className="text-[11px] font-medium text-dim uppercase tracking-wider mt-0.5 truncate">{branchName}</p>
         </div>

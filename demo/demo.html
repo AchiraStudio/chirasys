@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kivo — Offline-First POS &amp; ERP</title>
+<meta name="description" content="Kivo is a modern offline-first POS and ERP platform for retail, pharmacy, wholesale, and F&B businesses.">
+<meta property="og:title" content="Kivo — Offline-First POS &amp; ERP">
+<meta property="og:description" content="Run your business. Even when the internet doesn't.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%23CB3CFF'/%3E%3Cpath d='M13.5 11.5h5.6v25h-5.6z' fill='%23fff'/%3E%3Cpath d='M23.5 24 33.6 11.5h6.9L30 24z' fill='%23fff'/%3E%3Cpath d='M23.5 24H30l10.5 12.5h-6.9z' fill='%2300C2FF'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --bg:#081028; --card:#0B1739; --elevated:#111C44; --input:#111C44; --muted:#111C44; --muted-h:#1A2753;
+  --line:#1E2A4A; --line-strong:#2A3860;
+  --heading:#FFFFFF; --body:#A3B1D6; --dim:#6B7A99;
+  --primary:#CB3CFF; --primary-hover:#B428F0; --primary-soft:#2B1252;
+  --accent:#00C2FF; --accent-soft:#0D2C4D;
+  --success:#14CA7A; --warning:#FFB547; --danger:#FF5A65; --info:#40A8F5;
+  --shadow:0 24px 60px -24px rgba(3,7,22,.8);
+  --glow-p:rgba(203,60,255,.16); --glow-c:rgba(0,194,255,.10);
+  --r-btn:9px; --r-card:14px; --r-app:18px;
+}
+[data-theme="light"]{
+  --bg:#F4F6FB; --card:#FFFFFF; --elevated:#FFFFFF; --input:#FFFFFF; --muted:#EEF0F8; --muted-h:#E3E6F1;
+  --line:#E2E6F0; --line-strong:#D3D9E8;
+  --heading:#171C3A; --body:#4D5674; --dim:#8A94B0;
+  --primary:#A21FD0; --primary-hover:#8F19B8; --primary-soft:#F6E9FB;
+  --accent:#0090C8; --accent-soft:#E3F4FB;
+  --success:#0E9E63; --warning:#C77E1A; --danger:#DE3844; --info:#2A7FD4;
+  --shadow:0 18px 44px -22px rgba(23,28,58,.18);
+  --glow-p:rgba(162,31,208,.07); --glow-c:rgba(0,144,200,.06);
+}
+/* ============ BASE ============ */
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:92px}
+[data-theme="dark"]{color-scheme:dark}[data-theme="light"]{color-scheme:light}
+body{background:var(--bg);color:var(--body);font:500 15.5px/1.65 'Manrope',ui-sans-serif,system-ui,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{color:var(--heading);font-weight:800;letter-spacing:-.02em;line-height:1.15}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+img,svg{display:block}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+::selection{background:var(--primary-soft);color:var(--heading)}
+.skip{position:fixed;top:-60px;left:16px;z-index:99;background:var(--primary);color:#fff;padding:8px 16px;border-radius:8px;font-weight:700;transition:top .2s}
+.skip:focus{top:16px}
+.wrap{max-width:1160px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+.section{padding:100px 0;scroll-margin-top:70px;position:relative}
+.tint{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--card) 18%,var(--bg)),color-mix(in srgb,var(--card) 5%,var(--bg)))}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+/* section headers */
+.eyebrow{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+.eyebrow .eb-dot{width:6px;height:6px;border-radius:2px;background:var(--accent)}
+.eyebrow.ep .eb-dot,.eyebrow.ep{color:var(--primary)}.eyebrow.ep .eb-dot{background:var(--primary)}
+.h2{font-size:clamp(27px,3.6vw,40px);letter-spacing:-.025em;margin-bottom:14px;max-width:22ch}
+.lead{font-size:16.5px;max-width:60ch}
+.sec-head{margin-bottom:46px}
+.sec-head.center{text-align:center;display:flex;flex-direction:column;align-items:center}
+.sec-head.center .h2{max-width:24ch}
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 20px;border-radius:var(--r-btn);
+  font-weight:700;font-size:14.5px;transition:transform .16s ease,background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease;white-space:nowrap}
+.btn svg{width:16px;height:16px}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:0 8px 22px -8px color-mix(in srgb,var(--primary) 55%,transparent)}
+.btn-secondary{background:var(--muted);border:1px solid var(--line-strong);color:var(--heading)}
+.btn-secondary:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line-strong));transform:translateY(-1px)}
+.btn-ghost{color:var(--dim);padding:0 14px}
+.btn-ghost:hover{color:var(--heading)}
+.btn-sm{height:34px;padding:0 14px;font-size:13px}
+.btn.ok{background:var(--success);color:#04120b}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;color:var(--dim);border:1px solid transparent;transition:.16s}
+.icon-btn:hover{color:var(--heading);background:var(--muted);border-color:var(--line)}
+.icon-btn svg{width:17px;height:17px}
+/* pills & chips */
+.pill{display:inline-flex;align-items:center;gap:7px;height:27px;padding:0 12px;border-radius:999px;border:1px solid var(--line);
+  background:color-mix(in srgb,var(--card) 65%,transparent);font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--body)}
+.dot{width:6px;height:6px;border-radius:50%;flex:none}
+.dot.g{background:var(--success)}.dot.c{background:var(--accent)}.dot.p{background:var(--primary)}.dot.w{background:var(--warning)}.dot.i{background:var(--info)}.dot.d{background:var(--dim)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--muted);
+  font-size:12px;font-weight:700;color:var(--body)}
+.chip svg{width:13px;height:13px;color:var(--dim)}
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:22px;box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.panel-title{font-size:13px;font-weight:800;color:var(--heading);letter-spacing:-.01em}
+.panel-sub{font-size:11px;color:var(--dim)}
+/* split layout */
+.split{display:grid;grid-template-columns:5fr 7fr;gap:56px;align-items:center}
+.split.rev{grid-template-columns:7fr 5fr}
+.blist{list-style:none;display:flex;flex-direction:column;gap:13px;margin-top:26px}
+.blist li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px}
+.blist svg{width:16px;height:16px;color:var(--accent);flex:none;margin-top:4px}
+.blist b{color:var(--heading);font-weight:700}
+/* ============ NAV ============ */
+.nav{position:sticky;top:14px;z-index:50;max-width:1200px;margin:14px auto 0;padding:0 16px}
+.nav-in{height:58px;display:flex;align-items:center;gap:6px;padding:0 10px 0 16px;border-radius:14px;
+  background:color-mix(in srgb,var(--bg) 74%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--line);box-shadow:0 10px 30px -18px rgba(3,7,22,.6)}
+.brand{display:flex;align-items:center;gap:10px;margin-right:14px}
+.kmark{width:26px;height:26px;border-radius:7px;flex:none}
+.brand span{font-size:17px;font-weight:800;color:var(--heading);letter-spacing:-.02em}
+.nav-links{display:flex;gap:2px;margin-right:auto}
+.nav-links a{padding:7px 13px;border-radius:8px;font-size:13.5px;font-weight:700;color:var(--body);transition:.15s}
+.nav-links a:hover{color:var(--heading);background:var(--muted)}
+.nav-links a.active{color:var(--heading);background:var(--muted)}
+.nav-cta{display:flex;align-items:center;gap:6px}
+.nav-burger{display:none}
+.nav-mobile{display:none;flex-direction:column;gap:2px;margin-top:8px;padding:10px;border-radius:14px;
+  background:var(--card);border:1px solid var(--line)}
+.nav-mobile a{padding:11px 14px;border-radius:9px;font-weight:700;font-size:14.5px;color:var(--body)}
+.nav-mobile a:hover{background:var(--muted);color:var(--heading)}
+.nav.open .nav-mobile{display:flex}
+/* ============ HERO ============ */
+.hero{padding:78px 0 96px;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-200px -20% auto;height:900px;pointer-events:none;
+  background:radial-gradient(620px 420px at 62% 12%,var(--glow-p),transparent 70%),radial-gradient(520px 380px at 30% 40%,var(--glow-c),transparent 72%)}
+.hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:46px 46px;
+  -webkit-mask-image:radial-gradient(720px 480px at 50% 6%,#000 30%,transparent 78%);mask-image:radial-gradient(720px 480px at 50% 6%,#000 30%,transparent 78%)}
+.hero-copy{text-align:center;display:flex;flex-direction:column;align-items:center;position:relative;z-index:1}
+.hero-badge{margin-bottom:26px}
+.hero-badge .kmark{width:15px;height:15px;border-radius:4px}
+.hero h1{font-size:clamp(38px,6vw,66px);line-height:1.05;letter-spacing:-.035em;max-width:15ch}
+.hero .lead{margin-top:22px;font-size:17.5px;max-width:56ch;text-align:center}
+.hero-cta{display:flex;gap:12px;margin-top:34px;flex-wrap:wrap;justify-content:center}
+.hero-signals{display:flex;gap:10px 26px;flex-wrap:wrap;justify-content:center;margin-top:38px}
+.sig{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:800;letter-spacing:.13em;color:var(--dim)}
+.hero-stage{margin-top:64px;position:relative;z-index:1}
+.stage-glow{position:absolute;inset:8% 12%;pointer-events:none;filter:blur(60px);
+  background:radial-gradient(50% 60% at 60% 40%,var(--glow-p),transparent 70%),radial-gradient(46% 55% at 30% 70%,var(--glow-c),transparent 72%)}
+.tour-tabs{display:flex;gap:6px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.tour-tab{height:30px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--dim);transition:.15s}
+.tour-tab:hover{color:var(--body);border-color:var(--line-strong)}
+.tour-tab.on{color:var(--heading);background:var(--primary-soft);border-color:color-mix(in srgb,var(--primary) 45%,var(--line))}
+.tour-hint{text-align:center;font-size:12px;color:var(--dim);margin-top:12px}
+/* ============ APP WINDOW ============ */
+.app{max-width:1020px;margin:0 auto;background:var(--card);border:1px solid var(--line-strong);border-radius:var(--r-app);
+  overflow:hidden;box-shadow:var(--shadow);position:relative}
+.app-bar{height:42px;display:flex;align-items:center;gap:9px;padding:0 14px;background:color-mix(in srgb,var(--elevated) 70%,var(--card));border-bottom:1px solid var(--line)}
+.app-bar .kmark{width:18px;height:18px;border-radius:5px}
+.app-name{font-size:13px;font-weight:800;color:var(--heading)}
+.app-ver{font-size:9.5px;font-weight:800;color:var(--dim);border:1px solid var(--line);border-radius:5px;padding:1px 6px;letter-spacing:.05em}
+.app-drag{flex:1;height:1px}
+.app-ctl{display:flex;gap:16px;color:var(--dim)}
+.app-ctl span{width:11px;height:11px;display:grid;place-items:center;font-size:11px}
+.app-ctl span:last-child:hover{color:var(--danger)}
+.app-flex{display:flex;min-height:540px}
+.app-side{width:192px;flex:none;border-right:1px solid var(--line);padding:12px 10px;display:flex;flex-direction:column;gap:2px;background:color-mix(in srgb,var(--bg) 35%,var(--card))}
+.side-label{font-size:9.5px;font-weight:800;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;padding:12px 10px 6px}
+.side-item{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border-radius:8px;font-size:13px;font-weight:700;color:var(--body);transition:.13s;text-align:left}
+.side-item svg{width:15px;height:15px;color:var(--dim);flex:none;transition:.13s}
+.side-item:hover{background:var(--muted);color:var(--heading)}
+.side-item.on{background:var(--primary-soft);color:var(--heading)}
+.side-item.on svg{color:var(--primary)}
+.side-item .ext{margin-left:auto;opacity:0;transition:.13s}
+.side-item:hover .ext{opacity:.7}
+.side-foot{margin-top:auto;display:flex;align-items:center;gap:9px;padding:10px;border-top:1px solid var(--line)}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}
+.side-foot b{font-size:12px;color:var(--heading);display:block;line-height:1.2}
+.side-foot small{font-size:10.5px;color:var(--dim)}
+.app-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.app-top{height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--line)}
+.top-search{flex:1;max-width:400px;height:32px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:8px;background:var(--input);border:1px solid var(--line);color:var(--dim);font-size:12.5px}
+.top-search svg{width:14px;height:14px}
+.top-search kbd{margin-left:auto;font:700 9.5px/1 ui-monospace,monospace;color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:3px 5px}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.top-pill{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border-radius:8px;border:1px solid var(--line);background:var(--input);font-size:12px;font-weight:700;color:var(--body);transition:.15s}
+.top-pill:hover{border-color:var(--line-strong)}
+.top-pill svg{width:13px;height:13px;color:var(--dim)}
+.sync-pill{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border-radius:999px;border:1px solid var(--line);font-size:11px;font-weight:800;color:var(--body);cursor:pointer;transition:.15s}
+.sync-pill:hover{border-color:var(--line-strong)}
+.app-views{padding:16px;flex:1}
+.app-view{display:none}
+.app-view.on{display:block;animation:viewIn .26s cubic-bezier(.2,.7,.3,1)}
+@keyframes viewIn{from{opacity:0;transform:translateX(22px)}to{opacity:1;transform:none}}
+.view-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.view-head h4{font-size:16px;letter-spacing:-.01em}
+.view-head .vh-sub{font-size:12px;color:var(--dim)}
+/* dashboard */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.stat{background:var(--input);border:1px solid var(--line);border-radius:11px;padding:13px 15px}
+.stat .s-l{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.stat .s-v{font-size:21px;font-weight:800;color:var(--heading);letter-spacing:-.02em;margin:3px 0 2px}
+.stat .s-d{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700}
+.s-d.up{color:var(--success)}.s-d.wn{color:var(--warning)}.s-d.ac{color:var(--accent)}
+.dash-cols{display:grid;grid-template-columns:7fr 5fr;gap:12px}
+.bars{width:100%;height:auto}
+.bars rect{fill:var(--line-strong);transform-origin:bottom;animation:bar .7s cubic-bezier(.2,.7,.3,1) backwards}
+.bars rect.last{fill:var(--primary)}
+@keyframes bar{from{transform:scaleY(0)}}
+/* tables */
+.k-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.k-table th{text-align:left;font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--dim);padding:6px 10px;border-bottom:1px solid var(--line)}
+.k-table td{padding:8px 10px;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent);color:var(--body);white-space:nowrap}
+.k-table tr:last-child td{border-bottom:0}
+.k-table td b{color:var(--heading);font-weight:700}
+.k-table tr.click{cursor:pointer;transition:.12s}
+.k-table tr.click:hover{background:var(--muted)}
+.k-table tr.sel{background:var(--primary-soft)}
+.mini-s{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700}
+/* POS */
+.pos-grid{display:grid;grid-template-columns:1fr 296px;gap:14px}
+.pos-search{height:36px;display:flex;align-items:center;gap:9px;padding:0 13px;border-radius:9px;background:var(--input);border:1px solid var(--line);color:var(--dim);font-size:13px;margin-bottom:10px}
+.pos-search svg{width:15px;height:15px}
+.cat-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.cat-tab{height:28px;padding:0 13px;border-radius:8px;border:1px solid var(--line);background:var(--input);font-size:12px;font-weight:700;color:var(--body);transition:.14s}
+.cat-tab.on{background:var(--primary-soft);color:var(--heading);border-color:color-mix(in srgb,var(--primary) 45%,var(--line))}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:8px}
+.prod{background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px 11px;text-align:left;transition:.14s}
+.prod:hover{border-color:color-mix(in srgb,var(--primary) 55%,var(--line-strong));transform:translateY(-2px)}
+.prod .p-n{font-size:11.5px;font-weight:700;color:var(--heading);line-height:1.3;min-height:30px}
+.prod .p-p{font-size:12px;font-weight:800;color:var(--primary);margin-top:4px}
+.prod .p-s{font-size:10px;color:var(--dim);margin-top:2px}
+.pos-cart{display:flex;flex-direction:column;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:14px}
+.cart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cart-head b{font-size:12.5px;color:var(--heading)}
+.cust-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:999px;padding:3px 10px;transition:.14s}
+.cust-pill:hover{background:var(--accent-soft)}
+.cart-lines{flex:1;display:flex;flex-direction:column;gap:2px;min-height:120px}
+.cline{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0;border-bottom:1px dashed color-mix(in srgb,var(--line) 70%,transparent)}
+.cline .cn{flex:1;color:var(--heading);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cline .cq{color:var(--dim);font-size:11.5px}
+.cline .cp{font-weight:700;color:var(--heading)}
+.cline button{color:var(--dim);display:grid;place-items:center;width:18px;height:18px;border-radius:5px}
+.cline button:hover{color:var(--danger);background:var(--muted)}
+.cline button svg{width:12px;height:12px}
+.cart-empty{color:var(--dim);font-size:12.5px;padding:24px 0;text-align:center}
+.cart-tot{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.trow{display:flex;justify-content:space-between;font-size:12.5px}
+.trow.big{font-size:16px;font-weight:800;color:var(--heading);padding-top:5px}
+.pay-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0 10px}
+.pay{height:30px;border-radius:8px;border:1px solid var(--line);background:var(--muted);font-size:10.5px;font-weight:800;letter-spacing:.04em;color:var(--body);transition:.13s}
+.pay.on{border-color:var(--primary);color:var(--heading);background:var(--primary-soft)}
+.btn.wide{width:100%}
+/* inventory view */
+.inv-grid{display:grid;grid-template-columns:7fr 5fr;gap:14px}
+.unit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.unit-chip{display:flex;flex-direction:column;gap:1px;border:1px solid var(--line);background:var(--muted);border-radius:9px;padding:7px 12px}
+.unit-chip b{font-size:12px;color:var(--heading);letter-spacing:.03em}
+.unit-chip span{font-size:10.5px;color:var(--dim)}
+.unit-arr{color:var(--dim);font-size:12px}
+.mv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:5px 0;border-bottom:1px dashed color-mix(in srgb,var(--line) 65%,transparent)}
+.mv:last-child{border:0}
+.mv .t{color:var(--dim);font-size:11px}
+.mv .in{color:var(--success);font-weight:700}.mv .out{color:var(--warning);font-weight:700}.mv .adj{color:var(--info);font-weight:700}
+/* accounting view */
+.acc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.jrow{display:grid;grid-template-columns:1fr 84px 84px;font-size:12px;padding:6px 0;border-bottom:1px dashed color-mix(in srgb,var(--line) 65%,transparent)}
+.jrow:last-child{border:0}
+.jrow.h td,.jrow.h{font-weight:800}
+.pl-row{display:grid;grid-template-columns:110px 1fr 96px;gap:10px;align-items:center;font-size:12.5px;padding:5px 0}
+.pl-bar{height:7px;border-radius:4px;background:var(--line);overflow:hidden}
+.pl-bar i{display:block;height:100%;border-radius:4px}
+.pl-row span:last-child{text-align:right;font-weight:700;color:var(--heading)}
+/* AI view */
+.msg{display:flex;gap:10px;margin-bottom:14px;max-width:92%}
+.msg .m-av{width:26px;height:26px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary)}
+.msg .m-av svg{width:14px;height:14px}
+.m-body{background:var(--input);border:1px solid var(--line);border-radius:4px 12px 12px 12px;padding:11px 14px;font-size:13px}
+.msg.user{margin-left:auto;flex-direction:row-reverse}
+.msg.user .m-body{background:var(--primary-soft);border-color:color-mix(in srgb,var(--primary) 35%,var(--line));border-radius:12px 4px 12px 12px;color:var(--heading);font-weight:600}
+.ai-table{margin-top:10px;border:1px solid var(--line);border-radius:9px;overflow:hidden;font-size:11.5px;border-collapse:collapse;width:100%}
+.ai-table th{background:var(--muted);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:6px 10px;text-align:left}
+.ai-table td{padding:6px 10px;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent);color:var(--body)}
+.ai-table td b{color:var(--heading)}
+/* ============ ECOSYSTEM DIAGRAM ============ */
+.eco-svg{max-width:780px;margin:0 auto;display:block}
+.eco-svg .e-line{stroke:var(--line-strong);stroke-width:1.5}
+.eco-node rect{fill:var(--card);stroke:var(--line-strong)}
+.eco-node text{fill:var(--heading);font:700 13px Manrope;letter-spacing:.02em}
+.eco-core rect{fill:var(--primary-soft);stroke:color-mix(in srgb,var(--primary) 55%,var(--line-strong))}
+.eco-label{fill:var(--dim);font:800 10px Manrope;letter-spacing:.16em}
+.eco-bar text{fill:var(--heading);font:800 13px Manrope;letter-spacing:.06em}
+.eco-list{display:none;grid-template-columns:repeat(2,1fr);gap:10px}
+/* ============ FEATURE GRID ============ */
+.fgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+.fcard{grid-column:span var(--sp,2);display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r-card);padding:22px;transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease;position:relative}
+.fcard:hover{border-color:var(--line-strong);transform:translateY(-3px);box-shadow:0 14px 34px -18px rgba(3,7,22,.7)}
+.fcard .f-ic{width:38px;height:38px;border-radius:10px;background:var(--muted);border:1px solid var(--line);display:grid;place-items:center;color:var(--primary)}
+.fcard .f-ic svg{width:18px;height:18px}
+.fcard h3{font-size:16.5px;letter-spacing:-.015em}
+.fcard p{font-size:13.5px;flex:1}
+.f-tag{font-size:9.5px;font-weight:800;letter-spacing:.13em;color:var(--dim);text-transform:uppercase}
+.f-frag{display:flex;gap:6px;flex-wrap:wrap}
+.f-frag .chip{height:24px;font-size:10.5px;padding:0 9px;background:var(--muted)}
+.f-go{position:absolute;top:18px;right:18px;color:var(--dim);opacity:0;transition:.16s}
+.fcard:hover .f-go{opacity:1;color:var(--accent)}
+.f-go svg{width:15px;height:15px}
+/* ============ STEPPERS ============ */
+.rail{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;position:relative;margin-bottom:22px}
+.rail::before{content:"";position:absolute;top:17px;left:calc(12.5% - 4px);right:calc(12.5% - 4px);height:2px;background:var(--line)}
+.rail .fill{position:absolute;top:17px;left:calc(12.5% - 4px);height:2px;background:var(--primary);width:0;transition:width .4s cubic-bezier(.2,.7,.3,1);max-width:87.5%}
+.rstep{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 4px}
+.rstep .rn{width:36px;height:36px;border-radius:50%;background:var(--card);border:2px solid var(--line-strong);display:grid;place-items:center;
+  font-size:12px;font-weight:800;color:var(--dim);transition:.18s}
+.rstep.done .rn{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+.rstep.cur .rn{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 0 0 5px color-mix(in srgb,var(--primary) 18%,transparent)}
+.rstep .rt{font-size:11.5px;font-weight:700;color:var(--dim);text-align:center;line-height:1.3}
+.rstep.cur .rt,.rstep.done .rt{color:var(--heading)}
+.day-detail{max-width:640px;margin:0 auto;text-align:center;padding:30px 28px}
+.day-detail .dd-ic{width:44px;height:44px;border-radius:12px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;margin:0 auto 14px}
+.day-detail .dd-ic svg{width:20px;height:20px}
+.day-detail h3{font-size:19px;margin-bottom:8px}
+.day-detail p{font-size:14.5px}
+.dd-anim{animation:ddIn .3s cubic-bezier(.2,.7,.3,1)}
+@keyframes ddIn{from{opacity:0;transform:translateY(10px)}}
+/* purchasing */
+.prail{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:20px}
+.prail::before{content:"";position:absolute}
+.pstage{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 4px;border-radius:11px;transition:.15s}
+.pstage .pn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line-strong);background:var(--card);display:grid;place-items:center;color:var(--dim);transition:.15s}
+.pstage .pn svg{width:15px;height:15px}
+.pstage .pt{font-size:11.5px;font-weight:700;color:var(--dim);text-align:center}
+.pstage:hover{background:var(--muted)}
+.pstage.on .pn{background:var(--primary);border-color:var(--primary);color:#fff}
+.pstage.on .pt{color:var(--heading)}
+.p-detail{padding:24px;display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.p-detail h3{font-size:17px;margin-bottom:6px}
+.p-detail p{font-size:14px;max-width:52ch}
+.p-meta{margin-left:auto;align-self:center}
+/* ============ CLOUD NETWORK ============ */
+.cloudnet{position:relative;padding:30px 30px 22px;overflow:hidden}
+.cloudnet::before{content:"";position:absolute;inset:auto 10% 62%;height:60%;pointer-events:none;filter:blur(50px);background:radial-gradient(50% 60% at 50% 60%,var(--glow-c),transparent 70%)}
+#cloudSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#cloudSvg line{stroke:var(--line-strong);stroke-width:1.5}
+.cloud-node{position:relative;width:250px;margin:0 auto;text-align:center;padding:18px 20px;background:var(--input);border:1px solid var(--line-strong);border-radius:13px}
+.cloud-node .cn-ic{width:36px;height:36px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin:0 auto 8px}
+.cloud-node .cn-ic svg{width:17px;height:17px}
+.cloud-node b{font-size:14.5px;color:var(--heading);display:block}
+.cloud-node small{font-size:11px;color:var(--dim)}
+.branches{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:74px;position:relative}
+.branch{padding:15px 16px;background:var(--card);border:1px solid var(--line);border-radius:12px;transition:.16s}
+.branch:hover{border-color:var(--line-strong);transform:translateY(-2px)}
+.branch b{font-size:13.5px;color:var(--heading);display:block}
+.branch .b-city{font-size:11px;color:var(--dim)}
+.b-sales{font-size:18px;font-weight:800;color:var(--heading);letter-spacing:-.02em;margin:8px 0 2px}
+.b-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--dim)}
+.cn-foot{display:flex;align-items:center;gap:18px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);flex-wrap:wrap}
+.sync-status{display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 15px;border-radius:999px;border:1px solid var(--line-strong);background:var(--input);font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--heading);min-width:250px}
+.spin{width:13px;height:13px;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 30%,transparent);border-top-color:var(--accent);animation:sp 0.8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+.netlog{flex:1;min-width:240px;font:500 11px/1.9 ui-monospace,monospace;color:var(--dim);max-height:70px;overflow:hidden}
+.netlog .ok{color:var(--success)}
+.packet{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);z-index:2;pointer-events:none}
+/* ============ OFFLINE DEMO ============ */
+.offdemo{padding:26px;max-width:960px;margin:0 auto}
+.off-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:24px}
+.seg{display:inline-flex;padding:3px;border-radius:999px;border:1px solid var(--line-strong);background:var(--input);gap:3px}
+.seg button{height:30px;padding:0 16px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:.06em;color:var(--dim);display:inline-flex;align-items:center;gap:7px;transition:.15s}
+.seg button svg{width:13px;height:13px}
+.seg button.on{color:var(--heading)}
+.seg #segOn.on{background:color-mix(in srgb,var(--success) 20%,var(--input));color:var(--success)}
+.seg #segOff.on{background:color-mix(in srgb,var(--warning) 18%,var(--input));color:var(--warning)}
+.off-actions{margin-left:auto;display:flex;gap:8px}
+.off-flow{display:flex;align-items:center;gap:0;margin-bottom:22px}
+.fnode{flex:1;display:flex;align-items:center;gap:11px;padding:13px 15px;background:var(--input);border:1px solid var(--line);border-radius:12px;transition:.2s;position:relative;min-width:0}
+.fnode .fn-ic{width:36px;height:36px;border-radius:10px;background:var(--muted);border:1px solid var(--line);display:grid;place-items:center;color:var(--dim);flex:none;transition:.2s}
+.fnode .fn-ic svg{width:16px;height:16px}
+.fnode b{font-size:12.5px;color:var(--heading);display:block;line-height:1.25}
+.fnode small{font-size:10.5px;color:var(--dim);display:block}
+.fnode .badge{position:absolute;top:-9px;right:-7px;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:var(--warning);color:#231303;font-size:11px;font-weight:800;display:none;place-items:center;text-align:center}
+.fnode .badge.show{display:grid}
+.fnode.hot{border-color:color-mix(in srgb,var(--accent) 60%,var(--line-strong))}
+.fnode.hot .fn-ic{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.fnode.down{opacity:.45;filter:saturate(.4)}
+.farrow{width:34px;flex:none;height:2px;background:var(--line-strong);position:relative}
+.farrow::after{content:"";position:absolute;right:-1px;top:-3px;border-left:6px solid var(--line-strong);border-top:4px solid transparent;border-bottom:4px solid transparent}
+.farrow.wire{background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--warning) 70%,transparent) 0 6px,transparent 6px 12px)}
+.farrow.wire::after{border-left-color:color-mix(in srgb,var(--warning) 70%,transparent)}
+.off-body{display:grid;grid-template-columns:1fr 1.35fr;gap:14px}
+.qbox{background:color-mix(in srgb,var(--bg) 72%,var(--card));border:1px solid var(--line);border-radius:11px;padding:14px;min-height:190px}
+.qbox h5,.logbox h5{font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;display:flex;justify-content:space-between}
+.qstack{display:flex;flex-direction:column;gap:6px}
+.qchip{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;font-weight:700;color:var(--heading);
+  background:color-mix(in srgb,var(--warning) 12%,var(--card));border:1px solid color-mix(in srgb,var(--warning) 35%,var(--line));border-radius:8px;padding:7px 11px;transition:.25s}
+.qchip small{color:var(--dim);font-weight:600}
+.qchip.out{opacity:0;transform:translateX(30px) scale(.9)}
+.qempty{color:var(--dim);font-size:12px;padding:14px 0;text-align:center}
+.logbox{background:color-mix(in srgb,var(--bg) 72%,var(--card));border:1px solid var(--line);border-radius:11px;padding:14px;font:500 11.5px/2 ui-monospace,monospace;max-height:190px;overflow:hidden}
+.log-line{display:flex;gap:10px;animation:ddIn .25s ease}
+.log-line span{color:var(--dim);flex:none}
+.log-line.ok{color:var(--success)}.log-line.wn{color:var(--warning)}.log-line.ac{color:var(--accent)}.log-line.dm{color:var(--body)}
+.off-stats{display:flex;gap:26px;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.off-stats div b{font-size:17px;color:var(--heading);display:block}
+.off-stats div small{font-size:11px;color:var(--dim)}
+/* ============ LAN ============ */
+.lanbus{padding:26px;text-align:center}
+.lan-server{width:250px;margin:0 auto;padding:14px;background:var(--input);border:1px solid var(--line-strong);border-radius:12px}
+.lan-server b{font-size:13px;color:var(--heading)}
+.lan-rail{width:2px;height:34px;background:var(--line-strong);margin:0 auto}
+.lan-line{height:2px;background:var(--line-strong);margin:0 11%;position:relative}
+.lan-line span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--input);border:1px solid var(--line);border-radius:999px;
+  padding:3px 14px;font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--accent);white-space:nowrap}
+.lan-terms{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 11%}
+.lan-drop{width:2px;height:30px;background:var(--line-strong);margin:0 auto}
+.lan-t{padding:13px;background:var(--card);border:1px solid var(--line);border-radius:11px}
+.lan-t b{font-size:12.5px;color:var(--heading);display:block}
+.lan-t small{font-size:10.5px;color:var(--dim)}
+/* ============ AI SECTION ============ */
+.ai-grid{display:grid;grid-template-columns:7fr 5fr;gap:22px;align-items:start}
+.ai-chat{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.ai-head{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--elevated) 55%,var(--card))}
+.ai-head .m-av{width:30px;height:30px}
+.ai-head b{font-size:14px;color:var(--heading);display:block;line-height:1.2}
+.ai-head small{font-size:10.5px;color:var(--dim)}
+.ai-head .pill{margin-left:auto}
+.ai-body{padding:18px;min-height:330px;max-height:420px;overflow-y:auto;display:flex;flex-direction:column}
+.ai-chips{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
+.qchip-btn{height:32px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--muted);font-size:12px;font-weight:700;color:var(--body);transition:.15s}
+.qchip-btn:hover:not(:disabled){border-color:color-mix(in srgb,var(--primary) 50%,var(--line));color:var(--heading);background:var(--primary-soft)}
+.qchip-btn:disabled{opacity:.45;cursor:default}
+.typing{display:inline-flex;gap:4px;padding:4px 2px}
+.typing i{width:5px;height:5px;border-radius:50%;background:var(--dim);animation:ty 1s infinite ease-in-out}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes ty{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+.tbl-in{animation:ddIn .35s ease}
+/* how-it-works mini flow */
+.hiw{display:flex;flex-direction:column;gap:0}
+.hiw-step{display:flex;gap:14px;position:relative;padding-bottom:22px}
+.hiw-step::before{content:"";position:absolute;left:15px;top:34px;bottom:0;width:2px;background:var(--line)}
+.hiw-step:last-child::before{display:none}
+.hiw-step .hs-ic{width:32px;height:32px;border-radius:9px;background:var(--muted);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent);flex:none;z-index:1}
+.hiw-step .hs-ic svg{width:14px;height:14px}
+.hiw-step b{font-size:13.5px;color:var(--heading);display:block}
+.hiw-step p{font-size:12.5px}
+/* ============ SECURITY ============ */
+.byok-diagram{display:flex;flex-direction:column;gap:0;align-items:center}
+.bk-node{width:100%;max-width:430px;text-align:center;padding:16px 20px;border-radius:12px;border:1px solid var(--line);background:var(--card);transition:.2s}
+.bk-node b{font-size:13.5px;color:var(--heading);display:block}
+.bk-node small{font-size:11.5px;color:var(--dim)}
+.bk-node.hl{border-color:var(--line-strong);background:var(--input)}
+.bk-link{width:2px;height:26px;background:var(--line-strong)}
+.bk-keys{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:2px 0}
+.bk-key{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;border:1px solid color-mix(in srgb,var(--primary) 35%,var(--line));background:var(--primary-soft);font-size:12px;font-weight:700;color:var(--heading)}
+.bk-key svg{width:13px;height:13px;color:var(--primary)}
+.bk-split{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:430px}
+.bk-split .bk-node{max-width:none}
+/* matrix */
+.matrix-wrap{overflow-x:auto}
+table.matrix{border-collapse:collapse;width:100%;min-width:640px;font-size:12.5px}
+.matrix th,.matrix td{padding:10px 12px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);text-align:center}
+.matrix th:first-child,.matrix td:first-child{text-align:left;color:var(--heading);font-weight:700;white-space:nowrap}
+.matrix thead th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.role-th{padding:6px 14px;border-radius:8px;font-weight:800;transition:.14s}
+.role-th:hover{background:var(--muted)}
+table.matrix[data-role="owner"] .col-owner,table.matrix[data-role="sysadmin"] .col-sysadmin,
+table.matrix[data-role="admin"] .col-admin,table.matrix[data-role="manager"] .col-manager,
+table.matrix[data-role="cashier"] .col-cashier,table.matrix[data-role="staff"] .col-staff{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.matrix .yes{color:var(--success)}.matrix .no{color:var(--dim);opacity:.6}
+.matrix .yes svg,.matrix .no svg{width:15px;height:15px;margin:0 auto}
+/* ============ HARDWARE / RECEIPT ============ */
+.hw-grid{display:grid;grid-template-columns:5fr 4fr;gap:56px;align-items:center}
+.receipt-wrap{display:flex;justify-content:center;padding:26px 0 34px;position:relative}
+.receipt{width:280px;background:#F8F7F2;color:#26241f;border-radius:6px 6px 0 0;padding:20px 18px 14px;
+  font:500 11px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 30px 60px -24px rgba(2,6,20,.65);position:relative}
+.receipt .rc{display:flex;justify-content:space-between;gap:8px}
+.receipt .rc.b{font-weight:700}
+.receipt .sep{border-top:1px dashed #a9a598;margin:8px 0}
+.receipt .ctr{text-align:center}
+.receipt .rc-code{height:34px;margin:10px auto 4px;width:72%;background:repeating-linear-gradient(90deg,#26241f 0 2px,transparent 2px 4px,#26241f 4px 5px,transparent 5px 9px)}
+.receipt-tear{width:280px;height:9px;background:linear-gradient(-45deg,transparent 6.5px,#F8F7F2 6.5px) 0 0/14px 14px repeat-x;filter:drop-shadow(0 12px 14px rgba(2,6,20,.3))}
+/* ============ ONBOARDING ============ */
+.onboard-rail{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;counter-reset:ob;margin-bottom:26px}
+.ostep{text-align:center;padding:18px 8px;border:1px solid var(--line);border-radius:12px;background:var(--card);transition:.16s}
+.ostep:hover{border-color:var(--line-strong);transform:translateY(-2px)}
+.ostep .on-n{width:30px;height:30px;margin:0 auto 10px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;font-size:11.5px;font-weight:800;color:var(--primary)}
+.ostep b{font-size:13px;color:var(--heading);display:block}
+.ostep small{font-size:11px;color:var(--dim);display:block;margin-top:3px;line-height:1.4}
+.path-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.pcard{display:flex;gap:13px;align-items:flex-start;padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--card);transition:.16s}
+.pcard:hover{border-color:var(--line-strong);transform:translateY(-2px)}
+.pcard .f-ic{width:34px;height:34px;border-radius:9px;background:var(--muted);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent);flex:none}
+.pcard b{font-size:13.5px;color:var(--heading)}
+.pcard p{font-size:12.5px}
+/* ============ ARCHITECTURE ============ */
+.arch{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center}
+.stack{display:flex;flex-direction:column;gap:0;max-width:440px;margin:0 auto;width:100%}
+.layer{display:flex;align-items:center;gap:13px;padding:16px 18px;border:1px solid var(--line-strong);border-radius:12px;background:var(--card)}
+.layer .l-ic{width:34px;height:34px;border-radius:9px;background:var(--muted);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent);flex:none}
+.layer .l-ic svg{width:15px;height:15px}
+.layer b{font-size:14px;color:var(--heading);display:block;line-height:1.25}
+.layer small{font-size:11.5px;color:var(--dim)}
+.stack .bk-link{height:20px}
+.arch-branches{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:440px;margin:6px auto 0}
+details.tech-details{margin-top:22px;border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden}
+details.tech-details summary{cursor:pointer;padding:15px 18px;font-weight:700;font-size:14px;color:var(--heading);list-style:none;display:flex;align-items:center;gap:10px}
+details.tech-details summary::before{content:"+";width:20px;height:20px;border-radius:6px;border:1px solid var(--line-strong);display:grid;place-items:center;font-weight:800;color:var(--dim);flex:none;transition:.15s}
+details.tech-details[open] summary::before{content:"–"}
+details.tech-details .td-body{padding:0 18px 16px 48px;font-size:13.5px}
+details.tech-details li{margin-bottom:7px}
+.tech-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
+/* ============ STRIP / DOWNLOAD / FOOTER ============ */
+.strip-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.strip-item{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--card);transition:.16s}
+.strip-item:hover{border-color:var(--line-strong)}
+.strip-item svg{width:17px;height:17px;color:var(--primary)}
+.strip-item b{font-size:12.5px;color:var(--heading);letter-spacing:-.01em}
+.strip-item small{font-size:11px;color:var(--dim);line-height:1.4}
+.dl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.dl-card{padding:26px 22px;text-align:center;transition:.16s}
+.dl-card:hover{transform:translateY(-3px);border-color:var(--line-strong);box-shadow:0 16px 36px -20px rgba(3,7,22,.7)}
+.dl-card .f-ic{width:44px;height:44px;margin:0 auto 14px;border-radius:12px;background:var(--muted);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent)}
+.dl-card h3{font-size:17px;margin-bottom:4px}
+.dl-card p{font-size:12.5px;margin-bottom:18px}
+.dl-note{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:24px;color:var(--dim);font-size:13px}
+.dl-note a{color:var(--accent);font-weight:700}
+.oss{border:1px solid var(--line);border-radius:18px;padding:56px 28px;text-align:center;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--card) 60%,var(--bg)),var(--card))}
+.oss .kmark{width:44px;height:44px;border-radius:12px;margin:0 auto 18px}
+.oss h2{font-size:clamp(24px,3vw,32px);margin-bottom:12px}
+footer{border-top:1px solid var(--line);padding:56px 0 34px;background:color-mix(in srgb,var(--bg) 80%,#000 6%)}
+.foot-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:36px;margin-bottom:44px}
+.foot-brand p{font-size:13px;margin-top:12px;max-width:30ch}
+.foot-col h5{font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-bottom:14px}
+.foot-col a{display:block;font-size:13.5px;padding:4.5px 0;color:var(--body)}
+.foot-col a:hover{color:var(--heading)}
+.foot-bottom{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-top:22px;border-top:1px solid var(--line);font-size:12.5px;color:var(--dim)}
+/* reveal */
+[data-reveal]{opacity:0;transform:translateY(22px);transition:opacity .55s cubic-bezier(.2,.7,.3,1),transform .55s cubic-bezier(.2,.7,.3,1);transition-delay:var(--d,0ms)}
+[data-reveal].in{opacity:1;transform:none}
+/* ============ RESPONSIVE ============ */
+@media (max-width:1000px){
+  .nav-links{display:none}.nav-burger{display:inline-flex}
+  .split,.split.rev,.ai-grid,.hw-grid,.arch{grid-template-columns:1fr;gap:34px}
+  .app-side{display:none}
+  .dash-cols,.inv-grid,.pos-grid,.acc-grid,.off-body{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .fgrid{grid-template-columns:repeat(2,1fr)}
+  .fcard{--sp:1 !important;grid-column:span 1 !important}
+  .branches,.lan-terms,.path-cards,.dl-grid{grid-template-columns:1fr 1fr}
+  .rail{grid-template-columns:repeat(4,1fr);row-gap:26px}
+  .rail::before,.rail .fill{display:none}
+  .prail{grid-template-columns:repeat(3,1fr)}
+  .onboard-rail{grid-template-columns:repeat(3,1fr);row-gap:12px}
+}
+@media (max-width:620px){
+  .section{padding:70px 0}
+  .hero{padding:52px 0 66px}
+  .hero-cta .btn{width:100%;max-width:320px}
+  .branches,.lan-terms,.path-cards,.dl-grid,.bk-split,.strip-grid{grid-template-columns:1fr}
+  .off-flow{flex-wrap:wrap;gap:10px}
+  .fnode{flex:1 1 44%}
+  .farrow{display:none}
+  .eco-svg{display:none}.eco-list{display:grid}
+  .app-flex{min-height:0}
+  .app-views{overflow-x:auto}
+  .off-head{margin-bottom:18px}.off-actions{margin-left:0;width:100%}
+  .off-actions .btn{flex:1}
+  .foot-grid{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+  [data-reveal]{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- Kivo brand mark — single source. Swap this symbol 1:1 with the official app icon asset. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="kivo-mark" viewBox="0 0 48 48">
+    <rect width="48" height="48" rx="11" fill="#CB3CFF"/>
+    <path d="M13.5 11.5h5.6v25h-5.6z" fill="#fff"/>
+    <path d="M23.5 24 33.6 11.5h6.9L30 24z" fill="#fff"/>
+    <path d="M23.5 24H30l10.5 12.5h-6.9z" fill="#00C2FF"/>
+  </symbol>
+</svg>
+
+<!-- ============ NAV ============ -->
+<header class="nav" id="nav">
+  <div class="nav-in">
+    <a class="brand" href="#top" aria-label="Kivo home">
+      <svg class="kmark" aria-hidden="true"><use href="#kivo-mark"/></svg><span>Kivo</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#product">Product</a>
+      <a href="#features">Features</a>
+      <a href="#how">How It Works</a>
+      <a href="#security">Security</a>
+      <a href="https://github.com/AchiraStudio/kivo#readme" target="_blank" rel="noopener">Documentation</a>
+    </nav>
+    <div class="nav-cta">
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme"></button>
+      <a class="icon-btn" href="https://github.com/AchiraStudio/kivo" target="_blank" rel="noopener" aria-label="Kivo on GitHub"><i data-lucide="github"></i></a>
+      <a class="btn btn-primary btn-sm" href="#download"><i data-lucide="download"></i>Download Kivo</a>
+      <button class="icon-btn nav-burger" id="burger" aria-label="Menu"><i data-lucide="menu"></i></button>
+    </div>
+  </div>
+  <div class="nav-mobile" id="navMobile">
+    <a href="#product">Product</a><a href="#features">Features</a><a href="#how">How It Works</a>
+    <a href="#security">Security</a><a href="#download">Download</a>
+    <a href="https://github.com/AchiraStudio/kivo" target="_blank" rel="noopener">GitHub &amp; Documentation</a>
+  </div>
+</header>
+
+<main id="main">
+<!-- ============ HERO ============ -->
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="hero-copy">
+      <div class="pill hero-badge"><svg class="kmark" aria-hidden="true"><use href="#kivo-mark"/></svg>Kivo v1.3.2 · Open Source</div>
+      <h1>Run your business.<br>Even when the internet doesn't.</h1>
+      <p class="lead">An offline-first POS and ERP platform for sales, inventory, purchasing, accounting, and multi-branch operations. Your data stays with you.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#download"><i data-lucide="download"></i>Download Kivo</a>
+        <a class="btn btn-secondary" href="#features">Explore Features</a>
+        <a class="btn btn-ghost" href="https://github.com/AchiraStudio/kivo" target="_blank" rel="noopener"><i data-lucide="github"></i>View on GitHub</a>
+      </div>
+      <div class="hero-signals">
+        <span class="sig"><span class="dot g"></span>OFFLINE-FIRST</span>
+        <span class="sig"><span class="dot c"></span>MULTI-BRANCH</span>
+        <span class="sig"><span class="dot p"></span>BYOK</span>
+        <span class="sig"><span class="dot i"></span>LAN + CLOUD SYNC</span>
+        <span class="sig"><span class="dot d"></span>LOCAL SQLITE</span>
+      </div>
+    </div>
+
+    <div class="hero-stage">
+      <div class="stage-glow" aria-hidden="true"></div>
+      <!-- Live Kivo application window -->
+      <div class="app" role="region" aria-label="Interactive Kivo application preview">
+        <div class="app-bar">
+          <svg class="kmark" aria-hidden="true"><use href="#kivo-mark"/></svg>
+          <span class="app-name">Kivo</span><span class="app-ver">v1.3.2</span>
+          <span class="app-drag"></span>
+          <span class="app-ctl" aria-hidden="true"><span>–</span><span>▢</span><span>✕</span></span>
+        </div>
+        <div class="app-flex">
+          <aside class="app-side" aria-label="Modules">
+            <div class="side-label">Operations</div>
+            <button class="side-item on" data-view="dashboard"><i data-lucide="layout-dashboard"></i>Dashboard</button>
+            <button class="side-item" data-view="pos"><i data-lucide="shopping-cart"></i>Point of Sale</button>
+            <button class="side-item" data-view="inventory"><i data-lucide="package"></i>Inventory</button>
+            <button class="side-item" data-view="accounting"><i data-lucide="calculator"></i>Accounting</button>
+            <div class="side-label">Insight</div>
+            <button class="side-item" data-view="ai"><i data-lucide="sparkles"></i>Kivo AI</button>
+            <div class="side-label">More modules</div>
+            <a class="side-item" href="#cloud"><i data-lucide="cloud"></i>Kivo Cloud<i data-lucide="arrow-up-right" class="ext"></i></a>
+            <a class="side-item" href="#purchasing"><i data-lucide="truck"></i>Purchasing<i data-lucide="arrow-up-right" class="ext"></i></a>
+            <a class="side-item" href="#customers"><i data-lucide="users"></i>Customers<i data-lucide="arrow-up-right" class="ext"></i></a>
+            <div class="side-foot">
+              <span class="avatar">A</span>
+              <span><b>Andini</b><small>Owner · Main Store</small></span>
+            </div>
+          </aside>
+          <div class="app-main">
+            <div class="app-top">
+              <span class="top-search"><i data-lucide="search"></i>Search products, sales, customers…<kbd>Ctrl K</kbd></span>
+              <span class="top-right">
+                <button class="top-pill" id="branchPill" title="Switch branch"><i data-lucide="git-branch"></i><span id="branchName">Main Store</span><i data-lucide="chevron-down"></i></button>
+                <button class="sync-pill" id="topSync" title="Sync now"><span class="dot g"></span>Synced</button>
+              </span>
+            </div>
+            <div class="app-views">
+
+              <!-- DASHBOARD -->
+              <div class="app-view on" id="view-dashboard">
+                <div class="view-head"><h4>Dashboard</h4><span class="vh-sub">Tuesday · 14:32 · Main Store</span></div>
+                <div class="stat-grid">
+                  <div class="stat"><span class="s-l">Today's Sales</span><div class="s-v" data-count="12450000" data-prefix="Rp ">Rp 0</div><span class="s-d up">+8.2% vs yesterday</span></div>
+                  <div class="stat"><span class="s-l">Transactions</span><div class="s-v" data-count="184">0</div><span class="s-d up">+12 vs yesterday</span></div>
+                  <div class="stat"><span class="s-l">Low Stock</span><div class="s-v" data-count="12">0</div><span class="s-d wn">5 below minimum</span></div>
+                  <div class="stat"><span class="s-l">Pending Sync</span><div class="s-v" data-count="8">0</div><span class="s-d ac">queued records</span></div>
+                </div>
+                <div class="dash-cols">
+                  <div class="panel">
+                    <div class="panel-head"><span class="panel-title">Sales — last 14 days</span><span class="panel-sub">Rp thousands</span></div>
+                    <svg class="bars" viewBox="0 0 560 140" aria-hidden="true">
+                      <line x1="0" y1="131" x2="560" y2="131" stroke="var(--line)" stroke-width="1"/>
+                      <rect x="4"   y="92" width="26" height="38" rx="3" style="animation-delay:.02s"/>
+                      <rect x="42"  y="78" width="26" height="52" rx="3" style="animation-delay:.05s"/>
+                      <rect x="80"  y="86" width="26" height="44" rx="3" style="animation-delay:.08s"/>
+                      <rect x="118" y="70" width="26" height="60" rx="3" style="animation-delay:.11s"/>
+                      <rect x="156" y="76" width="26" height="54" rx="3" style="animation-delay:.14s"/>
+                      <rect x="194" y="60" width="26" height="70" rx="3" style="animation-delay:.17s"/>
+                      <rect x="232" y="80" width="26" height="50" rx="3" style="animation-delay:.2s"/>
+                      <rect x="270" y="56" width="26" height="74" rx="3" style="animation-delay:.23s"/>
+                      <rect x="308" y="68" width="26" height="62" rx="3" style="animation-delay:.26s"/>
+                      <rect x="346" y="50" width="26" height="80" rx="3" style="animation-delay:.29s"/>
+                      <rect x="384" y="58" width="26" height="72" rx="3" style="animation-delay:.32s"/>
+                      <rect x="422" y="42" width="26" height="88" rx="3" style="animation-delay:.35s"/>
+                      <rect x="460" y="64" width="26" height="66" rx="3" style="animation-delay:.38s"/>
+                      <rect x="498" y="34" width="26" height="96" rx="3" rx="3" class="last" style="animation-delay:.41s"/>
+                    </svg>
+                  </div>
+                  <div class="panel">
+                    <div class="panel-head"><span class="panel-title">Recent transactions</span><span class="panel-sub">live</span></div>
+                    <table class="k-table">
+                      <thead><tr><th>ID</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+                      <tbody>
+                        <tr><td><b>#001284</b></td><td>3</td><td><b>Rp 86.000</b></td><td><span class="mini-s"><span class="dot g"></span>Synced</span></td></tr>
+                        <tr><td><b>#001283</b></td><td>1</td><td><b>Rp 12.000</b></td><td><span class="mini-s"><span class="dot g"></span>Synced</span></td></tr>
+                        <tr><td><b>#001282</b></td><td>7</td><td><b>Rp 214.500</b></td><td><span class="mini-s"><span class="dot g"></span>Synced</span></td></tr>
+                        <tr><td><b>#001281</b></td><td>2</td><td><b>Rp 58.000</b></td><td><span class="mini-s"><span class="dot g"></span>Synced</span></td></tr>
+                        <tr><td><b>#001280</b></td><td>4</td><td><b>Rp 102.000</b></td><td><span class="mini-s"><span class="dot c"></span>Pending</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- POS -->
+              <div class="app-view" id="view-pos">
+                <div class="view-head"><h4>Point of Sale</h4><span class="pill"><span class="dot c"></span>SHIFT #47 · ANDINI</span></div>
+                <div class="pos-grid">
+                  <div>
+                    <div class="pos-search"><i data-lucide="scan-barcode"></i>Scan barcode or search instantly…</div>
+                    <div class="cat-tabs" id="catTabs">
+                      <button class="cat-tab on" data-cat="All">All</button>
+                      <button class="cat-tab" data-cat="Coffee">Coffee</button>
+                      <button class="cat-tab" data-cat="Drinks">Drinks</button>
+                      <button class="cat-tab" data-cat="Snacks">Snacks</button>
+                      <button class="cat-tab" data-cat="Pharmacy">Pharmacy</button>
+                    </div>
+                    <div class="prod-grid" id="prodGrid"></div>
+                  </div>
+                  <div class="pos-cart">
+                    <div class="cart-head"><b>Current sale</b><button class="cust-pill" id="custPill" title="Toggle customer"><i data-lucide="user" style="width:11px;height:11px"></i><span id="custName">Walk-in</span></button></div>
+                    <div class="cart-lines" id="cartLines"></div>
+                    <div class="cart-tot">
+                      <div class="trow"><span>Subtotal</span><span id="cartSub">Rp 0</span></div>
+                      <div class="trow"><span id="discLabel">Discount</span><span id="cartDisc">Rp 0</span></div>
+                      <div class="trow big"><span>Total</span><span id="cartTotal">Rp 0</span></div>
+                    </div>
+                    <div class="pay-row">
+                      <button class="pay on">CASH</button><button class="pay">QRIS</button><button class="pay">CARD</button><button class="pay">TRANSFER</button>
+                    </div>
+                    <button class="btn btn-primary wide" id="chargeBtn">Charge</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- INVENTORY -->
+              <div class="app-view" id="view-inventory">
+                <div class="view-head"><h4>Inventory</h4><span class="pill"><span class="dot w"></span>2 LOW STOCK · 1 EXPIRING</span></div>
+                <div class="inv-grid">
+                  <div class="panel" style="overflow-x:auto">
+                    <div class="panel-head"><span class="panel-title">Products</span><span class="panel-sub">click a row</span></div>
+                    <table class="k-table">
+                      <thead><tr><th>Product</th><th>Unit</th><th>Stock</th><th>Min</th><th>Expiry</th><th>Status</th></tr></thead>
+                      <tbody id="invBody"></tbody>
+                    </table>
+                  </div>
+                  <div class="panel" id="invDetail"></div>
+                </div>
+              </div>
+
+              <!-- ACCOUNTING -->
+              <div class="app-view" id="view-accounting">
+                <div class="view-head"><h4>Accounting</h4><span class="vh-sub">Double-entry · auto-journal</span></div>
+                <div class="acc-grid">
+                  <div class="panel">
+                    <div class="panel-head"><span class="panel-title">Journal — JE-4412</span><span class="panel-sub">auto-created from POS #001284</span></div>
+                    <div class="jrow" style="color:var(--dim);font-weight:800"><span>Account</span><span style="text-align:right">Debit</span><span style="text-align:right">Credit</span></div>
+                    <div class="jrow"><span style="color:var(--heading)">Cash in Drawer</span><span style="text-align:right;color:var(--success);font-weight:700">86.000</span><span></span></div>
+                    <div class="jrow"><span style="padding-left:14px">Sales Revenue</span><span></span><span style="text-align:right;color:var(--body)">86.000</span></div>
+                    <div class="jrow"><span style="color:var(--heading)">COGS — HPP</span><span style="text-align:right;color:var(--success);font-weight:700">51.500</span><span></span></div>
+                    <div class="jrow"><span style="padding-left:14px">Inventory</span><span></span><span style="text-align:right;color:var(--body)">51.500</span></div>
+                    <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+                      <span class="chip" style="height:24px;font-size:10.5px">Average</span>
+                      <span class="chip" style="height:24px;font-size:10.5px">FIFO</span>
+                      <span class="chip" style="height:24px;font-size:10.5px">LIFO</span>
+                    </div>
+                  </div>
+                  <div class="panel">
+                    <div class="panel-head"><span class="panel-title">Profit &amp; Loss — this month</span><span class="panel-sub">Laba Rugi</span></div>
+                    <div class="pl-row"><span style="color:var(--dim)">Revenue</span><span class="pl-bar"><i style="width:100%;background:var(--accent)"></i></span><span>248.300.000</span></div>
+                    <div class="pl-row"><span style="color:var(--dim)">COGS — HPP</span><span class="pl-bar"><i style="width:57%;background:var(--line-strong)"></i></span><span>142.100.000</span></div>
+                    <div class="pl-row"><span style="color:var(--heading);font-weight:700">Gross Profit</span><span class="pl-bar"><i style="width:43%;background:var(--primary)"></i></span><span>106.200.000</span></div>
+                    <div class="pl-row"><span style="color:var(--dim)">Expenses</span><span class="pl-bar"><i style="width:15%;background:var(--line-strong)"></i></span><span>38.400.000</span></div>
+                    <div class="pl-row"><span style="color:var(--heading);font-weight:800">Net Profit</span><span class="pl-bar"><i style="width:27%;background:var(--success)"></i></span><span>67.800.000</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- AI -->
+              <div class="app-view" id="view-ai">
+                <div class="view-head"><h4>Kivo AI</h4><span class="pill"><span class="dot p"></span>BYOK · YOUR OPENAI KEY</span></div>
+                <div class="ai-chat" style="border:0">
+                  <div class="msg user"><span class="m-av" style="background:var(--muted);color:var(--body)">A</span><div class="m-body">Which products need to be reordered?</div></div>
+                  <div class="msg"><span class="m-av"><i data-lucide="sparkles"></i></span>
+                    <div class="m-body">5 products are below their minimum stock level. Suggested orders are based on the last 30 days of sales.
+                      <table class="ai-table"><thead><tr><th>Product</th><th>Stock</th><th>Min</th><th>Order</th></tr></thead>
+                      <tbody><tr><td><b>Kopi Susu Botol</b></td><td>4</td><td>10</td><td>+36</td></tr>
+                      <tr><td><b>Gula Pasir</b></td><td>6</td><td>20</td><td>+28</td></tr>
+                      <tr><td><b>Teh Celup</b></td><td>8</td><td>24</td><td>+32</td></tr></tbody></table>
+                    </div>
+                  </div>
+                  <div style="text-align:center;margin-top:6px"><a href="#ai" class="btn btn-secondary btn-sm">Try the full assistant<i data-lucide="arrow-right"></i></a></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tour-tabs" role="tablist" aria-label="Product tour">
+        <button class="tour-tab on" data-view="dashboard">DASHBOARD</button>
+        <button class="tour-tab" data-view="pos">POS</button>
+        <button class="tour-tab" data-view="inventory">INVENTORY</button>
+        <button class="tour-tab" data-view="accounting">ACCOUNTING</button>
+        <button class="tour-tab" data-view="ai">AI</button>
+      </div>
+      <p class="tour-hint">Live preview — switch modules, tap products to ring up a sale, click a branch or the sync status.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INTRO / ECOSYSTEM ============ -->
+<section class="section" id="product">
+  <div class="wrap">
+    <div class="sec-head center" data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>THE SYSTEM</div>
+      <h2 class="h2">Everything your business needs. In one system.</h2>
+      <p class="lead">Kivo is not a POS with an accounting add-on. It is one connected platform — every sale, every stock movement, and every rupiah flows through the same local database, so your numbers always agree.</p>
+    </div>
+
+    <svg class="eco-svg" viewBox="0 0 900 610" data-reveal aria-label="Kivo module ecosystem diagram">
+      <g class="e-lines" stroke-width="1.5">
+        <path id="el1" class="e-line" fill="none" d="M450 83 L450 226"/>
+        <path id="el2" class="e-line" fill="none" d="M165 173 L375 240"/>
+        <path id="el3" class="e-line" fill="none" d="M165 353 L375 280"/>
+        <path id="el4" class="e-line" fill="none" d="M450 463 L450 294"/>
+        <path id="el5" class="e-line" fill="none" d="M735 353 L525 280"/>
+        <path id="el6" class="e-line" fill="none" d="M735 173 L525 240"/>
+        <path class="e-line" fill="none" d="M450 486 L450 525"/>
+      </g>
+      <g class="flow-particles">
+        <circle r="3" fill="var(--primary)"><animateMotion dur="3.8s" repeatCount="indefinite"><mpath href="#el1"/></animateMotion></circle>
+        <circle r="3" fill="var(--accent)"><animateMotion dur="4.4s" begin="1.2s" repeatCount="indefinite"><mpath href="#el5"/></animateMotion></circle>
+        <circle r="3" fill="var(--accent)"><animateMotion dur="4.1s" begin="2.1s" repeatCount="indefinite"><mpath href="#el3"/></animateMotion></circle>
+        <circle r="3" fill="var(--primary)"><animateMotion dur="3.6s" begin="0.6s" repeatCount="indefinite"><mpath href="#el6"/></animateMotion></circle>
+      </g>
+      <a href="#pos" class="eco-node"><rect x="375" y="60" width="150" height="46" rx="12"/><circle cx="450" cy="75" r="3.5" fill="var(--primary)"/><text x="450" y="96" text-anchor="middle">POS</text></a>
+      <a href="#inventory" class="eco-node"><rect x="90" y="150" width="150" height="46" rx="12"/><circle cx="165" cy="165" r="3.5" fill="var(--accent)"/><text x="165" y="186" text-anchor="middle">Inventory</text></a>
+      <a href="#customers" class="eco-node"><rect x="90" y="330" width="150" height="46" rx="12"/><circle cx="165" cy="345" r="3.5" fill="var(--accent)"/><text x="165" y="366" text-anchor="middle">Customers</text></a>
+      <a href="#purchasing" class="eco-node"><rect x="375" y="440" width="150" height="46" rx="12"/><circle cx="450" cy="455" r="3.5" fill="var(--primary)"/><text x="450" y="476" text-anchor="middle">Purchasing</text></a>
+      <a href="#accounting" class="eco-node"><rect x="660" y="330" width="150" height="46" rx="12"/><circle cx="735" cy="345" r="3.5" fill="var(--accent)"/><text x="735" y="366" text-anchor="middle">Accounting</text></a>
+      <a href="#customers" class="eco-node"><rect x="660" y="150" width="150" height="46" rx="12"/><circle cx="735" cy="165" r="3.5" fill="var(--primary)"/><text x="735" y="186" text-anchor="middle">Promotions</text></a>
+      <g class="eco-core"><rect x="375" y="226" width="150" height="68" rx="16"/>
+        <use href="#kivo-mark" x="394" y="240" width="30" height="30"/>
+        <text x="434" y="266" style="font-size:16px;font-weight:800;letter-spacing:.08em">KIVO</text></g>
+      <text class="eco-label" x="170" y="516">PLATFORM LAYER</text>
+      <g class="eco-bar"><rect x="170" y="525" width="560" height="54" rx="14" fill="var(--input)" stroke="var(--line-strong)"/>
+        <text x="450" y="558" text-anchor="middle">KIVO CLOUD · LAN SYNC · MULTI-BRANCH · KIVO AI</text></g>
+    </svg>
+    <div class="eco-list" data-reveal>
+      <span class="chip"><span class="dot p"></span>POS</span><span class="chip"><span class="dot c"></span>Inventory</span>
+      <span class="chip"><span class="dot p"></span>Purchasing</span><span class="chip"><span class="dot c"></span>Accounting</span>
+      <span class="chip"><span class="dot p"></span>Customers &amp; Promotions</span><span class="chip"><span class="dot c"></span>Cloud · LAN · AI</span>
+    </div>
+    <p class="tour-hint" style="margin-top:18px" data-reveal>Illustrative diagram — every module reads and writes the same local database.</p>
+  </div>
+</section>
+
+<!-- ============ A DAY WITH KIVO ============ -->
+<section class="section tint">
+  <div class="wrap">
+    <div class="sec-head center" data-reveal>
+      <div class="eyebrow ep"><span class="eb-dot"></span>A DAY WITH KIVO</div>
+      <h2 class="h2">One sale. Every part of the business, instantly.</h2>
+      <p class="lead">This is what "connected" actually means — follow a single transaction through the whole system.</p>
+    </div>
+    <div data-reveal>
+      <div class="rail" id="dayRail"><span class="fill" id="dayFill"></span></div>
+      <div class="day-detail card" id="dayDetail"><div class="dd-anim" id="dayInner"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURE GRID ============ -->
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>MODULES</div>
+      <h2 class="h2">Ten modules. One source of truth.</h2>
+      <p class="lead">Each module does real work on its own — and gets better because the others are there.</p>
+    </div>
+    <div class="fgrid">
+      <a class="fcard" style="--sp:3" href="#pos" data-reveal>
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="shopping-cart"></i></span>
+        <h3>Kivo POS</h3>
+        <p>A cashier environment built for speed — instant search, barcode-first flow, and split payments across cash, QRIS, cards, and customer credit.</p>
+        <div class="f-frag"><span class="chip">CASH</span><span class="chip">QRIS</span><span class="chip">CARD</span><span class="chip">TRANSFER</span><span class="chip">CREDIT · PIUTANG</span></div>
+      </a>
+      <a class="fcard" style="--sp:3" href="#inventory" data-reveal style="--d:70ms">
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="package"></i></span>
+        <h3>Inventory</h3>
+        <p>Multi-unit stock with batches, expiry dates, a complete stock ledger, and Stock Opname counts that reconcile variance automatically.</p>
+        <div class="f-frag"><span class="chip">BOX</span><span class="chip">↓</span><span class="chip">PACK</span><span class="chip">↓</span><span class="chip">PCS</span></div>
+      </a>
+      <a class="fcard" href="#purchasing" data-reveal>
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="truck"></i></span>
+        <h3>Purchasing</h3>
+        <p>Purchase orders, goods receiving, supplier bills, and payables — costs flow straight into HPP and the general ledger.</p>
+      </a>
+      <a class="fcard" href="#accounting" data-reveal style="--d:60ms">
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="calculator"></i></span>
+        <h3>Accounting</h3>
+        <p>Double-entry books that write themselves. Every sale, receipt, and adjustment becomes a balanced journal entry.</p>
+      </a>
+      <a class="fcard" href="#customers" data-reveal style="--d:120ms">
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="users"></i></span>
+        <h3>Customers &amp; Promotions</h3>
+        <p>Profiles, loyalty points, credit limits, and promotions from BOGO to quantity tiers and VIP pricing — applied at the register.</p>
+      </a>
+      <a class="fcard" href="#cloud" data-reveal>
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="cloud"></i></span>
+        <h3>Kivo Cloud</h3>
+        <p>A multi-branch workspace on Supabase — your credentials, your project, your data.</p>
+      </a>
+      <a class="fcard" href="#lan" data-reveal style="--d:60ms">
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="wifi"></i></span>
+        <h3>LAN Sync</h3>
+        <p>Terminals discover each other over UDP and synchronize over your local network — no internet needed.</p>
+      </a>
+      <a class="fcard" href="#ai" data-reveal style="--d:120ms">
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="sparkles"></i></span>
+        <h3>Kivo AI</h3>
+        <p>Ask business questions in plain language. Answers come from your data through function calling.</p>
+      </a>
+      <a class="fcard" style="--sp:3" href="#security" data-reveal>
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="shield-check"></i></span>
+        <h3>Security</h3>
+        <p>BYOK credentials, role-based access control, and a controlled cloud data cleanup utility — designed so you stay in control.</p>
+        <div class="f-frag"><span class="chip"><i data-lucide="key-round"></i>Supabase key</span><span class="chip"><i data-lucide="key-round"></i>OpenAI key</span><span class="chip">stored locally</span></div>
+      </a>
+      <a class="fcard" style="--sp:3" href="#hardware" data-reveal style="--d:70ms">
+        <span class="f-go"><i data-lucide="arrow-up-right"></i></span>
+        <span class="f-ic"><i data-lucide="printer"></i></span>
+        <h3>Hardware</h3>
+        <p>Thermal printers via ESC/POS or the HPRT SDK, cash drawers, and barcode scanners — over USB, network, or Bluetooth.</p>
+        <div class="f-frag"><span class="chip">ESC/POS</span><span class="chip">HPRT SDK</span><span class="chip">58 / 80 mm</span><span class="chip">USB · NET · BT</span></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ POS DEEP ============ -->
+<section class="section" id="pos">
+  <div class="wrap split">
+    <div data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>POINT OF SALE</div>
+      <h2 class="h2">Built for the busiest fifteen minutes of your day.</h2>
+      <p class="lead">A cashier environment with zero wait states — scanning, searching, and payment all happen locally, instantly.</p>
+      <ul class="blist">
+        <li><i data-lucide="zap"></i><span><b>Instant search &amp; barcode-first flow</b> — type two letters or pull the trigger; results appear with no round-trip.</span></li>
+        <li><i data-lucide="layers"></i><span><b>Category quick-tabs</b> and grid or list views, tuned for touch and keyboard alike.</span></li>
+        <li><i data-lucide="credit-card"></i><span><b>Split payments</b> across cash, QRIS, bank transfer, debit/credit card, and customer credit (Piutang).</span></li>
+        <li><i data-lucide="wallet"></i><span><b>Cash shifts</b> — starting cash, cash in/out, and end-of-shift drawer reconciliation.</span></li>
+        <li><i data-lucide="history"></i><span><b>Sales returns</b> handled right at the register, stock and ledger included.</span></li>
+      </ul>
+    </div>
+    <div class="vstack" data-reveal style="--d:100ms;display:flex;flex-direction:column;gap:14px">
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">Payment — Sale #001284</span><span class="panel-sub">split across 2 methods</span></div>
+        <div class="jrow"><span style="color:var(--heading)">Total</span><span></span><span style="text-align:right;font-weight:800;color:var(--heading)">Rp 86.000</span></div>
+        <div class="jrow"><span style="padding-left:14px">Cash</span><span></span><span style="text-align:right">Rp 50.000 <span class="mini-s" style="color:var(--success)">✓</span></span></div>
+        <div class="jrow"><span style="padding-left:14px">QRIS</span><span></span><span style="text-align:right">Rp 36.000 <span class="mini-s" style="color:var(--success)">✓</span></span></div>
+        <div class="jrow"><span style="color:var(--dim)">Remaining</span><span></span><span style="text-align:right;color:var(--success);font-weight:700">Rp 0 — paid</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">Cash Shift #47 · Andini</span><span class="panel-sub">open since 08:02</span></div>
+        <div class="pl-row"><span style="color:var(--dim)">Starting cash</span><span class="pl-bar"><i style="width:46%;background:var(--line-strong)"></i></span><span>Rp 500.000</span></div>
+        <div class="pl-row"><span style="color:var(--dim)">Cash sales</span><span class="pl-bar"><i style="width:40%;background:var(--primary)"></i></span><span>Rp 436.500</span></div>
+        <div class="pl-row"><span style="color:var(--dim)">Cash in / out</span><span class="pl-bar"><i style="width:14%;background:var(--warning)"></i></span><span>+250 / −100 k</span></div>
+        <div class="pl-row"><span style="color:var(--heading);font-weight:800">Expected drawer</span><span class="pl-bar"><i style="width:100%;background:var(--success)"></i></span><span>Rp 1.086.500</span></div>
+        <div style="margin-top:10px"><span class="chip"><i data-lucide="refresh-cw"></i>End shift → reconciliation</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INVENTORY DEEP ============ -->
+<section class="section tint" id="inventory">
+  <div class="wrap split rev">
+    <div class="panel" data-reveal>
+      <div class="panel-head"><span class="panel-title">Kopi Susu Botol 250ml</span><span class="mini-s"><span class="dot g"></span>OK · SKU KV-0012</span></div>
+      <div class="unit-row">
+        <span class="unit-chip"><b>BOX</b><span>1 Box = 24 Pcs · 6 in stock</span></span><span class="unit-arr">→</span>
+        <span class="unit-chip"><b>PACK</b><span>1 Pack = 6 Pcs · 24 in stock</span></span><span class="unit-arr">→</span>
+        <span class="unit-chip"><b>PCS</b><span>144 in stock · min 48</span></span>
+      </div>
+      <div class="unit-row" style="margin-top:2px">
+        <span class="chip">BOX Rp 192.000</span><span class="chip">PACK Rp 49.800</span><span class="chip">PCS Rp 8.500</span>
+      </div>
+      <table class="k-table" style="margin-top:12px">
+        <thead><tr><th>Batch</th><th>Expiry</th><th>Qty</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><b>B-2409</b></td><td>2025-11-28</td><td>96 PCS</td><td><span class="mini-s" style="color:var(--warning)"><span class="dot w"></span>34 days</span></td></tr>
+          <tr><td><b>B-2410</b></td><td>2026-01-15</td><td>48 PCS</td><td><span class="mini-s" style="color:var(--success)"><span class="dot g"></span>OK</span></td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px">
+        <div class="mv"><span>2025-10-24 <span class="t">· PO #0841</span></span><span class="in">+240 PCS</span></div>
+        <div class="mv"><span>2025-10-25 <span class="t">· sales</span></span><span class="out">−96 PCS</span></div>
+        <div class="mv"><span>2025-10-26 <span class="t">· opname #014</span></span><span class="adj">±0 variance</span></div>
+      </div>
+    </div>
+    <div data-reveal style="--d:100ms">
+      <div class="eyebrow ep"><span class="eb-dot"></span>INVENTORY</div>
+      <h2 class="h2">Every unit, batch, and rupiah accounted for.</h2>
+      <p class="lead">Multi-unit products with conversion, batches with expiry, and a complete stock ledger — connected to POS, purchasing, and accounting in real time.</p>
+      <ul class="blist">
+        <li><i data-lucide="boxes"></i><span><b>BOX → PACK → PCS</b> hierarchies with independent pricing per unit.</span></li>
+        <li><i data-lucide="timer"></i><span><b>Batches &amp; expiry</b> captured at goods receiving, visible at the register.</span></li>
+        <li><i data-lucide="history"></i><span><b>Stock ledger</b> — every movement recorded, nothing overwritten.</span></li>
+        <li><i data-lucide="check-check"></i><span><b>Stock Opname</b> (physical count) with variance handling and automatic adjustments.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PURCHASING ============ -->
+<section class="section" id="purchasing">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>PURCHASING</div>
+      <h2 class="h2">From supplier to statement, one chain.</h2>
+      <p class="lead">Purchase orders, receiving, supplier bills, and accounts payable — with costs flowing into HPP and the ledger automatically. Click a stage.</p>
+    </div>
+    <div data-reveal>
+      <div class="prail" id="pRail"></div>
+      <div class="card p-detail" id="pDetail"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ACCOUNTING DEEP ============ -->
+<section class="section tint" id="accounting">
+  <div class="wrap split">
+    <div data-reveal>
+      <div class="eyebrow ep"><span class="eb-dot"></span>ACCOUNTING</div>
+      <h2 class="h2">Books that write themselves.</h2>
+      <p class="lead">Every business event becomes a balanced double-entry journal. You review; Kivo records.</p>
+      <ul class="blist">
+        <li><i data-lucide="book-open"></i><span><b>Automatic journals</b> from sales, receiving, adjustments, and returns.</span></li>
+        <li><i data-lucide="database"></i><span><b>Full Chart of Accounts</b> — assets, liabilities, equity, revenue, COGS, expenses.</span></li>
+        <li><i data-lucide="trending-up"></i><span><b>Reports</b> — Laba Rugi (P&amp;L), Neraca (Balance Sheet), Trial Balance.</span></li>
+        <li><i data-lucide="coins"></i><span><b>Inventory valuation</b> by Average, FIFO, or LIFO.</span></li>
+      </ul>
+    </div>
+    <div class="card" data-reveal style="--d:100ms">
+      <div class="hiw">
+        <div class="hiw-step"><span class="hs-ic"><i data-lucide="shopping-cart"></i></span><div><b>POS sale #001284</b><p>Rp 86.000 paid via QRIS · 3 items</p></div></div>
+        <div class="hiw-step"><span class="hs-ic"><i data-lucide="package"></i></span><div><b>Inventory changes</b><p>3 items reserved · COGS computed at Rp 51.500</p></div></div>
+        <div class="hiw-step"><span class="hs-ic"><i data-lucide="book-open"></i></span><div><b>Journal JE-4412 posted</b><p>Dr Cash 86.000 / Cr Revenue 86.000 · Dr COGS 51.500 / Cr Inventory 51.500</p></div></div>
+        <div class="hiw-step"><span class="hs-ic"><i data-lucide="trending-up"></i></span><div><b>Statements updated</b><p>Laba Rugi and Neraca reflect the sale instantly — no export, no re-entry.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CUSTOMERS & PROMOTIONS ============ -->
+<section class="section" id="customers">
+  <div class="wrap split rev">
+    <div class="vstack" data-reveal style="display:flex;flex-direction:column;gap:14px">
+      <div class="panel" style="display:flex;gap:14px;align-items:center">
+        <span class="avatar" style="width:44px;height:44px;font-size:16px">S</span>
+        <div style="flex:1">
+          <b style="color:var(--heading);font-size:14.5px">Siti Rahma</b>
+          <div style="font-size:12px;color:var(--dim)">Member since 2023 · 214 transactions</div>
+        </div>
+        <span class="pill"><span class="dot p"></span>MEMBER</span>
+      </div>
+      <div class="panel">
+        <div class="pl-row"><span style="color:var(--dim)">Loyalty points</span><span class="pl-bar"><i style="width:62%;background:var(--primary)"></i></span><span>1.240</span></div>
+        <div class="pl-row"><span style="color:var(--dim)">Credit used</span><span class="pl-bar"><i style="width:17%;background:var(--warning)"></i></span><span>340.000</span></div>
+        <div class="pl-row"><span style="color:var(--heading);font-weight:700">Credit limit — Piutang</span><span class="pl-bar"><i style="width:100%;background:var(--line-strong)"></i></span><span>2.000.000</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">Active promotions</span></div>
+        <div class="f-frag">
+          <span class="chip" style="border-color:color-mix(in srgb,var(--primary) 40%,var(--line));background:var(--primary-soft);color:var(--heading)">BUY 10+ · SAVE 10%</span>
+          <span class="chip" style="border-color:color-mix(in srgb,var(--accent) 40%,var(--line));background:var(--accent-soft);color:var(--heading)">BUY 1 · GET 1</span>
+          <span class="chip">BUNDLE Rp 25.000</span>
+          <span class="chip">VIP −15%</span>
+          <span class="chip">MEMBER −5%</span>
+        </div>
+        <p style="font-size:12px;margin-top:10px;color:var(--dim)">Percentage &amp; nominal discounts, quantity tiers, bundles, member and VIP pricing — business rules, not storefront gimmicks.</p>
+      </div>
+    </div>
+    <div data-reveal style="--d:100ms">
+      <div class="eyebrow"><span class="eb-dot"></span>CUSTOMERS &amp; PROMOTIONS</div>
+      <h2 class="h2">Know your regulars. Reward them properly.</h2>
+      <p class="lead">Profiles with loyalty points, credit limits, and membership tiers — plus promotions that apply themselves at the register, including BOGO, quantity tiers, bundles, and VIP treatment.</p>
+      <ul class="blist">
+        <li><i data-lucide="user-check"></i><span><b>Customer profiles</b> with purchase history at every branch.</span></li>
+        <li><i data-lucide="ticket-percent"></i><span><b>Loyalty points</b> earned and redeemed automatically.</span></li>
+        <li><i data-lucide="coins"></i><span><b>Credit limits</b> — track customer credit (Piutang) with outstanding balances.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ KIVO CLOUD ============ -->
+<section class="section tint" id="cloud">
+  <div class="wrap">
+    <div class="sec-head center" data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>KIVO CLOUD</div>
+      <h2 class="h2">One business. Multiple branches. One connected system.</h2>
+      <p class="lead">Synchronization runs in the background over Supabase — your credentials, your project. Watch it work.</p>
+    </div>
+    <div class="cloudnet card" id="cloudNet" data-reveal>
+      <svg id="cloudSvg" aria-hidden="true"></svg>
+      <div class="cloud-node" id="cloudNode">
+        <span class="cn-ic"><i data-lucide="cloud"></i></span>
+        <b>Kivo Cloud</b>
+        <small>Supabase · your project</small>
+      </div>
+      <div class="branches">
+        <div class="branch"><b>Main Store</b><span class="b-city">Jakarta · 3 terminals</span><div class="b-sales" data-sales="7240000">Rp 7.240.000</div><div class="b-meta"><span>today</span><span class="b-sync"><span class="dot g"></span>synced 12s ago</span></div></div>
+        <div class="branch"><b>Bandung Branch</b><span class="b-city">Bandung · 2 terminals</span><div class="b-sales" data-sales="3180000">Rp 3.180.000</div><div class="b-meta"><span>today</span><span class="b-sync"><span class="dot g"></span>synced 12s ago</span></div></div>
+        <div class="branch"><b>Surabaya Branch</b><span class="b-city">Surabaya · 2 terminals</span><div class="b-sales" data-sales="2030000">Rp 2.030.000</div><div class="b-meta"><span>today</span><span class="b-sync"><span class="dot g"></span>synced 12s ago</span></div></div>
+      </div>
+      <div class="cn-foot">
+        <span class="sync-status" id="cnStatus"><span class="dot g"></span><span id="cnStatusText">CONNECTED · SYNCED 12 S AGO</span></span>
+        <div class="netlog" id="cnLog"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:20px" data-reveal>
+      <span class="chip"><i data-lucide="refresh-cw"></i>Background sync</span>
+      <span class="chip"><i data-lucide="timer"></i>Offline queue &amp; retry</span>
+      <span class="chip"><i data-lucide="zap"></i>Realtime updates</span>
+      <span class="chip"><i data-lucide="activity"></i>Sync health</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OFFLINE-FIRST DEMO ============ -->
+<section class="section" id="offline">
+  <div class="wrap">
+    <div class="sec-head center" data-reveal>
+      <div class="eyebrow ep"><span class="eb-dot"></span>OFFLINE-FIRST</div>
+      <h2 class="h2">The internet shouldn't decide whether your store can operate.</h2>
+      <p class="lead">Transactions are committed to your local SQLite database first, then synchronized when connectivity returns. Try it — cut the connection mid-shift.</p>
+    </div>
+    <div class="offdemo card" data-reveal>
+      <div class="off-head">
+        <div class="seg" role="group" aria-label="Connection state">
+          <button id="segOn" class="on"><i data-lucide="wifi"></i>ONLINE</button>
+          <button id="segOff"><i data-lucide="wifi-off"></i>OFFLINE</button>
+        </div>
+        <span class="sync-status" id="offStatus" style="min-width:0"><span class="dot g" id="offDot"></span><span id="offText">CONNECTED</span></span>
+        <div class="off-actions">
+          <button class="btn btn-secondary btn-sm" id="btnSale"><i data-lucide="plus"></i>New sale</button>
+          <button class="btn btn-primary btn-sm" id="btnScenario"><i data-lucide="zap"></i>Run full scenario</button>
+        </div>
+      </div>
+      <div class="off-flow">
+        <div class="fnode" id="nPos"><span class="fn-ic"><i data-lucide="shopping-cart"></i></span><span><b>POS</b><small>register</small></span></div>
+        <span class="farrow"></span>
+        <div class="fnode" id="nSql"><span class="fn-ic"><i data-lucide="database"></i></span><span><b>SQLite</b><small>local commit</small></span></div>
+        <span class="farrow"></span>
+        <div class="fnode" id="nQueue"><span class="badge" id="qBadge">0</span><span class="fn-ic"><i data-lucide="layers"></i></span><span><b>Sync queue</b><small>ordered records</small></span></div>
+        <span class="farrow" id="cloudLink"></span>
+        <div class="fnode" id="nCloud"><span class="fn-ic"><i data-lucide="cloud"></i></span><span><b>Supabase</b><small>cloud sync</small></span></div>
+      </div>
+      <div class="off-body">
+        <div class="qbox">
+          <h5>QUEUE <span id="qCount">0 records</span></h5>
+          <div class="qstack" id="queueList"><div class="qempty">Queue is empty — everything is synchronized.</div></div>
+        </div>
+        <div class="logbox">
+          <h5>SYNC LOG</h5>
+          <div id="offLog"><div class="log-line dm"><span>14:31:52</span>SYSTEM · local database ready</div></div>
+        </div>
+      </div>
+      <div class="off-stats">
+        <div><b id="sLocal">0</b><small>local transactions</small></div>
+        <div><b id="sQueued">0</b><small>currently queued</small></div>
+        <div><b id="sSynced">0</b><small>synced to cloud</small></div>
+        <div><b style="color:var(--accent)">SQLite</b><small>source of truth</small></div>
+      </div>
+    </div>
+    <p class="tour-hint" style="margin-top:16px" data-reveal>Illustrative simulation of Kivo's offline queue and retry behavior.</p>
+  </div>
+</section>
+
+<!-- ============ LAN SYNC ============ -->
+<section class="section tint" id="lan">
+  <div class="wrap split">
+    <div data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>LAN SYNC</div>
+      <h2 class="h2">Your counters, in sync — no internet required.</h2>
+      <p class="lead">Terminals discover each other over UDP and synchronize over HTTP on your local network. A companion to Kivo Cloud, not a replacement — ideal for multi-register stores.</p>
+      <ul class="blist">
+        <li><i data-lucide="wifi"></i><span><b>UDP discovery</b> — terminals find the server automatically on the network.</span></li>
+        <li><i data-lucide="server"></i><span><b>HTTP peer synchronization</b> between the main terminal and every register.</span></li>
+        <li><i data-lucide="lock"></i><span><b>Configurable permissions</b> — decide which terminals may sync what.</span></li>
+        <li><i data-lucide="cloud"></i><span><b>Works alongside Kivo Cloud</b> — the whole store syncs when any uplink returns.</span></li>
+      </ul>
+    </div>
+    <div class="card lanbus" data-reveal style="--d:100ms">
+      <div class="lan-server"><b>Kivo Server</b><div style="font-size:11px;color:var(--dim)">Main terminal · holds the store database</div></div>
+      <div class="lan-rail"></div>
+      <div class="lan-line"><span>WI-FI / LAN · UDP DISCOVERY</span></div>
+      <div class="lan-terms">
+        <div><div class="lan-drop"></div><div class="lan-t"><b>Cashier 1</b><small>synced 4 s ago</small></div></div>
+        <div><div class="lan-drop"></div><div class="lan-t"><b>Cashier 2</b><small>synced 4 s ago</small></div></div>
+        <div><div class="lan-drop"></div><div class="lan-t"><b>Cashier 3</b><small>synced 6 s ago</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ KIVO AI ============ -->
+<section class="section" id="ai">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <div class="eyebrow ep"><span class="eb-dot"></span>KIVO AI</div>
+      <h2 class="h2">Ask your business questions. Get answers from your data.</h2>
+      <p class="lead">Not a chatbot bolted onto a menu — Kivo AI queries your actual business data through function calling, locally.</p>
+    </div>
+    <div class="ai-grid">
+      <div class="ai-chat" data-reveal>
+        <div class="ai-head">
+          <span class="m-av"><i data-lucide="sparkles"></i></span>
+          <div><b>Kivo AI</b><small>connected to your business data</small></div>
+          <span class="pill"><span class="dot p"></span>BYOK · YOUR OPENAI KEY</span>
+        </div>
+        <div class="ai-body" id="aiChat">
+          <div class="msg"><span class="m-av"><i data-lucide="sparkles"></i></span><div class="m-body">Connected to your business data. Ask me anything — sales, stock, customers, expiry.</div></div>
+        </div>
+        <div class="ai-chips" id="aiChips">
+          <button class="qchip-btn" data-q="q1">How much did we sell today?</button>
+          <button class="qchip-btn" data-q="q2">Which products are running low?</button>
+          <button class="qchip-btn" data-q="q3">Who are our top customers this month?</button>
+          <button class="qchip-btn" data-q="q4">Which products expire in the next 30 days?</button>
+        </div>
+      </div>
+      <div class="card" data-reveal style="--d:100ms">
+        <div class="panel-title" style="margin-bottom:16px">How it works</div>
+        <div class="hiw">
+          <div class="hiw-step"><span class="hs-ic"><i data-lucide="sparkles"></i></span><div><b>You ask in plain language</b><p>"Which products need to be reordered?"</p></div></div>
+          <div class="hiw-step"><span class="hs-ic"><i data-lucide="git-branch"></i></span><div><b>Function calling</b><p>The assistant decides which data functions to call.</p></div></div>
+          <div class="hiw-step"><span class="hs-ic"><i data-lucide="database"></i></span><div><b>Your data is queried</b><p>Stock, sales, and customer records — read from your Kivo data.</p></div></div>
+          <div class="hiw-step"><span class="hs-ic"><i data-lucide="check"></i></span><div><b>You get an answer, with numbers</b><p>Tables, not theories. Every figure traceable to a record.</p></div></div>
+        </div>
+        <p style="font-size:12.5px;margin-top:14px;color:var(--dim)">Runs on your own OpenAI API key — part of Kivo's Bring Your Own Key model.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SECURITY ============ -->
+<section class="section tint" id="security">
+  <div class="wrap">
+    <div class="sec-head center" data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>SECURITY</div>
+      <h2 class="h2">Designed so you stay in control.</h2>
+      <p class="lead">Kivo is designed around a pure Bring Your Own Key model — precise by intention, not vague by convenience.</p>
+    </div>
+    <div class="split" style="align-items:start">
+      <div data-reveal>
+        <h3 style="font-size:22px;margin-bottom:10px">Your keys. Your infrastructure. Your data.</h3>
+        <ul class="blist">
+          <li><i data-lucide="key-round"></i><span><b>No baked-in credentials</b> — Kivo ships without API keys of any kind.</span></li>
+          <li><i data-lucide="shield"></i><span><b>No hidden fallback secrets</b> — nothing silently routes through our servers.</span></li>
+          <li><i data-lucide="hard-drive"></i><span><b>Local credential storage</b> — your Supabase and OpenAI keys live on your machine.</span></li>
+          <li><i data-lucide="lock"></i><span><b>Zero-trust design philosophy</b> — nothing is assumed trusted except you.</span></li>
+        </ul>
+      </div>
+      <div class="byok-diagram" data-reveal style="--d:100ms">
+        <div class="bk-node hl"><b>You</b><small>the only trusted party</small></div>
+        <div class="bk-link"></div>
+        <div class="bk-keys">
+          <span class="bk-key"><i data-lucide="key-round"></i>Supabase URL + public key</span>
+          <span class="bk-key"><i data-lucide="key-round"></i>OpenAI API key</span>
+        </div>
+        <div class="bk-link"></div>
+        <div class="bk-node"><b>Local configuration</b><small>stored on your machine only</small></div>
+        <div class="bk-link"></div>
+        <div class="bk-node hl"><b>Kivo</b><small>desktop application</small></div>
+        <div class="bk-link"></div>
+        <div class="bk-split">
+          <div class="bk-node"><b>SQLite</b><small>always local</small></div>
+          <div class="bk-node"><b>Your Supabase</b><small>when you choose to sync</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:52px" id="secSub">
+      <div class="card" data-reveal>
+        <span class="f-ic" style="margin-bottom:14px"><i data-lucide="refresh-cw"></i></span>
+        <h3 style="font-size:17px;margin-bottom:8px">Safe Cloud Data Cleanup</h3>
+        <p style="font-size:14px">A controlled utility for clearing test or transactional data from your cloud workspace — while users, roles, and workspace structure stay protected.</p>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap">
+          <span class="chip">Test / transactional data</span><span style="color:var(--dim)">→</span>
+          <span class="chip" style="border-color:color-mix(in srgb,var(--danger) 45%,var(--line));color:var(--danger)">PURGE</span><span style="color:var(--dim)">→</span>
+          <span class="chip" style="border-color:color-mix(in srgb,var(--success) 45%,var(--line))"><span class="dot g"></span>Users &amp; roles protected</span>
+        </div>
+      </div>
+      <div class="card" data-reveal style="--d:80ms">
+        <span class="f-ic" style="margin-bottom:14px"><i data-lucide="users"></i></span>
+        <h3 style="font-size:17px;margin-bottom:8px">Role-Based Access Control</h3>
+        <p style="font-size:14px">Role templates, granular permissions, and per-user overrides across six roles — from Owner to Staff.</p>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px">
+          <span class="chip">Owner</span><span class="chip">Sysadmin</span><span class="chip">Admin</span><span class="chip">Manager</span><span class="chip">Cashier</span><span class="chip">Staff</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card matrix-wrap" style="margin-top:14px" data-reveal>
+      <table class="matrix" id="matrix" data-role="cashier">
+        <thead><tr><th>Permission</th>
+          <th><button class="role-th" data-role="owner">Owner</button></th>
+          <th><button class="role-th" data-role="sysadmin">Sysadmin</button></th>
+          <th><button class="role-th" data-role="admin">Admin</button></th>
+          <th><button class="role-th" data-role="manager">Manager</button></th>
+          <th><button class="role-th" data-role="cashier">Cashier</button></th>
+          <th><button class="role-th" data-role="staff">Staff</button></th>
+        </tr></thead>
+        <tbody>
+          <tr><td>POS — create sales</td><td class="yes col-owner"><i data-lucide="check"></i></td><td class="yes col-sysadmin"><i data-lucide="check"></i></td><td class="yes col-admin"><i data-lucide="check"></i></td><td class="yes col-manager"><i data-lucide="check"></i></td><td class="yes col-cashier"><i data-lucide="check"></i></td><td class="yes col-staff"><i data-lucide="check"></i></td></tr>
+          <tr><td>Sales history</td><td class="yes col-owner"><i data-lucide="check"></i></td><td class="yes col-sysadmin"><i data-lucide="check"></i></td><td class="yes col-admin"><i data-lucide="check"></i></td><td class="yes col-manager"><i data-lucide="check"></i></td><td class="yes col-cashier"><i data-lucide="check"></i></td><td class="no col-staff"><i data-lucide="minus"></i></td></tr>
+          <tr><td>Inventory — edit</td><td class="yes col-owner"><i data-lucide="check"></i></td><td class="yes col-sysadmin"><i data-lucide="check"></i></td><td class="yes col-admin"><i data-lucide="check"></i></td><td class="yes col-manager"><i data-lucide="check"></i></td><td class="no col-cashier"><i data-lucide="minus"></i></td><td class="no col-staff"><i data-lucide="minus"></i></td></tr>
+          <tr><td>Accounting — view</td><td class="yes col-owner"><i data-lucide="check"></i></td><td class="yes col-sysadmin"><i data-lucide="check"></i></td><td class="yes col-admin"><i data-lucide="check"></i></td><td class="yes col-manager"><i data-lucide="check"></i></td><td class="no col-cashier"><i data-lucide="minus"></i></td><td class="no col-staff"><i data-lucide="minus"></i></td></tr>
+          <tr><td>Settings — general</td><td class="yes col-owner"><i data-lucide="check"></i></td><td class="yes col-sysadmin"><i data-lucide="check"></i></td><td class="yes col-admin"><i data-lucide="check"></i></td><td class="no col-manager"><i data-lucide="minus"></i></td><td class="no col-cashier"><i data-lucide="minus"></i></td><td class="no col-staff"><i data-lucide="minus"></i></td></tr>
+          <tr><td>Cloud data cleanup</td><td class="yes col-owner"><i data-lucide="check"></i></td><td class="yes col-sysadmin"><i data-lucide="check"></i></td><td class="no col-admin"><i data-lucide="minus"></i></td><td class="no col-manager"><i data-lucide="minus"></i></td><td class="no col-cashier"><i data-lucide="minus"></i></td><td class="no col-staff"><i data-lucide="minus"></i></td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:13px;margin-top:14px;color:var(--dim)" id="roleDesc"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HARDWARE ============ -->
+<section class="section" id="hardware">
+  <div class="wrap hw-grid">
+    <div data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>HARDWARE</div>
+      <h2 class="h2">Plugs into the equipment you already own.</h2>
+      <p class="lead">Thermal receipt printers, cash drawers, and barcode scanners — connected the way real stores connect them.</p>
+      <ul class="blist">
+        <li><i data-lucide="printer"></i><span><b>Thermal printing</b> via ESC/POS or the HPRT Windows SDK.</span></li>
+        <li><i data-lucide="receipt"></i><span><b>58 mm and 80 mm</b> receipts, formatted properly for both.</span></li>
+        <li><i data-lucide="scan-barcode"></i><span><b>Barcode scanners</b> and <b>cash drawers</b>, ready at the register.</span></li>
+        <li><i data-lucide="wifi"></i><span><b>USB, network, or Bluetooth</b> connections.</span></li>
+      </ul>
+    </div>
+    <div class="receipt-wrap" data-reveal style="--d:100ms">
+      <div>
+        <div class="receipt">
+          <div class="ctr b" style="font-size:13px">TOKO MAJU JAYA</div>
+          <div class="ctr">Jl. Merdeka No. 48, Bandung</div>
+          <div class="sep"></div>
+          <div class="rc"><span>Kopi Susu Botol x2</span><span>17.000</span></div>
+          <div class="rc"><span>Roti Coklat x1</span><span>12.500</span></div>
+          <div class="rc"><span>Snack Kentang x1</span><span>9.000</span></div>
+          <div class="sep"></div>
+          <div class="rc"><span>Subtotal</span><span>38.500</span></div>
+          <div class="rc"><span>Member 5%</span><span>-1.925</span></div>
+          <div class="rc b"><span>TOTAL</span><span>36.575</span></div>
+          <div class="rc"><span>QRIS</span><span>36.575</span></div>
+          <div class="sep"></div>
+          <div class="ctr">#001284 · 14:32 · Andini</div>
+          <div class="ctr">Shift #47 · 80mm · ESC/POS</div>
+          <div class="rc-code"></div>
+          <div class="ctr">Thank you — Terima kasih</div>
+        </div>
+        <div class="receipt-tear"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ONBOARDING ============ -->
+<section class="section tint" id="onboarding">
+  <div class="wrap">
+    <div class="sec-head center" data-reveal>
+      <div class="eyebrow ep"><span class="eb-dot"></span>ONBOARDING</div>
+      <h2 class="h2">From download to first sale in one sitting.</h2>
+      <p class="lead">A guided setup wizard that respects your time — choose how you want to start.</p>
+    </div>
+    <div class="onboard-rail" data-reveal>
+      <div class="ostep"><span class="on-n">01</span><b>Deployment</b><small>New store, join a workspace, or restore from cloud</small></div>
+      <div class="ostep"><span class="on-n">02</span><b>Store</b><small>Identity, currency, and receipt profile</small></div>
+      <div class="ostep"><span class="on-n">03</span><b>Cloud</b><small>Supabase credentials — optional, always yours</small></div>
+      <div class="ostep"><span class="on-n">04</span><b>AI</b><small>Your OpenAI key, stored locally</small></div>
+      <div class="ostep"><span class="on-n">05</span><b>Owner</b><small>Owner account and starting capital</small></div>
+      <div class="ostep"><span class="on-n">06</span><b>Ready</b><small>Inventory &amp; accounting configured — sell</small></div>
+    </div>
+    <div class="path-cards" data-reveal>
+      <div class="pcard"><span class="f-ic"><i data-lucide="store"></i></span><div><b>Create New Store</b><p>Start fresh with a clean local database.</p></div></div>
+      <div class="pcard"><span class="f-ic"><i data-lucide="git-branch"></i></span><div><b>Join Existing Workspace</b><p>Connect to your business's multi-branch workspace.</p></div></div>
+      <div class="pcard"><span class="f-ic"><i data-lucide="cloud"></i></span><div><b>Restore From Cloud</b><p>Pull your existing data onto a new machine.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section class="section" id="how">
+  <div class="wrap">
+    <div class="sec-head center" data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>UNDER THE HOOD</div>
+      <h2 class="h2">How Kivo works.</h2>
+      <p class="lead">A desktop application with a local database at its core — connected when you choose to be.</p>
+    </div>
+    <div class="arch">
+      <div class="stack" data-reveal>
+        <div class="layer"><span class="l-ic"><i data-lucide="layout-dashboard"></i></span><div><b>React 19 + TypeScript UI</b><small>the interface you just used above</small></div></div>
+        <span class="bk-link"></span>
+        <div class="layer"><span class="l-ic"><i data-lucide="cpu"></i></span><div><b>Tauri 2 · Rust core</b><small>fast, small, native desktop runtime</small></div></div>
+        <span class="bk-link"></span>
+        <div class="layer"><span class="l-ic"><i data-lucide="database"></i></span><div><b>Local SQLite</b><small>your data, on your machine, first</small></div></div>
+        <div class="arch-branches">
+          <div class="bk-node"><b>LAN</b><small>local terminals</small></div>
+          <div class="bk-node"><b>Supabase</b><small>cloud sync</small></div>
+          <div class="bk-node"><b>OpenAI</b><small>Kivo AI · your key</small></div>
+        </div>
+      </div>
+      <div data-reveal style="--d:100ms">
+        <p class="lead" style="margin-bottom:6px">Built with modern technologies.</p>
+        <div class="tech-chips">
+          <span class="chip"><i data-lucide="cpu"></i>Rust</span>
+          <span class="chip"><i data-lucide="layout-dashboard"></i>Tauri 2</span>
+          <span class="chip"><i data-lucide="atom"></i>React 19</span>
+          <span class="chip"><i data-lucide="braces"></i>TypeScript</span>
+          <span class="chip"><i data-lucide="wind"></i>Tailwind CSS</span>
+          <span class="chip"><i data-lucide="database"></i>SQLite</span>
+          <span class="chip"><i data-lucide="cloud"></i>Supabase</span>
+          <span class="chip"><i data-lucide="boxes"></i>Zustand</span>
+        </div>
+        <details class="tech-details">
+          <summary>Technical details</summary>
+          <ul class="blist" style="margin-top:14px">
+            <li><i data-lucide="wifi"></i><span>LAN terminals are discovered via <b>UDP broadcast</b> and synchronized over <b>HTTP</b> peer connections.</span></li>
+            <li><i data-lucide="refresh-cw"></i><span>Cloud sync runs in the background with an <b>offline queue and retry behavior</b> — records never block a sale.</span></li>
+            <li><i data-lucide="key-round"></i><span>Credentials are configured locally; <b>no keys ship with the binary</b> and there are no fallback secrets.</span></li>
+            <li><i data-lucide="boxes"></i><span>Application state is managed with <b>Zustand</b>; styling uses the same token system this website uses.</span></li>
+          </ul>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CHARACTERISTICS STRIP ============ -->
+<section class="section tint">
+  <div class="wrap">
+    <div class="sec-head center" data-reveal>
+      <div class="eyebrow ep"><span class="eb-dot"></span>WHY IT MATTERS</div>
+      <h2 class="h2">Built for real operations.</h2>
+      <p class="lead">No invented numbers, no borrowed logos — just what Kivo is.</p>
+    </div>
+    <div class="strip-grid">
+      <div class="strip-item" data-reveal><i data-lucide="wifi-off"></i><b>Offline-first</b><small>Sell without a connection</small></div>
+      <div class="strip-item" data-reveal style="--d:50ms"><i data-lucide="git-branch"></i><b>Multi-branch</b><small>One connected workspace</small></div>
+      <div class="strip-item" data-reveal style="--d:100ms"><i data-lucide="key-round"></i><b>BYOK</b><small>Your keys, your infrastructure</small></div>
+      <div class="strip-item" data-reveal style="--d:150ms"><i data-lucide="database"></i><b>Local database</b><small>SQLite on your machine</small></div>
+      <div class="strip-item" data-reveal style="--d:200ms"><i data-lucide="cloud"></i><b>Cloud sync</b><small>Supabase, background sync</small></div>
+      <div class="strip-item" data-reveal style="--d:250ms"><i data-lucide="wifi"></i><b>LAN sync</b><small>Terminals over your network</small></div>
+      <div class="strip-item" data-reveal style="--d:300ms"><i data-lucide="github"></i><b>Open source</b><small>MIT licensed, inspectable</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DOWNLOAD ============ -->
+<section class="section" id="download">
+  <div class="wrap">
+    <div class="sec-head center" data-reveal>
+      <div class="eyebrow"><span class="eb-dot"></span>DOWNLOAD</div>
+      <h2 class="h2">Bring Kivo to your business.</h2>
+      <p class="lead">Desktop-first, exactly like the product itself. Latest release: v1.3.2.</p>
+    </div>
+    <div class="dl-grid">
+      <div class="card dl-card" data-reveal>
+        <span class="f-ic"><i data-lucide="monitor"></i></span>
+        <h3>Windows</h3><p>Windows 10 / 11 · 64-bit</p>
+        <a class="btn btn-primary" href="https://github.com/AchiraStudio/kivo/releases" target="_blank" rel="noopener"><i data-lucide="download"></i>Download</a>
+      </div>
+      <div class="card dl-card" data-reveal style="--d:70ms">
+        <span class="f-ic"><i data-lucide="monitor"></i></span>
+        <h3>macOS</h3><p>macOS 11 and newer</p>
+        <a class="btn btn-primary" href="https://github.com/AchiraStudio/kivo/releases" target="_blank" rel="noopener"><i data-lucide="download"></i>Download</a>
+      </div>
+      <div class="card dl-card" data-reveal style="--d:140ms">
+        <span class="f-ic"><i data-lucide="cpu"></i></span>
+        <h3>Linux</h3><p>Modern 64-bit distributions</p>
+        <a class="btn btn-primary" href="https://github.com/AchiraStudio/kivo/releases" target="_blank" rel="noopener"><i data-lucide="download"></i>Download</a>
+      </div>
+    </div>
+    <div class="dl-note" data-reveal>
+      <span>MIT License</span><span>·</span>
+      <a href="https://github.com/AchiraStudio/kivo#readme" target="_blank" rel="noopener">Installation guide</a><span>·</span>
+      <a href="https://github.com/AchiraStudio/kivo" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OPEN SOURCE CTA ============ -->
+<section class="section" style="padding-top:20px">
+  <div class="wrap">
+    <div class="oss" data-reveal>
+      <svg class="kmark" aria-hidden="true"><use href="#kivo-mark"/></svg>
+      <h2>Kivo is open source.</h2>
+      <p class="lead" style="margin:0 auto 26px">Every line is inspectable — no black box between you and your business data.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a class="btn btn-primary" href="https://github.com/AchiraStudio/kivo" target="_blank" rel="noopener"><i data-lucide="github"></i>Explore Kivo on GitHub</a>
+        <a class="btn btn-secondary" href="https://github.com/AchiraStudio/kivo#readme" target="_blank" rel="noopener">Read the Documentation<i data-lucide="arrow-right"></i></a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="#top"><svg class="kmark" aria-hidden="true"><use href="#kivo-mark"/></svg><span>Kivo</span></a>
+        <p>Modern Multi-Branch POS &amp; ERP. Offline-first, connected when you need it.</p>
+      </div>
+      <div class="foot-col"><h5>Product</h5>
+        <a href="#pos">POS</a><a href="#inventory">Inventory</a><a href="#purchasing">Purchasing</a>
+        <a href="#accounting">Accounting</a><a href="#ai">AI</a><a href="#cloud">Cloud</a>
+      </div>
+      <div class="foot-col"><h5>Resources</h5>
+        <a href="https://github.com/AchiraStudio/kivo#readme" target="_blank" rel="noopener">Documentation</a>
+        <a href="https://github.com/AchiraStudio/kivo" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/AchiraStudio/kivo/releases" target="_blank" rel="noopener">Releases</a>
+      </div>
+      <div class="foot-col"><h5>Company &amp; Legal</h5>
+        <a href="https://github.com/AchiraStudio" target="_blank" rel="noopener">AchiraStudio</a>
+        <a href="https://github.com/AchiraStudio/kivo/blob/main/LICENSE" target="_blank" rel="noopener">License — MIT</a>
+        <a href="https://github.com/AchiraStudio/kivo" target="_blank" rel="noopener">Privacy</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© <span id="year"></span> AchiraStudio · Kivo</span>
+      <span>Your business. One system.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+/* ================= helpers ================= */
+const $=(s,c=document)=>c.querySelector(s);
+const $$=(s,c=document)=>[...c.querySelectorAll(s)];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fmtRp=n=>'Rp '+Math.round(n).toLocaleString('id-ID');
+const nowT=()=>new Date().toTimeString().slice(0,8);
+const refreshIcons=()=>{try{window.lucide&&lucide.createIcons()}catch(e){}};
+refreshIcons();
+ $('#year').textContent=new Date().getFullYear();
+
+/* ================= theme ================= */
+const themeBtn=$('#themeBtn');
+function setTheme(t){
+  document.documentElement.dataset.theme=t;
+  themeBtn.innerHTML=`<i data-lucide="${t==='dark'?'sun':'moon'}"></i>`;
+  themeBtn.setAttribute('aria-label',t==='dark'?'Switch to light theme':'Switch to dark theme');
+  refreshIcons();
+  try{localStorage.setItem('kivo-theme',t)}catch(e){}
+}
+try{setTheme(localStorage.getItem('kivo-theme')||'dark')}catch(e){setTheme('dark')}
+themeBtn.addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+
+/* ================= nav ================= */
+const nav=$('#nav');
+ $('#burger').addEventListener('click',()=>nav.classList.toggle('open'));
+ $$('#navMobile a').forEach(a=>a.addEventListener('click',()=>nav.classList.remove('open')));
+/* scrollspy */
+const spyLinks=$$('.nav-links a[href^="#"]');
+const spyIO=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){
+    spyLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id));
+  }});
+},{rootMargin:'-35% 0px -55% 0px'});
+['product','features','how','security'].forEach(id=>{const el=document.getElementById(id);el&&spyIO.observe(el)});
+
+/* ================= reveal ================= */
+const revealEls=$$('[data-reveal]');
+if(RM){revealEls.forEach(el=>el.classList.add('in'))}
+else{
+  const rio=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){e.target.classList.add('in');rio.unobserve(e.target)}
+  }),{threshold:.12});
+  revealEls.forEach(el=>rio.observe(el));
+}
+/* counters */
+const cio=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting)return;cio.unobserve(e.target);
+  const el=e.target,end=+el.dataset.count,pre=el.dataset.prefix||'';
+  if(RM){el.textContent=pre+end.toLocaleString('id-ID');return}
+  const t0=performance.now();
+  (function tick(t){const p=Math.min((t-t0)/900,1);
+    el.textContent=pre+Math.round(end*(1-Math.pow(1-p,3))).toLocaleString('id-ID');
+    if(p<1)requestAnimationFrame(tick)})(t0);
+}),{threshold:.4});
+ $$('[data-count]').forEach(el=>cio.observe(el));
+
+/* ================= app window: tour ================= */
+function showView(v){
+  $$('.app-view').forEach(x=>x.classList.toggle('on',x.id==='view-'+v));
+  $$('.side-item[data-view]').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
+  $$('.tour-tab').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
+}
+ $$('.side-item[data-view],.tour-tab').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
+/* topbar toys */
+const BRANCHES=['Main Store','Bandung Branch','Surabaya Branch'];let bi=0;
+ $('#branchPill').addEventListener('click',()=>{bi=(bi+1)%3;$('#branchName').textContent=BRANCHES[bi]});
+ $('#topSync').addEventListener('click',async function(){
+  const dot=this.querySelector('.dot'),txt=this.childNodes[this.childNodes.length-1];
+  this.style.pointerEvents='none';dot.className='dot c';txt.textContent='SYNCING…';
+  await sleep(RM?50:1100);dot.className='dot g';txt.textContent='SYNCED';this.style.pointerEvents='';
+});
+
+/* ================= POS mini ================= */
+const PRODUCTS=[
+  {n:'Kopi Susu Botol',p:8500,s:24,c:'Coffee'},{n:'Teh Melati',p:6000,s:30,c:'Coffee'},
+  {n:'Air Mineral 600ml',p:4000,s:48,c:'Drinks'},{n:'Roti Coklat',p:12500,s:15,c:'Snacks'},
+  {n:'Snack Kentang',p:9000,s:22,c:'Snacks'},{n:'Paracetamol 500mg',p:3500,s:60,c:'Pharmacy'},
+  {n:'Sabun Mandi 75g',p:17000,s:9,c:'Snacks'},{n:'Kopi Sachet',p:2000,s:120,c:'Coffee'}
+];
+const cart=new Map();let member=false,cat='All';
+function renderProducts(){
+  $('#prodGrid').innerHTML=PRODUCTS
+    .filter(p=>cat==='All'||p.c===cat)
+    .map((p,i)=>`<button class="prod" data-i="${i}"><div class="p-n">${p.n}</div><div class="p-p">${fmtRp(p.p)}</div><div class="p-s">${p.s} in stock</div></button>`).join('');
+}
+renderProducts();
+ $('#catTabs').addEventListener('click',e=>{
+  const b=e.target.closest('.cat-tab');if(!b)return;
+  cat=b.dataset.cat;$$('#catTabs .cat-tab').forEach(x=>x.classList.toggle('on',x===b));renderProducts();
+});
+ $('#prodGrid').addEventListener('click',e=>{
+  const b=e.target.closest('.prod');if(!b)return;
+  const i=+b.dataset.i;cart.set(i,(cart.get(i)||0)+1);renderCart();
+});
+ $('#custPill').addEventListener('click',()=>{
+  member=!member;$('#custName').textContent=member?'Siti · Member':'Walk-in';
+  $('#discLabel').textContent=member?'Member discount 5%':'Discount';renderCart();
+});
+function renderCart(){
+  const box=$('#cartLines');let sub=0;
+  if(!cart.size){box.innerHTML='<div class="cart-empty">Cart is empty — tap a product.</div>'}
+  else box.innerHTML=[...cart.entries()].map(([i,q])=>{
+    const p=PRODUCTS[i];sub+=p.p*q;
+    return `<div class="cline"><span class="cn">${p.n}</span><span class="cq">×${q}</span><span class="cp">${fmtRp(p.p*q)}</span><button data-rm="${i}" aria-label="Remove"><i data-lucide="x"></i></button></div>`;
+  }).join('');
+  const disc=member?Math.round(sub*.05):0;
+  $('#cartSub').textContent=fmtRp(sub);$('#cartDisc').textContent='−'+fmtRp(disc);
+  $('#cartTotal').textContent=fmtRp(sub-disc);
+  const btn=$('#chargeBtn');
+  btn.textContent=sub?('Charge '+fmtRp(sub-disc)):'Charge';
+  btn.dataset.amt=sub-disc;refreshIcons();
+}
+ $('#cartLines').addEventListener('click',e=>{
+  const b=e.target.closest('[data-rm]');if(!b)return;
+  const i=+b.dataset.rm,q=cart.get(i)-1;q<=0?cart.delete(i):cart.set(i,q);renderCart();
+});
+ $('#chargeBtn').addEventListener('click',async function(){
+  if(!cart.size||this.classList.contains('ok'))return;
+  this.classList.add('ok');this.textContent='Payment recorded';
+  cart.clear();renderCart();
+  await sleep(1300);this.classList.remove('ok');this.textContent='Charge';
+});
+renderCart();
+
+/* ================= inventory mini ================= */
+const INV=[
+ {n:'Kopi Susu Botol 250ml',u:'PCS',st:144,min:48,exp:'2026-01-15',stat:['g','OK'],
+  units:[['BOX','1 Box = 24 Pcs','Rp 192.000'],['PACK','1 Pack = 6 Pcs','Rp 49.800'],['PCS','144 in stock · min 48','Rp 8.500']],
+  batches:[['B-2409','2025-11-28','96 PCS','w','34 days'],['B-2410','2026-01-15','48 PCS','g','OK']],
+  mv:[['2025-10-24','PO #0841','in','+240 PCS'],['2025-10-25','sales','out','−96 PCS'],['2025-10-26','opname #014','adj','±0 variance']]},
+ {n:'Gula Pasir 1kg',u:'PACK',st:6,min:20,exp:'2026-02-14',stat:['w','LOW'],
+  units:[['BOX','1 Box = 20 Pack · 0 in stock','Rp 198.000'],['PACK','6 in stock · min 20','Rp 10.500']],
+  batches:[['B-2410','2026-02-14','6 PACK','g','OK']],
+  mv:[['2025-10-20','PO #0839','in','+20 PACK'],['2025-10-24','sales','out','−14 PACK']]},
+ {n:'Teh Celup',u:'BOX',st:3,min:5,exp:'2025-10-30',stat:['w','EXPIRING'],
+  units:[['BOX','1 Box = 10 Pack · 3 in stock','Rp 96.000'],['PACK','1 Pack = 20 sachet','Rp 9.800']],
+  batches:[['B-2408','2025-10-30','3 BOX','w','18 days']],
+  mv:[['2025-10-18','PO #0836','in','+5 BOX'],['2025-10-22','sales','out','−2 BOX']]},
+ {n:'Paracetamol 500mg',u:'PCS',st:420,min:100,exp:'2026-08-02',stat:['g','OK'],
+  units:[['BOX','1 Box = 20 strip','Rp 58.000'],['STRIP','1 Strip = 10 pcs','Rp 3.200'],['PCS','420 in stock','Rp 350']],
+  batches:[['B-2411','2026-08-02','420 PCS','g','OK']],
+  mv:[['2025-10-21','PO #0840','in','+500 PCS'],['2025-10-25','sales','out','−80 PCS']]},
+ {n:'Susu UHT 1L',u:'PCS',st:72,min:36,exp:'2025-12-15',stat:['g','OK'],
+  units:[['BOX','1 Box = 12 Pcs · 6 in stock','Rp 228.000'],['PCS','72 in stock · min 36','Rp 19.500']],
+  batches:[['B-2409','2025-12-15','72 PCS','g','OK']],
+  mv:[['2025-10-19','PO #0838','in','+120 PCS'],['2025-10-25','sales','out','−48 PCS']]}
+];
+let invSel=0;
+function renderInv(){
+  $('#invBody').innerHTML=INV.map((r,i)=>`<tr class="click ${i===invSel?'sel':''}" data-i="${i}">
+    <td><b>${r.n}</b></td><td>${r.u}</td><td>${r.st}</td><td>${r.min}</td><td>${r.exp}</td>
+    <td><span class="mini-s" style="color:var(--${r.stat[0]==='g'?'success':'warning'})"><span class="dot ${r.stat[0]}"></span>${r.stat[1]}</span></td></tr>`).join('');
+  const r=INV[invSel];
+  $('#invDetail').innerHTML=`
+    <div class="panel-head"><span class="panel-title">${r.n}</span><span class="mini-s" style="color:var(--${r.stat[0]==='g'?'success':'warning'})"><span class="dot ${r.stat[0]}"></span>${r.stat[1]}</span></div>
+    <div class="unit-row">${r.units.map((u,j)=>`${j?'<span class="unit-arr">→</span>':''}<span class="unit-chip"><b>${u[0]}</b><span>${u[1]}</span></span>`).join('')}</div>
+    <div class="unit-row">${r.units.map(u=>`<span class="chip">${u[0]} ${u[2]}</span>`).join('')}</div>
+    <table class="k-table" style="margin-top:10px"><thead><tr><th>Batch</th><th>Expiry</th><th>Qty</th><th>Status</th></tr></thead>
+    <tbody>${r.batches.map(b=>`<tr><td><b>${b[0]}</b></td><td>${b[1]}</td><td>${b[2]}</td><td><span class="mini-s" style="color:var(--${b[3]==='g'?'success':'warning'})"><span class="dot ${b[3]}"></span>${b[4]}</span></td></tr>`).join('')}</tbody></table>
+    <div style="margin-top:10px">${r.mv.map(m=>`<div class="mv"><span>${m[0]} <span class="t">· ${m[1]}</span></span><span class="${m[2]}">${m[3]}</span></div>`).join('')}</div>`;
+}
+ $('#invBody').addEventListener('click',e=>{
+  const tr=e.target.closest('tr[data-i]');if(!tr)return;
+  invSel=+tr.dataset.i;renderInv();
+});
+renderInv();
+
+/* ================= day with kivo ================= */
+const DAY=[
+ ['store','Open store','Launch Kivo and you are in business in seconds — data lives on this machine, so startup never waits for a connection.'],
+ ['wallet','Start cash shift','Count the drawer, record starting cash, and the cashier session begins. Every movement is tracked until reconciliation.'],
+ ['scan-barcode','Sell','Scan a barcode or type two letters. Category tabs, a product grid, and instant search — the fastest route from customer to receipt.'],
+ ['credit-card','Take payment','Cash, QRIS, card, transfer, customer credit — or split across several methods in a single sale.'],
+ ['packages','Inventory updates','Stock, batches, and expiry dates move the moment the sale completes. No separate stock entry, ever.'],
+ ['book-open','Journal posted','A double-entry journal is written automatically — revenue, COGS, and cash, balanced to the rupiah.'],
+ ['refresh-cw','Sync','The sale joins the queue and reaches every branch through Kivo Cloud the moment it is online.'],
+ ['trending-up','Review the day','Sales, profit, best sellers, and cashier performance — end the shift with a report, not a spreadsheet.']
+];
+const dayRail=$('#dayRail');
+dayRail.insertAdjacentHTML('beforeend',DAY.map((s,i)=>`<button class="rstep ${i===0?'cur':''}" data-i="${i}" aria-label="${s[1]}"><span class="rn">${i+1}</span><span class="rt">${s[1]}</span></button>`).join(''));
+let dayI=0,dayHover=false,dayVis=false;
+function setDay(i){
+  dayI=i;
+  $$('#dayRail .rstep').forEach((b,j)=>{b.className='rstep'+(j<i?' done':j===i?' cur':'')});
+  $('#dayFill').style.width=(i/(DAY.length-1)*87.5)+'%';
+  const s=DAY[i];
+  $('#dayInner').className='dd-anim';
+  $('#dayInner').innerHTML=`<div class="dd-ic"><i data-lucide="${s[0]}"></i></div><h3>${i+1} · ${s[1]}</h3><p>${s[2]}</p>`;
+  refreshIcons();
+}
+setDay(0);
+dayRail.addEventListener('click',e=>{const b=e.target.closest('.rstep');if(b)setDay(+b.dataset.i)});
+ $('#dayDetail').addEventListener('mouseenter',()=>dayHover=true);
+ $('#dayDetail').addEventListener('mouseleave',()=>dayHover=false);
+new IntersectionObserver(es=>es.forEach(e=>dayVis=e.isIntersecting),{threshold:.3}).observe($('#dayDetail'));
+if(!RM)setInterval(()=>{if(dayVis&&!dayHover&&!document.hidden)setDay((dayI+1)%DAY.length)},3600);
+
+/* ================= purchasing ================= */
+const PSTAGES=[
+ ['truck','Supplier','Suppliers, price lists, and terms kept in one registry.','34 suppliers'],
+ ['receipt','Purchase Order','Create a PO with expected quantities and agreed costs.','PO #0841 · 12 lines · Rp 8.240.000'],
+ ['package','Goods Received','Receive fully or partially — batches and expiry captured at the door.','GRN #0512 · received 10 of 12'],
+ ['boxes','Inventory','Stock levels, batches, and valuation update automatically.','+240 PCS Kopi Susu Botol'],
+ ['coins','HPP / COGS','Cost of goods recalculated with every receipt.','HPP Kopi Susu: Rp 5.940 / unit'],
+ ['calculator','Accounting','Supplier bills, accounts payable, and journals post themselves.','AP recognized · JE #4412']
+];
+ $('#pRail').innerHTML=PSTAGES.map((s,i)=>`<button class="pstage ${i===0?'on':''}" data-i="${i}"><span class="pn"><i data-lucide="${s[0]}"></i></span><span class="pt">${s[1]}</span></button>`).join('');
+function setP(i){
+  $$('#pRail .pstage').forEach((b,j)=>b.classList.toggle('on',j===i));
+  const s=PSTAGES[i];
+  $('#pDetail').innerHTML=`<span class="f-ic"><i data-lucide="${s[0]}"></i></span><div style="flex:1;min-width:220px"><h3>${i+1}. ${s[1]}</h3><p>${s[2]}</p></div><span class="chip p-meta">${s[3]}</span>`;
+  refreshIcons();
+}
+ $('#pRail').addEventListener('click',e=>{const b=e.target.closest('.pstage');if(b)setP(+b.dataset.i)});
+setP(0);
+
+/* ================= offline demo ================= */
+let online=true,draining=false,saleN=1284,nLocal=0,nSync=0;
+const queue=[];
+function pulse(el,ms=260){el.classList.add('hot');setTimeout(()=>el.classList.remove('hot'),ms)}
+function offLog(txt,cls='dm'){
+  const box=$('#offLog');
+  box.insertAdjacentHTML('afterbegin',`<div class="log-line ${cls}"><span>${nowT()}</span>${txt}</div>`);
+  while(box.children.length>7)box.lastChild.remove();
+}
+function renderQueue(){
+  const box=$('#queueList');
+  box.innerHTML=queue.length?queue.map(q=>`<div class="qchip" data-id="${q.id}"><span>SALE #${q.id}</span><small>${fmtRp(q.amt)}</small></div>`).join('')
+    :'<div class="qempty">Queue is empty — everything is synchronized.</div>';
+  $('#qBadge').textContent=queue.length;$('#qBadge').classList.toggle('show',queue.length>0);
+  $('#qCount').textContent=queue.length+(queue.length===1?' record':' records');
+  $('#sQueued').textContent=queue.length;
+}
+function setOffStatus(cls,txt){$('#offDot').className='dot '+cls;$('#offText').textContent=txt}
+async function newSale(){
+  saleN++;const amt=(8+Math.floor(Math.random()*40))*500;nLocal++;
+  $('#sLocal').textContent=nLocal;
+  pulse($('#nPos'),300);await sleep(RM?20:280);
+  pulse($('#nSql'),300);await sleep(RM?20:280);
+  if(online){
+    pulse($('#nQueue'),200);await sleep(RM?20:200);
+    pulse($('#nCloud'),320);nSync++;$('#sSynced').textContent=nSync;
+    offLog(`SYNCED  #${saleN} · ${fmtRp(amt)} · ${90+Math.floor(Math.random()*60)} ms`,'ok');
+  }else{
+    queue.push({id:saleN,amt});renderQueue();
+    pulse($('#nQueue'),320);
+    offLog(`QUEUED   #${saleN} · ${fmtRp(amt)} · stored locally`,'wn');
+  }
+}
+async function setOnline(state){
+  online=state;
+  $('#segOn').classList.toggle('on',state);$('#segOff').classList.toggle('on',!state);
+  $('#nCloud').classList.toggle('down',!state);
+  $('#cloudLink').classList.toggle('wire',!state);
+  if(!state){
+    draining=false;
+    setOffStatus('w','OFFLINE · OPERATING LOCALLY');
+    offLog('NETWORK  · connection lost — sales continue locally','wn');
+  }else{
+    if(queue.length){
+      draining=true;setOffStatus('c','SYNCING…');
+      offLog(`NETWORK  · connection restored — draining ${queue.length} records`,'ac');
+      while(queue.length&&online&&draining){
+        pulse($('#nQueue'),200);await sleep(RM?20:200);
+        const chip=$(`.qchip[data-id="${queue[0].id}"]`);if(chip)chip.classList.add('out');
+        await sleep(RM?20:230);
+        queue.shift();renderQueue();
+        pulse($('#nCloud'),300);nSync++;$('#sSynced').textContent=nSync;
+        offLog(`SYNCED  #${saleN-queue.length} · from queue · ${80+Math.floor(Math.random()*70)} ms`,'ok');
+        await sleep(RM?10:120);
+      }
+      if(!queue.length){
+        setOffStatus('g','ALL RECORDS SYNCHRONIZED');
+        offLog('QUEUE    · empty — local and cloud agree','ac');
+        await sleep(RM?10:1600);
+      }
+    }
+    if(online){setOffStatus('g','CONNECTED')}
+  }
+}
+ $('#segOn').addEventListener('click',()=>{if(!online)setOnline(true)});
+ $('#segOff').addEventListener('click',()=>{if(online)setOnline(false)});
+ $('#btnSale').addEventListener('click',()=>newSale());
+ $('#btnScenario').addEventListener('click',async function(){
+  if(this.disabled)return;this.disabled=true;
+  if(online)await setOnline(false);
+  await sleep(600);
+  for(let i=0;i<3;i++){await newSale();await sleep(750)}
+  await sleep(900);
+  await setOnline(true);
+  this.disabled=false;
+});
+
+/* ================= cloud network ================= */
+const cnNet=$('#cloudNet'),cnSvg=$('#cloudSvg'),cnCloud=$('#cloudNode');
+let cnVis=false;
+function drawCloudLines(){
+  const nr=cnNet.getBoundingClientRect();
+  cnSvg.setAttribute('viewBox',`0 0 ${nr.width} ${nr.height}`);
+  const cr=cnCloud.getBoundingClientRect();
+  const cx=cr.left+cr.width/2-nr.left,cy=cr.bottom-nr.top;
+  cnSvg.innerHTML=$$('.branch').map(b=>{
+    const r=b.getBoundingClientRect();
+    const x=r.left+r.width/2-nr.left,y=r.top-nr.top;
+    return `<line x1="${x}" y1="${y}" x2="${cx}" y2="${cy}"/>`;
+  }).join('');
+}
+function spawnPacket(b,dir=1){
+  if(RM)return;
+  const nr=cnNet.getBoundingClientRect(),cr=cnCloud.getBoundingClientRect(),r=b.getBoundingClientRect();
+  const x1=r.left+r.width/2-nr.left,y1=r.top-nr.top;
+  const x2=cr.left+cr.width/2-nr.left,y2=cr.bottom-nr.top;
+  const p=document.createElement('span');p.className='packet';
+  if(dir<0)p.style.background=getComputedStyle(document.documentElement).getPropertyValue('--primary');
+  cnNet.appendChild(p);
+  const from=dir>0?[x1,y1]:[x2,y2],to=dir>0?[x2,y2]:[x1,y1];
+  p.style.left='0';p.style.top='0';
+  p.animate([{transform:`translate(${from[0]-4}px,${from[1]-4}px)`},{transform:`translate(${to[0]-4}px,${to[1]-4}px)`}],
+    {duration:850,easing:'cubic-bezier(.35,.7,.3,1)'}).onfinish=()=>p.remove();
+}
+function cnSet(cls,txt){$('#cnStatus').querySelector('.dot')&&$('#cnStatus').removeChild($('#cnStatus').querySelector('.dot, .spin'));
+  $('#cnStatus').insertAdjacentHTML('afterbegin',cls==='c'?'<span class="spin"></span>':`<span class="dot ${cls}"></span>`);
+  $('#cnStatusText').textContent=txt}
+function cnLogLine(txt){
+  const box=$('#cnLog');
+  box.insertAdjacentHTML('afterbegin',`<div class="ok">${nowT()}  ${txt}</div>`);
+  while(box.children.length>4)box.lastChild.remove();
+}
+const branches=$$('.branch');
+async function cloudTick(){
+  if(!cnVis||document.hidden)return;
+  const recs=6+Math.floor(Math.random()*30),ms=95+Math.floor(Math.random()*70);
+  cnSet('c',`SYNCING · ${recs} RECORDS · ${ms} MS`);
+  branches.forEach((b,i)=>setTimeout(()=>spawnPacket(b,1),i*140));
+  await sleep(1400);
+  branches.forEach((b,i)=>{
+    const el=b.querySelector('.b-sales');
+    el.dataset.sales=+el.dataset.sales+(60+Math.floor(Math.random()*300))*1000;
+    el.textContent=fmtRp(+el.dataset.sales);
+    spawnPacket(b,-1);
+  });
+  cnSet('g','SYNCHRONIZED · JUST NOW');
+  cnLogLine(`${branches[0].querySelector('b').textContent} · ${recs} records · ${ms} ms`);
+  await sleep(2000);
+  cnSet('g','CONNECTED · SYNCED 12 S AGO');
+}
+new IntersectionObserver(es=>es.forEach(e=>{cnVis=e.isIntersecting;if(e.isIntersecting)drawCloudLines()}),{threshold:.2}).observe(cnNet);
+addEventListener('resize',()=>clearTimeout(window.__cnr)||(window.__cnr=setTimeout(drawCloudLines,150)));
+setTimeout(drawCloudLines,400);
+if(!RM)setInterval(cloudTick,4600);
+
+/* ================= AI demo ================= */
+const QA={
+ q1:{q:'How much did we sell today?',a:'Today across 3 branches you sold Rp 12.450.000 from 184 transactions — 58% of it at the Main Store. Sales are up 8.2% compared to yesterday.',
+   cols:['Branch','Transactions','Sales'],rows:[['Main Store','107','Rp 7.240.000'],['Bandung','44','Rp 3.180.000'],['Surabaya','33','Rp 2.030.000']]},
+ q2:{q:'Which products are running low?',a:'5 products are below their minimum stock level. Based on the last 30 days of sales, here is what I would reorder:',
+   cols:['Product','Stock','Min','Suggested order'],rows:[['Kopi Susu Botol','4','10','+36'],['Gula Pasir','6','20','+28'],['Teh Celup','8','24','+32'],['Snack Kentang','5','15','+20'],['Susu UHT 1L','12','36','+24']]},
+ q3:{q:'Who are our top customers this month?',a:'Your top 3 customers this month account for Rp 5.415.500 in sales. Siti Rahma leads with 214 transactions.',
+   cols:['Customer','Transactions','Points','Sales'],rows:[['Siti Rahma','214','1.240','Rp 2.140.000'],['Budi Santoso','96','610','Rp 1.820.500'],['Dewi Lestari','74','430','Rp 1.455.000']]},
+ q4:{q:'Which products expire in the next 30 days?',a:'3 batches expire within 30 days. The Teh Celup batch B-2408 is the most urgent — consider a promotion before the expiry date.',
+   cols:['Product','Batch','Expiry','Qty'],rows:[['Teh Celup','B-2408','2025-10-30','18 PCS'],['Roti Coklat','B-2412','2025-11-08','24 PCS'],['Yoghurt Strawberry','B-2410','2025-11-15','36 PCS']]}
+};
+let aiBusy=false;
+const aiChat=$('#aiChat');
+function aiScroll(){aiChat.scrollTop=aiChat.scrollHeight}
+async function askAI(key){
+  if(aiBusy)return;aiBusy=true;
+  const d=QA[key];
+  $$('#aiChips .qchip-btn').forEach(b=>b.disabled=true);
+  aiChat.insertAdjacentHTML('beforeend',`<div class="msg user"><span class="m-av" style="background:var(--muted);color:var(--body)">A</span><div class="m-body">${d.q}</div></div>`);
+  aiChat.insertAdjacentHTML('beforeend',`<div class="msg" id="aiPending"><span class="m-av"><i data-lucide="sparkles"></i></span><div class="m-body"><span class="typing"><i></i><i></i><i></i></span></div></div>`);
+  refreshIcons();aiScroll();
+  await sleep(RM?60:750);
+  const body=$('#aiPending .m-body');
+  body.innerHTML='<span id="aiTxt"></span>';
+  if(RM){$('#aiTxt').textContent=d.a}
+  else for(const ch of d.a){$('#aiTxt').textContent+=ch;aiScroll();await sleep(11)}
+  body.insertAdjacentHTML('beforeend',`<div class="tbl-in"><table class="ai-table"><thead><tr>${d.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${d.rows.map(r=>`<tr>${r.map((c,i)=>`<td${i===0?'':' '}>${i===0?'<b>'+c+'</b>':c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+  $('#aiPending').removeAttribute('id');
+  aiScroll();
+  $$('#aiChips .qchip-btn').forEach(b=>b.disabled=false);
+  aiBusy=false;
+}
+ $('#aiChips').addEventListener('click',e=>{const b=e.target.closest('.qchip-btn');if(b)askAI(b.dataset.q)});
+/* auto-demo when scrolled into view */
+let aiPlayed=false;
+new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting&&!aiPlayed){aiPlayed=true;if(!RM)setTimeout(()=>askAI('q2'),700)}
+}),{threshold:.35}).observe($('#aiChat'));
+
+/* ================= RBAC matrix ================= */
+const ROLEDESC={
+ owner:'Owner — full control, including cloud data cleanup and workspace-level decisions.',
+ sysadmin:'Sysadmin — infrastructure and user management, without day-to-day operations.',
+ admin:'Admin — runs the store: everything except infrastructure-level tools.',
+ manager:'Manager — operations and reporting, including inventory and accounting views.',
+ cashier:'Cashier — sells, and sees their own shift history.',
+ staff:'Staff — limited access: sales creation only.'
+};
+const matrix=$('#matrix');
+matrix.addEventListener('click',e=>{
+  const b=e.target.closest('.role-th');if(!b)return;
+  matrix.dataset.role=b.dataset.role;
+  $('#roleDesc').textContent=ROLEDESC[b.dataset.role];
+});
+ $('#roleDesc').textContent=ROLEDESC.cashier;
+</script>
+</body>
+</html>

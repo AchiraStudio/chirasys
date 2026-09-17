@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ToastProvider } from "./components/ui/Toast";
+import "@fontsource-variable/manrope";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
