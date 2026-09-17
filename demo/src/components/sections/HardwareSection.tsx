@@ -9,33 +9,33 @@ export const HardwareSection: React.FC = () => {
           <div className="eyebrow">
             <span className="eb-dot"></span>HARDWARE
           </div>
-          <h2 className="h2">Plugs into the equipment you already own.</h2>
+          <h2 className="h2">Kompatibel langsung dengan hardware kasir Anda.</h2>
           <p className="lead">
-            Thermal receipt printers, cash drawers, and barcode scanners — connected the way real stores connect them.
+            Hubungkan printer thermal, laci kasir otomatis, dan scanner barcode secara plug &amp; play.
           </p>
           <ul className="blist">
             <li>
               <Printer size={16} />
               <span>
-                <b>Thermal printing</b> via ESC/POS or the HPRT Windows SDK.
+                <b>Printer Thermal Cepat</b> — cetak struk instan via ESC/POS atau HPRT SDK.
               </span>
             </li>
             <li>
               <ReceiptIcon size={16} />
               <span>
-                <b>58 mm and 80 mm</b> receipts, formatted properly for both.
+                <b>Format 58 mm &amp; 80 mm</b> — layout struk rapi dengan logo, QRIS &amp; barcode.
               </span>
             </li>
             <li>
               <ScanBarcode size={16} />
               <span>
-                <b>Barcode scanners</b> and <b>cash drawers</b>, ready at the register.
+                <b>Laci Kasir &amp; Barcode Scanner</b> — kick drawer otomatis saat transaksi selesai.
               </span>
             </li>
             <li>
               <Wifi size={16} />
               <span>
-                <b>USB, network, or Bluetooth</b> connections.
+                <b>Konektivitas Fleksibel</b> — siap pakai lewat USB, kabel LAN/Wi-Fi, atau Bluetooth.
               </span>
             </li>
           </ul>

@@ -82,27 +82,27 @@ export const CustomersPromosSection: React.FC = () => {
           <div className="eyebrow">
             <span className="eb-dot"></span>CUSTOMERS &amp; PROMOTIONS
           </div>
-          <h2 className="h2">Know your regulars. Reward them properly.</h2>
+          <h2 className="h2">Kenali pelanggan setia. Berikan reward tepat.</h2>
           <p className="lead">
-            Profiles with loyalty points, credit limits, and membership tiers — plus promotions that apply themselves at the register, including BOGO, quantity tiers, bundles, and VIP treatment.
+            Profil pelanggan, batas piutang, poin loyalitas, serta promo otomatis di kasir.
           </p>
           <ul className="blist">
             <li>
               <UserCheck size={16} />
               <span>
-                <b>Customer profiles</b> with purchase history at every branch.
+                <b>Profil &amp; Riwayat Belanja</b> — pantau riwayat transaksi di seluruh cabang.
               </span>
             </li>
             <li>
               <TicketPercent size={16} />
               <span>
-                <b>Loyalty points</b> earned and redeemed automatically.
+                <b>Poin Loyalitas &amp; Diskon</b> — perolehan dan penukaran poin instan di kasir.
               </span>
             </li>
             <li>
               <Coins size={16} />
               <span>
-                <b>Credit limits</b> — track customer credit (Piutang) with outstanding balances.
+                <b>Batas Kredit (Piutang)</b> — kontrol jatuh tempo dan saldo piutang pelanggan.
               </span>
             </li>
           </ul>

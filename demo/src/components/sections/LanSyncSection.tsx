@@ -3,39 +3,39 @@ import { Wifi, Server, Lock, Cloud } from 'lucide-react';
 
 export const LanSyncSection: React.FC = () => {
   return (
-    <section className="section tint" id="lan">
+    <section className="section" id="lan">
       <div className="wrap split">
         <div data-reveal>
           <div className="eyebrow">
             <span className="eb-dot"></span>LAN SYNC
           </div>
-          <h2 className="h2">Your counters, in sync — no internet required.</h2>
+          <h2 className="h2">Kasir toko tersinkronisasi tanpa internet.</h2>
           <p className="lead">
-            Terminals discover each other over UDP and synchronize over HTTP on your local network. A companion to Kivo Cloud, not a replacement — ideal for multi-register stores.
+            Antar kasir saling terhubung otomatis via UDP di jaringan lokal. Stok dan transaksi langsung sinkron.
           </p>
           <ul className="blist">
             <li>
               <Wifi size={16} />
               <span>
-                <b>UDP discovery</b> — terminals find the server automatically on the network.
+                <b>Penemuan Otomatis (UDP)</b> — kasir anak langsung mendeteksi server induk di Wi-Fi toko.
               </span>
             </li>
             <li>
               <Server size={16} />
               <span>
-                <b>HTTP peer synchronization</b> between the main terminal and every register.
+                <b>Sinkronisasi Peer Cepat</b> — data penjualan tersinkron antar kasir dalam hitungan milidetik.
               </span>
             </li>
             <li>
               <Lock size={16} />
               <span>
-                <b>Configurable permissions</b> — decide which terminals may sync what.
+                <b>Hak Akses Per Kasir</b> — atur wewenang kasir anak dan terminal kasir utama.
               </span>
             </li>
             <li>
               <Cloud size={16} />
               <span>
-                <b>Works alongside Kivo Cloud</b> — the whole store syncs when any uplink returns.
+                <b>Sinergi Supabase Cloud</b> — seluruh mutasi lokal langsung terunggah saat internet kembali.
               </span>
             </li>
           </ul>

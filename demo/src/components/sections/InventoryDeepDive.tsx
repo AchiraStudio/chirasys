@@ -3,7 +3,7 @@ import { Boxes, Timer, History, CheckCheck } from 'lucide-react';
 
 export const InventoryDeepDive: React.FC = () => {
   return (
-    <section className="section tint" id="inventory">
+    <section className="section" id="inventory">
       <div className="wrap split rev">
         <div className="panel" data-reveal>
           <div className="panel-head">
@@ -85,33 +85,33 @@ export const InventoryDeepDive: React.FC = () => {
           <div className="eyebrow ep">
             <span className="eb-dot"></span>INVENTORY
           </div>
-          <h2 className="h2">Every unit, batch, and rupiah accounted for.</h2>
+          <h2 className="h2">Stok multi-satuan &amp; batch expiry presisi.</h2>
           <p className="lead">
-            Multi-unit products with conversion, batches with expiry, and a complete stock ledger — connected to POS, purchasing, and accounting in real time.
+            Lacak mutasi stok, konversi bertingkat, dan peringatan kedaluwarsa secara real-time.
           </p>
           <ul className="blist">
             <li>
               <Boxes size={16} />
               <span>
-                <b>BOX → PACK → PCS</b> hierarchies with independent pricing per unit.
+                <b>Hierarki Satuan Bertingkat</b> — jual per Box, Pack, atau Pcs dengan konversi &amp; harga otomatis.
               </span>
             </li>
             <li>
               <Timer size={16} />
               <span>
-                <b>Batches &amp; expiry</b> captured at goods receiving, visible at the register.
+                <b>Batch No &amp; Tanggal Kadaluarsa</b> — pantau item mendekati kadaluarsa di kasir dan laporan.
               </span>
             </li>
             <li>
               <History size={16} />
               <span>
-                <b>Stock ledger</b> — every movement recorded, nothing overwritten.
+                <b>Kartu Stok (Ledger) Akurat</b> — setiap mutasi tercatat permanen tanpa ditimpa.
               </span>
             </li>
             <li>
               <CheckCheck size={16} />
               <span>
-                <b>Stock Opname</b> (physical count) with variance handling and automatic adjustments.
+                <b>Stock Opname Cepat</b> — selisih stok fisik langsung direkonsiliasi ke jurnal penyesuaian.
               </span>
             </li>
           </ul>

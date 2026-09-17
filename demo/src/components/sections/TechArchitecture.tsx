@@ -19,11 +19,11 @@ export const TechArchitecture: React.FC = () => {
       <div className="wrap">
         <div className="sec-head center" data-reveal>
           <div className="eyebrow">
-            <span className="eb-dot"></span>UNDER THE HOOD
+            <span className="eb-dot"></span>ARSITEKTUR NATIVE
           </div>
-          <h2 className="h2">How Kivo works.</h2>
+          <h2 className="h2">Arsitektur performa tinggi berbasis Rust.</h2>
           <p className="lead">
-            A desktop application with a local database at its core — connected when you choose to be.
+            Aplikasi desktop native dengan SQLite lokal di intinya — kencang, hemat memori, dan aman.
           </p>
         </div>
 

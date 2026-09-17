@@ -3,39 +3,39 @@ import { BookOpen, Database, TrendingUp, Coins, ShoppingCart, Package } from 'lu
 
 export const AccountingDeepDive: React.FC = () => {
   return (
-    <section className="section tint" id="accounting">
+    <section className="section" id="accounting">
       <div className="wrap split">
         <div data-reveal>
           <div className="eyebrow ep">
             <span className="eb-dot"></span>ACCOUNTING
           </div>
-          <h2 className="h2">Books that write themselves.</h2>
+          <h2 className="h2">Pembukuan otomatis yang mencatat sendiri.</h2>
           <p className="lead">
-            Every business event becomes a balanced double-entry journal. You review; Kivo records.
+            Setiap penjualan, pembelian, dan pergerakan stok langsung menjadi jurnal berimbang.
           </p>
           <ul className="blist">
             <li>
               <BookOpen size={16} />
               <span>
-                <b>Automatic journals</b> from sales, receiving, adjustments, and returns.
+                <b>Jurnal Otomatis Berimbang</b> — catat debit/kredit tanpa repot entri manual.
               </span>
             </li>
             <li>
               <Database size={16} />
               <span>
-                <b>Full Chart of Accounts</b> — assets, liabilities, equity, revenue, COGS, expenses.
+                <b>Bagan Akun (CoA) Standar</b> — kelola aset, kewajiban, modal, kas, dan biaya.
               </span>
             </li>
             <li>
               <TrendingUp size={16} />
               <span>
-                <b>Reports</b> — Laba Rugi (P&amp;L), Neraca (Balance Sheet), Trial Balance.
+                <b>Laporan Finansial Real-Time</b> — Laba Rugi (P&amp;L), Neraca, dan Buku Besar instan.
               </span>
             </li>
             <li>
               <Coins size={16} />
               <span>
-                <b>Inventory valuation</b> by Average, FIFO, or LIFO.
+                <b>Valuasi HPP / COGS</b> — hitung nilai persediaan otomatis dengan metode Average / FIFO.
               </span>
             </li>
           </ul>

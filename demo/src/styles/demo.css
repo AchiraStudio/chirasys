@@ -68,15 +68,14 @@ img,svg{display:block}
 /* ambient page glow */
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:
-    radial-gradient(900px 520px at 85% -8%,var(--glow-p),transparent 68%),
-    radial-gradient(760px 480px at -10% 30%,var(--glow-c),transparent 70%)}
+    radial-gradient(1100px 520px at 50% -5%,color-mix(in srgb,var(--primary) 18%,transparent),transparent 70%),
+    radial-gradient(850px 480px at 85% 15%,color-mix(in srgb,var(--accent) 12%,transparent),transparent 65%),
+    radial-gradient(900px 600px at 15% 45%,color-mix(in srgb,var(--primary) 9%,transparent),transparent 70%),
+    radial-gradient(900px 550px at 80% 80%,color-mix(in srgb,var(--accent) 8%,transparent),transparent 70%)}
 
 .wrap{max-width:1180px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
-.section{padding:112px 0;scroll-margin-top:80px;position:relative}
-.tint{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-  background:
-    radial-gradient(720px 300px at 50% 0%,color-mix(in srgb,var(--primary) 4%,transparent),transparent 70%),
-    linear-gradient(180deg,color-mix(in srgb,var(--card) 26%,var(--bg)),color-mix(in srgb,var(--card) 6%,var(--bg)))}
+.section{padding:96px 0;scroll-margin-top:80px;position:relative}
+.tint{position:relative;background:transparent;border:none}
 
 /* section headers */
 .eyebrow{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 14px;margin-bottom:18px;
@@ -331,18 +330,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .cmd-shortcut-tag{font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
 
 /* ============ HERO ============ */
-.hero{padding:60px 0 100px;position:relative;overflow:clip}
-.hero::before{content:"";position:absolute;inset:-140px -20% auto;height:960px;pointer-events:none;
-  background:
-    radial-gradient(760px 480px at 50% 10%,color-mix(in srgb,var(--primary) 18%,transparent),transparent 70%),
-    radial-gradient(640px 420px at 78% 28%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 68%),
-    radial-gradient(580px 380px at 22% 32%,color-mix(in srgb,var(--primary) 12%,transparent),transparent 70%)}
-.hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.45;
+.hero{padding:48px 0 90px;position:relative}
+.hero::before{content:"";position:absolute;inset:-80px 0 auto 0;height:700px;pointer-events:none;
+  background:radial-gradient(680px 380px at 50% 30%,color-mix(in srgb,var(--primary) 14%,transparent),transparent 70%)}
+.hero::after{content:"";position:absolute;inset:-60px 0 -40px 0;pointer-events:none;opacity:.32;
   background-image:linear-gradient(color-mix(in srgb,var(--line) 70%,transparent) 1px,transparent 1px),
     linear-gradient(90deg,color-mix(in srgb,var(--line) 70%,transparent) 1px,transparent 1px);
-  background-size:52px 52px;
-  -webkit-mask-image:radial-gradient(850px 580px at 50% 6%,#000 24%,transparent 80%);
-  mask-image:radial-gradient(850px 580px at 50% 6%,#000 24%,transparent 80%)}
+  background-size:48px 48px;
+  -webkit-mask-image:radial-gradient(ellipse 75% 55% at 50% 35%,#000 15%,transparent 75%);
+  mask-image:radial-gradient(ellipse 75% 55% at 50% 35%,#000 15%,transparent 75%)}
 .hero-top{position:relative;z-index:1;text-align:center;display:flex;flex-direction:column;align-items:center}
 
 /* Announcement pill */

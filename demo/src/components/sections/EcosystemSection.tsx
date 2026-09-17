@@ -6,11 +6,11 @@ export const EcosystemSection: React.FC = () => {
       <div className="wrap">
         <div className="sec-head center" data-reveal>
           <div className="eyebrow">
-            <span className="eb-dot"></span>THE SYSTEM
+            <span className="eb-dot"></span>SISTEM TERPADU
           </div>
-          <h2 className="h2">Everything your business needs. In one system.</h2>
+          <h2 className="h2">Semua kebutuhan operasional. Dalam satu sistem.</h2>
           <p className="lead">
-            Kivo is not a POS with an accounting add-on. It is one connected platform — every sale, every stock movement, and every rupiah flows through the same local database, so your numbers always agree.
+            Satu database lokal terpadu. Penjualan kasir langsung memperbarui stok barang dan pembukuan tanpa jeda.
           </p>
         </div>
 

@@ -121,12 +121,11 @@ export const AiAssistantDemo: React.FC = () => {
         <div className="sec-head">
           <div className="eyebrow ep">
             <span className="eb-dot" />
-            <span>Kivo AI Assistant (Achira AI Engine)</span>
+            <span>KIVO AI COPILOT</span>
           </div>
-          <h2 className="h2">Tanyakan Apapun Tentang Toko Anda dalam Bahasa Manusia</h2>
+          <h2 className="h2">Tanyakan apapun tentang performa toko Anda.</h2>
           <p className="lead">
-            Bukan sekadar chatbot teks umum. Kivo AI membaca langsung data penjualan, mutasi stok,
-            dan laporan laba rugi SQLite lokal Anda menggunakan OpenAI Function Calling secara aman (BYOK).
+            Analisis penjualan, peringatan stok menipis, dan ringkasan laba rugi instan dalam bahasa sehari-hari via data lokal Anda.
           </p>
         </div>
 

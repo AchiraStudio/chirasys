@@ -12,15 +12,15 @@ export const OnboardingSection: React.FC = () => {
   ];
 
   return (
-    <section className="section tint" id="onboarding">
+    <section className="section" id="onboarding">
       <div className="wrap">
         <div className="sec-head center" data-reveal>
           <div className="eyebrow ep">
-            <span className="eb-dot"></span>ONBOARDING
+            <span className="eb-dot"></span>SETUP CEPAT
           </div>
-          <h2 className="h2">From download to first sale in one sitting.</h2>
+          <h2 className="h2">Dari instalasi ke transaksi pertama dalam hitungan menit.</h2>
           <p className="lead">
-            A guided setup wizard that respects your time — choose how you want to start.
+            Wizard persiapan praktis untuk pengaturan profil toko, printer kasir, dan akun admin.
           </p>
         </div>
 

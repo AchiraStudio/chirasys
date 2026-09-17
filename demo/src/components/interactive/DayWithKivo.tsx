@@ -68,7 +68,7 @@ export const DayWithKivo: React.FC = () => {
   const CurrentIcon = STEPS[currentStep].icon;
 
   return (
-    <section className="section tint" id="day">
+    <section className="section" id="day">
       <div className="wrap">
         <div className="sec-head center">
           <div className="eyebrow ep">

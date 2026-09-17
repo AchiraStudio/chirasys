@@ -4,46 +4,46 @@ import { RbacMatrix } from '../interactive/RbacMatrix';
 
 export const SecuritySection: React.FC = () => {
   return (
-    <section className="section tint" id="security">
+    <section className="section" id="security">
       <div className="wrap">
         <div className="sec-head center" data-reveal>
           <div className="eyebrow">
             <span className="eb-dot"></span>SECURITY
           </div>
-          <h2 className="h2">Designed so you stay in control.</h2>
+          <h2 className="h2">Privasi total dengan model 100% BYOK.</h2>
           <p className="lead">
-            Kivo is designed around a pure Bring Your Own Key model — precise by intention, not vague by convenience.
+            Bring Your Own Key — data dan kunci API tersimpan lokal di perangkat Anda, tanpa perantara.
           </p>
         </div>
 
         <div className="split" style={{ alignItems: 'start' }}>
           <div data-reveal>
             <h3 style={{ fontSize: '22px', marginBottom: '10px' }}>
-              Your keys. Your infrastructure. Your data.
+              Kunci Anda. Server Anda. Data Anda.
             </h3>
             <ul className="blist">
               <li>
                 <KeyRound size={16} />
                 <span>
-                  <b>No baked-in credentials</b> — Kivo ships without API keys of any kind.
+                  <b>Tanpa Kunci Tertanam</b> — aplikasi bebas dari master key atau backdoor vendor.
                 </span>
               </li>
               <li>
                 <Shield size={16} />
                 <span>
-                  <b>No hidden fallback secrets</b> — nothing silently routes through our servers.
+                  <b>Tanpa Server Perantara</b> — koneksi langsung dari desktop ke Supabase Anda.
                 </span>
               </li>
               <li>
                 <HardDrive size={16} />
                 <span>
-                  <b>Local credential storage</b> — your Supabase and OpenAI keys live on your machine.
+                  <b>Penyimpanan Kredensial Lokal</b> — kunci API dienkripsi aman di SSD lokal.
                 </span>
               </li>
               <li>
                 <Lock size={16} />
                 <span>
-                  <b>Zero-trust design philosophy</b> — nothing is assumed trusted except you.
+                  <b>Matriks Hak Akses (RBAC)</b> — atur wewenang kasir, supervisor, dan admin secara detail.
                 </span>
               </li>
             </ul>

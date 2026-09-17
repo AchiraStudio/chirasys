@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Layers, CreditCard, Wallet, History, RefreshCw } from 'lucide-react';
+import { Zap, CreditCard, Wallet, History, RefreshCw } from 'lucide-react';
 
 export const PosDeepDive: React.FC = () => {
   return (
@@ -9,39 +9,33 @@ export const PosDeepDive: React.FC = () => {
           <div className="eyebrow">
             <span className="eb-dot"></span>POINT OF SALE
           </div>
-          <h2 className="h2">Built for the busiest fifteen minutes of your day.</h2>
+          <h2 className="h2">Kasir cepat tanpa jeda.</h2>
           <p className="lead">
-            A cashier environment with zero wait states — scanning, searching, and payment all happen locally, instantly.
+            Scanning barcode, pencarian produk, hingga pembayaran dieksekusi 100% lokal di kasir.
           </p>
           <ul className="blist">
             <li>
               <Zap size={16} />
               <span>
-                <b>Instant search &amp; barcode-first flow</b> — type two letters or pull the trigger; results appear with no round-trip.
-              </span>
-            </li>
-            <li>
-              <Layers size={16} />
-              <span>
-                <b>Category quick-tabs</b> and grid or list views, tuned for touch and keyboard alike.
+                <b>Pencarian &amp; Barcode Kilat</b> — scan barcode dan temukan produk instan tanpa delay server.
               </span>
             </li>
             <li>
               <CreditCard size={16} />
               <span>
-                <b>Split payments</b> across cash, QRIS, bank transfer, debit/credit card, and customer credit (Piutang).
+                <b>Split Payment Fleksibel</b> — dukung Tunai, QRIS, Transfer, EDC, dan Piutang dalam satu transaksi.
               </span>
             </li>
             <li>
               <Wallet size={16} />
               <span>
-                <b>Cash shifts</b> — starting cash, cash in/out, and end-of-shift drawer reconciliation.
+                <b>Manajemen Shift Kasir</b> — modal awal, kas masuk/keluar, dan rekonsiliasi laci otomatis.
               </span>
             </li>
             <li>
               <History size={16} />
               <span>
-                <b>Sales returns</b> handled right at the register, stock and ledger included.
+                <b>Retur Penjualan Instan</b> — stok dan pembukuan langsung disesuaikan di kasir.
               </span>
             </li>
           </ul>

@@ -24,9 +24,7 @@ export const Hero: React.FC = () => {
 
           {/* Subtitle */}
           <p className="hero-sub">
-            Aplikasi kasir (POS) dan ERP modern berbasis desktop dengan database SQLite lokal kilat.
-            Bekerja 100% offline di kasir toko, tersinkronisasi otomatis ke Supabase Cloud saat online,
-            dan terhubung ke printer thermal &amp; cash drawer tanpa konfigurasi rumit.
+            Sistem kasir (POS) &amp; ERP desktop modern. Kencang tanpa internet, otomatis sinkron ke cloud multi-cabang.
           </p>
 
           {/* CTA Buttons */}

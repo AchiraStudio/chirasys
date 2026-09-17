@@ -451,7 +451,7 @@ export const Navbar: React.FC = () => {
                         <div className="mega-item-title">
                           POS & Kasir <span className="mini-badge">Offline-first</span>
                         </div>
-                        <div className="mega-item-desc">Split bill, cash shift management & receipts</div>
+                        <div className="mega-item-desc">Kasir cepat, split bill &amp; shift laci kasir</div>
                       </div>
                     </a>
 
@@ -465,7 +465,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">Inventory & Batches</div>
-                        <div className="mega-item-desc">Multi-unit conversion, FIFO & stock alerts</div>
+                        <div className="mega-item-desc">Multi-satuan, batch expiry &amp; opname</div>
                       </div>
                     </a>
 
@@ -479,7 +479,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">Purchasing Pipeline</div>
-                        <div className="mega-item-desc">Supplier POs & direct warehouse receiving</div>
+                        <div className="mega-item-desc">PO supplier &amp; penerimaan gudang langsung</div>
                       </div>
                     </a>
                   </div>
@@ -497,7 +497,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">Automated Ledger</div>
-                        <div className="mega-item-desc">Double-entry journals, balance sheet & P&L</div>
+                        <div className="mega-item-desc">Jurnal otomatis, laba rugi &amp; neraca</div>
                       </div>
                     </a>
 
@@ -511,7 +511,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">Customers & Loyalty</div>
-                        <div className="mega-item-desc">VIP memberships, tiers & dynamic promo engine</div>
+                        <div className="mega-item-desc">Member tier, poin loyalitas &amp; promo</div>
                       </div>
                     </a>
 
@@ -525,7 +525,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">POS Hardware</div>
-                        <div className="mega-item-desc">Thermal ESC/POS printers, drawers & scanners</div>
+                        <div className="mega-item-desc">Thermal ESC/POS, laci kasir &amp; scanner</div>
                       </div>
                     </a>
                   </div>
@@ -578,7 +578,7 @@ export const Navbar: React.FC = () => {
                         <div className="mega-item-title">
                           Offline-First WAL <span className="mini-badge">Zero Latency</span>
                         </div>
-                        <div className="mega-item-desc">Native SQLite database engine in every branch</div>
+                        <div className="mega-item-desc">Database SQLite lokal, tanpa ketergantungan server</div>
                       </div>
                     </a>
 
@@ -592,7 +592,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">P2P LAN Synchronization</div>
-                        <div className="mega-item-desc">Sub-ms local store sync with UDP discovery</div>
+                        <div className="mega-item-desc">Sinkronisasi lokal real-time tanpa internet</div>
                       </div>
                     </a>
 
@@ -606,7 +606,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">Hybrid Cloud Replication</div>
-                        <div className="mega-item-desc">Supabase integration & multi-branch HQ rollup</div>
+                        <div className="mega-item-desc">Supabase integration multi-cabang instan</div>
                       </div>
                     </a>
                   </div>
@@ -626,7 +626,7 @@ export const Navbar: React.FC = () => {
                         <div className="mega-item-title">
                           100% BYOK Security <span className="mini-badge">No Lock-in</span>
                         </div>
-                        <div className="mega-item-desc">Client-side keys, AES encryption & RBAC roles</div>
+                        <div className="mega-item-desc">Kunci API pribadi, enkripsi AES &amp; RBAC</div>
                       </div>
                     </a>
 
@@ -640,7 +640,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">Rust & Tauri v2 Core</div>
-                        <div className="mega-item-desc">Native compiled binary with tiny RAM footprint</div>
+                        <div className="mega-item-desc">Binary native kencang &amp; memori ultra-ringan</div>
                       </div>
                     </a>
 
@@ -654,7 +654,7 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">System Ecosystem Map</div>
-                        <div className="mega-item-desc">Interactive topology linking all 6 system nodes</div>
+                        <div className="mega-item-desc">Topologi visual terhubung antar 6 modul</div>
                       </div>
                     </a>
                   </div>

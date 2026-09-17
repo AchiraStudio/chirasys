@@ -14,15 +14,15 @@ export const CharacteristicsStrip: React.FC = () => {
   ];
 
   return (
-    <section className="section tint">
+    <section className="section">
       <div className="wrap">
         <div className="sec-head center" data-reveal>
           <div className="eyebrow ep">
-            <span className="eb-dot"></span>WHY IT MATTERS
+            <span className="eb-dot"></span>NILAI UTAMA
           </div>
-          <h2 className="h2">Built for real operations.</h2>
+          <h2 className="h2">Didesain untuk operasional nyata.</h2>
           <p className="lead">
-            No invented numbers, no borrowed logos — just what Kivo is.
+            Performa native, kehandalan tanpa internet, dan data seutuhnya milik Anda.
           </p>
         </div>
 

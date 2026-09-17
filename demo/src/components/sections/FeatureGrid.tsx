@@ -20,11 +20,11 @@ export const FeatureGrid: React.FC = () => {
       <div className="wrap">
         <div className="sec-head" data-reveal>
           <div className="eyebrow">
-            <span className="eb-dot"></span>MODULES
+            <span className="eb-dot"></span>MODUL APLIKASI
           </div>
-          <h2 className="h2">Ten modules. One source of truth.</h2>
+          <h2 className="h2">Sepuluh modul inti. Satu sumber data.</h2>
           <p className="lead">
-            Each module does real work on its own — and gets better because the others are there.
+            Setiap modul bekerja mandiri dan saling terintegrasi otomatis tanpa duplikasi data.
           </p>
         </div>
         <div className="fgrid">

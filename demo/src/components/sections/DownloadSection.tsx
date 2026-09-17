@@ -9,21 +9,21 @@ export const DownloadSection: React.FC = () => {
         <div className="wrap">
           <div className="sec-head center" data-reveal>
             <div className="eyebrow">
-              <span className="eb-dot"></span>DOWNLOAD
+              <span className="eb-dot"></span>DOWNLOAD APLIKASI
             </div>
-            <h2 className="h2">Bring Kivo to your business.</h2>
+            <h2 className="h2">Pasang Kivo untuk bisnis Anda.</h2>
             <p className="lead">
-              Desktop-first, exactly like the product itself. Latest release: v1.3.2.
+              Aplikasi desktop native cepat dan stabil. Rilis stabil terbaru: v1.3.2.
             </p>
           </div>
 
-          <div className="dl-grid">
+          <div style={{ maxWidth: '440px', margin: '0 auto' }}>
             <div className="card dl-card" data-reveal>
               <span className="f-ic">
                 <Monitor size={22} />
               </span>
-              <h3>Windows</h3>
-              <p>Windows 10 / 11 · 64-bit</p>
+              <h3>Windows Desktop</h3>
+              <p>Windows 10 / 11 · 64-bit (Portable &amp; Setup Installer)</p>
               <a
                 className="btn btn-primary"
                 href="https://github.com/AchiraStudio/kivo/releases"
@@ -31,43 +31,9 @@ export const DownloadSection: React.FC = () => {
                 rel="noopener noreferrer"
               >
                 <Download size={16} />
-                <span>Download .exe / .msi</span>
+                <span>Download v1.3.2 (.exe / .msi)</span>
               </a>
             </div>
-
-            {/* <div className="card dl-card" data-reveal style={{ '--d': '70ms' } as React.CSSProperties}>
-              <span className="f-ic">
-                <Monitor size={22} />
-              </span>
-              <h3>macOS</h3>
-              <p>macOS 11 and newer (Apple &amp; Intel)</p>
-              <a
-                className="btn btn-primary"
-                href="https://github.com/AchiraStudio/kivo/releases"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Download size={16} />
-                <span>Download .dmg</span>
-              </a>
-            </div>
-
-            <div className="card dl-card" data-reveal style={{ '--d': '140ms' } as React.CSSProperties}>
-              <span className="f-ic">
-                <Cpu size={22} />
-              </span>
-              <h3>Linux</h3>
-              <p>Modern 64-bit distributions (.AppImage / .deb)</p>
-              <a
-                className="btn btn-primary"
-                href="https://github.com/AchiraStudio/kivo/releases"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Download size={16} />
-                <span>Download</span>
-              </a>
-            </div> */}
           </div>
 
           <div className="dl-note" data-reveal>

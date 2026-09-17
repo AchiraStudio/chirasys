@@ -4,15 +4,15 @@ import { CloudNetworkMap } from '../interactive/CloudNetworkMap';
 
 export const CloudSection: React.FC = () => {
   return (
-    <section className="section tint" id="cloud">
+    <section className="section" id="cloud">
       <div className="wrap">
         <div className="sec-head center" data-reveal>
           <div className="eyebrow">
             <span className="eb-dot"></span>KIVO CLOUD
           </div>
-          <h2 className="h2">One business. Multiple branches. One connected system.</h2>
+          <h2 className="h2">Multi-cabang terhubung otomatis ke cloud.</h2>
           <p className="lead">
-            Synchronization runs in the background over Supabase — your credentials, your project. Watch it work.
+            Sinkronisasi background via Supabase — kunci API pribadi, data 100% milik Anda.
           </p>
         </div>
 
