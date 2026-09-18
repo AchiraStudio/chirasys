@@ -8,104 +8,109 @@ export const SecuritySection: React.FC = () => {
       <div className="wrap">
         <div className="sec-head center" data-reveal>
           <div className="eyebrow">
-            <span className="eb-dot"></span>SECURITY
+            <span className="eb-dot" />
+            SECURITY &amp; DATA PRIVACY
           </div>
-          <h2 className="h2">Privasi total dengan model 100% BYOK.</h2>
+          <h2 className="h2">Complete Sovereignty with 100% BYOK Model.</h2>
           <p className="lead">
-            Bring Your Own Key — data dan kunci API tersimpan lokal di perangkat Anda, tanpa perantara.
+            Bring Your Own Key — your business data and cloud credentials stay encrypted on your local hardware, with zero intermediary vendor servers.
           </p>
         </div>
 
         <div className="split" style={{ alignItems: 'start' }}>
           <div data-reveal>
-            <h3 style={{ fontSize: '22px', marginBottom: '10px' }}>
-              Kunci Anda. Server Anda. Data Anda.
+            <h3 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--heading)', marginBottom: '12px' }}>
+              Your Keys. Your Database. Absolute Sovereignty.
             </h3>
             <ul className="blist">
               <li>
                 <KeyRound size={16} />
                 <span>
-                  <b>Tanpa Kunci Tertanam</b> — aplikasi bebas dari master key atau backdoor vendor.
+                  <b>No Hardcoded Vendor Keys</b> — the application is strictly free from proprietary master keys or backdoor tracking.
                 </span>
               </li>
               <li>
                 <Shield size={16} />
                 <span>
-                  <b>Tanpa Server Perantara</b> — koneksi langsung dari desktop ke Supabase Anda.
+                  <b>Zero Intermediary Servers</b> — direct, encrypted connections from the desktop app to your private Supabase project.
                 </span>
               </li>
               <li>
                 <HardDrive size={16} />
                 <span>
-                  <b>Penyimpanan Kredensial Lokal</b> — kunci API dienkripsi aman di SSD lokal.
+                  <b>Local OS Credential Encryption</b> — tokens and API keys are stored in native system keychains without ever pinging third parties.
                 </span>
               </li>
               <li>
                 <Lock size={16} />
                 <span>
-                  <b>Matriks Hak Akses (RBAC)</b> — atur wewenang kasir, supervisor, dan admin secara detail.
+                  <b>Granular Role-Based Access (RBAC)</b> — restrict cashiers from viewing gross profit margins, modifying unit prices, or processing unauthorized voids.
                 </span>
               </li>
             </ul>
           </div>
 
+          {/* BYOK Flow Diagram */}
           <div className="byok-diagram" data-reveal style={{ '--d': '100ms' } as React.CSSProperties}>
             <div className="bk-node hl">
-              <b>You</b>
-              <small>the only trusted party</small>
+              <b>Business Owner</b>
+              <small>Sole credentials holder</small>
             </div>
-            <div className="bk-link"></div>
+            <div className="bk-link" />
             <div className="bk-keys">
               <span className="bk-key">
-                <KeyRound size={13} /> Supabase URL + public key
+                <KeyRound size={13} /> Supabase URL + Anon Key
               </span>
               <span className="bk-key">
-                <KeyRound size={13} /> OpenAI API key
+                <KeyRound size={13} /> OpenAI / Anthropic Key
               </span>
             </div>
-            <div className="bk-link"></div>
+            <div className="bk-link" />
             <div className="bk-node">
-              <b>Local configuration</b>
-              <small>stored on your machine only</small>
+              <b>Encrypted Local Storage</b>
+              <small>Secured on your workstation NVMe</small>
             </div>
-            <div className="bk-link"></div>
+            <div className="bk-link" />
             <div className="bk-node hl">
-              <b>Kivo</b>
-              <small>desktop application</small>
+              <b>Kivo Desktop App</b>
+              <small>Native Tauri + Rust Runtime</small>
             </div>
-            <div className="bk-link"></div>
+            <div className="bk-link" />
             <div className="bk-split">
               <div className="bk-node">
-                <b>SQLite</b>
-                <small>always local</small>
+                <b>Local SQLite</b>
+                <small>0ms · 100% offline-ready</small>
               </div>
               <div className="bk-node">
-                <b>Your Supabase</b>
-                <small>when you choose to sync</small>
+                <b>Your Supabase Project</b>
+                <small>Multi-branch cloud mesh sync</small>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Feature Sub-cards */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
             gap: '14px',
-            marginTop: '52px',
+            marginTop: '44px',
           }}
           id="secSub"
         >
           <div className="card" data-reveal>
-            <span className="f-ic" style={{ marginBottom: '14px' }}>
+            <span className="f-ic" style={{ marginBottom: '14px', background: 'color-mix(in srgb, var(--primary) 15%, transparent)', color: 'var(--primary)' }}>
               <RefreshCw size={20} />
             </span>
-            <h3 style={{ fontSize: '17px', marginBottom: '8px' }}>Safe Cloud Data Cleanup</h3>
-            <p style={{ fontSize: '14px' }}>
-              A controlled utility for clearing test or transactional data from your cloud workspace — while users, roles, and workspace structure stay protected.
+            <h3 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--heading)', marginBottom: '8px' }}>
+              Safe Staging Data Purge Utilities
+            </h3>
+            <p style={{ fontSize: '13.5px', color: 'var(--body)', lineHeight: 1.55 }}>
+              Managed utilities to flush test transactions and simulated sales cleanly — user accounts, role permissions, and product catalog remain preserved.
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
-              <span className="chip">Test / transactional data</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
+              <span className="chip">Simulated Sales Data</span>
               <span style={{ color: 'var(--dim)' }}>→</span>
               <span
                 className="chip"
@@ -114,7 +119,7 @@ export const SecuritySection: React.FC = () => {
                   color: 'var(--danger)',
                 }}
               >
-                PURGE
+                FLUSH / PURGE
               </span>
               <span style={{ color: 'var(--dim)' }}>→</span>
               <span
@@ -123,18 +128,21 @@ export const SecuritySection: React.FC = () => {
                   borderColor: 'color-mix(in srgb, var(--success) 45%, var(--line))',
                 }}
               >
-                <span className="dot g"></span>Users &amp; roles protected
+                <span className="dot g" />
+                Master Catalog Preserved
               </span>
             </div>
           </div>
 
           <div className="card" data-reveal style={{ '--d': '80ms' } as React.CSSProperties}>
-            <span className="f-ic" style={{ marginBottom: '14px' }}>
+            <span className="f-ic" style={{ marginBottom: '14px', background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
               <Users size={20} />
             </span>
-            <h3 style={{ fontSize: '17px', marginBottom: '8px' }}>Role-Based Access Control</h3>
-            <p style={{ fontSize: '14px' }}>
-              Role templates, granular permissions, and per-user overrides across six roles — from Owner to Staff.
+            <h3 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--heading)', marginBottom: '8px' }}>
+              Granular Role-Based Access Control (RBAC)
+            </h3>
+            <p style={{ fontSize: '13.5px', color: 'var(--body)', lineHeight: 1.55 }}>
+              Precision authority gating across 6 discrete personnel tiers — prevent receipt voids without supervisor overrides and safeguard accounting books.
             </p>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '16px' }}>
               <span className="chip">Owner</span>
@@ -142,11 +150,12 @@ export const SecuritySection: React.FC = () => {
               <span className="chip">Admin</span>
               <span className="chip">Manager</span>
               <span className="chip">Cashier</span>
-              <span className="chip">Staff</span>
+              <span className="chip">Warehouse Staff</span>
             </div>
           </div>
         </div>
 
+        {/* Live Interactive RBAC Matrix */}
         <div style={{ marginTop: '14px' }} data-reveal>
           <RbacMatrix />
         </div>
@@ -156,4 +165,3 @@ export const SecuritySection: React.FC = () => {
 };
 
 export default SecuritySection;
-

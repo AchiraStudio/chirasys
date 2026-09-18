@@ -1,147 +1,175 @@
 import React from 'react';
 import {
-  ArrowUpRight,
   ShoppingCart,
   Package,
+  BookOpen,
   Truck,
-  Calculator,
   Users,
   Cloud,
-  Wifi,
+  ArrowUpRight,
   Sparkles,
-  ShieldCheck,
-  Printer,
-  KeyRound,
 } from 'lucide-react';
+import { scrollToTarget } from '../../utils/scroll';
+
+interface FeatureCardProps {
+  id: string;
+  icon: React.ElementType;
+  iconColor: string;
+  badge: string;
+  title: string;
+  description: string;
+  appTabId?: string;
+  spanClass?: string;
+}
+
+const FEATURE_ITEMS: FeatureCardProps[] = [
+  {
+    id: 'pos',
+    icon: ShoppingCart,
+    iconColor: 'var(--primary)',
+    badge: '0ms Offline Engine',
+    title: 'Kasir Kilat Responsif Tanpa Hambatan Koneksi',
+    title: 'Blazing-Fast POS Unhindered by Network Drops',
+    description:
+      'Scanning barcode instan, pencarian produk cepat, dan cetak struk thermal ESC/POS tanpa jeda jaringan. Mendukung split payment Tunai, QRIS, EDC Kartu, dan Piutang Member.',
+      'Instant barcode scanning, sub-millisecond product search, and direct ESC/POS thermal printing with zero cloud latency. Full split tender across Cash, Card, QRIS/Digital, and Member Credit.',
+    appTabId: 'pos',
+    spanClass: 'bento-span-4',
+  },
+  {
+    id: 'inventory',
+    icon: Package,
+    iconColor: 'var(--accent)',
+    badge: 'Hierarki Konversi Otomatis',
+    title: 'Inventaris Multi-Satuan & Pelacakan Batch',
+    badge: 'Hierarchical Unit Conversion',
+    title: 'Multi-Tier Inventory & Batch Lot Tracking',
+    description:
+      'Konversi otomatis berjenjang dari Dus, Pack, hingga Pcs. Manajemen tanggal kadaluarsa metode FIFO, nomor batch pabrik, serta stock opname rekonsiliasi selisih stok.',
+      'Automatic conversions across Master Carton, Inner Pack, and Base Units. FIFO expiry date lifecycles, batch lot numbers, and rapid reconciliation stock opname counts.',
+    appTabId: 'inventory',
+    spanClass: 'bento-span-2',
+  },
+  {
+    id: 'accounting',
+    icon: BookOpen,
+    iconColor: 'var(--warning)',
+    badge: 'Double-Entry Real-time',
+    title: 'Akuntansi Otomatis Tanpa Input Manual',
+    badge: 'Real-Time Double-Entry',
+    title: 'Automated General Ledger Without Manual Journaling',
+    description:
+      'Setiap penjualan kasir dan penerimaan barang langsung diposting ke jurnal debit-kredit seimbang. Laporan Laba Rugi dan Neraca selalu up-to-date setiap detik.',
+      'Every checkout and goods receipt automatically generates balanced debit-credit journal vouchers. Profit & Loss statements and Balance Sheets update in real-time.',
+    appTabId: 'reports',
+    spanClass: 'bento-span-2',
+  },
+  {
+    id: 'purchasing',
+    icon: Truck,
+    iconColor: 'var(--success)',
+    badge: 'Alur Pengadaan Terpadu',
+    title: 'Penerbitan PO & Penerimaan Barang (GRN)',
+    badge: 'Unified Procurement',
+    title: 'Purchase Orders & Goods Received Notes (GRN)',
+    description:
+      'Penerbitan Purchase Order ke supplier, penerimaan barang bertahap, perhitungan HPP otomatis, serta pelacakan jatuh tempo hutang dagang secara transparan.',
+      'Streamlined supplier purchase orders, partial shipment receipts, automatic COGS recalculations, and transparent accounts payable aging tracking.',
+    appTabId: 'purchasing',
+    spanClass: 'bento-span-2',
+  },
+  {
+    id: 'customers',
+    icon: Users,
+    iconColor: 'var(--accent)',
+    badge: 'Loyalitas & Promosi',
+    title: 'Manajemen Member & Promo Dinamis',
+    badge: 'Loyalty & Dynamic Promos',
+    title: 'Member Tiers & Automated Discount Engine',
+    description:
+      'Sistem poin reward pelanggan setia, batas kredit piutang toko, serta aturan diskon kuantiti dan promo otomatis yang langsung terpasang di meja kasir.',
+      'Automated loyalty points accrual, credit limits, wholesale tiered pricing, and combo rules evaluated instantly at the register.',
+    appTabId: 'customers',
+    spanClass: 'bento-span-2',
+  },
+  {
+    id: 'cloud',
+    icon: Cloud,
+    iconColor: 'var(--primary)',
+    badge: '100% Model BYOK',
+    title: 'Sinkronisasi Multi-Cabang ke Cloud Supabase',
+    badge: '100% BYOK Architecture',
+    title: 'Multi-Branch Mesh Sync via Supabase Cloud',
+    description:
+      'Koneksikan langsung ke database Supabase Anda sendiri dengan kunci API pribadi. Data tetap berdaulat di SSD toko dan tersinkronisasi mulus antar cabang saat online.',
+      'Connect directly to your private Supabase database using your personal API keys. Data remains sovereign on your local SSD and syncs seamlessly across branches when online.',
+    appTabId: 'dashboard',
+    spanClass: 'bento-span-6',
+  },
+];
 
 export const FeatureGrid: React.FC = () => {
+  const jumpToAppTab = (tabId?: string) => {
+    if (!tabId) return;
+    scrollToTarget('appWin', { offset: 90 });
+  };
+
   return (
-    <section className="section" id="features">
+    <section className="section bento-section" id="features">
       <div className="wrap">
-        <div className="sec-head" data-reveal>
+        <div className="sec-head center" data-reveal>
           <div className="eyebrow">
-            <span className="eb-dot"></span>MODUL APLIKASI
+            <span className="eb-dot" />
+            KAPABILITAS INTI
+            CORE CAPABILITIES
           </div>
-          <h2 className="h2">Sepuluh modul inti. Satu sumber data.</h2>
+          <h2 className="h2">Arsitektur Terpadu. Satu Sumber Kebenaran.</h2>
+          <h2 className="h2">Unified Architecture. Single Source of Truth.</h2>
           <p className="lead">
-            Setiap modul bekerja mandiri dan saling terintegrasi otomatis tanpa duplikasi data.
+            Bukan modul terpisah yang ditempel. Satu mesin lokal menggerakkan kasir, inventaris, pengadaan, dan pembukuan dalam satu kesatuan performa tinggi.
+            Not disparate patchwork tools stitched together. A single local engine powers POS, inventory, procurement, and accounting in one high-performance desktop native application.
           </p>
         </div>
-        <div className="fgrid">
-          <a className="fcard" style={{ '--sp': 3 } as React.CSSProperties} href="#pos" data-reveal>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><ShoppingCart size={20} /></span>
-            <h3>Kivo POS</h3>
-            <p>
-              A cashier environment built for speed — instant search, barcode-first flow, and split payments across cash, QRIS, cards, and customer credit.
-            </p>
-            <div className="f-frag">
-              <span className="chip">CASH</span>
-              <span className="chip">QRIS</span>
-              <span className="chip">CARD</span>
-              <span className="chip">TRANSFER</span>
-              <span className="chip">CREDIT · PIUTANG</span>
-            </div>
-          </a>
 
-          <a className="fcard" style={{ '--sp': 3, '--d': '70ms' } as React.CSSProperties} href="#inventory" data-reveal>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><Package size={20} /></span>
-            <h3>Inventory</h3>
-            <p>
-              Multi-unit stock with batches, expiry dates, a complete stock ledger, and Stock Opname counts that reconcile variance automatically.
-            </p>
-            <div className="f-frag">
-              <span className="chip">BOX</span>
-              <span className="chip">↓</span>
-              <span className="chip">PACK</span>
-              <span className="chip">↓</span>
-              <span className="chip">PCS</span>
-            </div>
-          </a>
+        <div className="bento-grid">
+          {FEATURE_ITEMS.map(item => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.id}
+                id={item.id}
+                className={`bento-card ${item.spanClass || ''}`}
+                data-reveal
+              >
+                <div className="bento-card-header">
+                  <div className="bento-icon-wrapper" style={{ color: item.iconColor }}>
+                    <Icon size={22} />
+                  </div>
+                  <span className="bento-badge">{item.badge}</span>
+                </div>
 
-          <a className="fcard" href="#purchasing" data-reveal>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><Truck size={20} /></span>
-            <h3>Purchasing</h3>
-            <p>
-              Purchase orders, goods receiving, supplier bills, and payables — costs flow straight into HPP and the general ledger.
-            </p>
-          </a>
+                <div className="bento-card-body">
+                  <h3 className="bento-title">{item.title}</h3>
+                  <p className="bento-desc">{item.description}</p>
+                </div>
 
-          <a className="fcard" href="#accounting" data-reveal style={{ '--d': '60ms' } as React.CSSProperties}>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><Calculator size={20} /></span>
-            <h3>Accounting</h3>
-            <p>
-              Double-entry books that write themselves. Every sale, receipt, and adjustment becomes a balanced journal entry.
-            </p>
-          </a>
-
-          <a className="fcard" href="#customers" data-reveal style={{ '--d': '120ms' } as React.CSSProperties}>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><Users size={20} /></span>
-            <h3>Customers &amp; Promotions</h3>
-            <p>
-              Profiles, loyalty points, credit limits, and promotions from BOGO to quantity tiers and VIP pricing — applied at the register.
-            </p>
-          </a>
-
-          <a className="fcard" href="#cloud" data-reveal>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><Cloud size={20} /></span>
-            <h3>Kivo Cloud</h3>
-            <p>
-              A multi-branch workspace on Supabase — your credentials, your project, your data.
-            </p>
-          </a>
-
-          <a className="fcard" href="#lan" data-reveal style={{ '--d': '60ms' } as React.CSSProperties}>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><Wifi size={20} /></span>
-            <h3>LAN Sync</h3>
-            <p>
-              Terminals discover each other over UDP and synchronize over your local network — no internet needed.
-            </p>
-          </a>
-
-          <a className="fcard" href="#ai" data-reveal style={{ '--d': '120ms' } as React.CSSProperties}>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><Sparkles size={20} /></span>
-            <h3>Kivo AI</h3>
-            <p>
-              Ask business questions in plain language. Answers come from your data through function calling.
-            </p>
-          </a>
-
-          <a className="fcard" style={{ '--sp': 3 } as React.CSSProperties} href="#security" data-reveal>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><ShieldCheck size={20} /></span>
-            <h3>Security</h3>
-            <p>
-              BYOK credentials, role-based access control, and a controlled cloud data cleanup utility — designed so you stay in control.
-            </p>
-            <div className="f-frag">
-              <span className="chip"><KeyRound size={12} /> Supabase key</span>
-              <span className="chip"><KeyRound size={12} /> OpenAI key</span>
-              <span className="chip">stored locally</span>
-            </div>
-          </a>
-
-          <a className="fcard" style={{ '--sp': 3, '--d': '70ms' } as React.CSSProperties} href="#hardware" data-reveal>
-            <span className="f-go"><ArrowUpRight size={16} /></span>
-            <span className="f-ic"><Printer size={20} /></span>
-            <h3>Hardware</h3>
-            <p>
-              Thermal printers via ESC/POS or the HPRT SDK, cash drawers, and barcode scanners — over USB, network, or Bluetooth.
-            </p>
-            <div className="f-frag">
-              <span className="chip">ESC/POS</span>
-              <span className="chip">HPRT SDK</span>
-              <span className="chip">58 / 80 mm</span>
-              <span className="chip">USB · NET · BT</span>
-            </div>
-          </a>
+                {item.appTabId && (
+                  <div className="bento-card-footer">
+                    <button
+                      type="button"
+                      className="bento-action-btn"
+                      onClick={() => jumpToAppTab(item.appTabId)}
+                    >
+                      <Sparkles size={13} className="text-primary" />
+                      <span>Coba di Demo Interaktif</span>
+                      <span>Explore in Interactive Demo</span>
+                      <ArrowUpRight size={14} className="bento-arrow" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -149,4 +177,3 @@ export const FeatureGrid: React.FC = () => {
 };
 
 export default FeatureGrid;
-

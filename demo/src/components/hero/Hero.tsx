@@ -1,20 +1,13 @@
 import React from 'react';
 import { Download, ArrowRight, ShieldCheck, Zap, Globe, Sparkles, Server } from 'lucide-react';
 import InteractiveAppWindow from './InteractiveAppWindow';
+import { scrollToTarget } from '../../utils/scroll';
 
 export const Hero: React.FC = () => {
   return (
     <section className="hero" id="top">
       <div className="wrap">
         <div className="hero-top">
-          {/* Announcement pill */}
-          <a href="#download" className="hero-announcement">
-            <span className="announcement-pill-badge">v1.3.2 RELEASE</span>
-            <span className="announcement-text">
-              Offline-First SQLite Engine + Supabase Cloud Mesh Sync
-            </span>
-            <ArrowRight size={13} className="announcement-arrow" />
-          </a>
 
           {/* Headline */}
           <h1 className="hero-title">
@@ -24,7 +17,7 @@ export const Hero: React.FC = () => {
 
           {/* Subtitle */}
           <p className="hero-sub">
-            Sistem kasir (POS) &amp; ERP desktop modern. Kencang tanpa internet, otomatis sinkron ke cloud multi-cabang.
+            Next-generation offline-first desktop POS &amp; ERP. Blazing fast without internet, seamlessly synced across multi-branch cloud.
           </p>
 
           {/* CTA Buttons */}
@@ -32,7 +25,7 @@ export const Hero: React.FC = () => {
             <a className="btn btn-primary hero-btn-download" href="#download">
               <Download size={18} />
               <div className="btn-label-group">
-                <span className="btn-main-label">Download untuk Windows</span>
+                <span className="btn-main-label">Download for Windows</span>
                 <span className="btn-sub-label">v1.3.2 · Windows 10/11 (64-bit)</span>
               </div>
             </a>
@@ -40,70 +33,70 @@ export const Hero: React.FC = () => {
               type="button"
               className="btn btn-secondary hero-btn-demo"
               onClick={() => {
-                document.getElementById('appWin')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                scrollToTarget('appWin', { offset: 90 });
               }}
             >
               <Sparkles size={16} className="text-primary" />
               <div className="btn-label-group">
-                <span className="btn-main-label">Coba Demo Interaktif</span>
-                <span className="btn-sub-label">Eksplorasi Fitur Langsung</span>
+                <span className="btn-main-label">Try Interactive Demo</span>
+                <span className="btn-sub-label">Explore Live Features</span>
               </div>
               <ArrowRight size={15} />
             </button>
-          </div>
-
-          {/* Key Capability Metrics Strip */}
-          <div className="hero-metrics-strip">
-            <div className="hm-item">
-              <div className="hm-icon-box color-warning">
-                <Zap size={16} />
-              </div>
-              <div className="hm-info">
-                <span className="hm-val">0ms Latency</span>
-                <span className="hm-desc">Query SQLite lokal di SSD</span>
-              </div>
-            </div>
-
-            <div className="hm-divider" />
-
-            <div className="hm-item">
-              <div className="hm-icon-box color-success">
-                <ShieldCheck size={16} />
-              </div>
-              <div className="hm-info">
-                <span className="hm-val">100% Offline</span>
-                <span className="hm-desc">Kasir aktif tanpa koneksi internet</span>
-              </div>
-            </div>
-
-            <div className="hm-divider" />
-
-            <div className="hm-item">
-              <div className="hm-icon-box color-accent">
-                <Globe size={16} />
-              </div>
-              <div className="hm-info">
-                <span className="hm-val">34 Tabel Cloud</span>
-                <span className="hm-desc">Sinkronisasi otomatis Supabase</span>
-              </div>
-            </div>
-
-            <div className="hm-divider" />
-
-            <div className="hm-item">
-              <div className="hm-icon-box color-primary">
-                <Server size={16} />
-              </div>
-              <div className="hm-info">
-                <span className="hm-val">Raw ESC/POS</span>
-                <span className="hm-desc">Printer thermal &amp; laci kasir</span>
-              </div>
-            </div>
           </div>
         </div>
 
         {/* The Live Interactive App Window */}
         <InteractiveAppWindow />
+
+        {/* Key Capability Metrics Strip below the app window */}
+        <div className="hero-metrics-strip">
+          <div className="hm-item">
+            <div className="hm-icon-box color-warning">
+              <Zap size={16} />
+            </div>
+            <div className="hm-info">
+              <span className="hm-val">0ms Latency</span>
+              <span className="hm-desc">Local SQLite queries on SSD</span>
+            </div>
+          </div>
+
+          <div className="hm-divider" />
+
+          <div className="hm-item">
+            <div className="hm-icon-box color-success">
+              <ShieldCheck size={16} />
+            </div>
+            <div className="hm-info">
+              <span className="hm-val">100% Offline</span>
+              <span className="hm-desc">Fully operational without internet</span>
+            </div>
+          </div>
+
+          <div className="hm-divider" />
+
+          <div className="hm-item">
+            <div className="hm-icon-box color-accent">
+              <Globe size={16} />
+            </div>
+            <div className="hm-info">
+              <span className="hm-val">34 Cloud Tables</span>
+              <span className="hm-desc">Automated Supabase sync</span>
+            </div>
+          </div>
+
+          <div className="hm-divider" />
+
+          <div className="hm-item">
+            <div className="hm-icon-box color-primary">
+              <Server size={16} />
+            </div>
+            <div className="hm-info">
+              <span className="hm-val">Raw ESC/POS</span>
+              <span className="hm-desc">Thermal printers &amp; cash drawers</span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

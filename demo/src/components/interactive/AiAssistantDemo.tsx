@@ -10,45 +10,45 @@ interface QuestionAnswer {
 
 const KNOWLEDGE_BASE: { [key: string]: QuestionAnswer } = {
   q1: {
-    q: 'Berapa omset toko hari ini dan cabang mana yang tertinggi?',
-    a: 'Hari ini dari 3 cabang aktif tercatat total omset Rp 12.450.000 dari 184 transaksi. Toko Utama memberikan kontribusi terbesar (58%) dan penjualan meningkat 8.2% dibandingkan kemarin pada jam yang sama.',
-    cols: ['Cabang Toko', 'Jumlah Transaksi', 'Total Omset', 'Kontribusi'],
+    q: 'What is today\'s revenue breakdown across all store branches?',
+    a: 'Across all 3 active branches today, total revenue reached $12,450.00 from 184 transactions. Flagship Store contributed the largest share (58.1%), up 8.2% compared to yesterday at the same hour.',
+    cols: ['Store Branch', 'Transactions', 'Total Revenue', 'Contribution'],
     rows: [
-      ['Toko Utama (Main Store)', '107', 'Rp 7.240.000', '58.1%'],
-      ['Cabang Bandung', '44', 'Rp 3.180.000', '25.5%'],
-      ['Cabang Surabaya', '33', 'Rp 2.030.000', '16.4%'],
+      ['Flagship Store (Downtown)', '107', '$7,240.00', '58.1%'],
+      ['Westside Branch', '44', '$3,180.00', '25.5%'],
+      ['Uptown Kiosk', '33', '$2,030.00', '16.4%'],
     ],
   },
   q2: {
-    q: 'Barang apa saja yang stoknya menipis dan perlu di-reorder?',
-    a: 'Berdasarkan kecepatan penjualan 30 hari terakhir, ditemukan 5 produk yang berada di bawah batas minimum stok. Berikut rekomendasi reorder PO supplier:',
-    cols: ['Nama Produk', 'Stok Saat Ini', 'Batas Min', 'Saran Order PO'],
+    q: 'Which items are running low and need reordering?',
+    a: 'Based on sales velocity over the past 30 days, 5 products have fallen below safe safety stock thresholds. Here are the suggested supplier purchase orders (PO):',
+    cols: ['Product Name', 'Current Stock', 'Min Threshold', 'Suggested PO Qty'],
     rows: [
-      ['Kopi Susu Botol 250ml', '4 PCS', '10 PCS', '+36 PCS (1.5 Dus)'],
-      ['Gula Pasir Kristal 1kg', '6 PACK', '20 PACK', '+28 PACK'],
-      ['Teh Celup Melati 25s', '8 BOX', '24 BOX', '+32 BOX'],
-      ['Snack Kentang Barbeque', '5 PCS', '15 PCS', '+20 PCS'],
-      ['Susu UHT Full Cream 1L', '12 PCS', '36 PCS', '+24 PCS (2 Dus)'],
+      ['Bottled Cold Brew 250ml', '4 PCS', '10 PCS', '+36 PCS (1.5 Box)'],
+      ['Organic Cane Sugar 1kg', '6 PACK', '20 PACK', '+28 PACK'],
+      ['Jasmine Green Tea 25s', '8 BOX', '24 BOX', '+32 BOX'],
+      ['BBQ Potato Crisps 85g', '5 PCS', '15 PCS', '+20 PCS'],
+      ['Whole Milk 1L Tetra', '12 PCS', '36 PCS', '+24 PCS (2 Box)'],
     ],
   },
   q3: {
-    q: 'Siapa pelanggan setia dengan belanja terbanyak bulan ini?',
-    a: 'Tiga pelanggan member teratas menyumbang total Rp 5.415.500 bulan ini. Ibu Siti Rahma memimpin dengan 214 transaksi dan poin reward tertinggi.',
-    cols: ['Nama Pelanggan', 'Tier', 'Transaksi', 'Poin Reward', 'Total Belanja'],
+    q: 'Who are our top loyalty members by total spend this month?',
+    a: 'The top 3 VIP members contributed $5,415.50 this month. Sarah Jenkins leads with 214 visits and the highest accrued reward points.',
+    cols: ['Customer Name', 'Tier', 'Orders', 'Reward Points', 'Lifetime Spend'],
     rows: [
-      ['Siti Rahma', 'VIP Member', '214', '1.240 Poin', 'Rp 2.140.000'],
-      ['Budi Santoso', 'Member Reguler', '96', '610 Poin', 'Rp 1.820.500'],
-      ['Dewi Lestari', 'Member Reguler', '74', '430 Poin', 'Rp 1.455.000'],
+      ['Sarah Jenkins', 'VIP Gold', '214', '1,240 Pts', '$2,140.00'],
+      ['Michael Chen', 'Member Regular', '96', '610 Pts', '$1,820.50'],
+      ['Emily Davis', 'Member Regular', '74', '430 Pts', '$1,455.00'],
     ],
   },
   q4: {
-    q: 'Cek batch produk yang akan kadaluarsa dalam 30 hari!',
-    a: 'Ditemukan 3 nomor batch yang akan jatuh tempo dalam 30 hari ke depan. Batch B-2408 pada Teh Celup paling mendesak — disarankan membuat promo bundling/diskon kasir.',
-    cols: ['Produk', 'Nomor Batch', 'Tanggal Expired', 'Sisa Stok', 'Urgensi'],
+    q: 'Check inventory batches expiring within 30 days!',
+    a: 'Detected 3 batch lots expiring within the next 30 days. Batch B-2408 on Jasmine Green Tea is most urgent — recommended action: activate register promotional bundling/discount.',
+    cols: ['Product', 'Batch Lot', 'Expiry Date', 'Remaining Stock', 'Urgency'],
     rows: [
-      ['Teh Celup Melati', 'B-2408', '30 Okt 2026', '18 PCS', 'Mendesak (14 hari)'],
-      ['Roti Coklat Klasik', 'B-2412', '08 Nov 2026', '24 PCS', 'Waspada (22 hari)'],
-      ['Yoghurt Strawberry', 'B-2410', '15 Nov 2026', '36 PCS', 'Perhatian (29 hari)'],
+      ['Jasmine Green Tea', 'B-2408', 'Oct 30, 2026', '18 PCS', 'Urgent (14 days)'],
+      ['Artisan Croissant', 'B-2412', 'Nov 08, 2026', '24 PCS', 'Caution (22 days)'],
+      ['Strawberry Greek Yogurt', 'B-2410', 'Nov 15, 2026', '36 PCS', 'Attention (29 days)'],
     ],
   },
 };
@@ -64,7 +64,7 @@ export const AiAssistantDemo: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'user',
-      content: 'Barang apa saja yang stoknya menipis dan perlu di-reorder?',
+      content: 'Which items are running low and need reordering?',
     },
     {
       role: 'assistant',
@@ -108,7 +108,7 @@ export const AiAssistantDemo: React.FC = () => {
         {
           role: 'assistant',
           content:
-            `Analisis untuk: "${text}" — Berdasarkan data SQLite lokal Anda, seluruh transaksi berjalan normal, margin kotor rata-rata 32.4%, dan tidak ada anomali selisih kas kasir yang terdeteksi.`,
+            `Analysis for: "${text}" — Based on your local SQLite dataset, all store transactions are running normally with an average gross margin of 32.4%, and zero register cash variance detected.`,
         },
       ]);
       setIsTyping(false);
@@ -123,9 +123,9 @@ export const AiAssistantDemo: React.FC = () => {
             <span className="eb-dot" />
             <span>KIVO AI COPILOT</span>
           </div>
-          <h2 className="h2">Tanyakan apapun tentang performa toko Anda.</h2>
+          <h2 className="h2">Ask anything about your store's operational pulse.</h2>
           <p className="lead">
-            Analisis penjualan, peringatan stok menipis, dan ringkasan laba rugi instan dalam bahasa sehari-hari via data lokal Anda.
+            Sales velocity analysis, low stock alerts, and instant P&L summaries explained in plain English directly against your local dataset.
           </p>
         </div>
 
@@ -204,7 +204,7 @@ export const AiAssistantDemo: React.FC = () => {
                 onClick={() => handleAsk('q1')}
                 disabled={isTyping}
               >
-                💰 Berapa omset hari ini?
+                💰 Today's revenue breakdown?
               </button>
               <button
                 type="button"
@@ -212,7 +212,7 @@ export const AiAssistantDemo: React.FC = () => {
                 onClick={() => handleAsk('q2')}
                 disabled={isTyping}
               >
-                📦 Cek stok yang menipis
+                📦 Check depleted stock
               </button>
               <button
                 type="button"
@@ -220,7 +220,7 @@ export const AiAssistantDemo: React.FC = () => {
                 onClick={() => handleAsk('q3')}
                 disabled={isTyping}
               >
-                ⭐ Top 3 pelanggan terloyal
+                ⭐ Top 3 VIP loyalty members
               </button>
               <button
                 type="button"
@@ -228,7 +228,7 @@ export const AiAssistantDemo: React.FC = () => {
                 onClick={() => handleAsk('q4')}
                 disabled={isTyping}
               >
-                ⏳ Produk mau kadaluarsa
+                ⏳ Expiring batch lots
               </button>
             </div>
 
@@ -238,7 +238,7 @@ export const AiAssistantDemo: React.FC = () => {
                 type="text"
                 value={inputVal}
                 onChange={e => setInputVal(e.target.value)}
-                placeholder="Tanyakan sesuatu ke Kivo AI (misal: analisis laba bulan ini)..."
+                placeholder="Ask Kivo AI anything (e.g. analyze gross margin trends this month)..."
                 style={{
                   flex: 1,
                   height: 42,

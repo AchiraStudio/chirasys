@@ -27,23 +27,23 @@ export const RealAiChatModal: React.FC<RealAiChatModalProps> = ({ isOpen, onClos
       id: '1',
       sender: 'assistant',
       time: '14:30',
-      text: 'Halo! Saya Kivo AI Copilot yang terhubung langsung ke database lokal SQLite toko Anda. Semua query dijalankan di perangkat lokal Anda tanpa mengirim rahasia bisnis ke cloud pihak ketiga. Ada yang bisa saya bantu analisa hari ini?',
+      text: 'Hello! I am Kivo AI Copilot, connected directly to your store\'s local SQLite database. All queries execute on your local device without leaking proprietary business data to third-party clouds. How can I assist your analysis today?',
     },
     {
       id: '2',
       sender: 'user',
       time: '14:31',
-      text: 'Produk apa yang paling laris hari ini dan apakah ada yang stoknya perlu segera di-reorder?',
+      text: 'Which products are top sellers today, and are any inventory items due for urgent reordering?',
     },
     {
       id: '3',
       sender: 'assistant',
       time: '14:31',
-      text: 'Berdasarkan 184 transaksi kasir hari ini (terakhir jam 14:28), berikut analisa performa produk dan rekomendasi pengadaan (PO):',
+      text: 'Based on 184 POS transactions recorded today (last sync at 14:28), here is the product velocity breakdown and purchase order (PO) recommendations:',
       tableData: [
-        { item: 'Kopi Susu Botol 250ml', stock: 'Sisa 6 Box (144 pcs)', hpp: 'Rp 8.000 / btl', recommendation: 'Aman untuk 4 hari ke depan' },
-        { item: 'Roti Coklat Keju Panggang', stock: 'Sisa 6 Bks (Kritis!)', hpp: 'Rp 7.500 / bks', recommendation: 'Segera terbitkan PO ke CV Sumber Rejeki' },
-        { item: 'Air Mineral 600ml', stock: 'Sisa 240 Btl', hpp: 'Rp 2.800 / btl', recommendation: 'Stok sangat aman' },
+        { item: 'Bottled Cold Brew Coffee 250ml', stock: '6 Boxes left (144 pcs)', hpp: '$0.80 / btl', recommendation: 'Healthy stock for next 4 days' },
+        { item: 'Artisan Chocolate Croissant', stock: '6 Packs left (Critical!)', hpp: '$1.25 / pack', recommendation: 'Immediately issue PO to Metro Bakehouse' },
+        { item: 'Pure Mineral Water 600ml', stock: '240 Bottles left', hpp: '$0.35 / btl', recommendation: 'Stock level optimal' },
       ],
     },
   ]);
@@ -71,16 +71,16 @@ export const RealAiChatModal: React.FC<RealAiChatModalProps> = ({ isOpen, onClos
         id: String(Date.now() + 1),
         sender: 'assistant',
         time: '14:33',
-        text: `Analisa selesai untuk "${q}": Laba kotor tercatat Rp 3.820.000 (margin 30.7%). Transaksi QRIS menyumbang 30% dari total omzet, sedangkan Tunai masih mendominasi sebesar 45%. Rekomendasi: pertahankan ketersediaan produk snack di dekat meja kasir.`,
+        text: `Analysis complete for "${q}": Estimated gross profit is $3,820.00 (30.7% margin). Digital / Card payments account for 55% of turnover, while Cash represents 45%. Recommendation: maintain snack impulse displays near checkout counter.`,
       };
       setMessages(prev => [...prev, botMsg]);
     }, 600);
   };
 
   const SUGGESTIONS = [
-    'Berapa estimasi laba kotor hari ini?',
-    'Cek barang yang mendekati kadaluarsa bulan ini',
-    'Siapa 5 pelanggan paling loyal dengan total belanja tertinggi?',
+    'What is today\'s estimated gross profit margin?',
+    'Check items approaching expiration this month',
+    'Who are the top 5 loyalty customers by lifetime spend?',
   ];
 
   return (
@@ -94,7 +94,7 @@ export const RealAiChatModal: React.FC<RealAiChatModalProps> = ({ isOpen, onClos
             </div>
             <div>
               <div className="ai-head-title">Kivo AI Assistant (BYOK)</div>
-              <div className="ai-head-sub">Terhubung ke SQLite lokal · Model OpenAI GPT-4o / Claude</div>
+              <div className="ai-head-sub">Connected to local SQLite · OpenAI GPT-4o / Claude 3.5 Sonnet</div>
             </div>
           </div>
 
@@ -113,7 +113,7 @@ export const RealAiChatModal: React.FC<RealAiChatModalProps> = ({ isOpen, onClos
 
               <div className="ai-bubble-content">
                 <div className="ai-bubble-meta">
-                  <span>{msg.sender === 'assistant' ? 'Kivo Copilot' : 'Owner'}</span>
+                  <span>{msg.sender === 'assistant' ? 'Kivo Copilot' : 'Store Owner'}</span>
                   <span>{msg.time}</span>
                 </div>
                 <div className="ai-bubble-text">{msg.text}</div>
@@ -123,10 +123,10 @@ export const RealAiChatModal: React.FC<RealAiChatModalProps> = ({ isOpen, onClos
                     <table className="ai-mini-table">
                       <thead>
                         <tr>
-                          <th>Nama Produk</th>
-                          <th>Status Stok</th>
-                          <th>HPP</th>
-                          <th>Rekomendasi</th>
+                          <th>Product Name</th>
+                          <th>Stock Status</th>
+                          <th>Cost (COGS)</th>
+                          <th>Recommendation</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -173,7 +173,7 @@ export const RealAiChatModal: React.FC<RealAiChatModalProps> = ({ isOpen, onClos
           >
             <input
               type="text"
-              placeholder="Tanyakan analisis penjualan, stok, atau margin keuntungan..."
+              placeholder="Ask about sales velocity, inventory depletion, or margin analysis..."
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               className="ai-input-field"

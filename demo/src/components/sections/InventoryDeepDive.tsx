@@ -3,115 +3,131 @@ import { Boxes, Timer, History, CheckCheck } from 'lucide-react';
 
 export const InventoryDeepDive: React.FC = () => {
   return (
-    <section className="section" id="inventory">
+    <section className="section tint" id="inventory">
       <div className="wrap split rev">
+        {/* Multi-Unit & Batch Interactive Panel */}
         <div className="panel" data-reveal>
           <div className="panel-head">
-            <span className="panel-title">Kopi Susu Botol 250ml</span>
+            <div>
+              <span className="panel-title">Kopi Susu Botol 250ml</span>
+              <span className="panel-sub" style={{ display: 'block', marginTop: '2px' }}>SKU: KV-0012 · Kategori: Minuman</span>
+            </div>
             <span className="mini-s">
-              <span className="dot g"></span>OK · SKU KV-0012
+              <span className="dot g" />
+              Stok Aman · Total 144 PCS
             </span>
           </div>
+
+          {/* Unit Conversion Hierarchy */}
           <div className="unit-row">
             <span className="unit-chip">
-              <b>BOX</b>
-              <span>1 Box = 24 Pcs · 6 in stock</span>
+              <b>DUS / BOX</b>
+              <span>1 Box = 24 Pcs · 6 Box</span>
             </span>
             <span className="unit-arr">→</span>
             <span className="unit-chip">
               <b>PACK</b>
-              <span>1 Pack = 6 Pcs · 24 in stock</span>
+              <span>1 Pack = 6 Pcs · 24 Pack</span>
             </span>
             <span className="unit-arr">→</span>
             <span className="unit-chip">
-              <b>PCS</b>
-              <span>144 in stock · min 48</span>
+              <b>PCS (Dasar)</b>
+              <span>144 Pcs · Min 48</span>
             </span>
           </div>
-          <div className="unit-row" style={{ marginTop: '2px' }}>
-            <span className="chip">BOX Rp 192.000</span>
-            <span className="chip">PACK Rp 49.800</span>
-            <span className="chip">PCS Rp 8.500</span>
+
+          <div className="unit-row" style={{ marginTop: '4px' }}>
+            <span className="chip">Harga Box: Rp 192.000</span>
+            <span className="chip">Harga Pack: Rp 49.800</span>
+            <span className="chip">Harga Pcs: Rp 8.500</span>
           </div>
-          <table className="k-table" style={{ marginTop: '12px' }}>
+
+          {/* FIFO Batch & Expiry Table */}
+          <table className="k-table" style={{ marginTop: '14px' }}>
             <thead>
               <tr>
-                <th>Batch</th>
-                <th>Expiry</th>
-                <th>Qty</th>
-                <th>Status</th>
+                <th>Nomor Batch</th>
+                <th>Tgl Kadaluarsa</th>
+                <th>Sisa Stok</th>
+                <th>Status FIFO</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><b>B-2409</b></td>
-                <td>2025-11-28</td>
+                <td><b>BATCH-2409</b></td>
+                <td>28 Nov 2026</td>
                 <td>96 PCS</td>
                 <td>
                   <span className="mini-s" style={{ color: 'var(--warning)' }}>
-                    <span className="dot w"></span>34 days
+                    <span className="dot w" />
+                    Prioritas Jual (34 Hari)
                   </span>
                 </td>
               </tr>
               <tr>
-                <td><b>B-2410</b></td>
-                <td>2026-01-15</td>
+                <td><b>BATCH-2410</b></td>
+                <td>15 Jan 2027</td>
                 <td>48 PCS</td>
                 <td>
                   <span className="mini-s" style={{ color: 'var(--success)' }}>
-                    <span className="dot g"></span>OK
+                    <span className="dot g" />
+                    Aman (&gt; 90 Hari)
                   </span>
                 </td>
               </tr>
             </tbody>
           </table>
-          <div style={{ marginTop: '12px' }}>
+
+          {/* Real-time Movement Ledger Log */}
+          <div style={{ marginTop: '14px' }}>
             <div className="mv">
-              <span>2025-10-24 <span className="t">· PO #0841</span></span>
-              <span className="in">+240 PCS</span>
+              <span>24 Okt 2026 <span className="t">· Penerimaan PO #0841</span></span>
+              <span className="in">+240 PCS (10 Box)</span>
             </div>
             <div className="mv">
-              <span>2025-10-25 <span className="t">· sales</span></span>
+              <span>25 Okt 2026 <span className="t">· Kasir POS (38 Transaksi)</span></span>
               <span className="out">−96 PCS</span>
             </div>
             <div className="mv">
-              <span>2025-10-26 <span className="t">· opname #014</span></span>
-              <span className="adj">±0 variance</span>
+              <span>26 Okt 2026 <span className="t">· Stock Opname Fisik #014</span></span>
+              <span className="adj">±0 Selisih Pas</span>
             </div>
           </div>
         </div>
 
+        {/* Informative Side */}
         <div data-reveal style={{ '--d': '100ms' } as React.CSSProperties}>
           <div className="eyebrow ep">
-            <span className="eb-dot"></span>INVENTORY
+            <span className="eb-dot" />
+            INVENTARIS &amp; STOK
           </div>
-          <h2 className="h2">Stok multi-satuan &amp; batch expiry presisi.</h2>
+          <h2 className="h2">Stok Multi-Satuan &amp; Batch Expiry Presisi.</h2>
           <p className="lead">
-            Lacak mutasi stok, konversi bertingkat, dan peringatan kedaluwarsa secara real-time.
+            Konversi otomatis Box ke Pcs, pelacakan tanggal kadaluarsa dengan prioritas FIFO, serta kartu stok permanen yang terhubung ke kasir dan pengadaan.
           </p>
           <ul className="blist">
             <li>
               <Boxes size={16} />
               <span>
-                <b>Hierarki Satuan Bertingkat</b> — jual per Box, Pack, atau Pcs dengan konversi &amp; harga otomatis.
+                <b>Hierarki Multi-Satuan Otomatis</b> — beli dalam Box/Dus dari supplier, jual eceran per Pack atau Pcs di kasir dengan pengurang stok otomatis.
               </span>
             </li>
             <li>
               <Timer size={16} />
               <span>
-                <b>Batch No &amp; Tanggal Kadaluarsa</b> — pantau item mendekati kadaluarsa di kasir dan laporan.
+                <b>Pelacakan Batch &amp; Tanggal Kadaluarsa</b> — cegah kerugian barang expired dengan rekomendasi FIFO (First-In, First-Out) langsung di kasir.
               </span>
             </li>
             <li>
               <History size={16} />
               <span>
-                <b>Kartu Stok (Ledger) Akurat</b> — setiap mutasi tercatat permanen tanpa ditimpa.
+                <b>Kartu Stok Mutasi Permanen</b> — setiap pemasukan, penjualan, dan retur tercatat permanen; jejak audit tidak pernah hilang.
               </span>
             </li>
             <li>
               <CheckCheck size={16} />
               <span>
-                <b>Stock Opname Cepat</b> — selisih stok fisik langsung direkonsiliasi ke jurnal penyesuaian.
+                <b>Stock Opname Tanpa Tutup Toko</b> — hitung fisik stok berkala dengan cetak lembar hitung dan rekonsiliasi selisih instan.
               </span>
             </li>
           </ul>
@@ -122,4 +138,3 @@ export const InventoryDeepDive: React.FC = () => {
 };
 
 export default InventoryDeepDive;
-

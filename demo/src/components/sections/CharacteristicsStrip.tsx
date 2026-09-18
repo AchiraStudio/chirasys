@@ -1,16 +1,15 @@
 import React from 'react';
-import { WifiOff, GitBranch, KeyRound, Database, Cloud, Wifi } from 'lucide-react';
-import { GithubIcon } from '../common/BrandLogo';
+import { WifiOff, GitBranch, KeyRound, Database, Cloud, Wifi, Code2 } from 'lucide-react';
 
 export const CharacteristicsStrip: React.FC = () => {
   const items = [
-    { icon: WifiOff, title: 'Offline-first', desc: 'Sell without a connection', delay: '0ms' },
-    { icon: GitBranch, title: 'Multi-branch', desc: 'One connected workspace', delay: '50ms' },
-    { icon: KeyRound, title: 'BYOK', desc: 'Your keys, your infrastructure', delay: '100ms' },
-    { icon: Database, title: 'Local database', desc: 'SQLite on your machine', delay: '150ms' },
-    { icon: Cloud, title: 'Cloud sync', desc: 'Supabase, background sync', delay: '200ms' },
-    { icon: Wifi, title: 'LAN sync', desc: 'Terminals over your network', delay: '250ms' },
-    { icon: GithubIcon, title: 'Open source', desc: 'MIT licensed, inspectable', delay: '300ms' },
+    { icon: WifiOff, title: '100% Offline-First', desc: 'Kasir melayani transaksi tanpa internet', delay: '0ms' },
+    { icon: GitBranch, title: 'Multi-Cabang', desc: 'Satu workspace terhubung untuk semua toko', delay: '50ms' },
+    { icon: KeyRound, title: 'Model BYOK', desc: 'Kunci API & database seutuhnya milik Anda', delay: '100ms' },
+    { icon: Database, title: 'SQLite Lokal', desc: 'Performa SSD lokal super cepat 0ms latensi', delay: '150ms' },
+    { icon: Cloud, title: 'Supabase Cloud', desc: 'Sinkronisasi otomatis di background saat online', delay: '200ms' },
+    { icon: Wifi, title: 'LAN P2P Mesh', desc: 'Komunikasi antar kasir via UDP tanpa router internet', delay: '250ms' },
+    { icon: Code2, title: 'Open Source', desc: 'Berlisensi MIT, transparan dan bebas biaya lock-in', delay: '300ms' },
   ];
 
   return (
@@ -18,11 +17,12 @@ export const CharacteristicsStrip: React.FC = () => {
       <div className="wrap">
         <div className="sec-head center" data-reveal>
           <div className="eyebrow ep">
-            <span className="eb-dot"></span>NILAI UTAMA
+            <span className="eb-dot" />
+            NILAI UTAMA PRODUK
           </div>
-          <h2 className="h2">Didesain untuk operasional nyata.</h2>
+          <h2 className="h2">Didesain untuk Realitas Operasional Toko Fisik.</h2>
           <p className="lead">
-            Performa native, kehandalan tanpa internet, dan data seutuhnya milik Anda.
+            Kecepatan eksekusi native desktop, ketahanan tanpa internet, dan kedaulatan data tanpa ketergantungan langganan software vendor.
           </p>
         </div>
 
@@ -36,7 +36,7 @@ export const CharacteristicsStrip: React.FC = () => {
                 data-reveal
                 style={{ '--d': item.delay } as React.CSSProperties}
               >
-                <Icon size={17} />
+                <Icon size={18} className="text-primary" />
                 <b>{item.title}</b>
                 <small>{item.desc}</small>
               </div>
@@ -49,4 +49,3 @@ export const CharacteristicsStrip: React.FC = () => {
 };
 
 export default CharacteristicsStrip;
-

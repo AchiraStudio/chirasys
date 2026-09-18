@@ -14,7 +14,6 @@ import {
   ZoomIn,
   ZoomOut,
   Radio,
-  Zap,
   Minus,
   Square,
   X,
@@ -50,7 +49,7 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
 
-  const BRANCHES = ['Cabang Utama (Main Store)', 'Cabang Dago Bandung', 'Cabang Surabaya Barat'];
+  const BRANCHES = ['Flagship Store (HQ)', 'Downtown Branch (Store 02)', 'West Coast Branch (Store 03)'];
 
   const switchBranch = () => {
     setBranchIdx(prev => (prev + 1) % BRANCHES.length);
@@ -65,82 +64,32 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
   };
 
   const PAGE_TITLES: Record<AppMenuId, string> = {
-    dashboard: 'Overview Bisnis',
-    pos: 'Point of Sale (Kasir Kilat)',
-    inventory: 'Inventaris & Multi-Unit Produk',
-    purchasing: 'Pengadaan & Penerimaan Barang',
-    reports: 'Laporan Keuangan & Buku Besar',
-    customers: 'Pelanggan & Program Promo CRM',
-    settings: 'Pengaturan Sistem Toko',
+    dashboard: 'Business Overview',
+    pos: 'Point of Sale (Rapid Checkout)',
+    inventory: 'Inventory & Multi-Unit Catalog',
+    purchasing: 'Purchasing & Dock Receiving',
+    reports: 'Financial Reports & General Ledger',
+    customers: 'Customers & CRM Loyalty Program',
+    settings: 'System & Hardware Settings',
   };
 
   const SIDEBAR_MENUS = [
     { id: 'dashboard' as AppMenuId, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'pos' as AppMenuId, label: 'Kasir (POS)', icon: ShoppingCart },
-    { id: 'inventory' as AppMenuId, label: 'Produk & Stok', icon: Package, badge: 3 },
-    { id: 'purchasing' as AppMenuId, label: 'Pembelian (PO)', icon: Truck },
-    { id: 'reports' as AppMenuId, label: 'Laporan & Akuntansi', icon: FileText },
-    { id: 'customers' as AppMenuId, label: 'Pelanggan & Promo', icon: Users },
-    { id: 'settings' as AppMenuId, label: 'Pengaturan', icon: Settings },
+    { id: 'pos' as AppMenuId, label: 'Checkout (POS)', icon: ShoppingCart },
+    { id: 'inventory' as AppMenuId, label: 'Products & Stock', icon: Package, badge: 3 },
+    { id: 'purchasing' as AppMenuId, label: 'Purchasing (PO)', icon: Truck },
+    { id: 'reports' as AppMenuId, label: 'Reports & Ledger', icon: FileText },
+    { id: 'customers' as AppMenuId, label: 'Customers & Loyalty', icon: Users },
+    { id: 'settings' as AppMenuId, label: 'Settings', icon: Settings },
   ];
 
   return (
     <div className="hero-showcase-stage">
-      {/* Module Tour Switcher Bar */}
-      <div className="hero-tour-nav">
-        <div className="hero-tour-label">
-          <span className="live-indicator-dot" />
-          <span>EKSPLORASI FITUR:</span>
-        </div>
-        <div className="hero-tour-pills">
-          {SIDEBAR_MENUS.map(m => (
-            <button
-              key={m.id}
-              type="button"
-              className={`hero-tour-pill ${activeMenu === m.id ? 'active' : ''}`}
-              onClick={() => setActiveMenu(m.id)}
-            >
-              <m.icon size={13} />
-              <span>{m.label}</span>
-              {m.badge && <span className="hero-tour-badge">{m.badge}</span>}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`hero-tour-pill ai-pill ${isAiOpen ? 'active' : ''}`}
-            onClick={() => setIsAiOpen(true)}
-          >
-            <Sparkles size={13} />
-            <span>Kivo AI</span>
-          </button>
-        </div>
-      </div>
-
       {/* Ambient Lighting Glow behind App Window */}
       <div className="app-stage-ambient" />
 
-      {/* App Window Wrapper with Floating Telemetry Badges */}
+      {/* App Window Wrapper */}
       <div className="app-win-wrapper">
-        <div className="floating-telemetry float-left">
-          <div className="ft-icon-wrap zap">
-            <Zap size={14} />
-          </div>
-          <div className="ft-content">
-            <span className="ft-title">SQLite Local Engine</span>
-            <span className="ft-sub">0.14ms Latency · 100% Offline</span>
-          </div>
-        </div>
-
-        <div className="floating-telemetry float-right">
-          <div className="ft-icon-wrap sync">
-            <RefreshCw size={14} />
-          </div>
-          <div className="ft-content">
-            <span className="ft-title">Supabase Cloud Sync</span>
-            <span className="ft-sub">34 Tables · Mesh Synchronized</span>
-          </div>
-        </div>
-
         <div className="app-win" id="appWin">
           {/* 1. Real Kivo TitleBar (Authentic to TitleBar.tsx) */}
           <div className="app-titlebar-root">
@@ -157,7 +106,7 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
             type="button"
             className="titlebar-branch-pill"
             onClick={switchBranch}
-            title="Klik untuk beralih cabang toko"
+            title="Click to switch store branch"
           >
             <Building2 size={11} className="text-accent" />
             <span>{BRANCHES[branchIdx]}</span>
@@ -171,7 +120,7 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
             className="titlebar-sync-btn"
             onClick={triggerTopSync}
             disabled={isSyncing}
-            title="Status sinkronisasi SQLite ke Supabase Cloud"
+            title="SQLite to Supabase Cloud sync status"
           >
             <span className={`sync-dot ${isSyncing ? 'pulse' : 'online'}`} />
             <span>{isSyncing ? 'SYNCING…' : 'ONLINE · 42ms'}</span>
@@ -221,17 +170,6 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
             })}
           </nav>
 
-          {/* AI Copilot Trigger Banner inside Sidebar */}
-          <div className="sidebar-ai-banner" onClick={() => setIsAiOpen(true)}>
-            <div className="ai-banner-icon">
-              <Sparkles size={14} />
-            </div>
-            <div className="ai-banner-text">
-              <div className="ai-banner-title">Kivo AI Copilot</div>
-              <div className="ai-banner-sub">Tanya analisa bisnis</div>
-            </div>
-          </div>
-
           {/* User Profile Footer */}
           <div className="sidebar-user-footer">
             <div className="user-avatar-circle">A</div>
@@ -252,7 +190,7 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
 
             <div className="topbar-actions-section">
               {/* LAN Mesh Status */}
-              <div className="topbar-chip-pill" title="Mesh LAN 0-latensi aktif di subnet lokal">
+              <div className="topbar-chip-pill" title="0-latency LAN mesh active on local subnet">
                 <Radio size={12} className="text-success animate-pulse" />
                 <span>LAN 1</span>
               </div>
@@ -261,12 +199,12 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
               <div
                 className="topbar-chip-pill cursor-pointer"
                 onClick={triggerTopSync}
-                title="Klik untuk trigger pull/push worker"
+                title="Click to trigger pull/push sync worker"
               >
                 {isSyncing ? (
                   <>
                     <RefreshCw size={12} className="animate-spin text-warning" />
-                    <span className="text-warning">Sinkron...</span>
+                    <span className="text-warning">Syncing...</span>
                   </>
                 ) : (
                   <>
@@ -284,7 +222,7 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
                   type="button"
                   className="zoom-btn"
                   onClick={() => setZoomLevel(prev => Math.max(80, prev - 10))}
-                  title="Perkecil (Ctrl -)"
+                  title="Zoom Out (Ctrl -)"
                 >
                   <ZoomOut size={12} />
                 </button>
@@ -293,7 +231,7 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
                   type="button"
                   className="zoom-btn"
                   onClick={() => setZoomLevel(prev => Math.min(130, prev + 10))}
-                  title="Perbesar (Ctrl +)"
+                  title="Zoom In (Ctrl +)"
                 >
                   <ZoomIn size={12} />
                 </button>
@@ -304,7 +242,7 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
                 type="button"
                 className="topbar-ai-btn"
                 onClick={() => setIsAiOpen(true)}
-                title="Buka Kivo AI Assistant"
+                title="Open Kivo AI Assistant"
               >
                 <Sparkles size={13} />
                 <span>Kivo AI</span>
@@ -325,9 +263,9 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
             {activeMenu === 'settings' && (
               <div className="real-view-container text-center py-16">
                 <Settings size={44} className="text-primary mx-auto mb-3 opacity-70" />
-                <h3 className="text-lg font-bold text-heading">Pengaturan Sistem &amp; Hardware</h3>
+                <h3 className="text-lg font-bold text-heading">System &amp; Hardware Settings</h3>
                 <p className="text-dim text-xs max-w-md mx-auto mt-1">
-                  Konfigurasi printer thermal ESC/POS (USB, Bluetooth, LAN), cash drawer kick pin, backup database SQLite lokal, dan kredensial Supabase BYOK.
+                  Configure ESC/POS thermal printers (USB, Bluetooth, LAN), cash drawer kick pins, local SQLite backups, and BYOK Supabase cloud credentials.
                 </p>
               </div>
             )}
@@ -340,14 +278,6 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
 
       {/* Real AI Chat Copilot Drawer Modal */}
       <RealAiChatModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
-
-      {/* Interactive App Window Hint Bar */}
-      <div className="hero-window-hint">
-        <span className="hint-badge">Live Interactive UI</span>
-        <span>
-          Ini adalah antarmuka asli dari Kivo Desktop. Klik tab modul di atas atau sidebar di dalam untuk mencoba transaksi kasir POS, cek konversi stok multi-satuan, atau aktifkan Kivo AI.
-        </span>
-      </div>
     </div>
   );
 };

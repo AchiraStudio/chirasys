@@ -16,99 +16,99 @@ import {
 export const RealInventoryView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'stock' | 'opname' | 'master'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Semua');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   const INVENTORY_ITEMS = [
     {
       id: '1',
-      name: 'Kopi Susu Botol 250ml',
+      name: 'Signature Iced Latte 250ml',
       sku: 'KV-COF-01',
-      category: 'Minuman',
+      category: 'Beverages',
       baseUnit: 'Pcs',
       units: '1 Box = 24 Pcs · 1 Pack = 6 Pcs',
-      priceRetail: 'Rp 18.000',
-      priceWholesale: 'Rp 15.000',
+      priceRetail: '$4.50',
+      priceWholesale: '$3.75',
       stock: 144,
       minStock: 48,
-      status: 'Aman',
+      status: 'Optimal',
       statusType: 'success',
       batches: [
-        { batch: 'B-2409', expiry: '2026-11-28', qty: '96 Pcs', status: '34 hari lagi', statusColor: 'warning' },
-        { batch: 'B-2410', expiry: '2027-01-15', qty: '48 Pcs', status: 'Aman', statusColor: 'success' },
+        { batch: 'B-2409', expiry: '2026-11-28', qty: '96 Pcs', status: '34 days left', statusColor: 'warning' },
+        { batch: 'B-2410', expiry: '2027-01-15', qty: '48 Pcs', status: 'Optimal', statusColor: 'success' },
       ],
     },
     {
       id: '2',
-      name: 'Roti Coklat Keju Panggang',
+      name: 'Toasted Chocolate Brioche',
       sku: 'KV-BAK-04',
-      category: 'Makanan',
-      baseUnit: 'Bks',
-      units: '1 Krat = 20 Bks',
-      priceRetail: 'Rp 14.000',
-      priceWholesale: 'Rp 12.000',
+      category: 'Bakery',
+      baseUnit: 'Pcs',
+      units: '1 Crate = 20 Pcs',
+      priceRetail: '$3.50',
+      priceWholesale: '$2.80',
       stock: 6,
       minStock: 15,
-      status: 'Menipis',
+      status: 'Low Stock',
       statusType: 'warning',
       batches: [
-        { batch: 'B-2411', expiry: '2026-09-24', qty: '6 Bks', status: '7 hari lagi', statusColor: 'danger' },
+        { batch: 'B-2411', expiry: '2026-09-24', qty: '6 Pcs', status: '7 days left', statusColor: 'danger' },
       ],
     },
     {
       id: '3',
-      name: 'Air Mineral Pegunungan 600ml',
+      name: 'Mountain Spring Water 600ml',
       sku: 'KV-WTR-03',
-      category: 'Minuman',
+      category: 'Beverages',
       baseUnit: 'Btl',
-      units: '1 Dus = 24 Btl',
-      priceRetail: 'Rp 5.000',
-      priceWholesale: 'Rp 4.200',
+      units: '1 Case = 24 Btl',
+      priceRetail: '$1.50',
+      priceWholesale: '$1.10',
       stock: 240,
       minStock: 72,
-      status: 'Aman',
+      status: 'Optimal',
       statusType: 'success',
       batches: [
-        { batch: 'B-2401', expiry: '2027-05-10', qty: '240 Btl', status: 'Aman', statusColor: 'success' },
+        { batch: 'B-2401', expiry: '2027-05-10', qty: '240 Btl', status: 'Optimal', statusColor: 'success' },
       ],
     },
     {
       id: '4',
-      name: 'Sabun Mandi Herbal Alami 85g',
+      name: 'Botanical Herbal Bar Soap 85g',
       sku: 'KV-SOAP-09',
-      category: 'Perawatan',
+      category: 'Personal Care',
       baseUnit: 'Pcs',
-      units: '1 Lusin = 12 Pcs',
-      priceRetail: 'Rp 16.500',
-      priceWholesale: 'Rp 14.000',
+      units: '1 Dozen = 12 Pcs',
+      priceRetail: '$4.00',
+      priceWholesale: '$3.20',
       stock: 4,
       minStock: 12,
-      status: 'Kritis',
+      status: 'Critical',
       statusType: 'danger',
       batches: [
-        { batch: 'B-2399', expiry: '2027-08-20', qty: '4 Pcs', status: 'Aman', statusColor: 'success' },
+        { batch: 'B-2399', expiry: '2027-08-20', qty: '4 Pcs', status: 'Optimal', statusColor: 'success' },
       ],
     },
     {
       id: '5',
-      name: 'Minyak Goreng Sawit 2L',
+      name: 'Organic Pure Olive Oil 1L',
       sku: 'KV-OIL-07',
-      category: 'Sembako',
-      baseUnit: 'Pch',
-      units: '1 Karton = 6 Pch',
-      priceRetail: 'Rp 34.500',
-      priceWholesale: 'Rp 32.000',
+      category: 'Groceries',
+      baseUnit: 'Btl',
+      units: '1 Carton = 6 Btl',
+      priceRetail: '$12.50',
+      priceWholesale: '$10.50',
       stock: 42,
       minStock: 18,
-      status: 'Aman',
+      status: 'Optimal',
       statusType: 'success',
       batches: [
-        { batch: 'B-2412', expiry: '2027-03-30', qty: '42 Pch', status: 'Aman', statusColor: 'success' },
+        { batch: 'B-2412', expiry: '2027-03-30', qty: '42 Btl', status: 'Optimal', statusColor: 'success' },
       ],
     },
   ];
 
   const filteredItems = INVENTORY_ITEMS.filter(item => {
-    const matchesCat = selectedCategory === 'Semua' || item.category === selectedCategory;
+    const matchesCat = selectedCategory === 'All' || item.category === selectedCategory;
     const matchesQuery =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.sku.toLowerCase().includes(searchQuery.toLowerCase());
@@ -126,7 +126,7 @@ export const RealInventoryView: React.FC = () => {
             onClick={() => setActiveTab('catalog')}
           >
             <Boxes size={15} />
-            <span>Katalog Produk</span>
+            <span>Product Catalog</span>
           </button>
           <button
             type="button"
@@ -134,8 +134,8 @@ export const RealInventoryView: React.FC = () => {
             onClick={() => setActiveTab('stock')}
           >
             <Package size={15} />
-            <span>Stok Multi-Unit &amp; Batch</span>
-            <span className="tab-badge">2 Alert</span>
+            <span>Multi-Unit &amp; Batches</span>
+            <span className="tab-badge">2 Alerts</span>
           </button>
           <button
             type="button"
@@ -162,7 +162,7 @@ export const RealInventoryView: React.FC = () => {
           </button>
           <button type="button" className="action-btn-primary">
             <Plus size={14} />
-            <span>Tambah Produk</span>
+            <span>Add Product</span>
           </button>
         </div>
       </div>
@@ -175,7 +175,7 @@ export const RealInventoryView: React.FC = () => {
               <Search size={14} className="text-dim" />
               <input
                 type="text"
-                placeholder="Cari nama barang, barcode atau SKU..."
+                placeholder="Search product name, barcode, or SKU..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="filter-search-input"
@@ -183,7 +183,7 @@ export const RealInventoryView: React.FC = () => {
             </div>
 
             <div className="category-filter-pills">
-              {['Semua', 'Minuman', 'Makanan', 'Sembako', 'Perawatan'].map(cat => (
+              {['All', 'Beverages', 'Bakery', 'Groceries', 'Personal Care'].map(cat => (
                 <button
                   key={cat}
                   type="button"
@@ -201,11 +201,11 @@ export const RealInventoryView: React.FC = () => {
             <table className="real-data-table">
               <thead>
                 <tr>
-                  <th>Produk &amp; SKU</th>
-                  <th>Kategori</th>
-                  <th>Konversi Multi-Unit</th>
-                  <th>Harga Ecer / Grosir</th>
-                  <th className="text-right">Sisa Stok</th>
+                  <th>Product &amp; SKU</th>
+                  <th>Category</th>
+                  <th>Multi-Unit Conversion</th>
+                  <th>Retail / Wholesale Price</th>
+                  <th className="text-right">In Stock</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -227,7 +227,7 @@ export const RealInventoryView: React.FC = () => {
                     <td>
                       <div className="text-xs">
                         <span className="font-semibold text-heading tnum">{item.priceRetail}</span>
-                        <span className="text-dim block tnum">Grosir: {item.priceWholesale}</span>
+                        <span className="text-dim block tnum">Wholesale: {item.priceWholesale}</span>
                       </div>
                     </td>
                     <td className="text-right font-bold text-heading tnum">
@@ -253,8 +253,8 @@ export const RealInventoryView: React.FC = () => {
         <div className="real-panel mt-3">
           <div className="real-panel-head">
             <div>
-              <span className="real-panel-title">Detail Multi-Unit &amp; Batch Expiry</span>
-              <span className="real-panel-sub">Kopi Susu Botol 250ml · SKU: KV-COF-01</span>
+              <span className="real-panel-title">Multi-Unit Hierarchy &amp; Batch Expiry</span>
+              <span className="real-panel-sub">Signature Iced Latte 250ml · SKU: KV-COF-01</span>
             </div>
             <span className="status-pill success">
               <CheckCircle2 size={11} /> Total 144 Pcs
@@ -264,11 +264,11 @@ export const RealInventoryView: React.FC = () => {
           {/* Multi-Unit Conversion Hierarchy Card */}
           <div className="unit-conversion-hierarchy">
             <div className="unit-tier-card">
-              <div className="tier-header">BOX (Tingkat 1)</div>
+              <div className="tier-header">MASTER BOX (Tier 1)</div>
               <div className="tier-content">
                 <span className="tier-ratio">1 Box = 24 Pcs</span>
-                <span className="tier-stock tnum">6 Box</span>
-                <span className="tier-price tnum">Rp 192.000</span>
+                <span className="tier-stock tnum">6 Boxes</span>
+                <span className="tier-price tnum">$90.00</span>
               </div>
             </div>
 
@@ -277,11 +277,11 @@ export const RealInventoryView: React.FC = () => {
             </div>
 
             <div className="unit-tier-card">
-              <div className="tier-header">PACK (Tingkat 2)</div>
+              <div className="tier-header">INNER PACK (Tier 2)</div>
               <div className="tier-content">
                 <span className="tier-ratio">1 Pack = 6 Pcs</span>
-                <span className="tier-stock tnum">24 Pack</span>
-                <span className="tier-price tnum">Rp 49.800</span>
+                <span className="tier-stock tnum">24 Packs</span>
+                <span className="tier-price tnum">$24.00</span>
               </div>
             </div>
 
@@ -290,49 +290,49 @@ export const RealInventoryView: React.FC = () => {
             </div>
 
             <div className="unit-tier-card primary-tier">
-              <div className="tier-header">PCS (Unit Dasar)</div>
+              <div className="tier-header">BASE PCS (Unit)</div>
               <div className="tier-content">
-                <span className="tier-ratio">Unit Terkecil Kasir</span>
+                <span className="tier-ratio">POS Counter Retail</span>
                 <span className="tier-stock tnum text-primary font-bold">144 Pcs</span>
-                <span className="tier-price tnum">Rp 8.500</span>
+                <span className="tier-price tnum">$4.50</span>
               </div>
             </div>
           </div>
 
           {/* Batch Tracking Table */}
           <div className="mt-4">
-            <h5 className="section-subheading">Tracking Batch Nomor &amp; Tanggal Kadaluarsa (FIFO)</h5>
+            <h5 className="section-subheading">Batch Lot Tracking &amp; Expiry Timeline (FIFO)</h5>
             <div className="real-table-wrapper mt-2">
               <table className="real-data-table">
                 <thead>
                   <tr>
                     <th>Batch ID</th>
-                    <th>Tgl Kadaluarsa</th>
-                    <th>Stok Batch</th>
-                    <th>Lokasi Rak</th>
-                    <th>Status Usia</th>
+                    <th>Expiry Date</th>
+                    <th>Lot Stock</th>
+                    <th>Shelf Location</th>
+                    <th>Shelf Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td className="font-bold mono text-heading">B-2409</td>
-                    <td className="text-dim">28 Nov 2026</td>
+                    <td className="text-dim">Nov 28, 2026</td>
                     <td className="font-bold tnum">96 Pcs</td>
-                    <td>Rak B2 (Depan)</td>
+                    <td>Shelf B2 (Front)</td>
                     <td>
                       <span className="status-pill warning">
-                        <Clock size={11} /> 34 hari lagi (Prioritas Jual)
+                        <Clock size={11} /> 34 days left (Priority Sell)
                       </span>
                     </td>
                   </tr>
                   <tr>
                     <td className="font-bold mono text-heading">B-2410</td>
-                    <td className="text-dim">15 Jan 2027</td>
+                    <td className="text-dim">Jan 15, 2027</td>
                     <td className="font-bold tnum">48 Pcs</td>
-                    <td>Gudang Belakang G-1</td>
+                    <td>Warehouse Depot G-1</td>
                     <td>
                       <span className="status-pill success">
-                        <CheckCircle2 size={11} /> Aman (&gt; 90 hari)
+                        <CheckCircle2 size={11} /> Optimal (&gt; 90 days)
                       </span>
                     </td>
                   </tr>
@@ -346,9 +346,9 @@ export const RealInventoryView: React.FC = () => {
       {activeTab === 'opname' && (
         <div className="real-panel mt-3 text-center py-10">
           <ClipboardList size={36} className="text-primary mx-auto mb-2 opacity-80" />
-          <h4 className="font-bold text-heading text-base">Modul Stock Opname Terjadwal</h4>
+          <h4 className="font-bold text-heading text-base">Scheduled Stock Opname Module</h4>
           <p className="text-dim text-xs max-w-md mx-auto mt-1">
-            Lakukan perhitungan fisik stok di rak menggunakan barcode scanner portabel tanpa menghentikan transaksi kasir yang sedang berjalan.
+            Conduct physical shelf counts using wireless barcode scanners without halting live cashier checkouts.
           </p>
         </div>
       )}
@@ -356,9 +356,9 @@ export const RealInventoryView: React.FC = () => {
       {activeTab === 'master' && (
         <div className="real-panel mt-3 text-center py-10">
           <Layers size={36} className="text-accent mx-auto mb-2 opacity-80" />
-          <h4 className="font-bold text-heading text-base">Konfigurasi Master Data &amp; Satuan</h4>
+          <h4 className="font-bold text-heading text-base">Master Data &amp; Unit Hierarchy</h4>
           <p className="text-dim text-xs max-w-md mx-auto mt-1">
-            Kelola hierarki kategori, master merk pabrik, satuan unit kustom, dan relasi multi-gudang cabang.
+            Manage category taxonomies, manufacturer brands, custom unit multipliers, and multi-warehouse branch assignments.
           </p>
         </div>
       )}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Truck, Receipt, Package, Boxes, Coins, Calculator } from 'lucide-react';
+import { Truck, Receipt, Package, Boxes, Coins, Calculator, CheckCircle2 } from 'lucide-react';
 
 interface PurchaseStage {
   id: number;
@@ -7,50 +7,57 @@ interface PurchaseStage {
   name: string;
   description: string;
   meta: string;
+  badge: string;
 }
 
 const STAGES: PurchaseStage[] = [
   {
     id: 0,
     icon: Truck,
-    name: 'Supplier',
-    description: 'Suppliers, price lists, and terms kept in one registry.',
-    meta: '34 suppliers',
+    name: '1. Registri Supplier',
+    description: 'Database master supplier, riwayat harga beli, termin pembayaran, dan nomor kontak sales tersimpan rapi.',
+    meta: '34 Supplier Aktif · Tempo 30 Hari',
+    badge: 'Database Pemasok',
   },
   {
     id: 1,
     icon: Receipt,
-    name: 'Purchase Order',
-    description: 'Create a PO with expected quantities and agreed costs.',
-    meta: 'PO #0841 · 12 lines · Rp 8.240.000',
+    name: '2. Purchase Order (PO)',
+    description: 'Terbitkan Surat Pesanan (PO) dengan kuantiti dan kesepakatan harga grosir yang terkunci tanpa salah paham.',
+    meta: 'PO #0841 · 12 Item · Rp 8.240.000',
+    badge: 'Penerbitan PO',
   },
   {
     id: 2,
     icon: Package,
-    name: 'Goods Received',
-    description: 'Receive fully or partially — batches and expiry captured at the door.',
-    meta: 'GRN #0512 · received 10 of 12',
+    name: '3. Penerimaan Barang (GRN)',
+    description: 'Terima barang utuh maupun bertahap (parsial). Catat nomor batch dan tanggal kadaluarsa saat barang dibongkar.',
+    meta: 'GRN #0512 · Diterima 10 dari 12 Item',
+    badge: 'Penerimaan Fisik',
   },
   {
     id: 3,
     icon: Boxes,
-    name: 'Inventory',
-    description: 'Stock levels, batches, and valuation update automatically.',
-    meta: '+240 PCS Kopi Susu Botol',
+    name: '4. Masuk Inventaris & Kasir',
+    description: 'Stok multi-satuan bertambah otomatis di database lokal. Barang langsung dapat di-scan dan dijual di kasir.',
+    meta: '+240 PCS Kopi Susu Botol Masuk',
+    badge: 'Stok Bertambah',
   },
   {
     id: 4,
     icon: Coins,
-    name: 'HPP / COGS',
-    description: 'Cost of goods recalculated with every receipt.',
-    meta: 'HPP Kopi Susu: Rp 5.940 / unit',
+    name: '5. Hitung HPP Otomatis',
+    description: 'Harga Pokok Penjualan (HPP / COGS) diperbarui otomatis dengan metode Moving Average begitu faktur diterima.',
+    meta: 'HPP Kopi Susu Baru: Rp 5.940 / unit',
+    badge: 'Kalkulasi Otomatis',
   },
   {
     id: 5,
     icon: Calculator,
-    name: 'Accounting',
-    description: 'Supplier bills, accounts payable, and journals post themselves.',
-    meta: 'AP recognized · JE #4412',
+    name: '6. Jurnal Hutang (AP)',
+    description: 'Tagihan supplier otomatis masuk ke laporan hutang dagang (AP) dan jurnal akuntansi debit-kredit terposting sendiri.',
+    meta: 'Hutang Diakui · Jurnal JE-#4412',
+    badge: 'Pembukuan Beres',
   },
 ];
 
@@ -64,20 +71,24 @@ export const PurchasingDeepDive: React.FC = () => {
       <div className="wrap">
         <div className="sec-head" data-reveal>
           <div className="eyebrow">
-            <span className="eb-dot"></span>PURCHASING
+            <span className="eb-dot" />
+            PENGADAAN &amp; PEMBELIAN
           </div>
-          <h2 className="h2">From supplier to statement, one chain.</h2>
+          <h2 className="h2">Dari Supplier ke Laporan Keuangan. Satu Rantai Tertutup.</h2>
           <p className="lead">
-            Purchase orders, receiving, supplier bills, and accounts payable — with costs flowing into HPP and the ledger automatically. Click a stage.
+            Penerbitan PO, penerimaan barang bertahap, perhitungan HPP otomatis, hingga pengakuan hutang dagang tanpa spreadsheet ganda. Klik tahapan alur di bawah:
           </p>
         </div>
+
         <div data-reveal>
+          {/* Interactive Stage Step Rail */}
           <div className="prail" id="pRail">
             {STAGES.map((s, idx) => {
               const Icon = s.icon;
               return (
                 <button
                   key={s.name}
+                  type="button"
                   className={`pstage ${idx === activeStage ? 'on' : ''}`}
                   onClick={() => setActiveStage(idx)}
                 >
@@ -90,17 +101,36 @@ export const PurchasingDeepDive: React.FC = () => {
             })}
           </div>
 
-          <div className="card p-detail" id="pDetail">
-            <span className="f-ic">
-              <StageIcon size={22} />
+          {/* Detailed Stage Card */}
+          <div className="card p-detail" id="pDetail" style={{ marginTop: '16px' }}>
+            <span className="f-ic" style={{ background: 'color-mix(in srgb, var(--primary) 15%, transparent)', color: 'var(--primary)' }}>
+              <StageIcon size={24} />
             </span>
-            <div style={{ flex: 1, minWidth: '220px' }}>
-              <h3>
-                {cur.id + 1}. {cur.name}
+            <div style={{ flex: 1, minWidth: '240px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span className="pill">{cur.badge}</span>
+                <span className="mini-s" style={{ color: 'var(--success)' }}>
+                  <CheckCircle2 size={12} /> Alur Aktif
+                </span>
+              </div>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--heading)' }}>
+                {cur.name}
               </h3>
-              <p>{cur.description}</p>
+              <p style={{ marginTop: '6px', fontSize: '14px', color: 'var(--body)', lineHeight: 1.55 }}>
+                {cur.description}
+              </p>
             </div>
-            <span className="chip p-meta">{cur.meta}</span>
+            <div className="p-meta" style={{ minWidth: '220px', borderLeft: '1px solid var(--line)', paddingLeft: '18px' }}>
+              <span style={{ fontSize: '10.5px', fontWeight: 800, letterSpacing: '.08em', color: 'var(--dim)', textTransform: 'uppercase' }}>
+                Data Terverifikasi
+              </span>
+              <b style={{ display: 'block', marginTop: '4px', fontSize: '13.5px', color: 'var(--heading)' }}>
+                {cur.meta}
+              </b>
+              <span className="pill" style={{ marginTop: '8px' }}>
+                Otomatis via Kivo Engine
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -109,4 +139,3 @@ export const PurchasingDeepDive: React.FC = () => {
 };
 
 export default PurchasingDeepDive;
-

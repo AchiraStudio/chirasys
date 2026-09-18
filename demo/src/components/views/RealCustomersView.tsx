@@ -14,39 +14,39 @@ export const RealCustomersView: React.FC = () => {
 
   const CUSTOMERS = [
     {
-      name: 'Siti Nurhaliza',
-      phone: '0812-9988-7766',
-      tier: 'Member VIP',
-      discount: 'Diskon 5% Semua Menu',
-      totalSpent: 'Rp 3.450.000',
-      points: '345 Poin',
+      name: 'Sarah Jenkins',
+      phone: '555-019-8833',
+      tier: 'VIP Member',
+      discount: '5% Off All Orders',
+      totalSpent: '$3,450.00',
+      points: '345 Pts',
       txCount: 28,
     },
     {
-      name: 'Ahmad Dani',
-      phone: '0813-1122-3344',
-      tier: 'Member Grosir',
-      discount: 'Tier Harga Grosir',
-      totalSpent: 'Rp 14.800.000',
-      points: '1.480 Poin',
+      name: 'Alex Morgan',
+      phone: '555-014-2211',
+      tier: 'Wholesale Member',
+      discount: 'Tiered Wholesale Rates',
+      totalSpent: '$14,800.00',
+      points: '1,480 Pts',
       txCount: 14,
     },
     {
-      name: 'Rina Wulandari',
-      phone: '0857-4455-6677',
-      tier: 'Member Reguler',
-      discount: 'Poin Belanja',
-      totalSpent: 'Rp 1.120.000',
-      points: '112 Poin',
+      name: 'Rachel Adams',
+      phone: '555-017-5599',
+      tier: 'Regular Member',
+      discount: 'Reward Points Earning',
+      totalSpent: '$1,120.00',
+      points: '112 Pts',
       txCount: 9,
     },
     {
-      name: 'Hendrik Pratama',
-      phone: '0878-3344-5566',
-      tier: 'Member VIP',
-      discount: 'Diskon 5% Semua Menu',
-      totalSpent: 'Rp 4.900.000',
-      points: '490 Poin',
+      name: 'Henry Vance',
+      phone: '555-011-4477',
+      tier: 'VIP Member',
+      discount: '5% Off All Orders',
+      totalSpent: '$4,900.00',
+      points: '490 Pts',
       txCount: 34,
     },
   ];
@@ -54,27 +54,27 @@ export const RealCustomersView: React.FC = () => {
   const PROMOS = [
     {
       code: 'VIP-AUTO-5',
-      title: 'Diskon Member VIP 5%',
-      type: 'Diskon Persentase',
-      rule: 'Otomatis terpotong saat scan member VIP di kasir',
-      period: 'Berlaku Selamanya',
-      status: 'Aktif',
+      title: 'VIP Member 5% Auto-Discount',
+      type: 'Percentage Discount',
+      rule: 'Automatically applied upon scanning VIP member badge at POS',
+      period: 'Evergreen / Always Active',
+      status: 'Active',
     },
     {
-      code: 'KOPI-ROTI-BUNDLE',
-      title: 'Paket Sarapan Pagi (Kopi + Roti)',
-      type: 'Bundling Produk',
-      rule: 'Beli 1 Kopi Susu 250ml + 1 Roti Coklat hemat Rp 4.000',
-      period: '07:00 – 11:00 WIB',
-      status: 'Aktif',
+      code: 'MORNING-COMBO',
+      title: 'Morning Breakfast Bundle (Latte + Brioche)',
+      type: 'Product Bundle',
+      rule: 'Buy 1 Signature Latte 250ml + 1 Chocolate Brioche, save $1.50',
+      period: '07:00 – 11:00 Daily',
+      status: 'Active',
     },
     {
-      code: 'HEMAT-JUMAT-BERKAH',
-      title: 'Jumat Berkah Diskon Sembako 10%',
-      type: 'Hari Tertentu',
-      rule: 'Min. belanja Rp 100.000 kategori Sembako',
-      period: 'Setiap Jumat',
-      status: 'Aktif',
+      code: 'WEEKEND-GROCERY',
+      title: 'Weekend Groceries 10% Off',
+      type: 'Category Discount',
+      rule: 'Min. order $50.00 across Groceries catalog',
+      period: 'Every Sat & Sun',
+      status: 'Active',
     },
   ];
 
@@ -89,7 +89,7 @@ export const RealCustomersView: React.FC = () => {
             onClick={() => setActiveTab('customers')}
           >
             <Users size={15} />
-            <span>Data Pelanggan &amp; Member CRM</span>
+            <span>Customer Directory &amp; CRM Members</span>
           </button>
           <button
             type="button"
@@ -97,14 +97,14 @@ export const RealCustomersView: React.FC = () => {
             onClick={() => setActiveTab('promos')}
           >
             <Sparkles size={15} />
-            <span>Program Promo &amp; Diskon Otomatis</span>
+            <span>Promotion Engine &amp; Auto-Discounts</span>
           </button>
         </div>
 
         <div className="tab-bar-right-actions">
           <button type="button" className="action-btn-primary">
             <Plus size={14} />
-            <span>{activeTab === 'customers' ? 'Tambah Pelanggan' : 'Buat Promo Baru'}</span>
+            <span>{activeTab === 'customers' ? 'Add Customer' : 'Create New Promo'}</span>
           </button>
         </div>
       </div>
@@ -116,25 +116,25 @@ export const RealCustomersView: React.FC = () => {
               <Search size={14} className="text-dim" />
               <input
                 type="text"
-                placeholder="Cari nama pelanggan, nomor telepon, atau nomor kartu..."
+                placeholder="Search customer name, phone number, or card ID..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="filter-search-input"
               />
             </div>
-            <span className="badge-tag">Terintegrasi Database Lokal Kasir</span>
+            <span className="badge-tag">Integrated with Local POS Database</span>
           </div>
 
           <div className="real-table-wrapper">
             <table className="real-data-table">
               <thead>
                 <tr>
-                  <th>Nama Pelanggan</th>
-                  <th>No. Telepon / WhatsApp</th>
-                  <th>Tier Keanggotaan</th>
-                  <th>Benefit Harga</th>
-                  <th className="text-right">Total Akumulasi</th>
-                  <th>Poin Aktif</th>
+                  <th>Customer Name</th>
+                  <th>Phone / WhatsApp</th>
+                  <th>Membership Tier</th>
+                  <th>Pricing Benefit</th>
+                  <th className="text-right">Lifetime Spend</th>
+                  <th>Active Points</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,7 +142,7 @@ export const RealCustomersView: React.FC = () => {
                   <tr key={c.name}>
                     <td>
                       <span className="font-bold text-heading">{c.name}</span>
-                      <span className="text-xs text-dim block">{c.txCount}x belanja</span>
+                      <span className="text-xs text-dim block">{c.txCount} orders</span>
                     </td>
                     <td className="text-dim text-xs font-mono">{c.phone}</td>
                     <td>
@@ -172,11 +172,11 @@ export const RealCustomersView: React.FC = () => {
             <table className="real-data-table">
               <thead>
                 <tr>
-                  <th>Kode Promo</th>
-                  <th>Nama Program Promosi</th>
-                  <th>Jenis Skema</th>
-                  <th>Ketentuan &amp; Syarat</th>
-                  <th>Periode Waktu</th>
+                  <th>Promo Code</th>
+                  <th>Promotion Program Name</th>
+                  <th>Scheme Type</th>
+                  <th>Rules &amp; Qualifications</th>
+                  <th>Active Period</th>
                   <th>Status</th>
                 </tr>
               </thead>

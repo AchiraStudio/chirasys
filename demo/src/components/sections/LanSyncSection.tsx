@@ -7,35 +7,35 @@ export const LanSyncSection: React.FC = () => {
       <div className="wrap split">
         <div data-reveal>
           <div className="eyebrow">
-            <span className="eb-dot"></span>LAN SYNC
+            <span className="eb-dot"></span>LOCAL LAN SYNC
           </div>
-          <h2 className="h2">Kasir toko tersinkronisasi tanpa internet.</h2>
+          <h2 className="h2">Multi-register sync without internet.</h2>
           <p className="lead">
-            Antar kasir saling terhubung otomatis via UDP di jaringan lokal. Stok dan transaksi langsung sinkron.
+            Registers connect automatically via UDP peer discovery over local Wi-Fi. Stock and transactions replicate in real-time.
           </p>
           <ul className="blist">
             <li>
               <Wifi size={16} />
               <span>
-                <b>Penemuan Otomatis (UDP)</b> — kasir anak langsung mendeteksi server induk di Wi-Fi toko.
+                <b>Zero-Config Peer Discovery</b> — auxiliary registers automatically detect the primary store server over local Wi-Fi.
               </span>
             </li>
             <li>
               <Server size={16} />
               <span>
-                <b>Sinkronisasi Peer Cepat</b> — data penjualan tersinkron antar kasir dalam hitungan milidetik.
+                <b>Sub-Millisecond Replication</b> — checkout events sync across LAN registers with imperceptible latency.
               </span>
             </li>
             <li>
               <Lock size={16} />
               <span>
-                <b>Hak Akses Per Kasir</b> — atur wewenang kasir anak dan terminal kasir utama.
+                <b>Role-Based Terminal Auth</b> — configure granular privileges between auxiliary registers and store manager nodes.
               </span>
             </li>
             <li>
               <Cloud size={16} />
               <span>
-                <b>Sinergi Supabase Cloud</b> — seluruh mutasi lokal langsung terunggah saat internet kembali.
+                <b>Cloud Mesh Synergy</b> — all locally collected offline ledger mutations drain cleanly to Supabase once online.
               </span>
             </li>
           </ul>

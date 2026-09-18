@@ -13,47 +13,47 @@ export const RealAccountingView: React.FC = () => {
     {
       date: '15/09 14:28',
       ref: 'POS #KV-1284',
-      memo: 'Penjualan Kasir Kas Tunai (3 items)',
-      debitAcc: '1-110 Kas Toko Kasir',
-      creditAcc: '4-100 Pendapatan Penjualan Toko',
-      debitVal: 'Rp 86.000',
-      creditVal: 'Rp 86.000',
+      memo: 'Cash Register Sale (3 items)',
+      debitAcc: '1-110 Till Cash',
+      creditAcc: '4-100 Retail Sales Revenue',
+      debitVal: '$86.00',
+      creditVal: '$86.00',
     },
     {
       date: '15/09 14:28',
-      ref: 'HPP #KV-1284',
-      memo: 'Pengakuan HPP Barang Terjual (FIFO)',
-      debitAcc: '5-100 Beban Pokok Penjualan (HPP)',
-      creditAcc: '1-130 Persediaan Barang Dagang',
-      debitVal: 'Rp 59.500',
-      creditVal: 'Rp 59.500',
+      ref: 'COGS #KV-1284',
+      memo: 'COGS Recognition (FIFO)',
+      debitAcc: '5-100 Cost of Goods Sold (COGS)',
+      creditAcc: '1-130 Merchandise Inventory',
+      debitVal: '$59.50',
+      creditVal: '$59.50',
     },
     {
       date: '15/09 14:15',
       ref: 'POS #KV-1283',
-      memo: 'Penjualan QRIS Dinamis (Siti VIP)',
-      debitAcc: '1-112 Kas Kliring QRIS',
-      creditAcc: '4-100 Pendapatan Penjualan Toko',
-      debitVal: 'Rp 12.500',
-      creditVal: 'Rp 12.500',
+      memo: 'Dynamic QR Sale (VIP Member)',
+      debitAcc: '1-112 QR Clearing Account',
+      creditAcc: '4-100 Retail Sales Revenue',
+      debitVal: '$12.50',
+      creditVal: '$12.50',
     },
     {
       date: '15/09 11:20',
       ref: 'PO #KV-0841',
-      memo: 'Pelunasan Penerimaan Barang PT Mayora',
-      debitAcc: '1-130 Persediaan Barang Dagang',
-      creditAcc: '1-111 Kas Bank Operasional BCA',
-      debitVal: 'Rp 4.250.000',
-      creditVal: 'Rp 4.250.000',
+      memo: 'Supplier Receiving Settlement (Mayora)',
+      debitAcc: '1-130 Merchandise Inventory',
+      creditAcc: '1-111 Operating Checking Account',
+      debitVal: '$4,250.00',
+      creditVal: '$4,250.00',
     },
     {
       date: '14/09 18:30',
       ref: 'SHIFT #46',
-      memo: 'Penutupan Shift Kasir & Rekonsiliasi Kas',
-      debitAcc: '1-111 Kas Bank Setoran',
-      creditAcc: '1-110 Kas Toko Kasir',
-      debitVal: 'Rp 11.450.000',
-      creditVal: 'Rp 11.450.000',
+      memo: 'Shift Reconciliation & Till Cash Out',
+      debitAcc: '1-111 Bank Deposit Transit',
+      creditAcc: '1-110 Till Cash',
+      debitVal: '$11,450.00',
+      creditVal: '$11,450.00',
     },
   ];
 
@@ -68,7 +68,7 @@ export const RealAccountingView: React.FC = () => {
             onClick={() => setActiveTab('journal')}
           >
             <BookOpen size={15} />
-            <span>Jurnal Otomatis &amp; Buku Besar (General Ledger)</span>
+            <span>Automated Journal &amp; General Ledger</span>
           </button>
           <button
             type="button"
@@ -76,7 +76,7 @@ export const RealAccountingView: React.FC = () => {
             onClick={() => setActiveTab('pl')}
           >
             <Scale size={15} />
-            <span>Laba Rugi &amp; Neraca (Realtime P&amp;L)</span>
+            <span>Profit &amp; Loss &amp; Balance Sheet (P&amp;L)</span>
           </button>
         </div>
 
@@ -92,11 +92,11 @@ export const RealAccountingView: React.FC = () => {
         <div className="real-panel mt-3">
           <div className="real-panel-head">
             <div>
-              <span className="real-panel-title">Jurnal Pembukuan Berpasangan (Double-Entry)</span>
-              <span className="real-panel-sub">Terposting otomatis setiap kasir menekan tombol Bayar</span>
+              <span className="real-panel-title">Double-Entry General Ledger</span>
+              <span className="real-panel-sub">Automatically posted every time a cashier charges an order</span>
             </div>
             <span className="status-pill success">
-              <CheckCircle2 size={11} /> Neraca Seimbang 100% (Balanced)
+              <CheckCircle2 size={11} /> 100% Balanced Ledger
             </span>
           </div>
 
@@ -104,12 +104,12 @@ export const RealAccountingView: React.FC = () => {
             <table className="real-data-table">
               <thead>
                 <tr>
-                  <th>Tgl / Jam</th>
-                  <th>No. Referensi</th>
-                  <th>Akun Debit &amp; Akun Kredit</th>
-                  <th>Keterangan Transaksi</th>
+                  <th>Date / Time</th>
+                  <th>Reference #</th>
+                  <th>Debit &amp; Credit Accounts</th>
+                  <th>Transaction Memo</th>
                   <th className="text-right">Debit</th>
-                  <th className="text-right">Kredit</th>
+                  <th className="text-right">Credit</th>
                 </tr>
               </thead>
               <tbody>
@@ -140,41 +140,41 @@ export const RealAccountingView: React.FC = () => {
         <div className="real-panel mt-3">
           <div className="real-panel-head">
             <div>
-              <span className="real-panel-title">Laporan Laba Rugi Berjalan (P&amp;L Statement)</span>
-              <span className="real-panel-sub">Periode: 01 September 2026 – Hari Ini</span>
+              <span className="real-panel-title">Real-Time Profit &amp; Loss Statement</span>
+              <span className="real-panel-sub">Period: September 01, 2026 – Present</span>
             </div>
-            <span className="badge-tag">Otomatis Terintegrasi Transaksi Kasir</span>
+            <span className="badge-tag">POS &amp; Receiving Auto-Integrated</span>
           </div>
 
           <div className="pl-financial-cards mt-3">
             <div className="pl-stat-box">
-              <span className="pl-stat-label">Total Pendapatan Penjualan</span>
-              <div className="pl-stat-val tnum text-heading">Rp 42.850.000</div>
-              <span className="text-xs text-dim">Dari 612 struk transaksi</span>
+              <span className="pl-stat-label">Gross Sales Revenue</span>
+              <div className="pl-stat-val tnum text-heading">$42,850.00</div>
+              <span className="text-xs text-dim">From 612 customer receipts</span>
             </div>
 
             <div className="pl-stat-box">
-              <span className="pl-stat-label">Beban Pokok Penjualan (HPP)</span>
-              <div className="pl-stat-val tnum text-warning">Rp 29.600.000</div>
-              <span className="text-xs text-dim">Metode FIFO persediaan barang</span>
+              <span className="pl-stat-label">Cost of Goods Sold (COGS)</span>
+              <div className="pl-stat-val tnum text-warning">$29,600.00</div>
+              <span className="text-xs text-dim">FIFO inventory valuation</span>
             </div>
 
             <div className="pl-stat-box highlight">
-              <span className="pl-stat-label">Laba Kotor (Gross Profit)</span>
-              <div className="pl-stat-val tnum text-primary font-bold">Rp 13.250.000</div>
-              <span className="text-xs text-success font-semibold">Margin Laba: 30.9%</span>
+              <span className="pl-stat-label">Gross Profit</span>
+              <div className="pl-stat-val tnum text-primary font-bold">$13,250.00</div>
+              <span className="text-xs text-success font-semibold">Profit Margin: 30.9%</span>
             </div>
 
             <div className="pl-stat-box">
-              <span className="pl-stat-label">Beban Operasional Toko</span>
-              <div className="pl-stat-val tnum text-dim">Rp 3.400.000</div>
-              <span className="text-xs text-dim">Listrik, internet, kemasan</span>
+              <span className="pl-stat-label">Operating Expenses (OPEX)</span>
+              <div className="pl-stat-val tnum text-dim">$3,400.00</div>
+              <span className="text-xs text-dim">Utilities, network, packaging</span>
             </div>
 
             <div className="pl-stat-box net-box">
-              <span className="pl-stat-label font-bold">Laba Bersih Toko (Net Profit)</span>
-              <div className="pl-stat-val tnum text-success font-extrabold text-lg">Rp 9.850.000</div>
-              <span className="text-xs text-dim">Siap ditarik dividen owner</span>
+              <span className="pl-stat-label font-bold">Net Operating Profit</span>
+              <div className="pl-stat-val tnum text-success font-extrabold text-lg">$9,850.00</div>
+              <span className="text-xs text-dim">Retained earnings &amp; owner draws</span>
             </div>
           </div>
         </div>

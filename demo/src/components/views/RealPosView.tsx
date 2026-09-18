@@ -29,18 +29,18 @@ interface PosProduct {
 }
 
 const POS_PRODUCTS: PosProduct[] = [
-  { id: '1', name: 'Kopi Susu Gula Aren 250ml', category: 'Minuman', retailPrice: 18000, stock: 48, unit: 'Btl', sku: 'KV-COF-01', imageColor: '#8A4B20' },
-  { id: '2', name: 'Teh Melati Melati Wangi', category: 'Minuman', retailPrice: 8000, stock: 65, unit: 'Cup', sku: 'KV-TEA-02', imageColor: '#2B8A3E' },
-  { id: '3', name: 'Air Mineral Pegunungan 600ml', category: 'Minuman', retailPrice: 5000, stock: 120, unit: 'Btl', sku: 'KV-WTR-03', imageColor: '#1E88E5' },
-  { id: '4', name: 'Roti Coklat Keju Panggang', category: 'Makanan', retailPrice: 14000, stock: 24, unit: 'Bks', sku: 'KV-BAK-04', imageColor: '#E65100' },
-  { id: '5', name: 'Keripik Kentang Truffle 75g', category: 'Makanan', retailPrice: 22500, stock: 35, unit: 'Bks', sku: 'KV-SNK-05', imageColor: '#F57C00' },
-  { id: '6', name: 'Beras Pandan Wangi Premium 5kg', category: 'Sembako', retailPrice: 79000, stock: 18, unit: 'Sak', sku: 'KV-RIC-06', imageColor: '#5D4037' },
-  { id: '7', name: 'Minyak Goreng Sawit 2L', category: 'Sembako', retailPrice: 34500, stock: 42, unit: 'Pch', sku: 'KV-OIL-07', imageColor: '#FBC02D' },
-  { id: '8', name: 'Paracetamol 500mg Strip 10s', category: 'Farmasi', retailPrice: 4500, stock: 80, unit: 'Str', sku: 'KV-MED-08', imageColor: '#00897B' },
-  { id: '9', name: 'Sabun Mandi Herbal Alami 85g', category: 'Perawatan', retailPrice: 16500, stock: 28, unit: 'Pcs', sku: 'KV-SOAP-09', imageColor: '#7B1FA2' },
+  { id: '1', name: 'Signature Iced Latte 250ml', category: 'Beverages', retailPrice: 4.5, stock: 48, unit: 'Btl', sku: 'KV-COF-01', imageColor: '#8A4B20' },
+  { id: '2', name: 'Artisan Jasmine Green Tea', category: 'Beverages', retailPrice: 2.5, stock: 65, unit: 'Cup', sku: 'KV-TEA-02', imageColor: '#2B8A3E' },
+  { id: '3', name: 'Mountain Spring Water 600ml', category: 'Beverages', retailPrice: 1.5, stock: 120, unit: 'Btl', sku: 'KV-WTR-03', imageColor: '#1E88E5' },
+  { id: '4', name: 'Toasted Chocolate Brioche', category: 'Bakery', retailPrice: 3.5, stock: 24, unit: 'Bks', sku: 'KV-BAK-04', imageColor: '#E65100' },
+  { id: '5', name: 'Truffle Potato Crisps 75g', category: 'Snacks', retailPrice: 5.5, stock: 35, unit: 'Bks', sku: 'KV-SNK-05', imageColor: '#F57C00' },
+  { id: '6', name: 'Premium Jasmine Rice 5kg', category: 'Groceries', retailPrice: 18.0, stock: 18, unit: 'Bag', sku: 'KV-RIC-06', imageColor: '#5D4037' },
+  { id: '7', name: 'Organic Pure Olive Oil 1L', category: 'Groceries', retailPrice: 12.5, stock: 42, unit: 'Btl', sku: 'KV-OIL-07', imageColor: '#FBC02D' },
+  { id: '8', name: 'Paracetamol 500mg Strip 10s', category: 'Pharmacy', retailPrice: 3.0, stock: 80, unit: 'Str', sku: 'KV-MED-08', imageColor: '#00897B' },
+  { id: '9', name: 'Botanical Herbal Bar Soap 85g', category: 'Personal Care', retailPrice: 4.0, stock: 28, unit: 'Pcs', sku: 'KV-SOAP-09', imageColor: '#7B1FA2' },
 ];
 
-const CATEGORIES = ['Semua', 'Minuman', 'Makanan', 'Sembako', 'Farmasi', 'Perawatan'];
+const CATEGORIES = ['All', 'Beverages', 'Bakery', 'Snacks', 'Groceries', 'Pharmacy', 'Personal Care'];
 
 interface CartItem {
   product: PosProduct;
@@ -49,12 +49,12 @@ interface CartItem {
 }
 
 export const RealPosView: React.FC = () => {
-  const [selectedCat, setSelectedCat] = useState('Semua');
+  const [selectedCat, setSelectedCat] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isVipMember, setIsVipMember] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'card'>('cash');
-  const [cashGiven, setCashGiven] = useState<number>(100000);
+  const [cashGiven, setCashGiven] = useState<number>(50);
   const [receiptSuccess, setReceiptSuccess] = useState(false);
 
   // Cart state initialized with realistic starter items
@@ -64,7 +64,7 @@ export const RealPosView: React.FC = () => {
     { product: POS_PRODUCTS[1], qty: 1, discPercent: 0 },
   ]);
 
-  const fmtRp = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+  const fmtPrice = (n: number) => '$' + n.toFixed(2);
 
   const addToCart = (prod: PosProduct) => {
     setCart(prev => {
@@ -102,13 +102,13 @@ export const RealPosView: React.FC = () => {
 
   // Calculations
   const subtotal = cart.reduce((acc, item) => acc + item.product.retailPrice * item.qty, 0);
-  const vipDiscount = isVipMember ? Math.round(subtotal * 0.05) : 0;
-  const tax = Math.round((subtotal - vipDiscount) * 0.11);
-  const grandTotal = subtotal - vipDiscount + tax;
-  const change = Math.max(0, cashGiven - grandTotal);
+  const vipDiscount = isVipMember ? Number((subtotal * 0.05).toFixed(2)) : 0;
+  const tax = Number(((subtotal - vipDiscount) * 0.08).toFixed(2));
+  const grandTotal = Number((subtotal - vipDiscount + tax).toFixed(2));
+  const change = Math.max(0, Number((cashGiven - grandTotal).toFixed(2)));
 
   const filteredProducts = POS_PRODUCTS.filter(p => {
-    const matchesCat = selectedCat === 'Semua' || p.category === selectedCat;
+    const matchesCat = selectedCat === 'All' || p.category === selectedCat;
     const matchesQuery =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchQuery.toLowerCase());
@@ -138,7 +138,7 @@ export const RealPosView: React.FC = () => {
             <Search size={15} className="text-dim" />
             <input
               type="text"
-              placeholder="Cari nama produk, SKU, atau scan barcode (F4)..."
+              placeholder="Search product name, SKU, or scan barcode (F4)..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="pos-search-field"
@@ -197,8 +197,8 @@ export const RealPosView: React.FC = () => {
                   <span className="prod-sku">{prod.sku}</span>
                   <div className="prod-name">{prod.name}</div>
                   <div className="prod-bottom-row">
-                    <span className="prod-price tnum">{fmtRp(prod.retailPrice)}</span>
-                    <span className="prod-stock">Stok {prod.stock}</span>
+                    <span className="prod-price tnum">{fmtPrice(prod.retailPrice)}</span>
+                    <span className="prod-stock">Stock {prod.stock}</span>
                   </div>
                 </div>
               </div>
@@ -213,7 +213,7 @@ export const RealPosView: React.FC = () => {
         <div className="pos-cart-header">
           <div className="cart-header-left">
             <ShoppingCart size={16} className="text-primary" />
-            <span className="cart-header-title">Faktur Penjualan</span>
+            <span className="cart-header-title">Sales Order</span>
             <span className="cart-count-pill">{cart.length}</span>
           </div>
 
@@ -221,10 +221,10 @@ export const RealPosView: React.FC = () => {
             type="button"
             className={`member-vip-pill ${isVipMember ? 'vip-active' : ''}`}
             onClick={() => setIsVipMember(!isVipMember)}
-            title="Klik untuk toggle member VIP"
+            title="Click to toggle VIP customer"
           >
             <UserCheck size={13} />
-            <span>{isVipMember ? 'Siti · VIP (5%)' : 'Pelanggan Umum'}</span>
+            <span>{isVipMember ? 'Sarah · VIP (5%)' : 'Guest Customer'}</span>
           </button>
         </div>
 
@@ -233,8 +233,8 @@ export const RealPosView: React.FC = () => {
           {cart.length === 0 ? (
             <div className="pos-cart-empty">
               <ShoppingCart size={32} className="text-dim opacity-40 mb-2" />
-              <span>Keranjang belanja kosong</span>
-              <small className="text-dim">Pilih produk di sebelah kiri</small>
+              <span>Shopping cart is empty</span>
+              <small className="text-dim">Select items from the catalog on the left</small>
             </div>
           ) : (
             cart.map(item => (
@@ -245,14 +245,14 @@ export const RealPosView: React.FC = () => {
                     type="button"
                     className="cart-del-btn"
                     onClick={() => removeItem(item.product.id)}
-                    title="Hapus"
+                    title="Remove item"
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
 
                 <div className="cart-line-bottom">
-                  <div className="cart-line-price tnum">{fmtRp(item.product.retailPrice)}</div>
+                  <div className="cart-line-price tnum">{fmtPrice(item.product.retailPrice)}</div>
 
                   <div className="cart-qty-controls">
                     <button
@@ -273,7 +273,7 @@ export const RealPosView: React.FC = () => {
                   </div>
 
                   <div className="cart-line-subtotal tnum font-bold text-heading">
-                    {fmtRp(item.product.retailPrice * item.qty)}
+                    {fmtPrice(item.product.retailPrice * item.qty)}
                   </div>
                 </div>
               </div>
@@ -285,26 +285,26 @@ export const RealPosView: React.FC = () => {
         <div className="pos-cart-summary">
           <div className="summary-row">
             <span>Subtotal</span>
-            <span className="tnum text-heading">{fmtRp(subtotal)}</span>
+            <span className="tnum text-heading">{fmtPrice(subtotal)}</span>
           </div>
 
           {isVipMember && (
             <div className="summary-row discount-row">
               <span className="flex items-center gap-1 text-primary font-semibold">
-                <Sparkles size={12} /> Diskon Member VIP (5%)
+                <Sparkles size={12} /> VIP Discount (5%)
               </span>
-              <span className="tnum text-primary font-semibold">-{fmtRp(vipDiscount)}</span>
+              <span className="tnum text-primary font-semibold">-{fmtPrice(vipDiscount)}</span>
             </div>
           )}
 
           <div className="summary-row">
-            <span>PPN (11%)</span>
-            <span className="tnum text-dim">{fmtRp(tax)}</span>
+            <span>Sales Tax (8%)</span>
+            <span className="tnum text-dim">{fmtPrice(tax)}</span>
           </div>
 
           <div className="summary-grand-total">
-            <span className="grand-label">Total Tagihan</span>
-            <span className="grand-val tnum text-primary">{fmtRp(grandTotal)}</span>
+            <span className="grand-label">Grand Total</span>
+            <span className="grand-val tnum text-primary">{fmtPrice(grandTotal)}</span>
           </div>
 
           {/* Payment Method Selector */}
@@ -315,7 +315,7 @@ export const RealPosView: React.FC = () => {
               onClick={() => setPaymentMethod('cash')}
             >
               <Banknote size={14} />
-              <span>Tunai</span>
+              <span>Cash</span>
             </button>
             <button
               type="button"
@@ -323,7 +323,7 @@ export const RealPosView: React.FC = () => {
               onClick={() => setPaymentMethod('qris')}
             >
               <Smartphone size={14} />
-              <span>QRIS</span>
+              <span>QR Pay</span>
             </button>
             <button
               type="button"
@@ -331,26 +331,26 @@ export const RealPosView: React.FC = () => {
               onClick={() => setPaymentMethod('card')}
             >
               <CreditCard size={14} />
-              <span>Debit BCA</span>
+              <span>Debit / Card</span>
             </button>
           </div>
 
           {paymentMethod === 'cash' && (
             <div className="cash-tendered-row">
-              <span className="text-xs text-dim">Uang Diterima:</span>
+              <span className="text-xs text-dim">Tendered:</span>
               <div className="cash-preset-pills">
-                {[100000, 150000, 200000].map(val => (
+                {[20, 50, 100].map(val => (
                   <button
                     key={val}
                     type="button"
                     className={`preset-pill ${cashGiven === val ? 'on' : ''}`}
                     onClick={() => setCashGiven(val)}
                   >
-                    {val / 1000}k
+                    ${val}
                   </button>
                 ))}
               </div>
-              <span className="text-xs text-dim ml-auto">Kembali: <b className="text-success font-mono">{fmtRp(change)}</b></span>
+              <span className="text-xs text-dim ml-auto">Change: <b className="text-success font-mono">{fmtPrice(change)}</b></span>
             </div>
           )}
 
@@ -361,7 +361,7 @@ export const RealPosView: React.FC = () => {
               className="btn-outline-clear"
               onClick={clearCart}
               disabled={cart.length === 0}
-              title="Kosongkan keranjang"
+              title="Clear cart"
             >
               <RotateCcw size={14} />
             </button>
@@ -372,8 +372,8 @@ export const RealPosView: React.FC = () => {
               onClick={handleCheckout}
               disabled={cart.length === 0}
             >
-              <span>Bayar &amp; Cetak Struk (F9)</span>
-              <span className="charge-val tnum">{fmtRp(grandTotal)}</span>
+              <span>Charge &amp; Print Receipt (F9)</span>
+              <span className="charge-val tnum">{fmtPrice(grandTotal)}</span>
             </button>
           </div>
         </div>
@@ -387,15 +387,15 @@ export const RealPosView: React.FC = () => {
               <div className="success-check-circle">
                 <CheckCircle2 size={24} />
               </div>
-              <h4 className="receipt-title">Transaksi Sukses!</h4>
-              <p className="receipt-sub">Faktur #KV-001285 tersimpan di SQLite lokal &amp; antrean cloud</p>
+              <h4 className="receipt-title">Transaction Successful!</h4>
+              <p className="receipt-sub">Invoice #KV-001285 committed to local SQLite &amp; cloud queue</p>
             </div>
 
             <div className="receipt-print-preview">
               <div className="receipt-paper">
                 <div className="paper-head">
-                  <div className="paper-store-name">KIVO STORE CABANG UTAMA</div>
-                  <div className="paper-store-sub">Jl. Asia Afrika No. 128, Bandung</div>
+                  <div className="paper-store-name">KIVO STORE · FLAGSHIP STORE</div>
+                  <div className="paper-store-sub">452 Innovation Blvd, Suite 100</div>
                   <div className="paper-divider">--------------------------------</div>
                 </div>
 
@@ -403,7 +403,7 @@ export const RealPosView: React.FC = () => {
                   {cart.map(item => (
                     <div key={item.product.id} className="paper-line">
                       <span>{item.qty}x {item.product.name}</span>
-                      <span className="tnum">{fmtRp(item.product.retailPrice * item.qty)}</span>
+                      <span className="tnum">{fmtPrice(item.product.retailPrice * item.qty)}</span>
                     </div>
                   ))}
                 </div>
@@ -412,32 +412,32 @@ export const RealPosView: React.FC = () => {
                 <div className="paper-totals">
                   <div className="paper-line">
                     <span>Subtotal</span>
-                    <span className="tnum">{fmtRp(subtotal)}</span>
+                    <span className="tnum">{fmtPrice(subtotal)}</span>
                   </div>
                   {isVipMember && (
                     <div className="paper-line">
-                      <span>Diskon VIP (5%)</span>
-                      <span className="tnum">-{fmtRp(vipDiscount)}</span>
+                      <span>VIP Discount (5%)</span>
+                      <span className="tnum">-{fmtPrice(vipDiscount)}</span>
                     </div>
                   )}
                   <div className="paper-line font-bold">
                     <span>TOTAL</span>
-                    <span className="tnum">{fmtRp(grandTotal)}</span>
+                    <span className="tnum">{fmtPrice(grandTotal)}</span>
                   </div>
                   <div className="paper-line">
-                    <span>Bayar ({paymentMethod.toUpperCase()})</span>
-                    <span className="tnum">{fmtRp(paymentMethod === 'cash' ? cashGiven : grandTotal)}</span>
+                    <span>Paid ({paymentMethod.toUpperCase()})</span>
+                    <span className="tnum">{fmtPrice(paymentMethod === 'cash' ? cashGiven : grandTotal)}</span>
                   </div>
                   {paymentMethod === 'cash' && (
                     <div className="paper-line">
-                      <span>Kembalian</span>
-                      <span className="tnum">{fmtRp(change)}</span>
+                      <span>Change</span>
+                      <span className="tnum">{fmtPrice(change)}</span>
                     </div>
                   )}
                 </div>
 
                 <div className="paper-footer">
-                  <div>Terima Kasih Atas Kunjungan Anda</div>
+                  <div>Thank You For Shopping With Us</div>
                   <div className="paper-escpos">Thermal ESC/POS 58mm · Offline 0ms</div>
                 </div>
               </div>
@@ -448,19 +448,19 @@ export const RealPosView: React.FC = () => {
                 type="button"
                 className="btn-print-receipt"
                 onClick={() => {
-                  alert('Mencetak struk thermal ke printer USB/LAN ESC/POS...');
+                  alert('Printing thermal receipt to ESC/POS USB/LAN printer...');
                   handleResetSale();
                 }}
               >
                 <Printer size={15} />
-                <span>Cetak Ulang Struk</span>
+                <span>Reprint Receipt</span>
               </button>
               <button
                 type="button"
                 className="btn-next-sale"
                 onClick={handleResetSale}
               >
-                <span>Transaksi Baru (Esc)</span>
+                <span>New Sale (Esc)</span>
               </button>
             </div>
           </div>

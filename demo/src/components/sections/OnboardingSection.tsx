@@ -3,12 +3,12 @@ import { Store, GitBranch, Cloud } from 'lucide-react';
 
 export const OnboardingSection: React.FC = () => {
   const steps = [
-    { num: '01', title: 'Deployment', desc: 'New store, join a workspace, or restore from cloud' },
-    { num: '02', title: 'Store', desc: 'Identity, currency, and receipt profile' },
-    { num: '03', title: 'Cloud', desc: 'Supabase credentials — optional, always yours' },
-    { num: '04', title: 'AI', desc: 'Your OpenAI key, stored locally' },
-    { num: '05', title: 'Owner', desc: 'Owner account and starting capital' },
-    { num: '06', title: 'Ready', desc: 'Inventory & accounting configured — sell' },
+    { num: '01', title: 'Setup Mode', desc: 'Initialize fresh store, join branch cluster, or restore' },
+    { num: '02', title: 'Store Identity', desc: 'Business name, branch address, and receipt header branding' },
+    { num: '03', title: 'Cloud Supabase', desc: 'Enter private Supabase URL & Anon Key (BYOK model)' },
+    { num: '04', title: 'Activate Kivo AI', desc: 'Private OpenAI / Anthropic key encrypted on local disk' },
+    { num: '05', title: 'Root Credentials', desc: 'Create master admin account and initial register cash float' },
+    { num: '06', title: 'Ready for Sales', desc: 'Scan first product barcode and serve checkout customers' },
   ];
 
   return (
@@ -16,14 +16,16 @@ export const OnboardingSection: React.FC = () => {
       <div className="wrap">
         <div className="sec-head center" data-reveal>
           <div className="eyebrow ep">
-            <span className="eb-dot"></span>SETUP CEPAT
+            <span className="eb-dot" />
+            INSTANT ONBOARDING
           </div>
-          <h2 className="h2">Dari instalasi ke transaksi pertama dalam hitungan menit.</h2>
+          <h2 className="h2">From Download to First Customer Checkout in 3 Minutes.</h2>
           <p className="lead">
-            Wizard persiapan praktis untuk pengaturan profil toko, printer kasir, dan akun admin.
+            Streamlined setup wizard guides store profile initialization, thermal receipt testing, and security credentials.
           </p>
         </div>
 
+        {/* 6 Step Interactive Rail */}
         <div className="onboard-rail" data-reveal>
           {steps.map(s => (
             <div key={s.num} className="ostep">
@@ -34,34 +36,41 @@ export const OnboardingSection: React.FC = () => {
           ))}
         </div>
 
-        <div className="path-cards" data-reveal>
+        {/* 3 Deployment Path Cards */}
+        <div className="path-cards" data-reveal style={{ marginTop: '28px' }}>
           <div className="pcard">
-            <span className="f-ic">
+            <span className="f-ic" style={{ background: 'color-mix(in srgb, var(--primary) 15%, transparent)', color: 'var(--primary)' }}>
               <Store size={20} />
             </span>
             <div>
-              <b>Create New Store</b>
-              <p>Start fresh with a clean local database.</p>
+              <b style={{ color: 'var(--heading)', fontSize: '15px' }}>Launch New Store</b>
+              <p style={{ color: 'var(--body)', fontSize: '13px', marginTop: '4px' }}>
+                Start clean with an empty local SQLite database ready for instant catalog import.
+              </p>
             </div>
           </div>
 
           <div className="pcard">
-            <span className="f-ic">
+            <span className="f-ic" style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
               <GitBranch size={20} />
             </span>
             <div>
-              <b>Join Existing Workspace</b>
-              <p>Connect to your business's multi-branch workspace.</p>
+              <b style={{ color: 'var(--heading)', fontSize: '15px' }}>Join Existing Branch</b>
+              <p style={{ color: 'var(--body)', fontSize: '13px', marginTop: '4px' }}>
+                Connect this register terminal to an existing store workspace via cloud mesh or LAN.
+              </p>
             </div>
           </div>
 
           <div className="pcard">
-            <span className="f-ic">
+            <span className="f-ic" style={{ background: 'color-mix(in srgb, var(--success) 15%, transparent)', color: 'var(--success)' }}>
               <Cloud size={20} />
             </span>
             <div>
-              <b>Restore From Cloud</b>
-              <p>Pull your existing data onto a new machine.</p>
+              <b style={{ color: 'var(--heading)', fontSize: '15px' }}>Restore from Cloud</b>
+              <p style={{ color: 'var(--body)', fontSize: '13px', marginTop: '4px' }}>
+                Pull full catalog, customer records, and transaction history onto a replacement machine in 1 click.
+              </p>
             </div>
           </div>
         </div>
@@ -71,4 +80,3 @@ export const OnboardingSection: React.FC = () => {
 };
 
 export default OnboardingSection;
-

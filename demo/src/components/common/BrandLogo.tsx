@@ -7,20 +7,16 @@ interface BrandLogoProps {
 }
 
 export const KivoMark: React.FC<{ size?: number; className?: string }> = ({ size = 28, className = '' }) => (
-  <svg
+  <img
+    src="/icon.png"
+    alt="Kivo"
     width={size}
     height={size}
-    viewBox="0 0 48 48"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={`shrink-0 ${className}`}
-    aria-hidden="true"
-  >
-    <rect width="48" height="48" rx="11" fill="#CB3CFF" />
-    <path d="M13.5 11.5h5.6v25h-5.6z" fill="#fff" />
-    <path d="M23.5 24 33.6 11.5h6.9L30 24z" fill="#fff" />
-    <path d="M23.5 24H30l10.5 12.5h-6.9z" fill="#00C2FF" />
-  </svg>
+    className={`shrink-0 object-contain select-none pointer-events-none ${className}`}
+    style={{ width: size, height: size, borderRadius: `${Math.round(size * 0.22)}px` }}
+    loading="eager"
+    decoding="async"
+  />
 );
 
 export const GithubIcon: React.FC<{ size?: number; className?: string }> = ({ size = 16, className = '' }) => (
@@ -43,7 +39,7 @@ export const GithubIcon: React.FC<{ size?: number; className?: string }> = ({ si
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({ size = 28, showText = true, className = '' }) => {
   return (
-    <span className={`inline-flex items-center gap-2.5 ${className}`}>
+    <span className={`inline-flex items-center gap-2 ${className}`}>
       <KivoMark size={size} />
       {showText && <span className="text-heading text-lg font-extrabold tracking-tight">Kivo</span>}
     </span>

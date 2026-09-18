@@ -20,9 +20,9 @@ export const OfflineSimulator: React.FC = () => {
   const [syncedSales, setSyncedSales] = useState(14);
   const [queue, setQueue] = useState<QueuedItem[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([
-    { time: '14:20:01', text: 'SISTEM SIAP · Database SQLite lokal aktif', type: 'ac' },
-    { time: '14:21:12', text: 'SYNCED #1283 · Rp 45.000 · 84ms via Supabase', type: 'ok' },
-    { time: '14:22:45', text: 'SYNCED #1284 · Rp 120.000 · 92ms via Supabase', type: 'ok' },
+    { time: '14:20:01', text: 'SYSTEM READY · Local SQLite engine active', type: 'ac' },
+    { time: '14:21:12', text: 'SYNCED #1283 · $45.00 · 84ms via Supabase', type: 'ok' },
+    { time: '14:22:45', text: 'SYNCED #1284 · $120.00 · 92ms via Supabase', type: 'ok' },
   ]);
   const [isRunningScenario, setIsRunningScenario] = useState(false);
 
@@ -31,7 +31,7 @@ export const OfflineSimulator: React.FC = () => {
   const [hotQueue, setHotQueue] = useState(false);
   const [hotCloud, setHotCloud] = useState(false);
 
-  const fmtRp = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+  const fmtCur = (n: number) => '$' + n.toFixed(2);
   const nowT = () => new Date().toTimeString().slice(0, 8);
 
   const addLog = (text: string, type: 'ok' | 'wn' | 'ac') => {
@@ -41,7 +41,7 @@ export const OfflineSimulator: React.FC = () => {
   const triggerSale = async (onlineState = isOnline) => {
     const nextId = saleCount + 1;
     setSaleCount(nextId);
-    const amount = (8 + Math.floor(Math.random() * 40)) * 5000;
+    const amount = 15 + Math.floor(Math.random() * 85);
 
     setLocalSales(prev => prev + 1);
     setHotPos(true);
@@ -62,14 +62,14 @@ export const OfflineSimulator: React.FC = () => {
         setHotCloud(true);
         setTimeout(() => setHotCloud(false), 300);
         setSyncedSales(prev => prev + 1);
-        addLog(`SYNCED  #${nextId} · ${fmtRp(amount)} · 88ms ke Supabase`, 'ok');
+        addLog(`SYNCED  #${nextId} · ${fmtCur(amount)} · 88ms to Supabase`, 'ok');
       }, 400);
     } else {
       setTimeout(() => {
         setHotQueue(true);
         setTimeout(() => setHotQueue(false), 300);
         setQueue(prev => [...prev, { id: nextId, amount, time: nowT() }]);
-        addLog(`QUEUED   #${nextId} · ${fmtRp(amount)} · Tersimpan di SQLite Lokal`, 'wn');
+        addLog(`QUEUED   #${nextId} · ${fmtCur(amount)} · Persisted to Local SQLite`, 'wn');
       }, 250);
     }
   };
@@ -77,9 +77,9 @@ export const OfflineSimulator: React.FC = () => {
   const toggleConnection = async (targetState: boolean) => {
     setIsOnline(targetState);
     if (!targetState) {
-      addLog('JARINGAN · Internet terputus — Kasir tetap melayani 100% normal', 'wn');
+      addLog('NETWORK · Connection severed — POS cashier operates 100% normal', 'wn');
     } else {
-      addLog('JARINGAN · Internet pulih — Mengunggah antrean transaksi lokal…', 'ac');
+      addLog('NETWORK · Connection restored — Draining pending local queue to cloud…', 'ac');
     }
   };
 
@@ -96,7 +96,7 @@ export const OfflineSimulator: React.FC = () => {
           setTimeout(() => setHotCloud(false), 300);
           setQueue(prev => prev.slice(1));
           setSyncedSales(prev => prev + 1);
-          addLog(`SYNCED  #${itemToSync.id} · ${fmtRp(itemToSync.amount)} · Dari Antrean SQLite`, 'ok');
+          addLog(`SYNCED  #${itemToSync.id} · ${fmtCur(itemToSync.amount)} · From Local SQLite Queue`, 'ok');
         }, 300);
       }, 600);
 
@@ -130,12 +130,12 @@ export const OfflineSimulator: React.FC = () => {
         <div className="sec-head">
           <div className="eyebrow">
             <span className="eb-dot" />
-            <span>Simulator Offline-First Interaktif</span>
+            <span>INTERACTIVE OFFLINE SIMULATOR</span>
           </div>
-          <h2 className="h2">Uji Langsung: Putuskan Koneksi, Kasir Tetap Menjual</h2>
+          <h2 className="h2">Hands-On Test: Sever Connection, Keep Ringing Up Sales</h2>
           <p className="lead">
-            Simulasikan kondisi internet toko Anda saat terputus. Kivo tetap memproses transaksi,
-            mencetak struk, memotong stok di SQLite lokal, dan melakukan auto-drain ke Supabase saat koneksi kembali.
+            Simulate store internet drops in real-time. Kivo continues processing transactions,
+            printing thermal receipts, decrementing inventory in local SQLite, and auto-draining to Supabase the moment connectivity returns.
           </p>
         </div>
 
@@ -145,7 +145,7 @@ export const OfflineSimulator: React.FC = () => {
             <div className="off-state">
               <span className={`dot ${isOnline ? 'g' : 'w'}`} />
               <span style={{ fontWeight: 800, color: 'var(--heading)', fontSize: 13 }}>
-                {isOnline ? 'ONLINE · TERHUBUNG KE SUPABASE CLOUD' : 'OFFLINE · BERJALAN 100% PADA SQLITE LOKAL'}
+                {isOnline ? 'ONLINE · CONNECTED TO SUPABASE CLOUD' : 'OFFLINE · OPERATING 100% ON LOCAL SQLITE'}
               </span>
             </div>
 
@@ -178,7 +178,7 @@ export const OfflineSimulator: React.FC = () => {
                 disabled={isRunningScenario}
               >
                 <Zap size={14} />
-                <span>+ Transaksi Kasir</span>
+                <span>+ Cashier Sale</span>
               </button>
 
               <button
@@ -188,7 +188,7 @@ export const OfflineSimulator: React.FC = () => {
                 disabled={isRunningScenario}
               >
                 <Play size={13} />
-                <span>{isRunningScenario ? 'Menjalankan Simulasi…' : 'Simulasi Putus ➔ Pulih'}</span>
+                <span>{isRunningScenario ? 'Simulating Outage…' : 'Simulate Outage ➔ Recovery'}</span>
               </button>
             </div>
           </div>
@@ -196,29 +196,29 @@ export const OfflineSimulator: React.FC = () => {
           {/* Visual Data Flow Nodes */}
           <div className="off-flow">
             <div className={`fnode ${hotPos ? 'hot' : ''}`}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--dim)' }}>1. TERMINAL POS</div>
-              <p style={{ fontWeight: 800, color: 'var(--heading)', margin: '4px 0 2px' }}>Kasir Toko</p>
-              <span style={{ fontSize: 11, color: 'var(--body)' }}>Cetak Struk &amp; Laci Kas</span>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--dim)' }}>1. POS TERMINAL</div>
+              <p style={{ fontWeight: 800, color: 'var(--heading)', margin: '4px 0 2px' }}>Cashier Counter</p>
+              <span style={{ fontSize: 11, color: 'var(--body)' }}>Thermal Receipt &amp; Drawer</span>
             </div>
 
             <span className="farrow">➔</span>
 
             <div className={`fnode ${hotSql ? 'hot' : ''}`}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)' }}>2. SQLITE LOKAL</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)' }}>2. LOCAL SQLITE</div>
               <p style={{ fontWeight: 800, color: 'var(--heading)', margin: '4px 0 2px' }}>WAL Mode 0ms</p>
-              <span style={{ fontSize: 11, color: 'var(--body)' }}>Data Permanen di Komputer</span>
+              <span style={{ fontSize: 11, color: 'var(--body)' }}>Instant Local NVMe Write</span>
             </div>
 
             <span className="farrow">➔</span>
 
             <div className={`fnode ${hotQueue ? 'hot' : ''}`}>
               <div style={{ fontSize: 11, fontWeight: 800, color: queue.length > 0 ? 'var(--warning)' : 'var(--dim)' }}>
-                3. ANTREAN SYNC
+                3. SYNC QUEUE
               </div>
               <p style={{ fontWeight: 800, color: 'var(--heading)', margin: '4px 0 2px' }}>
                 {queue.length} Pending
               </p>
-              <span style={{ fontSize: 11, color: 'var(--body)' }}>Tersimpan Otomatis</span>
+              <span style={{ fontSize: 11, color: 'var(--body)' }}>Auto-Persisted Buffer</span>
             </div>
 
             <span className="farrow">➔</span>
@@ -228,10 +228,10 @@ export const OfflineSimulator: React.FC = () => {
                 4. KIVO CLOUD
               </div>
               <p style={{ fontWeight: 800, color: 'var(--heading)', margin: '4px 0 2px' }}>
-                {isOnline ? 'Supabase Cloud' : 'Koneksi Terputus'}
+                {isOnline ? 'Supabase Cloud' : 'Connection Dropped'}
               </p>
               <span style={{ fontSize: 11, color: 'var(--body)' }}>
-                {isOnline ? 'Sinkron Seluruh Cabang' : 'Menunggu Pulih…'}
+                {isOnline ? 'Mesh Synced Across Stores' : 'Waiting for Recovery…'}
               </span>
             </div>
           </div>
@@ -243,37 +243,37 @@ export const OfflineSimulator: React.FC = () => {
               <div className="off-stats">
                 <div className="stat-card">
                   <div className="v">{localSales}</div>
-                  <div className="l">Transaksi Lokal (SQLite)</div>
+                  <div className="l">Local Transactions (SQLite)</div>
                 </div>
                 <div className="stat-card">
                   <div className="v" style={{ color: queue.length > 0 ? 'var(--warning)' : 'var(--heading)' }}>
                     {queue.length}
                   </div>
-                  <div className="l">Antrean Tertahan (Offline)</div>
+                  <div className="l">Pending Offline Queue</div>
                 </div>
                 <div className="stat-card">
                   <div className="v" style={{ color: 'var(--success)' }}>{syncedSales}</div>
-                  <div className="l">Tersinkron ke Cloud</div>
+                  <div className="l">Synced to Cloud Mesh</div>
                 </div>
               </div>
 
               <div style={{ marginTop: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
-                  <span>Antrean Menunggu Sinkronisasi:</span>
+                  <span>Transactions Awaiting Sync:</span>
                   <span className="mono" style={{ color: queue.length > 0 ? 'var(--warning)' : 'var(--dim)' }}>
-                    {queue.length} transaksi
+                    {queue.length} pending
                   </span>
                 </div>
                 <div className="queue-box" id="queueList">
                   {queue.length === 0 ? (
                     <div className="qempty">
-                      Antrean kosong — seluruh transaksi lokal telah tersinkronisasi 100% ke Cloud.
+                      Queue empty — all local transactions are 100% synchronized with Cloud.
                     </div>
                   ) : (
                     queue.map(item => (
                       <div key={item.id} className="qchip">
                         <span>SALE #{item.id}</span>
-                        <small>{fmtRp(item.amount)}</small>
+                        <small>{fmtCur(item.amount)}</small>
                       </div>
                     ))
                   )}

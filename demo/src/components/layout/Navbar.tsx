@@ -26,6 +26,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { BrandLogo, GithubIcon } from '../common/BrandLogo';
+import { scrollToTarget } from '../../utils/scroll';
 
 interface SearchItem {
   id: string;
@@ -184,6 +185,13 @@ export const Navbar: React.FC = () => {
     setMobileAccordion(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleNavClick = (e: React.MouseEvent, href: string) => {
+    e.preventDefault();
+    setActiveDropdown(null);
+    setMobileOpen(false);
+    scrollToTarget(href);
+  };
+
   // Check which parent dropdown is active
   const isFeaturesActive = ['pos', 'inventory', 'purchasing', 'accounting', 'customers', 'hardware'].includes(activeSection);
   const isArchitectureActive = ['product', 'cloud', 'lan', 'security', 'how', 'onboarding'].includes(activeSection);
@@ -195,9 +203,9 @@ export const Navbar: React.FC = () => {
       // Features
       {
         id: 'pos',
-        title: 'Point of Sale & Kasir',
+        title: 'Point of Sale & Checkout',
         category: 'Features',
-        description: 'Kasir kilat, split bill, cash shift management & thermal printing',
+        description: 'Rapid checkout, split tenders, cash drawer shift management & thermal receipts',
         href: '#pos',
         icon: ShoppingCart,
         badge: 'Offline-first',
@@ -385,10 +393,7 @@ export const Navbar: React.FC = () => {
       window.open(item.href, '_blank', 'noopener,noreferrer');
       return;
     }
-    const target = document.querySelector(item.href);
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth' });
-    }
+    scrollToTarget(item.href);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
@@ -411,7 +416,12 @@ export const Navbar: React.FC = () => {
       <header className={`nav ${mobileOpen ? 'open' : ''}`} id="nav" ref={navRef}>
         <div className="nav-in">
           {/* Brand Logo with Version Pill */}
-          <a className="brand" href="#top" aria-label="Kivo home">
+          <a
+            className="brand"
+            href="#top"
+            aria-label="Kivo home"
+            onClick={e => handleNavClick(e, '#top')}
+          >
             <BrandLogo size={28} />
             <span className="brand-badge">v1.3</span>
           </a>
@@ -427,11 +437,19 @@ export const Navbar: React.FC = () => {
               <button
                 type="button"
                 className={`nav-drop-btn ${isFeaturesActive ? 'active' : ''}`}
-                onClick={() => toggleDropdown('features')}
+                onClick={e => handleNavClick(e, '#features')}
                 aria-expanded={activeDropdown === 'features'}
               >
                 <span>Features</span>
-                <ChevronDown size={14} className="chevron-icon" />
+                <span
+                  className="chevron-icon-wrap"
+                  onClick={e => {
+                    e.stopPropagation();
+                    toggleDropdown('features');
+                  }}
+                >
+                  <ChevronDown size={14} className="chevron-icon" />
+                </span>
               </button>
 
               <div className="nav-mega-menu mega-features">
@@ -442,90 +460,90 @@ export const Navbar: React.FC = () => {
                     <a
                       href="#pos"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#pos')}
                     >
                       <div className="mega-item-icon color-p">
                         <ShoppingCart size={17} />
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">
-                          POS & Kasir <span className="mini-badge">Offline-first</span>
+                          Point of Sale (POS) <span className="mini-badge">Offline-first</span>
                         </div>
-                        <div className="mega-item-desc">Kasir cepat, split bill &amp; shift laci kasir</div>
+                        <div className="mega-item-desc">Rapid checkout, split tenders &amp; drawer shifts</div>
                       </div>
                     </a>
 
                     <a
                       href="#inventory"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#inventory')}
                     >
                       <div className="mega-item-icon color-b">
                         <Boxes size={17} />
                       </div>
                       <div className="mega-item-text">
-                        <div className="mega-item-title">Inventory & Batches</div>
-                        <div className="mega-item-desc">Multi-satuan, batch expiry &amp; opname</div>
+                        <div className="mega-item-title">Inventory &amp; Batches</div>
+                        <div className="mega-item-desc">Multi-unit conversion, batch expiry &amp; audits</div>
                       </div>
                     </a>
 
                     <a
                       href="#purchasing"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#purchasing')}
                     >
                       <div className="mega-item-icon color-g">
                         <FileText size={17} />
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">Purchasing Pipeline</div>
-                        <div className="mega-item-desc">PO supplier &amp; penerimaan gudang langsung</div>
+                        <div className="mega-item-desc">Supplier POs &amp; direct receiving notes</div>
                       </div>
                     </a>
                   </div>
 
                   {/* Column 2: Finance & Management */}
                   <div className="mega-col">
-                    <div className="mega-col-title">Finance & Growth</div>
+                    <div className="mega-col-title">Finance &amp; Growth</div>
                     <a
                       href="#accounting"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#accounting')}
                     >
                       <div className="mega-item-icon color-o">
                         <Landmark size={17} />
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">Automated Ledger</div>
-                        <div className="mega-item-desc">Jurnal otomatis, laba rugi &amp; neraca</div>
+                        <div className="mega-item-desc">Double-entry journals, real-time P&amp;L &amp; balance sheet</div>
                       </div>
                     </a>
 
                     <a
                       href="#customers"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#customers')}
                     >
                       <div className="mega-item-icon color-p">
                         <Users size={17} />
                       </div>
                       <div className="mega-item-text">
-                        <div className="mega-item-title">Customers & Loyalty</div>
-                        <div className="mega-item-desc">Member tier, poin loyalitas &amp; promo</div>
+                        <div className="mega-item-title">Customers &amp; Loyalty</div>
+                        <div className="mega-item-desc">Member tiers, reward points &amp; dynamic promos</div>
                       </div>
                     </a>
 
                     <a
                       href="#hardware"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#hardware')}
                     >
                       <div className="mega-item-icon color-b">
                         <Printer size={17} />
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">POS Hardware</div>
-                        <div className="mega-item-desc">Thermal ESC/POS, laci kasir &amp; scanner</div>
+                        <div className="mega-item-desc">ESC/POS thermal printers, kick drawers &amp; scanners</div>
                       </div>
                     </a>
                   </div>
@@ -536,7 +554,7 @@ export const Navbar: React.FC = () => {
                   <a
                     href="#features"
                     className="mega-footer-link"
-                    onClick={() => setActiveDropdown(null)}
+                    onClick={e => handleNavClick(e, '#features')}
                   >
                     <span>Explore 10 Core Pillars</span>
                     <ArrowRight size={13} />
@@ -554,11 +572,19 @@ export const Navbar: React.FC = () => {
               <button
                 type="button"
                 className={`nav-drop-btn ${isArchitectureActive ? 'active' : ''}`}
-                onClick={() => toggleDropdown('architecture')}
+                onClick={e => handleNavClick(e, '#how')}
                 aria-expanded={activeDropdown === 'architecture'}
               >
                 <span>Architecture</span>
-                <ChevronDown size={14} className="chevron-icon" />
+                <span
+                  className="chevron-icon-wrap"
+                  onClick={e => {
+                    e.stopPropagation();
+                    toggleDropdown('architecture');
+                  }}
+                >
+                  <ChevronDown size={14} className="chevron-icon" />
+                </span>
               </button>
 
               <div className="nav-mega-menu mega-architecture">
@@ -569,7 +595,7 @@ export const Navbar: React.FC = () => {
                     <a
                       href="#offline"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#offline')}
                     >
                       <div className="mega-item-icon color-b">
                         <Database size={17} />
@@ -578,46 +604,46 @@ export const Navbar: React.FC = () => {
                         <div className="mega-item-title">
                           Offline-First WAL <span className="mini-badge">Zero Latency</span>
                         </div>
-                        <div className="mega-item-desc">Database SQLite lokal, tanpa ketergantungan server</div>
+                        <div className="mega-item-desc">Local SQLite database, zero server dependencies</div>
                       </div>
                     </a>
 
                     <a
-                      href="#lan"
+                      href="#how"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#how')}
                     >
                       <div className="mega-item-icon color-p">
                         <Wifi size={17} />
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">P2P LAN Synchronization</div>
-                        <div className="mega-item-desc">Sinkronisasi lokal real-time tanpa internet</div>
+                        <div className="mega-item-desc">Sub-millisecond local network sync without internet</div>
                       </div>
                     </a>
 
                     <a
                       href="#cloud"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#cloud')}
                     >
                       <div className="mega-item-icon color-g">
                         <Network size={17} />
                       </div>
                       <div className="mega-item-text">
                         <div className="mega-item-title">Hybrid Cloud Replication</div>
-                        <div className="mega-item-desc">Supabase integration multi-cabang instan</div>
+                        <div className="mega-item-desc">Instant multi-branch Supabase cloud sync</div>
                       </div>
                     </a>
                   </div>
 
                   {/* Column 2: Privacy & Performance */}
                   <div className="mega-col">
-                    <div className="mega-col-title">Privacy & Engine</div>
+                    <div className="mega-col-title">Privacy &amp; Engine</div>
                     <a
                       href="#security"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#security')}
                     >
                       <div className="mega-item-icon color-g">
                         <ShieldCheck size={17} />
@@ -626,35 +652,35 @@ export const Navbar: React.FC = () => {
                         <div className="mega-item-title">
                           100% BYOK Security <span className="mini-badge">No Lock-in</span>
                         </div>
-                        <div className="mega-item-desc">Kunci API pribadi, enkripsi AES &amp; RBAC</div>
+                        <div className="mega-item-desc">Private API keys, AES client encryption &amp; RBAC</div>
                       </div>
                     </a>
 
                     <a
                       href="#how"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#how')}
                     >
                       <div className="mega-item-icon color-o">
                         <Cpu size={17} />
                       </div>
                       <div className="mega-item-text">
-                        <div className="mega-item-title">Rust & Tauri v2 Core</div>
-                        <div className="mega-item-desc">Binary native kencang &amp; memori ultra-ringan</div>
+                        <div className="mega-item-title">Rust &amp; Tauri v2 Core</div>
+                        <div className="mega-item-desc">Blazing native binary &amp; ultra-light memory footprint</div>
                       </div>
                     </a>
 
                     <a
-                      href="#product"
+                      href="#top"
                       className="mega-item"
-                      onClick={() => setActiveDropdown(null)}
+                      onClick={e => handleNavClick(e, '#top')}
                     >
                       <div className="mega-item-icon color-p">
                         <Layers size={17} />
                       </div>
                       <div className="mega-item-text">
-                        <div className="mega-item-title">System Ecosystem Map</div>
-                        <div className="mega-item-desc">Topologi visual terhubung antar 6 modul</div>
+                        <div className="mega-item-title">Interactive App Preview</div>
+                        <div className="mega-item-desc">Run live POS, Stock, and Accounting view modules</div>
                       </div>
                     </a>
                   </div>
@@ -663,11 +689,11 @@ export const Navbar: React.FC = () => {
                 <div className="mega-footer">
                   <span>Fast, frictionless deployment</span>
                   <a
-                    href="#onboarding"
+                    href="#download"
                     className="mega-footer-link"
-                    onClick={() => setActiveDropdown(null)}
+                    onClick={e => handleNavClick(e, '#download')}
                   >
-                    <span>See 3-Step Setup Wizard</span>
+                    <span>Download Native App (v1.3.2)</span>
                     <ArrowRight size={13} />
                   </a>
                 </div>
@@ -683,19 +709,27 @@ export const Navbar: React.FC = () => {
               <button
                 type="button"
                 className={`nav-drop-btn ${isDemosActive ? 'active' : ''}`}
-                onClick={() => toggleDropdown('demos')}
+                onClick={e => handleNavClick(e, '#offline')}
                 aria-expanded={activeDropdown === 'demos'}
               >
                 <span className="live-indicator-dot" />
                 <span>Demos</span>
-                <ChevronDown size={14} className="chevron-icon" />
+                <span
+                  className="chevron-icon-wrap"
+                  onClick={e => {
+                    e.stopPropagation();
+                    toggleDropdown('demos');
+                  }}
+                >
+                  <ChevronDown size={14} className="chevron-icon" />
+                </span>
               </button>
 
               <div className="nav-dropdown-menu single-col">
                 <a
                   href="#offline"
                   className="mega-item"
-                  onClick={() => setActiveDropdown(null)}
+                  onClick={e => handleNavClick(e, '#offline')}
                 >
                   <div className="mega-item-icon color-b">
                     <Database size={17} />
@@ -711,7 +745,7 @@ export const Navbar: React.FC = () => {
                 <a
                   href="#ai"
                   className="mega-item"
-                  onClick={() => setActiveDropdown(null)}
+                  onClick={e => handleNavClick(e, '#ai')}
                 >
                   <div className="mega-item-icon color-p">
                     <Sparkles size={17} />
@@ -725,16 +759,16 @@ export const Navbar: React.FC = () => {
                 </a>
 
                 <a
-                  href="#day"
+                  href="#features"
                   className="mega-item"
-                  onClick={() => setActiveDropdown(null)}
+                  onClick={e => handleNavClick(e, '#features')}
                 >
                   <div className="mega-item-icon color-o">
                     <Clock size={17} />
                   </div>
                   <div className="mega-item-text">
-                    <div className="mega-item-title">A Day with Kivo</div>
-                    <div className="mega-item-desc">Interactive retail journey from 08:00 to 22:30</div>
+                    <div className="mega-item-title">Core Pillars Bento</div>
+                    <div className="mega-item-desc">Interactive retail capabilities & modules overview</div>
                   </div>
                 </a>
               </div>
@@ -744,6 +778,7 @@ export const Navbar: React.FC = () => {
             <a
               href="#features"
               className={`nav-link-direct ${activeSection === 'features' ? 'active' : ''}`}
+              onClick={e => handleNavClick(e, '#features')}
             >
               Pillars
             </a>
@@ -789,7 +824,11 @@ export const Navbar: React.FC = () => {
             </a>
 
             {/* Primary CTA */}
-            <a className="btn btn-primary btn-sm nav-cta-btn" href="#download">
+            <a
+              className="btn btn-primary btn-sm nav-cta-btn"
+              href="#download"
+              onClick={e => handleNavClick(e, '#download')}
+            >
               <Download size={15} />
               <span>Download v1.3.2</span>
             </a>
@@ -853,27 +892,27 @@ export const Navbar: React.FC = () => {
 
                 {mobileAccordion.features && (
                   <div className="mobile-accordion-body">
-                    <a href="#pos" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#pos" onClick={e => handleNavClick(e, '#pos')} className="mobile-sublink">
                       <ShoppingCart size={15} className="color-p" />
-                      <span>POS & Kasir</span>
+                      <span>Point of Sale &amp; Checkout</span>
                     </a>
-                    <a href="#inventory" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#inventory" onClick={e => handleNavClick(e, '#inventory')} className="mobile-sublink">
                       <Boxes size={15} className="color-b" />
                       <span>Inventory & Batches</span>
                     </a>
-                    <a href="#purchasing" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#purchasing" onClick={e => handleNavClick(e, '#purchasing')} className="mobile-sublink">
                       <FileText size={15} className="color-g" />
                       <span>Purchasing Pipeline</span>
                     </a>
-                    <a href="#accounting" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#accounting" onClick={e => handleNavClick(e, '#accounting')} className="mobile-sublink">
                       <Landmark size={15} className="color-o" />
                       <span>Automated Accounting</span>
                     </a>
-                    <a href="#customers" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#customers" onClick={e => handleNavClick(e, '#customers')} className="mobile-sublink">
                       <Users size={15} className="color-p" />
                       <span>Customers & Loyalty</span>
                     </a>
-                    <a href="#hardware" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#hardware" onClick={e => handleNavClick(e, '#hardware')} className="mobile-sublink">
                       <Printer size={15} className="color-b" />
                       <span>POS Hardware Integration</span>
                     </a>
@@ -897,33 +936,33 @@ export const Navbar: React.FC = () => {
 
                 {mobileAccordion.architecture && (
                   <div className="mobile-accordion-body">
-                    <a href="#offline" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#offline" onClick={e => handleNavClick(e, '#offline')} className="mobile-sublink">
                       <Database size={15} className="color-b" />
                       <span>Offline-First WAL Engine</span>
                     </a>
-                    <a href="#lan" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#how" onClick={e => handleNavClick(e, '#how')} className="mobile-sublink">
                       <Wifi size={15} className="color-p" />
                       <span>Peer-to-Peer LAN Sync</span>
                     </a>
-                    <a href="#cloud" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#cloud" onClick={e => handleNavClick(e, '#cloud')} className="mobile-sublink">
                       <Network size={15} className="color-g" />
                       <span>Multi-Branch Cloud Replication</span>
                     </a>
-                    <a href="#security" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#security" onClick={e => handleNavClick(e, '#security')} className="mobile-sublink">
                       <ShieldCheck size={15} className="color-g" />
                       <span>100% BYOK Security & RBAC</span>
                     </a>
-                    <a href="#how" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#how" onClick={e => handleNavClick(e, '#how')} className="mobile-sublink">
                       <Cpu size={15} className="color-o" />
                       <span>Rust & Tauri v2 Technology</span>
                     </a>
-                    <a href="#product" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#top" onClick={e => handleNavClick(e, '#top')} className="mobile-sublink">
                       <Layers size={15} className="color-p" />
-                      <span>System Ecosystem Map</span>
+                      <span>Interactive App Window</span>
                     </a>
-                    <a href="#onboarding" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#download" onClick={e => handleNavClick(e, '#download')} className="mobile-sublink">
                       <Compass size={15} className="color-b" />
-                      <span>3-Step Onboarding Setup</span>
+                      <span>Download App v1.3.2</span>
                     </a>
                   </div>
                 )}
@@ -948,17 +987,17 @@ export const Navbar: React.FC = () => {
 
                 {mobileAccordion.demos && (
                   <div className="mobile-accordion-body">
-                    <a href="#offline" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#offline" onClick={e => handleNavClick(e, '#offline')} className="mobile-sublink">
                       <Database size={15} className="color-b" />
                       <span>Offline Simulator</span>
                     </a>
-                    <a href="#ai" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#ai" onClick={e => handleNavClick(e, '#ai')} className="mobile-sublink">
                       <Sparkles size={15} className="color-p" />
                       <span>Kivo AI Copilot</span>
                     </a>
-                    <a href="#day" onClick={() => setMobileOpen(false)} className="mobile-sublink">
+                    <a href="#features" onClick={e => handleNavClick(e, '#features')} className="mobile-sublink">
                       <Clock size={15} className="color-o" />
-                      <span>A Day with Kivo Flow</span>
+                      <span>Core Pillars Bento</span>
                     </a>
                   </div>
                 )}
@@ -967,7 +1006,7 @@ export const Navbar: React.FC = () => {
               {/* Direct Link: Pillars */}
               <a
                 href="#features"
-                onClick={() => setMobileOpen(false)}
+                onClick={e => handleNavClick(e, '#features')}
                 className="mobile-direct-link"
               >
                 <span>10 Architectural Pillars</span>
@@ -990,7 +1029,7 @@ export const Navbar: React.FC = () => {
               <a
                 className="btn btn-primary btn-sm"
                 href="#download"
-                onClick={() => setMobileOpen(false)}
+                onClick={e => handleNavClick(e, '#download')}
               >
                 <Download size={15} />
                 <span>Download v1.3.2</span>

@@ -1,25 +1,15 @@
 import React, { useEffect } from 'react';
 import Navbar from './components/layout/Navbar';
 import Hero from './components/hero/Hero';
-import EcosystemSection from './components/sections/EcosystemSection';
-import DayWithKivo from './components/interactive/DayWithKivo';
 import FeatureGrid from './components/sections/FeatureGrid';
-import PosDeepDive from './components/sections/PosDeepDive';
-import InventoryDeepDive from './components/sections/InventoryDeepDive';
-import PurchasingDeepDive from './components/sections/PurchasingDeepDive';
-import AccountingDeepDive from './components/sections/AccountingDeepDive';
-import CustomersPromosSection from './components/sections/CustomersPromosSection';
-import CloudSection from './components/sections/CloudSection';
 import OfflineSimulator from './components/interactive/OfflineSimulator';
-import LanSyncSection from './components/sections/LanSyncSection';
 import AiAssistantDemo from './components/interactive/AiAssistantDemo';
-import SecuritySection from './components/sections/SecuritySection';
 import HardwareSection from './components/sections/HardwareSection';
-import OnboardingSection from './components/sections/OnboardingSection';
+import SecuritySection from './components/sections/SecuritySection';
 import TechArchitecture from './components/sections/TechArchitecture';
-import CharacteristicsStrip from './components/sections/CharacteristicsStrip';
 import DownloadSection from './components/sections/DownloadSection';
 import Footer from './components/layout/Footer';
+import { scrollToTarget } from './utils/scroll';
 
 export const App: React.FC = () => {
   useEffect(() => {
@@ -48,75 +38,58 @@ export const App: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
+  // Global smooth scrolling for all internal anchor links
+  useEffect(() => {
+    const handleSmoothScroll = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      if (href && href.startsWith('#') && href.length > 1) {
+        e.preventDefault();
+        scrollToTarget(href);
+      }
+    };
+
+    document.addEventListener('click', handleSmoothScroll);
+    return () => document.removeEventListener('click', handleSmoothScroll);
+  }, []);
+
   return (
     <>
       <a className="skip" href="#main">
         Skip to content
       </a>
 
-      {/* Primary Sticky Blur Navigation */}
+      {/* Primary Sticky Navigation */}
       <Navbar />
 
       <main id="main">
-        {/* Interactive Hero with Real Kivo Application Preview */}
+        {/* Interactive Hero with Real Kivo Application Preview & Trust Bar */}
         <Hero />
 
-        {/* The System / Ecosystem Diagram */}
-        <EcosystemSection />
-
-        {/* A Day with Kivo (Interactive operational flow) */}
-        <DayWithKivo />
-
-        {/* 10 Architectural Pillars & Modules */}
+        {/* Core Pillars: Spacious Bento Grid */}
         <FeatureGrid />
-
-        {/* Deep Dive: Point of Sale & Cash Shifts */}
-        <PosDeepDive />
-
-        {/* Deep Dive: Multi-unit Inventory, Batches & Expiry */}
-        <InventoryDeepDive />
-
-        {/* Deep Dive: Purchasing & Direct Receiving Pipeline */}
-        <PurchasingDeepDive />
-
-        {/* Deep Dive: Automated Double-Entry Accounting */}
-        <AccountingDeepDive />
-
-        {/* Customers, Memberships & Promotion Engine */}
-        <CustomersPromosSection />
-
-        {/* Multi-Branch Cloud Sync & Real-time Network */}
-        <CloudSection />
 
         {/* Offline-First SQLite Simulator & Reconnect Draining */}
         <OfflineSimulator />
 
-        {/* Peer-to-Peer LAN Synchronization & UDP Discovery */}
-        <LanSyncSection />
-
-        {/* In-App Conversational AI Assistant & Data Exploration */}
+        {/* In-App Conversational AI Assistant & Business Analytics */}
         <AiAssistantDemo />
-
-        {/* Security, 100% BYOK Privacy Model & RBAC Matrix */}
-        <SecuritySection />
 
         {/* POS Hardware, Thermal Printers & Cash Drawer Integration */}
         <HardwareSection />
 
-        {/* Guided First-Run Setup & Onboarding Wizard */}
-        <OnboardingSection />
+        {/* Security, 100% BYOK Privacy Model & RBAC Matrix */}
+        <SecuritySection />
 
         {/* Architecture: Rust, Tauri v2, SQLite WAL & Supabase */}
         <TechArchitecture />
-
-        {/* Operational Characteristics Strip */}
-        <CharacteristicsStrip />
 
         {/* Multi-Platform Downloads & Open Source CTA */}
         <DownloadSection />
       </main>
 
-      {/* Comprehensive Site Footer */}
+      {/* Site Footer */}
       <Footer />
     </>
   );

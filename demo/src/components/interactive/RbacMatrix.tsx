@@ -16,24 +16,24 @@ const ROLES = ['owner', 'sysadmin', 'admin', 'manager', 'cashier', 'staff'] as c
 type RoleType = typeof ROLES[number];
 
 const ROLE_DESCRIPTIONS: Record<RoleType, string> = {
-  owner: 'Owner — Memiliki kendali mutlak seluruh sistem, termasuk pembersihan cloud (nuke), pengelolaan hak akses, dan manajemen workspace.',
-  sysadmin: 'Sysadmin — Mengelola infrastruktur cloud, database SQLite, hardware POS, dan integrasi API tanpa campur tangan operasional kasir harian.',
-  admin: 'Admin — Menjalankan operasional penuh toko: katalog produk, kasir POS, pembelian, retur, dan laporan keuangan harian.',
-  manager: 'Manager — Mengawasi stok inventaris, persetujuan purchase order, rekonsiliasi opname, dan memantau laba rugi.',
-  cashier: 'Cashier — Melayani transaksi penjualan, mencetak struk, buka/tutup shift laci kasir, dan melihat histori shift pribadi.',
-  staff: 'Staff — Hak akses minimal: hanya untuk pembuatan penjualan dan pengecekan harga produk.',
+  owner: 'Owner — Holds root sovereign authority over the entire platform, including database purging (nuke), role assignment, and workspace configuration.',
+  sysadmin: 'Sysadmin — Manages cloud sync topologies, local SQLite maintenance, POS hardware bindings, and API integrations without daily cashier operational noise.',
+  admin: 'Admin — Full store operational oversight: product catalogs, POS cashiering, purchasing, customer returns, and daily financial statements.',
+  manager: 'Manager — Supervises inventory movements, purchase order approvals, stock opname variances, and gross margin analytics.',
+  cashier: 'Cashier — Operates checkout POS, prints customer receipts, opens/closes register shifts, and inspects personal shift cash totals.',
+  staff: 'Staff — Read-mostly frontline permissions: barcode product lookup, price checks, and assisted checkout order draft creation.',
 };
 
 const PERMISSIONS: PermissionRow[] = [
-  { name: 'Transaksi Kasir & Cetak Struk', category: 'POS', owner: true, sysadmin: false, admin: true, manager: true, cashier: true, staff: true },
-  { name: 'Buka / Tutup Shift & Rekonsiliasi Kas', category: 'POS', owner: true, sysadmin: false, admin: true, manager: true, cashier: true, staff: false },
-  { name: 'Retur Penjualan & Void Invoice', category: 'POS', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
-  { name: 'Kelola Katalog Produk & Harga Grosir', category: 'Inventory', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
-  { name: 'Stock Opname & Penyesuaian Selisih', category: 'Inventory', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
-  { name: 'Pembuatan Purchase Order (PO) & Receiving', category: 'Purchasing', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
-  { name: 'Akses Laporan Laba Rugi & Neraca', category: 'Accounting', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
-  { name: 'Kelola User & Konfigurasi BYOK Cloud', category: 'Settings', owner: true, sysadmin: true, admin: false, manager: false, cashier: false, staff: false },
-  { name: 'Pembersihan Data Cloud (Safe Nuke)', category: 'Settings', owner: true, sysadmin: true, admin: true, manager: false, cashier: false, staff: false },
+  { name: 'Cashier Checkout & Thermal Printing', category: 'POS', owner: true, sysadmin: false, admin: true, manager: true, cashier: true, staff: true },
+  { name: 'Open / Close Shift & Cash Reconciliation', category: 'POS', owner: true, sysadmin: false, admin: true, manager: true, cashier: true, staff: false },
+  { name: 'Sales Returns & Invoice Voids', category: 'POS', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
+  { name: 'Product Catalog & Tiered Pricing', category: 'Inventory', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
+  { name: 'Stock Opname & Variance Adjustments', category: 'Inventory', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
+  { name: 'Purchase Orders (PO) & Goods Receiving', category: 'Purchasing', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
+  { name: 'Profit & Loss (P&L) and Balance Sheet', category: 'Accounting', owner: true, sysadmin: false, admin: true, manager: true, cashier: false, staff: false },
+  { name: 'User Management & Cloud BYOK Settings', category: 'Settings', owner: true, sysadmin: true, admin: false, manager: false, cashier: false, staff: false },
+  { name: 'Cloud Data Flush (Safe Nuke)', category: 'Settings', owner: true, sysadmin: true, admin: true, manager: false, cashier: false, staff: false },
 ];
 
 export const RbacMatrix: React.FC = () => {
@@ -43,8 +43,8 @@ export const RbacMatrix: React.FC = () => {
     <div className="card" style={{ padding: 24, marginTop: 24 }}>
       <div className="panel-head">
         <div>
-          <span className="panel-title">Matriks Hak Akses &amp; Keamanan Berbasis Peran (RBAC)</span>
-          <p className="panel-sub">Klik salah satu peran untuk melihat cakupan wewenang akun secara mendalam.</p>
+          <span className="panel-title">Role-Based Access Control (RBAC) Matrix</span>
+          <p className="panel-sub">Select any personnel role to inspect account permissions and security boundaries.</p>
         </div>
         <span className="pill">
           <ShieldCheck size={12} style={{ color: 'var(--success)' }} />
@@ -80,8 +80,8 @@ export const RbacMatrix: React.FC = () => {
         <table className="k-table">
           <thead>
             <tr>
-              <th>Fitur &amp; Modul</th>
-              <th>Kategori</th>
+              <th>Feature / Capability</th>
+              <th>Category</th>
               {ROLES.map(r => (
                 <th
                   key={r}

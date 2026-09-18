@@ -7,35 +7,35 @@ export const HardwareSection: React.FC = () => {
       <div className="wrap hw-grid">
         <div data-reveal>
           <div className="eyebrow">
-            <span className="eb-dot"></span>HARDWARE
+            <span className="eb-dot"></span>HARDWARE INTEGRATION
           </div>
-          <h2 className="h2">Kompatibel langsung dengan hardware kasir Anda.</h2>
+          <h2 className="h2">Native compatibility with modern POS retail hardware.</h2>
           <p className="lead">
-            Hubungkan printer thermal, laci kasir otomatis, dan scanner barcode secara plug &amp; play.
+            Connect thermal receipt printers, electronic cash drawers, and barcode scanners with zero-configuration plug &amp; play.
           </p>
           <ul className="blist">
             <li>
               <Printer size={16} />
               <span>
-                <b>Printer Thermal Cepat</b> — cetak struk instan via ESC/POS atau HPRT SDK.
+                <b>Ultra-Fast Thermal Output</b> — instantaneous receipt printing via raw ESC/POS and native printer drivers.
               </span>
             </li>
             <li>
               <ReceiptIcon size={16} />
               <span>
-                <b>Format 58 mm &amp; 80 mm</b> — layout struk rapi dengan logo, QRIS &amp; barcode.
+                <b>58 mm &amp; 80 mm Formats</b> — crisp layouts with high-contrast logos, QR payment codes, and barcodes.
               </span>
             </li>
             <li>
               <ScanBarcode size={16} />
               <span>
-                <b>Laci Kasir &amp; Barcode Scanner</b> — kick drawer otomatis saat transaksi selesai.
+                <b>Cash Drawers &amp; Barcode Scanners</b> — auto-fire 24V pulse drawer kick upon tender completion.
               </span>
             </li>
             <li>
               <Wifi size={16} />
               <span>
-                <b>Konektivitas Fleksibel</b> — siap pakai lewat USB, kabel LAN/Wi-Fi, atau Bluetooth.
+                <b>Universal Connectivity</b> — works out of the box via USB, Ethernet LAN / Wi-Fi, or Bluetooth.
               </span>
             </li>
           </ul>
@@ -45,44 +45,44 @@ export const HardwareSection: React.FC = () => {
           <div>
             <div className="receipt">
               <div className="ctr b" style={{ fontSize: '13px' }}>
-                TOKO MAJU JAYA
+                KIVO FLAGSHIP STORE
               </div>
-              <div className="ctr">Jl. Merdeka No. 48, Bandung</div>
+              <div className="ctr">742 Market Street, Suite 400</div>
               <div className="sep"></div>
               <div className="rc">
-                <span>Kopi Susu Botol x2</span>
-                <span>17.000</span>
+                <span>Cold Brew Coffee x2</span>
+                <span>$7.00</span>
               </div>
               <div className="rc">
-                <span>Roti Coklat x1</span>
-                <span>12.500</span>
+                <span>Artisan Croissant x1</span>
+                <span>$4.50</span>
               </div>
               <div className="rc">
-                <span>Snack Kentang x1</span>
-                <span>9.000</span>
+                <span>BBQ Potato Crisps x1</span>
+                <span>$2.50</span>
               </div>
               <div className="sep"></div>
               <div className="rc">
                 <span>Subtotal</span>
-                <span>38.500</span>
+                <span>$14.00</span>
               </div>
               <div className="rc">
-                <span>Member 5%</span>
-                <span>-1.925</span>
+                <span>Member VIP 10%</span>
+                <span>-$1.40</span>
               </div>
               <div className="rc b">
                 <span>TOTAL</span>
-                <span>36.575</span>
+                <span>$12.60</span>
               </div>
               <div className="rc">
-                <span>QRIS</span>
-                <span>36.575</span>
+                <span>Contactless / Card</span>
+                <span>$12.60</span>
               </div>
               <div className="sep"></div>
-              <div className="ctr">#001284 · 14:32 · Andini</div>
-              <div className="ctr">Shift #47 · 80mm · ESC/POS</div>
+              <div className="ctr">#001284 · 14:32 · Register #01</div>
+              <div className="ctr">Shift #47 · 80mm · ESC/POS Raw</div>
               <div className="rc-code"></div>
-              <div className="ctr">Thank you — Terima kasih</div>
+              <div className="ctr">Thank you for your visit!</div>
             </div>
             <div className="receipt-tear"></div>
           </div>
