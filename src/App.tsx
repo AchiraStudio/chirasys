@@ -135,6 +135,13 @@ export default function App() {
 
   // Check if first-run setup has been completed
   useEffect(() => {
+    if (!isTauri()) {
+      // Remote web client (phone, tablet, browser) connecting to LAN host
+      // Never block web clients with desktop setup wizard!
+      setHasCompletedSetup(true);
+      return;
+    }
+
     getSettings()
       .then((settings) => {
         const completed = settings.find(s => s.key === 'has_completed_setup')?.value === 'true';
@@ -335,7 +342,7 @@ export default function App() {
     );
   }
 
-  if (hasCompletedSetup === false || showSetupWizard) {
+  if ((isTauri() && hasCompletedSetup === false) || showSetupWizard) {
     return (
       <SetupWizard
         onComplete={() => {
