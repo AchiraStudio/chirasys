@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Check, X, User } from 'lucide-react';
+import { ShieldCheck, Check, X } from 'lucide-react';
 
 interface PermissionRow {
   name: string;
@@ -16,9 +16,9 @@ const ROLES = ['owner', 'sysadmin', 'admin', 'manager', 'cashier', 'staff'] as c
 type RoleType = typeof ROLES[number];
 
 const ROLE_DESCRIPTIONS: Record<RoleType, string> = {
-  owner: 'Owner — Holds root sovereign authority over the entire platform, including database purging (nuke), role assignment, and workspace configuration.',
-  sysadmin: 'Sysadmin — Manages cloud sync topologies, local SQLite maintenance, POS hardware bindings, and API integrations without daily cashier operational noise.',
-  admin: 'Admin — Full store operational oversight: product catalogs, POS cashiering, purchasing, customer returns, and daily financial statements.',
+  owner: 'Owner — Root sovereign authority over the entire platform, including cloud credentials, role provisioning, and workspace architecture.',
+  sysadmin: 'Sysadmin — Manages cloud sync topologies, local SQLite maintenance, POS hardware bindings, and API configurations.',
+  admin: 'Admin — Full store operational oversight: catalog hierarchy, checkout terminal management, purchasing, and daily general ledger.',
   manager: 'Manager — Supervises inventory movements, purchase order approvals, stock opname variances, and gross margin analytics.',
   cashier: 'Cashier — Operates checkout POS, prints customer receipts, opens/closes register shifts, and inspects personal shift cash totals.',
   staff: 'Staff — Read-mostly frontline permissions: barcode product lookup, price checks, and assisted checkout order draft creation.',
@@ -44,35 +44,33 @@ export const RbacMatrix: React.FC = () => {
       <div className="panel-head">
         <div>
           <span className="panel-title">Role-Based Access Control (RBAC) Matrix</span>
-          <p className="panel-sub">Select any personnel role to inspect account permissions and security boundaries.</p>
+          <p className="panel-sub">Select any personnel tier to inspect security boundaries and authorization scopes.</p>
         </div>
-        <span className="pill">
-          <ShieldCheck size={12} style={{ color: 'var(--success)' }} />
-          Granular Security
+        <span className="panel-security-tag">
+          <ShieldCheck size={13} className="text-success" />
+          <span>Permissions</span>
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '14px 0' }}>
-        {ROLES.map(role => (
-          <button
-            key={role}
-            type="button"
-            className={`pill ${activeRole === role ? 'ep' : ''}`}
-            onClick={() => setActiveRole(role)}
-            style={{
-              cursor: 'pointer',
-              borderColor: activeRole === role ? 'var(--primary)' : 'var(--line)',
-              background: activeRole === role ? 'var(--primary-soft)' : 'transparent',
-              color: activeRole === role ? 'var(--heading)' : 'var(--body)',
-            }}
-          >
-            <User size={12} />
-            <span style={{ textTransform: 'capitalize' }}>{role}</span>
-          </button>
-        ))}
+      {/* Architectural Role Deck (No pill buttons) */}
+      <div className="rbac-deck-tabs">
+        {ROLES.map((role, idx) => {
+          const isSelected = activeRole === role;
+          return (
+            <button
+              key={role}
+              type="button"
+              className={`rbac-deck-tab ${isSelected ? 'active' : ''}`}
+              onClick={() => setActiveRole(role)}
+            >
+              <span className="rbac-tab-num">0{idx + 1}</span>
+              <span className="rbac-tab-label">{role}</span>
+            </button>
+          );
+        })}
       </div>
 
-      <div style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--muted)', marginBottom: 16, fontSize: 12.5, color: 'var(--heading)' }}>
+      <div style={{ padding: '12px 16px', borderRadius: 8, background: 'color-mix(in srgb, var(--elevated) 70%, transparent)', border: '1px solid var(--line)', marginBottom: 16, fontSize: 13, color: 'var(--heading)', lineHeight: 1.5 }}>
         {ROLE_DESCRIPTIONS[activeRole]}
       </div>
 
@@ -80,14 +78,14 @@ export const RbacMatrix: React.FC = () => {
         <table className="k-table">
           <thead>
             <tr>
-              <th>Feature / Capability</th>
+              <th>Capability</th>
               <th>Category</th>
               {ROLES.map(r => (
                 <th
                   key={r}
                   style={{
-                    textAlign: 'center',
-                    background: activeRole === r ? 'var(--muted-h)' : 'transparent',
+                    color: activeRole === r ? 'var(--primary)' : 'var(--dim)',
+                    background: activeRole === r ? 'color-mix(in srgb, var(--primary) 10%, transparent)' : 'transparent',
                     textTransform: 'capitalize',
                   }}
                 >
@@ -97,31 +95,40 @@ export const RbacMatrix: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {PERMISSIONS.map(p => (
-              <tr key={p.name}>
-                <td><b>{p.name}</b></td>
-                <td><span className="chip" style={{ height: 22, fontSize: 10 }}>{p.category}</span></td>
-                {ROLES.map(r => {
-                  const hasAccess = p[r];
-                  const isCurRole = activeRole === r;
-                  return (
-                    <td
-                      key={r}
-                      style={{
-                        textAlign: 'center',
-                        background: isCurRole ? 'var(--muted-h)' : 'transparent',
-                      }}
-                    >
-                      {hasAccess ? (
-                        <Check size={15} style={{ color: 'var(--success)', margin: '0 auto' }} />
-                      ) : (
-                        <X size={15} style={{ color: 'var(--dim)', opacity: 0.3, margin: '0 auto' }} />
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {PERMISSIONS.map(p => {
+              return (
+                <tr key={p.name}>
+                  <td>{p.name}</td>
+                  <td>
+                    <span style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace', color: 'var(--dim)' }}>
+                      {p.category}
+                    </span>
+                  </td>
+                  {ROLES.map(r => {
+                    const allowed = p[r];
+                    const isSelected = activeRole === r;
+                    return (
+                      <td
+                        key={r}
+                        style={{
+                          background: isSelected ? 'color-mix(in srgb, var(--primary) 6%, transparent)' : 'transparent',
+                        }}
+                      >
+                        {allowed ? (
+                          <span style={{ color: 'var(--success)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Check size={14} />
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--dim)', opacity: 0.4, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <X size={13} />
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -130,4 +137,3 @@ export const RbacMatrix: React.FC = () => {
 };
 
 export default RbacMatrix;
-

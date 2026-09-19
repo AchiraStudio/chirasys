@@ -118,14 +118,14 @@ export const AiAssistantDemo: React.FC = () => {
   return (
     <section className="section" id="ai">
       <div className="wrap">
-        <div className="sec-head">
+        <div className="sec-head center" data-reveal>
           <div className="eyebrow ep">
             <span className="eb-dot" />
             <span>KIVO AI COPILOT</span>
           </div>
-          <h2 className="h2">Ask anything about your store's operational pulse.</h2>
+          <h2 className="h2">Ask Anything. Answers Backed by Your Real Ledger.</h2>
           <p className="lead">
-            Sales velocity analysis, low stock alerts, and instant P&L summaries explained in plain English directly against your local dataset.
+            Natural language business intelligence querying your local SQLite database directly — zero external data scraping.
           </p>
         </div>
 

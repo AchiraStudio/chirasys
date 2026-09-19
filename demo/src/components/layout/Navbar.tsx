@@ -1,44 +1,28 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sun,
   Moon,
   Menu,
   X,
   Download,
-  ChevronDown,
-  Search,
-  ShoppingCart,
-  Boxes,
-  FileText,
-  Landmark,
-  Users,
-  Printer,
-  Network,
-  Wifi,
-  Database,
-  ShieldCheck,
-  Cpu,
-  Sparkles,
-  Clock,
-  Layers,
-  ArrowRight,
-  ExternalLink,
-  Compass,
 } from 'lucide-react';
 import { BrandLogo, GithubIcon } from '../common/BrandLogo';
 import { scrollToTarget } from '../../utils/scroll';
 
-interface SearchItem {
-  id: string;
-  title: string;
-  category: 'Features' | 'Architecture' | 'Interactive Demos' | 'Actions';
-  description: string;
+interface NavLinkItem {
+  label: string;
   href: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  badge?: string;
-  isExternal?: boolean;
-  action?: () => void;
+  isLive?: boolean;
 }
+
+const NAV_LINKS: NavLinkItem[] = [
+  { label: 'Showcase', href: '#features' },
+  { label: 'Live App', href: '#appWin', isLive: true },
+  { label: 'Offline Engine', href: '#offline' },
+  { label: 'AI Intelligence', href: '#ai' },
+  { label: 'Hardware', href: '#hardware' },
+  { label: 'Architecture', href: '#how' },
+];
 
 export const Navbar: React.FC = () => {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -50,23 +34,8 @@ export const Navbar: React.FC = () => {
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('top');
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [cmdOpen, setCmdOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSearchIdx, setSelectedSearchIdx] = useState(0);
-
-  // Mobile accordion state
-  const [mobileAccordion, setMobileAccordion] = useState<{ [key: string]: boolean }>({
-    features: false,
-    architecture: false,
-    demos: false,
-  });
-
-  const navRef = useRef<HTMLElement>(null);
-  const dropdownTimerRef = useRef<number | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -81,29 +50,10 @@ export const Navbar: React.FC = () => {
 
   // Scroll spy & reading progress
   useEffect(() => {
-    const sections = [
-      'top',
-      'product',
-      'day',
-      'features',
-      'pos',
-      'inventory',
-      'purchasing',
-      'accounting',
-      'customers',
-      'cloud',
-      'offline',
-      'lan',
-      'ai',
-      'security',
-      'hardware',
-      'onboarding',
-      'how',
-      'download',
-    ];
+    const sections = ['top', 'features', 'appWin', 'offline', 'ai', 'hardware', 'how', 'download'];
 
     const handleScroll = () => {
-      const scrollPos = window.scrollY + 130;
+      const scrollPos = window.scrollY + 140;
       for (const id of sections) {
         const el = document.getElementById(id);
         if (el) {
@@ -127,996 +77,123 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Global keyboard shortcuts (Cmd+K / Ctrl+K and Esc)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setCmdOpen(prev => !prev);
-      } else if (e.key === 'Escape') {
-        if (cmdOpen) setCmdOpen(false);
-        if (activeDropdown) setActiveDropdown(null);
-        if (mobileOpen) setMobileOpen(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cmdOpen, activeDropdown, mobileOpen]);
-
-  // Focus search input when command palette opens
-  useEffect(() => {
-    if (cmdOpen) {
-      setTimeout(() => searchInputRef.current?.focus(), 60);
-      setSelectedSearchIdx(0);
-    } else {
-      setSearchQuery('');
-    }
-  }, [cmdOpen]);
-
-  // Click outside to close dropdowns
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) {
-        setActiveDropdown(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Dropdown hover timing
-  const handleMouseEnter = (name: string) => {
-    if (dropdownTimerRef.current) clearTimeout(dropdownTimerRef.current);
-    setActiveDropdown(name);
-  };
-
-  const handleMouseLeave = () => {
-    dropdownTimerRef.current = window.setTimeout(() => {
-      setActiveDropdown(null);
-    }, 180);
-  };
-
-  const toggleDropdown = (name: string) => {
-    setActiveDropdown(prev => (prev === name ? null : name));
-  };
-
-  const toggleMobileSection = (key: string) => {
-    setMobileAccordion(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const handleNavClick = (e: React.MouseEvent, href: string) => {
     e.preventDefault();
-    setActiveDropdown(null);
     setMobileOpen(false);
     scrollToTarget(href);
   };
 
-  // Check which parent dropdown is active
-  const isFeaturesActive = ['pos', 'inventory', 'purchasing', 'accounting', 'customers', 'hardware'].includes(activeSection);
-  const isArchitectureActive = ['product', 'cloud', 'lan', 'security', 'how', 'onboarding'].includes(activeSection);
-  const isDemosActive = ['offline', 'ai', 'day'].includes(activeSection);
-
-  // Command palette search items
-  const searchItems: SearchItem[] = useMemo(
-    () => [
-      // Features
-      {
-        id: 'pos',
-        title: 'Point of Sale & Checkout',
-        category: 'Features',
-        description: 'Rapid checkout, split tenders, cash drawer shift management & thermal receipts',
-        href: '#pos',
-        icon: ShoppingCart,
-        badge: 'Offline-first',
-      },
-      {
-        id: 'inventory',
-        title: 'Inventory & Multi-Unit Batches',
-        category: 'Features',
-        description: 'Multi-unit conversion, batch tracking, expiry & minimum stock alerts',
-        href: '#inventory',
-        icon: Boxes,
-      },
-      {
-        id: 'purchasing',
-        title: 'Purchasing & Direct Receiving',
-        category: 'Features',
-        description: 'Supplier purchase orders, partial receiving & supplier price trends',
-        href: '#purchasing',
-        icon: FileText,
-      },
-      {
-        id: 'accounting',
-        title: 'Automated Double-Entry Accounting',
-        category: 'Features',
-        description: 'Automated journal entries, real-time balance sheet & P&L statements',
-        href: '#accounting',
-        icon: Landmark,
-      },
-      {
-        id: 'customers',
-        title: 'Customer Loyalty & Promos',
-        category: 'Features',
-        description: 'Tiered VIP memberships, dynamic promotion engine & buy-X-get-Y',
-        href: '#customers',
-        icon: Users,
-      },
-      {
-        id: 'hardware',
-        title: 'POS Hardware & ESC/POS',
-        category: 'Features',
-        description: 'Direct thermal USB/LAN receipt printers, barcode scanners & cash drawers',
-        href: '#hardware',
-        icon: Printer,
-      },
-
-      // Architecture
-      {
-        id: 'product',
-        title: 'Ecosystem & Topology Map',
-        category: 'Architecture',
-        description: 'Unified 6-node architecture diagram connecting Cloud, POS, LAN, & AI',
-        href: '#product',
-        icon: Layers,
-      },
-      {
-        id: 'offline-arch',
-        title: 'Zero-Cloud SQLite WAL Engine',
-        category: 'Architecture',
-        description: 'Local SQLite WAL database, instant queries and zero server dependency',
-        href: '#offline',
-        icon: Database,
-        badge: 'Zero latency',
-      },
-      {
-        id: 'lan',
-        title: 'Peer-to-Peer LAN Synchronization',
-        category: 'Architecture',
-        description: 'Sub-millisecond local network sync with automatic UDP discovery',
-        href: '#lan',
-        icon: Wifi,
-      },
-      {
-        id: 'cloud',
-        title: 'Multi-Branch Cloud Replication',
-        category: 'Architecture',
-        description: 'Supabase sync engine, central headquarters reporting & branch routing',
-        href: '#cloud',
-        icon: Network,
-      },
-      {
-        id: 'security',
-        title: '100% BYOK Security & RBAC',
-        category: 'Architecture',
-        description: 'Zero vendor lock-in, AES-256 client encryption & granular role matrix',
-        href: '#security',
-        icon: ShieldCheck,
-        badge: 'Private',
-      },
-      {
-        id: 'how',
-        title: 'Rust & Tauri v2 Technology Stack',
-        category: 'Architecture',
-        description: 'Under the hood: native Rust performance, ultra-low memory & lightweight webview',
-        href: '#how',
-        icon: Cpu,
-      },
-      {
-        id: 'onboarding',
-        title: '3-Step Setup & Onboarding Wizard',
-        category: 'Architecture',
-        description: 'Fast onboarding from fresh installation to first checkout in one sitting',
-        href: '#onboarding',
-        icon: Compass,
-      },
-
-      // Interactive Demos
-      {
-        id: 'demo-offline',
-        title: 'Offline Simulator Demo',
-        category: 'Interactive Demos',
-        description: 'Interactive test: toggle internet off and watch sync queues drain live',
-        href: '#offline',
-        icon: Database,
-        badge: 'Interactive',
-      },
-      {
-        id: 'demo-ai',
-        title: 'Kivo AI Copilot Simulator',
-        category: 'Interactive Demos',
-        description: 'Ask business intelligence, inventory restock, and sales metrics in natural language',
-        href: '#ai',
-        icon: Sparkles,
-        badge: 'Interactive',
-      },
-      {
-        id: 'demo-day',
-        title: 'A Day with Kivo (Operational Flow)',
-        category: 'Interactive Demos',
-        description: 'Interactive timeline: 08:00 store opening to 22:30 cloud consolidation',
-        href: '#day',
-        icon: Clock,
-        badge: 'Interactive',
-      },
-
-      // Actions
-      {
-        id: 'action-download',
-        title: 'Download Desktop App v1.3.2',
-        category: 'Actions',
-        description: 'Download installer for Windows (64-bit portable or setup executable)',
-        href: '#download',
-        icon: Download,
-        badge: 'v1.3.2',
-      },
-      {
-        id: 'action-github',
-        title: 'View Source on GitHub',
-        category: 'Actions',
-        description: 'Explore the open source repository, star, or contribute',
-        href: 'https://github.com/AchiraStudio/kivo',
-        icon: ExternalLink,
-        isExternal: true,
-      },
-      {
-        id: 'action-theme',
-        title: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Theme`,
-        category: 'Actions',
-        description: 'Toggle UI color theme between Dark Mode and Light Mode',
-        href: '#',
-        icon: theme === 'dark' ? Sun : Moon,
-        action: toggleTheme,
-      },
-    ],
-    [theme]
-  );
-
-  const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return searchItems;
-    const q = searchQuery.toLowerCase();
-    return searchItems.filter(
-      item =>
-        item.title.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q)
-    );
-  }, [searchItems, searchQuery]);
-
-  const handleSearchSelect = (item: SearchItem) => {
-    setCmdOpen(false);
-    if (item.action) {
-      item.action();
-      return;
-    }
-    if (item.isExternal) {
-      window.open(item.href, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    scrollToTarget(item.href);
-  };
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedSearchIdx(prev => (prev + 1) % (filteredItems.length || 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedSearchIdx(prev => (prev - 1 + filteredItems.length) % (filteredItems.length || 1));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (filteredItems[selectedSearchIdx]) {
-        handleSearchSelect(filteredItems[selectedSearchIdx]);
-      }
-    }
-  };
-
   return (
     <>
-      <header className={`nav ${mobileOpen ? 'open' : ''}`} id="nav" ref={navRef}>
-        <div className="nav-in">
-          {/* Brand Logo with Version Pill */}
-          <a
-            className="brand"
-            href="#top"
-            aria-label="Kivo home"
-            onClick={e => handleNavClick(e, '#top')}
-          >
-            <BrandLogo size={28} />
-            <span className="brand-badge">v1.3</span>
-          </a>
+      <header className="nav-header">
+        {/* Ambient Top Reading Progress Bar */}
+        <div className="nav-progress-bar" style={{ width: `${scrollProgress}%` }} />
 
-          {/* Structured Primary Navigation */}
-          <nav className="nav-links" aria-label="Primary navigation">
-            {/* Features Dropdown */}
-            <div
-              className={`nav-dropdown ${activeDropdown === 'features' ? 'open' : ''}`}
-              onMouseEnter={() => handleMouseEnter('features')}
-              onMouseLeave={handleMouseLeave}
-            >
-              <button
-                type="button"
-                className={`nav-drop-btn ${isFeaturesActive ? 'active' : ''}`}
-                onClick={e => handleNavClick(e, '#features')}
-                aria-expanded={activeDropdown === 'features'}
-              >
-                <span>Features</span>
-                <span
-                  className="chevron-icon-wrap"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleDropdown('features');
-                  }}
-                >
-                  <ChevronDown size={14} className="chevron-icon" />
-                </span>
-              </button>
-
-              <div className="nav-mega-menu mega-features">
-                <div className="mega-grid-2col">
-                  {/* Column 1: Store Operations */}
-                  <div className="mega-col">
-                    <div className="mega-col-title">Operations</div>
-                    <a
-                      href="#pos"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#pos')}
-                    >
-                      <div className="mega-item-icon color-p">
-                        <ShoppingCart size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">
-                          Point of Sale (POS) <span className="mini-badge">Offline-first</span>
-                        </div>
-                        <div className="mega-item-desc">Rapid checkout, split tenders &amp; drawer shifts</div>
-                      </div>
-                    </a>
-
-                    <a
-                      href="#inventory"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#inventory')}
-                    >
-                      <div className="mega-item-icon color-b">
-                        <Boxes size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">Inventory &amp; Batches</div>
-                        <div className="mega-item-desc">Multi-unit conversion, batch expiry &amp; audits</div>
-                      </div>
-                    </a>
-
-                    <a
-                      href="#purchasing"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#purchasing')}
-                    >
-                      <div className="mega-item-icon color-g">
-                        <FileText size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">Purchasing Pipeline</div>
-                        <div className="mega-item-desc">Supplier POs &amp; direct receiving notes</div>
-                      </div>
-                    </a>
-                  </div>
-
-                  {/* Column 2: Finance & Management */}
-                  <div className="mega-col">
-                    <div className="mega-col-title">Finance &amp; Growth</div>
-                    <a
-                      href="#accounting"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#accounting')}
-                    >
-                      <div className="mega-item-icon color-o">
-                        <Landmark size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">Automated Ledger</div>
-                        <div className="mega-item-desc">Double-entry journals, real-time P&amp;L &amp; balance sheet</div>
-                      </div>
-                    </a>
-
-                    <a
-                      href="#customers"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#customers')}
-                    >
-                      <div className="mega-item-icon color-p">
-                        <Users size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">Customers &amp; Loyalty</div>
-                        <div className="mega-item-desc">Member tiers, reward points &amp; dynamic promos</div>
-                      </div>
-                    </a>
-
-                    <a
-                      href="#hardware"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#hardware')}
-                    >
-                      <div className="mega-item-icon color-b">
-                        <Printer size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">POS Hardware</div>
-                        <div className="mega-item-desc">ESC/POS thermal printers, kick drawers &amp; scanners</div>
-                      </div>
-                    </a>
-                  </div>
-                </div>
-
-                <div className="mega-footer">
-                  <span>Looking for architectural foundations?</span>
-                  <a
-                    href="#features"
-                    className="mega-footer-link"
-                    onClick={e => handleNavClick(e, '#features')}
-                  >
-                    <span>Explore 10 Core Pillars</span>
-                    <ArrowRight size={13} />
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Architecture Dropdown */}
-            <div
-              className={`nav-dropdown ${activeDropdown === 'architecture' ? 'open' : ''}`}
-              onMouseEnter={() => handleMouseEnter('architecture')}
-              onMouseLeave={handleMouseLeave}
-            >
-              <button
-                type="button"
-                className={`nav-drop-btn ${isArchitectureActive ? 'active' : ''}`}
-                onClick={e => handleNavClick(e, '#how')}
-                aria-expanded={activeDropdown === 'architecture'}
-              >
-                <span>Architecture</span>
-                <span
-                  className="chevron-icon-wrap"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleDropdown('architecture');
-                  }}
-                >
-                  <ChevronDown size={14} className="chevron-icon" />
-                </span>
-              </button>
-
-              <div className="nav-mega-menu mega-architecture">
-                <div className="mega-grid-2col">
-                  {/* Column 1: Network & Offline */}
-                  <div className="mega-col">
-                    <div className="mega-col-title">Network & Sync</div>
-                    <a
-                      href="#offline"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#offline')}
-                    >
-                      <div className="mega-item-icon color-b">
-                        <Database size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">
-                          Offline-First WAL <span className="mini-badge">Zero Latency</span>
-                        </div>
-                        <div className="mega-item-desc">Local SQLite database, zero server dependencies</div>
-                      </div>
-                    </a>
-
-                    <a
-                      href="#how"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#how')}
-                    >
-                      <div className="mega-item-icon color-p">
-                        <Wifi size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">P2P LAN Synchronization</div>
-                        <div className="mega-item-desc">Sub-millisecond local network sync without internet</div>
-                      </div>
-                    </a>
-
-                    <a
-                      href="#cloud"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#cloud')}
-                    >
-                      <div className="mega-item-icon color-g">
-                        <Network size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">Hybrid Cloud Replication</div>
-                        <div className="mega-item-desc">Instant multi-branch Supabase cloud sync</div>
-                      </div>
-                    </a>
-                  </div>
-
-                  {/* Column 2: Privacy & Performance */}
-                  <div className="mega-col">
-                    <div className="mega-col-title">Privacy &amp; Engine</div>
-                    <a
-                      href="#security"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#security')}
-                    >
-                      <div className="mega-item-icon color-g">
-                        <ShieldCheck size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">
-                          100% BYOK Security <span className="mini-badge">No Lock-in</span>
-                        </div>
-                        <div className="mega-item-desc">Private API keys, AES client encryption &amp; RBAC</div>
-                      </div>
-                    </a>
-
-                    <a
-                      href="#how"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#how')}
-                    >
-                      <div className="mega-item-icon color-o">
-                        <Cpu size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">Rust &amp; Tauri v2 Core</div>
-                        <div className="mega-item-desc">Blazing native binary &amp; ultra-light memory footprint</div>
-                      </div>
-                    </a>
-
-                    <a
-                      href="#top"
-                      className="mega-item"
-                      onClick={e => handleNavClick(e, '#top')}
-                    >
-                      <div className="mega-item-icon color-p">
-                        <Layers size={17} />
-                      </div>
-                      <div className="mega-item-text">
-                        <div className="mega-item-title">Interactive App Preview</div>
-                        <div className="mega-item-desc">Run live POS, Stock, and Accounting view modules</div>
-                      </div>
-                    </a>
-                  </div>
-                </div>
-
-                <div className="mega-footer">
-                  <span>Fast, frictionless deployment</span>
-                  <a
-                    href="#download"
-                    className="mega-footer-link"
-                    onClick={e => handleNavClick(e, '#download')}
-                  >
-                    <span>Download Native App (v1.3.2)</span>
-                    <ArrowRight size={13} />
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Demos Dropdown with Pulsing Live Dot */}
-            <div
-              className={`nav-dropdown ${activeDropdown === 'demos' ? 'open' : ''}`}
-              onMouseEnter={() => handleMouseEnter('demos')}
-              onMouseLeave={handleMouseLeave}
-            >
-              <button
-                type="button"
-                className={`nav-drop-btn ${isDemosActive ? 'active' : ''}`}
-                onClick={e => handleNavClick(e, '#offline')}
-                aria-expanded={activeDropdown === 'demos'}
-              >
-                <span className="live-indicator-dot" />
-                <span>Demos</span>
-                <span
-                  className="chevron-icon-wrap"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleDropdown('demos');
-                  }}
-                >
-                  <ChevronDown size={14} className="chevron-icon" />
-                </span>
-              </button>
-
-              <div className="nav-dropdown-menu single-col">
-                <a
-                  href="#offline"
-                  className="mega-item"
-                  onClick={e => handleNavClick(e, '#offline')}
-                >
-                  <div className="mega-item-icon color-b">
-                    <Database size={17} />
-                  </div>
-                  <div className="mega-item-text">
-                    <div className="mega-item-title">
-                      Offline Simulator <span className="mini-badge-glow">Try Live</span>
-                    </div>
-                    <div className="mega-item-desc">Cut network connection & see local queue drain</div>
-                  </div>
-                </a>
-
-                <a
-                  href="#ai"
-                  className="mega-item"
-                  onClick={e => handleNavClick(e, '#ai')}
-                >
-                  <div className="mega-item-icon color-p">
-                    <Sparkles size={17} />
-                  </div>
-                  <div className="mega-item-text">
-                    <div className="mega-item-title">
-                      Kivo AI Copilot <span className="mini-badge">BYOK</span>
-                    </div>
-                    <div className="mega-item-desc">Ask sales metrics & restock queries in natural language</div>
-                  </div>
-                </a>
-
-                <a
-                  href="#features"
-                  className="mega-item"
-                  onClick={e => handleNavClick(e, '#features')}
-                >
-                  <div className="mega-item-icon color-o">
-                    <Clock size={17} />
-                  </div>
-                  <div className="mega-item-text">
-                    <div className="mega-item-title">Core Pillars Bento</div>
-                    <div className="mega-item-desc">Interactive retail capabilities & modules overview</div>
-                  </div>
-                </a>
-              </div>
-            </div>
-
-            {/* Direct Link: Pillars */}
+        <div className="nav-container">
+          {/* Brand Logo & Technical Monospace Tag */}
+          <div className="nav-brand-group">
             <a
-              href="#features"
-              className={`nav-link-direct ${activeSection === 'features' ? 'active' : ''}`}
-              onClick={e => handleNavClick(e, '#features')}
+              href="#top"
+              className="nav-brand-link"
+              onClick={e => handleNavClick(e, '#top')}
             >
-              Pillars
+              <BrandLogo size={28} />
             </a>
+            <span className="nav-version-tag">v1.3.2</span>
+          </div>
+
+          {/* Desktop Navigation Links */}
+          <nav className="nav-menu" aria-label="Main Navigation">
+            {NAV_LINKS.map(item => {
+              const targetId = item.href.replace('#', '');
+              const isActive = activeSection === targetId;
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className={`nav-link ${isActive ? 'active' : ''}`}
+                  onClick={e => handleNavClick(e, item.href)}
+                >
+                  {item.label}
+                  {item.isLive && <span className="nav-live-dot" title="Live Interactive Simulator" />}
+                </a>
+              );
+            })}
           </nav>
 
-          {/* Actions Suite */}
+          {/* Action CTAs & Controls */}
           <div className="nav-actions">
-            {/* Command Palette Trigger */}
-            <button
-              type="button"
-              className="nav-search-btn"
-              onClick={() => setCmdOpen(true)}
-              aria-label="Quick jump (Cmd+K)"
-              title="Search sections and tools (⌘K)"
+            {/* GitHub Repo Link */}
+            <a
+              href="https://github.com/AchiraStudio/kivo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="nav-icon-btn"
+              title="View on GitHub"
+              aria-label="GitHub Repository"
             >
-              <Search size={14} className="search-icon" />
-              <span className="search-label">Quick jump</span>
-              <kbd className="search-kbd">⌘K</kbd>
-            </button>
+              <GithubIcon size={18} />
+            </a>
 
-            {/* Theme Toggle */}
+            {/* Dark / Light Theme Toggle */}
             <button
               type="button"
-              className="icon-btn theme-toggle-btn"
-              id="themeBtn"
+              className="nav-icon-btn"
               onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              aria-label="Toggle Color Theme"
             >
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
             </button>
 
-            {/* GitHub Repo Link */}
+            {/* Primary Download CTA */}
             <a
-              className="btn btn-secondary btn-sm nav-gh-btn"
-              href="https://github.com/AchiraStudio/kivo"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="View source repository on GitHub"
-            >
-              <GithubIcon size={15} />
-              <span>GitHub</span>
-            </a>
-
-            {/* Primary CTA */}
-            <a
-              className="btn btn-primary btn-sm nav-cta-btn"
               href="#download"
+              className="nav-cta-btn"
               onClick={e => handleNavClick(e, '#download')}
             >
-              <Download size={15} />
-              <span>Download v1.3.2</span>
+              <Download size={14} />
+              <span>Get Kivo</span>
             </a>
 
-            {/* Mobile Hamburger Button */}
+            {/* Mobile Hamburger Toggle */}
             <button
               type="button"
-              className="burger"
-              id="burger"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Toggle navigation menu"
-              aria-expanded={mobileOpen}
+              className="nav-mobile-toggle"
+              onClick={() => setMobileOpen(prev => !prev)}
+              aria-label="Toggle Mobile Menu"
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
-
-          {/* Integrated Reading Scroll Progress Bar */}
-          <div className="nav-progress-track">
-            <div
-              className="nav-progress-bar"
-              style={{ width: `${scrollProgress}%` }}
-              aria-hidden="true"
-            />
-          </div>
         </div>
-
-        {/* Mobile Navigation Drawer */}
-        {mobileOpen && (
-          <div className="nav-mobile" id="navMobile">
-            {/* Quick Search in Mobile */}
-            <div className="mobile-search-wrapper">
-              <button
-                type="button"
-                className="mobile-search-btn"
-                onClick={() => {
-                  setMobileOpen(false);
-                  setCmdOpen(true);
-                }}
-              >
-                <Search size={16} />
-                <span>Search sections, features, demos...</span>
-                <kbd>⌘K</kbd>
-              </button>
-            </div>
-
-            <div className="mobile-nav-list">
-              {/* Features Accordion */}
-              <div className="mobile-accordion-group">
-                <button
-                  type="button"
-                  className="mobile-accordion-head"
-                  onClick={() => toggleMobileSection('features')}
-                >
-                  <span className="mobile-head-title">Features & Modules</span>
-                  <ChevronDown
-                    size={16}
-                    className={`mobile-chevron ${mobileAccordion.features ? 'rotate' : ''}`}
-                  />
-                </button>
-
-                {mobileAccordion.features && (
-                  <div className="mobile-accordion-body">
-                    <a href="#pos" onClick={e => handleNavClick(e, '#pos')} className="mobile-sublink">
-                      <ShoppingCart size={15} className="color-p" />
-                      <span>Point of Sale &amp; Checkout</span>
-                    </a>
-                    <a href="#inventory" onClick={e => handleNavClick(e, '#inventory')} className="mobile-sublink">
-                      <Boxes size={15} className="color-b" />
-                      <span>Inventory & Batches</span>
-                    </a>
-                    <a href="#purchasing" onClick={e => handleNavClick(e, '#purchasing')} className="mobile-sublink">
-                      <FileText size={15} className="color-g" />
-                      <span>Purchasing Pipeline</span>
-                    </a>
-                    <a href="#accounting" onClick={e => handleNavClick(e, '#accounting')} className="mobile-sublink">
-                      <Landmark size={15} className="color-o" />
-                      <span>Automated Accounting</span>
-                    </a>
-                    <a href="#customers" onClick={e => handleNavClick(e, '#customers')} className="mobile-sublink">
-                      <Users size={15} className="color-p" />
-                      <span>Customers & Loyalty</span>
-                    </a>
-                    <a href="#hardware" onClick={e => handleNavClick(e, '#hardware')} className="mobile-sublink">
-                      <Printer size={15} className="color-b" />
-                      <span>POS Hardware Integration</span>
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              {/* Architecture Accordion */}
-              <div className="mobile-accordion-group">
-                <button
-                  type="button"
-                  className="mobile-accordion-head"
-                  onClick={() => toggleMobileSection('architecture')}
-                >
-                  <span className="mobile-head-title">Architecture & Engine</span>
-                  <ChevronDown
-                    size={16}
-                    className={`mobile-chevron ${mobileAccordion.architecture ? 'rotate' : ''}`}
-                  />
-                </button>
-
-                {mobileAccordion.architecture && (
-                  <div className="mobile-accordion-body">
-                    <a href="#offline" onClick={e => handleNavClick(e, '#offline')} className="mobile-sublink">
-                      <Database size={15} className="color-b" />
-                      <span>Offline-First WAL Engine</span>
-                    </a>
-                    <a href="#how" onClick={e => handleNavClick(e, '#how')} className="mobile-sublink">
-                      <Wifi size={15} className="color-p" />
-                      <span>Peer-to-Peer LAN Sync</span>
-                    </a>
-                    <a href="#cloud" onClick={e => handleNavClick(e, '#cloud')} className="mobile-sublink">
-                      <Network size={15} className="color-g" />
-                      <span>Multi-Branch Cloud Replication</span>
-                    </a>
-                    <a href="#security" onClick={e => handleNavClick(e, '#security')} className="mobile-sublink">
-                      <ShieldCheck size={15} className="color-g" />
-                      <span>100% BYOK Security & RBAC</span>
-                    </a>
-                    <a href="#how" onClick={e => handleNavClick(e, '#how')} className="mobile-sublink">
-                      <Cpu size={15} className="color-o" />
-                      <span>Rust & Tauri v2 Technology</span>
-                    </a>
-                    <a href="#top" onClick={e => handleNavClick(e, '#top')} className="mobile-sublink">
-                      <Layers size={15} className="color-p" />
-                      <span>Interactive App Window</span>
-                    </a>
-                    <a href="#download" onClick={e => handleNavClick(e, '#download')} className="mobile-sublink">
-                      <Compass size={15} className="color-b" />
-                      <span>Download App v1.3.2</span>
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              {/* Demos Accordion */}
-              <div className="mobile-accordion-group">
-                <button
-                  type="button"
-                  className="mobile-accordion-head"
-                  onClick={() => toggleMobileSection('demos')}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="live-indicator-dot" />
-                    <span className="mobile-head-title">Interactive Demos</span>
-                  </div>
-                  <ChevronDown
-                    size={16}
-                    className={`mobile-chevron ${mobileAccordion.demos ? 'rotate' : ''}`}
-                  />
-                </button>
-
-                {mobileAccordion.demos && (
-                  <div className="mobile-accordion-body">
-                    <a href="#offline" onClick={e => handleNavClick(e, '#offline')} className="mobile-sublink">
-                      <Database size={15} className="color-b" />
-                      <span>Offline Simulator</span>
-                    </a>
-                    <a href="#ai" onClick={e => handleNavClick(e, '#ai')} className="mobile-sublink">
-                      <Sparkles size={15} className="color-p" />
-                      <span>Kivo AI Copilot</span>
-                    </a>
-                    <a href="#features" onClick={e => handleNavClick(e, '#features')} className="mobile-sublink">
-                      <Clock size={15} className="color-o" />
-                      <span>Core Pillars Bento</span>
-                    </a>
-                  </div>
-                )}
-              </div>
-
-              {/* Direct Link: Pillars */}
-              <a
-                href="#features"
-                onClick={e => handleNavClick(e, '#features')}
-                className="mobile-direct-link"
-              >
-                <span>10 Architectural Pillars</span>
-                <ArrowRight size={14} />
-              </a>
-            </div>
-
-            {/* Mobile Actions Footer */}
-            <div className="mobile-footer-actions">
-              <a
-                className="btn btn-secondary btn-sm"
-                href="https://github.com/AchiraStudio/kivo"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <GithubIcon size={15} />
-                <span>GitHub Repo</span>
-              </a>
-
-              <a
-                className="btn btn-primary btn-sm"
-                href="#download"
-                onClick={e => handleNavClick(e, '#download')}
-              >
-                <Download size={15} />
-                <span>Download v1.3.2</span>
-              </a>
-            </div>
-          </div>
-        )}
       </header>
 
-      {/* Command Palette (⌘K) Modal */}
-      {cmdOpen && (
-        <div className="cmd-backdrop" onClick={() => setCmdOpen(false)}>
-          <div className="cmd-modal" onClick={e => e.stopPropagation()}>
-            <div className="cmd-head">
-              <Search size={18} className="cmd-search-icon" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                className="cmd-input"
-                placeholder="Jump to section, feature, demo, or action..."
-                value={searchQuery}
-                onChange={e => {
-                  setSearchQuery(e.target.value);
-                  setSelectedSearchIdx(0);
-                }}
-                onKeyDown={handleSearchKeyDown}
-              />
-              <button
-                type="button"
-                className="cmd-close-btn"
-                onClick={() => setCmdOpen(false)}
-                title="Close (Esc)"
+      {/* Mobile Drawer Overlay */}
+      {mobileOpen && (
+        <div className="nav-mobile-drawer">
+          <nav className="nav-mobile-links">
+            {NAV_LINKS.map(item => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="nav-mobile-link"
+                onClick={e => handleNavClick(e, item.href)}
               >
-                <kbd>ESC</kbd>
-              </button>
-            </div>
-
-            <div className="cmd-body">
-              {filteredItems.length === 0 ? (
-                <div className="cmd-empty">No results found for &ldquo;{searchQuery}&rdquo;</div>
-              ) : (
-                <div className="cmd-list">
-                  {filteredItems.map((item, idx) => {
-                    const IconComponent = item.icon;
-                    const isSelected = idx === selectedSearchIdx;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={`cmd-item ${isSelected ? 'selected' : ''}`}
-                        onClick={() => handleSearchSelect(item)}
-                        onMouseEnter={() => setSelectedSearchIdx(idx)}
-                      >
-                        <div className="cmd-item-icon">
-                          <IconComponent size={17} />
-                        </div>
-                        <div className="cmd-item-content">
-                          <div className="cmd-item-row">
-                            <span className="cmd-item-title">{item.title}</span>
-                            {item.badge && <span className="cmd-item-badge">{item.badge}</span>}
-                            <span className="cmd-item-cat">{item.category}</span>
-                          </div>
-                          <div className="cmd-item-desc">{item.description}</div>
-                        </div>
-                        {isSelected && <ArrowRight size={14} className="cmd-item-arrow" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="cmd-foot">
-              <div className="cmd-hints">
-                <span>
-                  <kbd>↑</kbd> <kbd>↓</kbd> to navigate
-                </span>
-                <span>
-                  <kbd>↵</kbd> to select
-                </span>
-                <span>
-                  <kbd>esc</kbd> to close
-                </span>
-              </div>
-              <div className="cmd-shortcut-tag">Kivo Quick Jump</div>
-            </div>
-          </div>
+                <span>{item.label}</span>
+                {item.isLive && <span className="nav-live-dot" />}
+              </a>
+            ))}
+            <div className="nav-mobile-divider" />
+            <a
+              href="#download"
+              className="nav-mobile-cta"
+              onClick={e => handleNavClick(e, '#download')}
+            >
+              <Download size={16} />
+              <span>Download Desktop Installer</span>
+            </a>
+          </nav>
         </div>
       )}
     </>

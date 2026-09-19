@@ -127,15 +127,14 @@ export const OfflineSimulator: React.FC = () => {
   return (
     <section className="section" id="offline">
       <div className="wrap">
-        <div className="sec-head">
+        <div className="sec-head center" data-reveal>
           <div className="eyebrow">
             <span className="eb-dot" />
-            <span>INTERACTIVE OFFLINE SIMULATOR</span>
+            <span>OFFLINE RESILIENCE</span>
           </div>
-          <h2 className="h2">Hands-On Test: Sever Connection, Keep Ringing Up Sales</h2>
+          <h2 className="h2">Cut the Wi-Fi. Watch it Keep Running.</h2>
           <p className="lead">
-            Simulate store internet drops in real-time. Kivo continues processing transactions,
-            printing thermal receipts, decrementing inventory in local SQLite, and auto-draining to Supabase the moment connectivity returns.
+            Transactions commit locally to NVMe SSD in 0ms. When connectivity returns, pending outbox records drain to Supabase automatically.
           </p>
         </div>
 

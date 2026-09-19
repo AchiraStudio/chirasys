@@ -5,13 +5,10 @@ import {
   Database,
   Atom,
   Braces,
-  Wind,
   Cloud,
   Boxes,
   Wifi,
-  RefreshCw,
-  KeyRound,
-  ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 
 export const TechArchitecture: React.FC = () => {
@@ -21,137 +18,111 @@ export const TechArchitecture: React.FC = () => {
         <div className="sec-head center" data-reveal>
           <div className="eyebrow">
             <span className="eb-dot" />
-            NATIVE ARCHITECTURE
+            02 // NATIVE ARCHITECTURE
           </div>
-          <h2 className="h2">High-Performance Desktop Architecture Powered by Rust.</h2>
+          <h2 className="h2">Native Speed. Minimal Footprint.</h2>
           <p className="lead">
-            A native desktop application built around an embedded local SQLite engine — instant response times, minimal RAM footprint, and zero stutter.
+            No bloated Electron or Chromium runtimes. A pure Rust engine powering an embedded SQLite database directly on your NVMe SSD.
           </p>
         </div>
 
         <div className="arch">
-          {/* Layer Stack Diagram */}
+          {/* Keynote Visual Architecture Stack */}
           <div className="stack" data-reveal>
             <div className="layer">
-              <span className="l-ic">
-                <LayoutDashboard size={18} />
+              <span className="l-ic color-primary">
+                <LayoutDashboard size={20} />
               </span>
               <div>
                 <b>React 19 + TypeScript UI</b>
-                <small>Fast, type-safe, reactive interface running in your desktop window</small>
+                <small>60fps fluid desktop interface running with native hardware acceleration</small>
               </div>
             </div>
 
             <span className="bk-link" />
 
             <div className="layer">
-              <span className="l-ic">
-                <Cpu size={18} />
+              <span className="l-ic color-warning">
+                <Cpu size={20} />
               </span>
               <div>
-                <b>Tauri v2 · Rust Native Core</b>
-                <small>Compact installer footprint (~15MB), low RAM overhead, memory-safe execution</small>
+                <b>Tauri v2 · Rust Native Engine</b>
+                <small>Ultra-lean 15MB binary footprint with memory-safe concurrency</small>
               </div>
             </div>
 
             <span className="bk-link" />
 
             <div className="layer">
-              <span className="l-ic">
-                <Database size={18} />
+              <span className="l-ic color-accent">
+                <Database size={20} />
               </span>
               <div>
                 <b>Local SQLite (WAL Mode)</b>
-                <small>Data resides directly on your workstation NVMe SSD, 0ms transaction commits</small>
+                <small>Sub-millisecond ACID transactions committed locally to SSD</small>
               </div>
             </div>
 
+            {/* Downstream Connectors */}
             <div className="arch-branches">
               <div className="bk-node">
-                <b>LAN Mesh</b>
-                <small>Store register P2P</small>
+                <Wifi size={16} className="text-primary" />
+                <b>LAN P2P</b>
+                <small>Local UDP sync</small>
               </div>
               <div className="bk-node">
+                <Cloud size={16} className="text-accent" />
                 <b>Supabase</b>
                 <small>Cloud mesh sync</small>
               </div>
               <div className="bk-node">
-                <b>OpenAI / Claude</b>
-                <small>Kivo AI (BYOK)</small>
+                <Sparkles size={16} className="text-warning" />
+                <b>Kivo AI</b>
+                <small>100% BYOK LLM</small>
               </div>
             </div>
           </div>
 
-          {/* Tech Stack Chips & Details */}
+          {/* Core Technology Spec Badges (No pills) */}
           <div data-reveal style={{ '--d': '100ms' } as React.CSSProperties}>
-            <p className="lead" style={{ marginBottom: '10px' }}>
-              Engineered with best-in-class modern technologies:
-            </p>
-            <div className="tech-chips">
-              <span className="chip">
-                <Cpu size={13} />
-                Rust Core
-              </span>
-              <span className="chip">
-                <LayoutDashboard size={13} />
-                Tauri v2
-              </span>
-              <span className="chip">
-                <Atom size={13} />
-                React 19
-              </span>
-              <span className="chip">
-                <Braces size={13} />
-                TypeScript
-              </span>
-              <span className="chip">
-                <Wind size={13} />
-                Tailwind CSS v4
-              </span>
-              <span className="chip">
-                <Database size={13} />
-                SQLite (WAL)
-              </span>
-              <span className="chip">
-                <Cloud size={13} />
-                Supabase
-              </span>
-              <span className="chip">
-                <Boxes size={13} />
-                Zustand Store
-              </span>
+            <div className="tech-badge-deck" style={{ justifyContent: 'center' }}>
+              <div className="tech-badge">
+                <Cpu size={14} /> <span>CORE // Rust</span>
+              </div>
+              <div className="tech-badge">
+                <LayoutDashboard size={14} /> <span>FRAMEWORK // Tauri v2</span>
+              </div>
+              <div className="tech-badge">
+                <Database size={14} /> <span>PERSISTENCE // SQLite WAL</span>
+              </div>
+              <div className="tech-badge">
+                <Atom size={14} /> <span>UI // React 19</span>
+              </div>
+              <div className="tech-badge">
+                <Braces size={14} /> <span>SAFETY // TypeScript</span>
+              </div>
+              <div className="tech-badge">
+                <Cloud size={14} /> <span>MESH // Supabase</span>
+              </div>
+              <div className="tech-badge">
+                <Boxes size={14} /> <span>STATE // Zustand</span>
+              </div>
             </div>
 
-            <div className="tech-details" style={{ marginTop: '16px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '14px', padding: '18px' }}>
-              <b style={{ color: 'var(--heading)', fontSize: '13.5px', display: 'block', marginBottom: '10px' }}>
-                Technical Architecture Highlights:
-              </b>
-              <ul className="blist" style={{ marginTop: '10px', gap: '10px' }}>
-                <li>
-                  <Wifi size={16} />
-                  <span>
-                    Checkout terminals discover peers via <b>local UDP broadcast</b>, synchronizing transactions peer-to-peer across the store LAN with zero internet required.
-                  </span>
-                </li>
-                <li>
-                  <RefreshCw size={16} />
-                  <span>
-                    Cloud synchronization runs completely non-blocking in background threads with <b>automated offline buffers</b> — registers never freeze on slow connections.
-                  </span>
-                </li>
-                <li>
-                  <KeyRound size={16} />
-                  <span>
-                    Credentials reside encrypted on your local system; <b>strictly zero embedded master keys</b> in binaries; data sovereignty is 100% yours.
-                  </span>
-                </li>
-                <li>
-                  <ShieldCheck size={16} />
-                  <span>
-                    Reactive UI state is synchronized via <b>Zustand stores</b> directly with the local SQLite persistence layer through high-throughput Tauri Rust IPC commands.
-                  </span>
-                </li>
-              </ul>
+            {/* 3 Presentation Metric Pillars */}
+            <div className="arch-kpis" style={{ marginTop: '24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+              <div className="panel" style={{ textAlign: 'center', padding: '18px 14px' }}>
+                <span style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary)', display: 'block', fontFamily: 'ui-monospace, monospace' }}>~15 MB</span>
+                <span style={{ fontSize: '11px', color: 'var(--dim)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>Installer Payload</span>
+              </div>
+              <div className="panel" style={{ textAlign: 'center', padding: '18px 14px' }}>
+                <span style={{ fontSize: '26px', fontWeight: 800, color: 'var(--accent)', display: 'block', fontFamily: 'ui-monospace, monospace' }}>&lt; 40 MB</span>
+                <span style={{ fontSize: '11px', color: 'var(--dim)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>Idle Memory (RAM)</span>
+              </div>
+              <div className="panel" style={{ textAlign: 'center', padding: '18px 14px' }}>
+                <span style={{ fontSize: '26px', fontWeight: 800, color: 'var(--success)', display: 'block', fontFamily: 'ui-monospace, monospace' }}>0.2 ms</span>
+                <span style={{ fontSize: '11px', color: 'var(--dim)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>Local SSD Commit</span>
+              </div>
             </div>
           </div>
         </div>

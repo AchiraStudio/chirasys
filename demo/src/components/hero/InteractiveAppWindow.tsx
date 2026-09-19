@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -62,6 +62,17 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
       setIsSyncing(false);
     }, 1200);
   };
+
+  useEffect(() => {
+    const handleSwitch = (e: Event) => {
+      const customEvent = e as CustomEvent<AppMenuId>;
+      if (customEvent.detail) {
+        setActiveMenu(customEvent.detail);
+      }
+    };
+    window.addEventListener('kivo-switch-tab', handleSwitch);
+    return () => window.removeEventListener('kivo-switch-tab', handleSwitch);
+  }, []);
 
   const PAGE_TITLES: Record<AppMenuId, string> = {
     dashboard: 'Business Overview',

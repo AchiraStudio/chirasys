@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, ArrowRight, ShieldCheck, Zap, Globe, Sparkles, Server } from 'lucide-react';
+import { Download, ArrowRight, ShieldCheck, Zap, Globe, Sparkles, Printer } from 'lucide-react';
 import InteractiveAppWindow from './InteractiveAppWindow';
 import { scrollToTarget } from '../../utils/scroll';
 
@@ -8,56 +8,65 @@ export const Hero: React.FC = () => {
     <section className="hero" id="top">
       <div className="wrap">
         <div className="hero-top">
+          {/* Release Header */}
+          <div className="hero-telemetry-header">
+            <div className="telemetry-beacon">
+              <span className="telemetry-dot" />
+              <span>Kivo v1.3.2</span>
+            </div>
+            <span className="telemetry-sep">·</span>
+            <span className="telemetry-meta">Native Desktop · Offline-First · Open Source</span>
+          </div>
 
           {/* Headline */}
           <h1 className="hero-title">
-            Run your business locally.<br />
-            <span className="grad">Sync everywhere instantly.</span>
+            Retail, at Full Speed.<br />
+            <span className="grad">Offline. Instant. Yours.</span>
           </h1>
 
-          {/* Subtitle */}
+          {/* Subtext */}
           <p className="hero-sub">
-            Next-generation offline-first desktop POS &amp; ERP. Blazing fast without internet, seamlessly synced across multi-branch cloud.
+            A desktop POS built on Rust — no internet required, no subscriptions, no compromises.
           </p>
 
-          {/* CTA Buttons */}
+          {/* Action Group */}
           <div className="hero-cta">
             <a className="btn btn-primary hero-btn-download" href="#download">
               <Download size={18} />
               <div className="btn-label-group">
                 <span className="btn-main-label">Download for Windows</span>
-                <span className="btn-sub-label">v1.3.2 · Windows 10/11 (64-bit)</span>
+                <span className="btn-sub-label">v1.3.2 · 64-bit MSI / Portable</span>
               </div>
             </a>
             <button
               type="button"
               className="btn btn-secondary hero-btn-demo"
               onClick={() => {
-                scrollToTarget('appWin', { offset: 90 });
+                scrollToTarget('appWin', { offset: 80 });
               }}
             >
               <Sparkles size={16} className="text-primary" />
               <div className="btn-label-group">
-                <span className="btn-main-label">Try Interactive Demo</span>
-                <span className="btn-sub-label">Explore Live Features</span>
+                <span className="btn-main-label">Try Live Interactive App</span>
+                <span className="btn-sub-label">Explore Real POS &amp; Ledger</span>
               </div>
               <ArrowRight size={15} />
             </button>
           </div>
         </div>
 
-        {/* The Live Interactive App Window */}
+        {/* Centerpiece: The Live Interactive Desktop Window */}
         <InteractiveAppWindow />
 
-        {/* Key Capability Metrics Strip below the app window */}
+        {/* Architectural Telemetry Metrics Console */}
         <div className="hero-metrics-strip">
           <div className="hm-item">
             <div className="hm-icon-box color-warning">
               <Zap size={16} />
             </div>
             <div className="hm-info">
-              <span className="hm-val">0ms Latency</span>
-              <span className="hm-desc">Local SQLite queries on SSD</span>
+              <span className="hm-val">0.0ms</span>
+              <span className="hm-desc">SSD SQLite Query Latency</span>
             </div>
           </div>
 
@@ -68,8 +77,8 @@ export const Hero: React.FC = () => {
               <ShieldCheck size={16} />
             </div>
             <div className="hm-info">
-              <span className="hm-val">100% Offline</span>
-              <span className="hm-desc">Fully operational without internet</span>
+              <span className="hm-val">100%</span>
+              <span className="hm-desc">Local Offline Resilience</span>
             </div>
           </div>
 
@@ -80,8 +89,8 @@ export const Hero: React.FC = () => {
               <Globe size={16} />
             </div>
             <div className="hm-info">
-              <span className="hm-val">34 Cloud Tables</span>
-              <span className="hm-desc">Automated Supabase sync</span>
+              <span className="hm-val">34 Tables</span>
+              <span className="hm-desc">Supabase Cloud Replication</span>
             </div>
           </div>
 
@@ -89,11 +98,11 @@ export const Hero: React.FC = () => {
 
           <div className="hm-item">
             <div className="hm-icon-box color-primary">
-              <Server size={16} />
+              <Printer size={16} />
             </div>
             <div className="hm-info">
               <span className="hm-val">Raw ESC/POS</span>
-              <span className="hm-desc">Thermal printers &amp; cash drawers</span>
+              <span className="hm-desc">Direct Thermal Hardware</span>
             </div>
           </div>
         </div>
@@ -103,4 +112,3 @@ export const Hero: React.FC = () => {
 };
 
 export default Hero;
-
