@@ -66,9 +66,11 @@ pub fn run() {
                 .unwrap_or(None)
                 .unwrap_or_default();
 
-                if has_completed == "true" && (lan_enabled == "true" || lan_enabled == "1") {
+                if has_completed == "true" {
                     commands::lan::start_lan_http_server(pool_for_lan.clone(), handle_for_lan.clone(), 3699).await;
-                    commands::lan::spawn_lan_discovery_service(pool_for_lan, handle_for_lan).await;
+                    if lan_enabled == "true" || lan_enabled == "1" {
+                        commands::lan::spawn_lan_discovery_service(pool_for_lan, handle_for_lan).await;
+                    }
                 }
             });
 
