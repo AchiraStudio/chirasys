@@ -26,7 +26,7 @@ import MobileNav from './components/layout/MobileNav';
 import MobileMenuDrawer from './components/layout/MobileMenuDrawer';
 import HostQrModal from './components/common/HostQrModal';
 import { logoutUser, setSetting } from './lib/api';
-import { isTauri } from './lib/runtime';
+import { isTauri, getHostUrl } from './lib/runtime';
 
 interface MainContentProps {
   activeMenu: string;
@@ -192,6 +192,28 @@ export default function App() {
 
   useEffect(() => {
     const verifySession = async () => {
+      // 1. If running on a client browser (mobile web/tablet) without an existing token:
+      // Automatically query the host for its active session so it uses the SAME account!
+      if (!isTauri() && !token) {
+        try {
+          const hostUrl = getHostUrl();
+          const res = await fetch(`${hostUrl}/api/lan/active_session`, {
+            signal: AbortSignal.timeout(3500),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.token && data.user) {
+              console.log('⚡ [Auto-Auth] Joined host session automatically:', data.user.name);
+              setAuth(data.token, data.user);
+              setIsVerifying(false);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not auto-fetch host session:', e);
+        }
+      }
+
       if (!token) {
         setIsVerifying(false);
         return;

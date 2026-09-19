@@ -229,6 +229,12 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
 
         try {
             const saleId = await createSale(input);
+            window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { table: 'sales', source: 'local_sale', saleId } }));
+            if (typeof BroadcastChannel !== 'undefined') {
+                const bc = new BroadcastChannel('chirasys_sync_channel');
+                bc.postMessage({ table: 'sales', source: 'local_sale', saleId });
+                bc.close();
+            }
             onSuccess(saleId, print);
         } catch (e) {
             toast.error('Pembayaran gagal: ' + e);

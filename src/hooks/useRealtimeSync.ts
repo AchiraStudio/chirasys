@@ -1,4 +1,4 @@
-﻿import { useEffect } from 'react';
+import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri, getHostUrl } from '../lib/runtime';
 
@@ -75,8 +75,8 @@ export function useRealtimeSync() {
             const prevVersion = currentVersion;
             currentVersion = data.version;
 
-            if (data.changed && prevVersion > 0) {
-              console.log(`ΓÜí [Realtime LAN] Server change received: table='${data.table}', version=${data.version}`);
+            if (data.changed || (prevVersion === 0 && data.version > 0)) {
+              console.log(`⚡ [Realtime LAN] Server change received: table='${data.table}', version=${data.version}`);
               window.dispatchEvent(new CustomEvent('chirasys:sync', {
                 detail: { table: data.table, version: data.version, source: 'lan_poll' }
               }));
@@ -86,7 +86,7 @@ export function useRealtimeSync() {
         } catch (err: any) {
           if (err.name === 'AbortError' || !isRunning) break;
           // Transient network disconnect or phone in background, retry after delay
-          await new Promise(r => setTimeout(r, 2500));
+          await new Promise(r => setTimeout(r, 3000));
         }
       }
     };
@@ -102,7 +102,7 @@ export function useRealtimeSync() {
               const oldV = currentVersion;
               currentVersion = data.version;
               if (oldV > 0) {
-                console.log(`ΓÜí [Realtime LAN] Re-synchronized after wake: version=${data.version}`);
+                console.log(`⚡ [Realtime LAN] Re-synchronized after wake: version=${data.version}`);
                 window.dispatchEvent(new CustomEvent('chirasys:sync', {
                   detail: { table: data.table, version: data.version, source: 'wake_poll' }
                 }));
@@ -117,8 +117,10 @@ export function useRealtimeSync() {
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
     window.addEventListener('focus', handleVisibilityOrFocus);
 
-    // Start poll loop
-    pollServer();
+    // Start poll loop only for web clients (mobile/tablet browsers); native Tauri already gets native events
+    if (!isTauri()) {
+      pollServer();
+    }
 
     return () => {
       isRunning = false;

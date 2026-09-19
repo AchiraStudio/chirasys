@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Loader2, Lock, User, LogIn, Eye, EyeOff, Store, Sun, Moon } from 'lucide-react';
+import { Loader2, Lock, User, LogIn, Eye, EyeOff, Store, Sun, Moon, Radio } from 'lucide-react';
 import { loginUser } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import { supabase } from '../../lib/supabase';
 import KivoLogo from '../../components/common/KivoLogo';
 import { useTheme } from '../../components/ThemeProvider';
+import { isTauri, getHostUrl } from '../../lib/runtime';
 
 interface LoginPageProps {
   onOpenSetupWizard?: () => void;
@@ -41,6 +42,30 @@ export default function LoginPage({ onOpenSetupWizard }: LoginPageProps) {
       setError(err.message || String(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [syncingHost, setSyncingHost] = useState(false);
+
+  const handleConnectHostSession = async () => {
+    setSyncingHost(true);
+    setError('');
+    try {
+      const hostUrl = getHostUrl();
+      const res = await fetch(`${hostUrl}/api/lan/active_session`, {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (!res.ok) throw new Error(`Host error (${res.status})`);
+      const data = await res.json();
+      if (data.success && data.token && data.user) {
+        setAuth(data.token, data.user);
+        return;
+      }
+      throw new Error('Host belum memiliki sesi login aktif. Silakan login di komputer utama.');
+    } catch (err: any) {
+      setError(`Gagal terhubung ke host: ${err.message || err}. Pastikan Server Kivo di PC utama menyala.`);
+    } finally {
+      setSyncingHost(false);
     }
   };
 
@@ -85,6 +110,25 @@ export default function LoginPage({ onOpenSetupWizard }: LoginPageProps) {
             <div className="p-3 rounded-xl bg-danger-soft border border-danger/30 text-danger text-xs font-medium flex items-center gap-2 animate-fade-in">
               <span className="shrink-0">•</span>
               <span>{error}</span>
+            </div>
+          )}
+
+          {!isTauri() && (
+            <div className="space-y-3 pb-1 border-b border-line/60">
+              <button
+                type="button"
+                onClick={handleConnectHostSession}
+                disabled={syncingHost}
+                className="w-full py-2.5 px-3 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+              >
+                {syncingHost ? <Loader2 size={14} className="animate-spin" /> : <Radio size={14} className="animate-pulse" />}
+                <span>Masuk dengan Akun Host Utama (1-Tap)</span>
+              </button>
+              <div className="flex items-center gap-2 my-1">
+                <div className="h-px flex-1 bg-line"></div>
+                <span className="text-[10px] text-dim uppercase tracking-wider font-semibold">atau masuk dengan akun</span>
+                <div className="h-px flex-1 bg-line"></div>
+              </div>
             </div>
           )}
 
