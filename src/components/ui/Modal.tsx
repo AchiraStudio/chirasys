@@ -131,27 +131,27 @@ export default function Modal({
 
       {/* Modal Dialog Card */}
       <div
-        className={`relative z-10 w-full ${SIZE_CLASSES[size]} bg-elevated text-heading rounded-xl border border-line shadow-2xl shadow-black/40 flex flex-col max-h-[92vh] overflow-hidden animate-pop-in ${className}`}
+        className={`relative z-10 w-[calc(100vw-1.5rem)] sm:w-full ${SIZE_CLASSES[size]} bg-elevated text-heading rounded-xl border border-line shadow-2xl shadow-black/40 flex flex-col max-h-[90dvh] overflow-hidden animate-pop-in ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {hasHeader && (
           <div
-            className={`px-6 py-4 border-b border-line flex items-center justify-between gap-4 shrink-0 ${headerClassName}`}
+            className={`px-4 sm:px-6 py-3 sm:py-4 border-b border-line flex items-center justify-between gap-3 sm:gap-4 shrink-0 ${headerClassName}`}
           >
-            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
               {renderIcon()}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {title && (
-                    <h2 id={titleId} className="text-base font-bold text-heading truncate">
+                    <h2 id={titleId} className="text-sm sm:text-base font-bold text-heading truncate">
                       {title}
                     </h2>
                   )}
                   {badge}
                 </div>
                 {subtitle && (
-                  <p className="text-xs text-dim mt-0.5 truncate">{subtitle}</p>
+                  <p className="text-[11px] sm:text-xs text-dim mt-0.5 truncate">{subtitle}</p>
                 )}
               </div>
             </div>
@@ -163,9 +163,9 @@ export default function Modal({
                   type="button"
                   onClick={onClose}
                   aria-label="Tutup"
-                  className="w-8 h-8 flex items-center justify-center text-dim hover:text-heading hover:bg-muted rounded-lg transition-colors"
+                  className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-dim hover:text-heading hover:bg-muted rounded-lg transition-colors cursor-pointer"
                 >
-                  <X size={18} />
+                  <X size={17} />
                 </button>
               )}
             </div>
@@ -176,7 +176,7 @@ export default function Modal({
         <div
           className={`flex-1 ${
             scrollable ? 'overflow-y-auto custom-scrollbar' : 'overflow-visible'
-          } ${noPadding ? '' : 'p-6'} ${bodyClassName}`}
+          } ${noPadding ? '' : 'p-3.5 sm:p-5 md:p-6'} ${bodyClassName}`}
         >
           {children}
         </div>
@@ -184,7 +184,7 @@ export default function Modal({
         {/* Footer */}
         {footer && (
           <div
-            className={`px-6 py-4 border-t border-line flex items-center justify-end gap-3 shrink-0 ${footerClassName}`}
+            className={`px-4 sm:px-6 py-3 sm:py-4 border-t border-line flex items-center justify-end gap-2.5 sm:gap-3 shrink-0 ${footerClassName}`}
           >
             {footer}
           </div>
@@ -206,7 +206,7 @@ Modal.Header = function ModalHeader({
 }) {
   return (
     <div
-      className={`px-6 py-4 border-b border-line flex items-center justify-between gap-4 shrink-0 ${className}`}
+      className={`px-4 sm:px-6 py-3 sm:py-4 border-b border-line flex items-center justify-between gap-3 sm:gap-4 shrink-0 ${className}`}
     >
       {children}
     </div>
@@ -228,7 +228,7 @@ Modal.Body = function ModalBody({
     <div
       className={`flex-1 ${
         scrollable ? 'overflow-y-auto custom-scrollbar' : 'overflow-visible'
-      } ${noPadding ? '' : 'p-6'} ${className}`}
+      } ${noPadding ? '' : 'p-3.5 sm:p-5 md:p-6'} ${className}`}
     >
       {children}
     </div>
@@ -244,7 +244,7 @@ Modal.Footer = function ModalFooter({
 }) {
   return (
     <div
-      className={`px-6 py-4 border-t border-line flex items-center justify-end gap-3 shrink-0 ${className}`}
+      className={`px-4 sm:px-6 py-3 sm:py-4 border-t border-line flex items-center justify-end gap-2.5 sm:gap-3 shrink-0 ${className}`}
     >
       {children}
     </div>

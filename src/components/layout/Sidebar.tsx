@@ -145,9 +145,9 @@ export default function Sidebar({ activeMenu, setActiveMenu, isCollapsed = false
   return (
     <>
       <aside
-        className={`${
+        className={`hidden md:flex ${
           isCollapsed ? 'w-16' : 'w-64'
-        } bg-sidebar flex flex-col h-full shrink-0 border-r border-sidebar-line z-20 transition-all duration-300 select-none`}
+        } bg-sidebar flex-col h-full shrink-0 border-r border-sidebar-line z-20 transition-all duration-300 select-none`}
       >
         <SidebarBrand
           isCollapsed={isCollapsed}

@@ -209,11 +209,11 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
 
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-slate-50 dark:bg-[#0B0F19] z-10">
-              <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800 select-none">
+            <thead className="sticky top-0 bg-muted/90 backdrop-blur z-10">
+              <tr className="text-dim text-xs uppercase tracking-wider font-semibold border-b border-line select-none">
                 <th 
                   onClick={() => handleSort('name')}
-                  className="py-4 px-6 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                  className="py-2.5 px-3 sm:py-3 sm:px-4 cursor-pointer hover:bg-muted transition-colors group"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Nama Item</span>
@@ -222,7 +222,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                 </th>
                 <th 
                   onClick={() => handleSort('sku')}
-                  className="py-4 px-6 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                  className="py-2.5 px-3 sm:py-3 sm:px-4 cursor-pointer hover:bg-muted transition-colors group"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>SKU</span>
@@ -231,64 +231,64 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                 </th>
                 <th 
                   onClick={() => handleSort('category')}
-                  className="py-4 px-6 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                  className="py-2.5 px-3 sm:py-3 sm:px-4 cursor-pointer hover:bg-muted transition-colors group"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Kategori</span>
                     {renderSortIcon('category')}
                   </div>
                 </th>
-                <th className="py-4 px-6 text-right w-36">Harga Pokok</th>
+                <th className="py-2.5 px-3 sm:py-3 sm:px-4 text-right w-32 sm:w-36">Harga Pokok</th>
                 <th 
                   onClick={() => handleSort('price')}
-                  className="py-4 px-6 text-right w-44 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                  className="py-2.5 px-3 sm:py-3 sm:px-4 text-right w-36 sm:w-44 cursor-pointer hover:bg-muted transition-colors group"
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>Harga Eceran (Retail)</span>
+                    <span>Harga Eceran</span>
                     {renderSortIcon('price')}
                   </div>
                 </th>
-                <th className="py-4 px-6 text-left min-w-[220px]">Tier Harga Volume (Jml 1..N)</th>
-                <th className="py-4 px-6 text-center w-28">Status</th>
-                <th className="py-4 px-6 text-right w-36">Aksi</th>
+                <th className="py-2.5 px-3 sm:py-3 sm:px-4 text-left min-w-[180px] sm:min-w-[220px]">Tier Volume</th>
+                <th className="py-2.5 px-3 sm:py-3 sm:px-4 text-center w-24">Status</th>
+                <th className="py-2.5 px-3 sm:py-3 sm:px-4 text-right w-28 sm:w-36">Aksi</th>
               </tr>
             </thead>
-            <tbody className="text-sm divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody className="text-sm divide-y divide-line">
               {loading ? (
-                <tr><td colSpan={8} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-brand" /></td></tr>
+                <tr><td colSpan={8} className="py-16 text-center"><Loader2 className="animate-spin mx-auto text-primary" /></td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={8} className="py-20 text-center text-slate-400 font-medium">Tidak ada item ditemukan.</td></tr>
+                <tr><td colSpan={8} className="py-16 text-center text-dim font-medium">Tidak ada item ditemukan.</td></tr>
               ) : items.map((item) => (
-                <tr key={item.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group fast-render-row ${item.is_active === 0 ? 'opacity-50' : ''}`}>
-                  <td className="py-4 px-6">
+                <tr key={item.id} className={`hover:bg-muted/40 transition-colors group fast-render-row ${item.is_active === 0 ? 'opacity-50' : ''}`}>
+                  <td className="py-2.5 px-3 sm:py-3 sm:px-4">
                     <div className="flex items-center gap-2">
-                      <p className="font-bold text-slate-900 dark:text-white">{item.name}</p>
+                      <p className="font-bold text-heading">{item.name}</p>
                       {item.rack_location && (
-                        <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold">
+                        <span className="px-1.5 py-0.5 rounded bg-muted text-dim text-[10px] font-bold">
                           Rak: {item.rack_location}
                         </span>
                       )}
                     </div>
-                    {item.generic_name && <p className="text-xs text-slate-500 mt-0.5">{item.generic_name}</p>}
+                    {item.generic_name && <p className="text-xs text-dim mt-0.5">{item.generic_name}</p>}
                   </td>
-                  <td className="py-4 px-6 font-mono text-xs text-slate-600">{item.sku}</td>
+                  <td className="py-2.5 px-3 sm:py-3 sm:px-4 font-mono text-xs text-dim">{item.sku}</td>
 
                   {/* Kategori Column */}
-                  <td className="py-4 px-6">
+                  <td className="py-2.5 px-3 sm:py-3 sm:px-4">
                     {item.category_name ? (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-primary-soft text-primary border border-primary/20">
                         {item.category_name}
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-400 font-medium italic">-</span>
+                      <span className="text-xs text-dim font-medium italic">-</span>
                     )}
                   </td>
                   
                   {/* Harga Pokok (Cost / Buy Price) - Inline Editable */}
-                  <td className="py-3 px-6 text-right">
+                  <td className="py-2 px-3 sm:py-2.5 sm:px-4 text-right">
                     {can('items.change_price') ? (
-                      <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-brand/30" title="Harga Beli / Pokok Modal (HPP)">
-                        <span className="text-xs text-slate-400 font-bold mr-1">Rp</span>
+                      <div className="relative flex items-center bg-card border border-line rounded-lg px-2 py-1 focus-within:ring-2 focus-within:ring-primary/30" title="Harga Beli / Pokok Modal (HPP)">
+                        <span className="text-xs text-dim font-bold mr-1">Rp</span>
                         <input
                           type="number"
                           defaultValue={item.cost_price || 0}
@@ -307,21 +307,21 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                               (e.target as HTMLInputElement).blur();
                             }
                           }}
-                          className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-800 dark:text-slate-200 focus:ring-0 p-0 text-right font-mono"
+                          className="w-full bg-transparent border-none outline-none text-xs font-bold text-heading focus:ring-0 p-0 text-right font-mono"
                         />
                       </div>
                     ) : (
-                      <span className="font-mono text-xs font-semibold text-slate-600 dark:text-slate-400">
+                      <span className="font-mono text-xs font-semibold text-dim">
                         Rp {(item.cost_price || 0).toLocaleString('id-ID')}
                       </span>
                     )}
                   </td>
 
                   {/* Inline Retail Price Input */}
-                  <td className="py-3 px-6 text-right">
+                  <td className="py-2 px-3 sm:py-2.5 sm:px-4 text-right">
                     {can('items.change_price') ? (
-                      <div className="relative flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-brand/30">
-                        <span className="text-xs text-slate-400 font-bold mr-1">Rp</span>
+                      <div className="relative flex items-center bg-card border border-line rounded-lg px-2 py-1 focus-within:ring-2 focus-within:ring-primary/30">
+                        <span className="text-xs text-dim font-bold mr-1">Rp</span>
                         <input
                           type="number"
                           defaultValue={item.price || 0}
@@ -339,63 +339,63 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                               (e.target as HTMLInputElement).blur();
                             }
                           }}
-                          className="w-full bg-transparent border-none outline-none text-xs font-bold text-slate-900 dark:text-white focus:ring-0 p-0 text-right font-mono"
+                          className="w-full bg-transparent border-none outline-none text-xs font-bold text-heading focus:ring-0 p-0 text-right font-mono"
                         />
                       </div>
                     ) : (
-                      <span className="font-bold text-xs font-mono text-slate-900 dark:text-white">
+                      <span className="font-bold text-xs font-mono text-heading">
                         Rp {(item.price || 0).toLocaleString('id-ID')}
                       </span>
                     )}
                   </td>
 
                   {/* Tier Harga Volume (Badges + Quick Edit) */}
-                  <td className="py-3 px-6">
-                    <div className="flex flex-wrap items-center gap-1.5">
+                  <td className="py-2 px-3 sm:py-2.5 sm:px-4">
+                    <div className="flex flex-wrap items-center gap-1">
                       {item.price_tiers && item.price_tiers.length > 0 ? (
                         item.price_tiers.map((t) => (
                           <span
                             key={t.id || t.tier_level}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-extrabold bg-blue-50 dark:bg-blue-950/60 text-brand dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 shadow-2xs"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-primary-soft text-primary border border-primary/20 shadow-2xs"
                             title={`Tier ${t.tier_level}: Maks ${t.max_qty} Pcs @ Rp ${t.price.toLocaleString('id-ID')}`}
                           >
-                            <span className="text-[10px] opacity-75 font-mono">≤{t.max_qty}</span>
+                            <span className="text-[9px] opacity-75 font-mono">≤{t.max_qty}</span>
                             <span>Rp {t.price.toLocaleString('id-ID')}</span>
                           </span>
                         ))
                       ) : (
-                        <span className="text-xs text-slate-400 font-medium italic">Tanpa Tier</span>
+                        <span className="text-xs text-dim font-medium italic">Tanpa Tier</span>
                       )}
                       {can('items.change_price') && (
                         <button
                           onClick={() => onEditItem(item.id)}
-                          className="p-1 text-slate-400 hover:text-brand hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+                          className="p-1 text-dim hover:text-primary hover:bg-muted rounded transition-colors cursor-pointer"
                           title="Atur Tier Harga"
                         >
-                          <Edit size={13} />
+                          <Edit size={12} />
                         </button>
                       )}
                     </div>
                   </td>
 
-                  <td className="py-4 px-6 text-center">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-bold uppercase ${item.is_active ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-slate-100 text-slate-600 ring-slate-400/20'} ring-1 ring-inset`}>
+                  <td className="py-2.5 px-3 sm:py-3 sm:px-4 text-center">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.is_active ? 'bg-success/15 text-success ring-success/30' : 'bg-muted text-dim ring-line'} ring-1 ring-inset`}>
                       {item.is_active ? 'Aktif' : 'Nonaktif'}
                     </span>
                   </td>
-                  <td className="py-4 px-6 text-right relative">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => onViewItem(item.id)} className="p-2 text-slate-500 hover:text-brand bg-slate-100 dark:bg-slate-800 rounded-lg" title="Lihat Detail">
-                        <Eye size={16} />
+                  <td className="py-2.5 px-3 sm:py-3 sm:px-4 text-right relative">
+                    <div className="flex justify-end gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => onViewItem(item.id)} className="p-1.5 text-dim hover:text-primary bg-muted rounded-lg cursor-pointer" title="Lihat Detail">
+                        <Eye size={15} />
                       </button>
                       {can('items.edit') && (
-                        <button onClick={() => onEditItem(item.id)} className="p-2 text-slate-500 hover:text-amber-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Edit Item">
-                          <Edit size={16} />
+                        <button onClick={() => onEditItem(item.id)} className="p-1.5 text-dim hover:text-warning bg-muted rounded-lg cursor-pointer" title="Edit Item">
+                          <Edit size={15} />
                         </button>
                       )}
                       {can('items.delete') && (
-                        <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-500 hover:text-rose-500 bg-slate-100 dark:bg-slate-800 rounded-lg" title="Nonaktifkan / Hapus">
-                          <Trash2 size={16} />
+                        <button onClick={() => handleDelete(item.id)} className="p-1.5 text-dim hover:text-danger bg-muted rounded-lg cursor-pointer" title="Nonaktifkan / Hapus">
+                          <Trash2 size={15} />
                         </button>
                       )}
                     </div>
@@ -405,22 +405,22 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
             </tbody>
           </table>
         </div>
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
-          <p className="text-sm text-slate-500">
+        <div className="p-3 sm:p-4 border-t border-line flex flex-col sm:flex-row justify-between items-center gap-2.5 bg-muted/40">
+          <p className="text-xs text-dim">
             Menampilkan {items.length} dari {total} data (Halaman {page} dari {Math.ceil(total / 20) || 1})
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700"
+              className="px-3 py-1.5 bg-card border border-line rounded-lg text-xs font-semibold text-heading disabled:opacity-50 hover:bg-muted transition-colors cursor-pointer"
             >
               Sebelumnya
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={page >= Math.ceil(total / 20) || items.length === 0}
-              className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700"
+              className="px-3 py-1.5 bg-card border border-line rounded-lg text-xs font-semibold text-heading disabled:opacity-50 hover:bg-muted transition-colors cursor-pointer"
             >
               Selanjutnya
             </button>

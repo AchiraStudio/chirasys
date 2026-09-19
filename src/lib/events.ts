@@ -21,3 +21,4 @@ export async function safeListen<T>(
 
 export { safeListen as listen };
 export type { EventCallback, EventName, UnlistenFn };
+

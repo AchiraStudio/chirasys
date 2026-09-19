@@ -55,17 +55,17 @@ export default function CustomerList() {
         {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" size={32} /></div> : (
           <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
             <thead className="sticky top-0 bg-background border-b border-line text-xs uppercase text-body font-semibold z-10">
-              <tr><th className="py-4 px-6">Name</th><th className="py-4 px-6">Phone</th><th className="py-4 px-6">Tier & Expiry</th><th className="py-4 px-6 text-right">Actions</th></tr>
+              <tr><th className="py-2.5 px-3 sm:py-3.5 sm:px-5">Name</th><th className="py-2.5 px-3 sm:py-3.5 sm:px-5">Phone</th><th className="py-2.5 px-3 sm:py-3.5 sm:px-5">Tier & Expiry</th><th className="py-2.5 px-3 sm:py-3.5 sm:px-5 text-right">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-line dark:divide-line/60 text-sm">
               {customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search)).map(c => (
                 <tr key={c.id} className="hover:bg-muted/40 group fast-render-row">
-                  <td className="py-4 px-6 font-bold flex items-center gap-3">
-                    <UserCircle size={16} className="text-dim" />
-                    {c.name} {c.id === 'customer_umum' && <span className="text-[10px] bg-primary-soft text-primary px-2 py-0.5 rounded ml-2">DEFAULT</span>}
+                  <td className="py-2.5 px-3 sm:py-3 sm:px-5 font-bold flex items-center gap-2.5">
+                    <UserCircle size={16} className="text-dim shrink-0" />
+                    <span className="truncate">{c.name}</span> {c.id === 'customer_umum' && <span className="text-[10px] bg-primary-soft text-primary px-1.5 py-0.5 rounded shrink-0">DEFAULT</span>}
                   </td>
-                  <td className="py-4 px-6 font-mono text-body">{c.phone || '-'}</td>
-                  <td className="p-4">
+                  <td className="py-2.5 px-3 sm:py-3 sm:px-5 font-mono text-xs text-body">{c.phone || '-'}</td>
+                  <td className="py-2.5 px-3 sm:py-3 sm:px-5">
                     <div className="flex flex-col items-start gap-1">
                       <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${getTierColor(c.customer_tier)}`}>
                         {c.customer_tier}
@@ -77,9 +77,11 @@ export default function CustomerList() {
                       )}
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-right flex justify-end gap-2">
-                    <button onClick={() => setProfileCustomer(c)} className="p-2 text-primary bg-primary-soft hover:bg-primary-soft rounded-md opacity-0 group-hover:opacity-100 transition-opacity"><Eye size={14} /></button>
-                    <button onClick={() => openEdit(c)} className="p-2 text-dim hover:text-primary bg-muted rounded-md opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={14} /></button>
+                  <td className="py-2.5 px-3 sm:py-3 sm:px-5 text-right">
+                    <div className="flex justify-end gap-1.5">
+                      <button onClick={() => setProfileCustomer(c)} title="Lihat Profil" className="p-1.5 text-primary bg-primary-soft hover:bg-primary/20 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer"><Eye size={14} /></button>
+                      <button onClick={() => openEdit(c)} title="Edit Pelanggan" className="p-1.5 text-dim hover:text-primary bg-muted hover:bg-line rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer"><Edit2 size={14} /></button>
+                    </div>
                   </td>
                 </tr>
               ))}

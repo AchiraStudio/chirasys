@@ -245,75 +245,75 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
       </div>
 
       {/* ─── 2. CORE FINANCIAL KPI CARDS ─────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         
         {/* Total Revenue */}
-        <div className="relative overflow-hidden bg-card p-5 rounded-xl border border-success/20 dark:border-success/20 shadow-sm flex flex-col justify-between group hover:border-success/40 transition-all">
-          <div className="flex justify-between items-start mb-3">
-            <span className="text-xs font-bold text-dim uppercase tracking-wider">Total Pendapatan</span>
-            <div className="p-2.5 rounded-xl bg-success/10 text-success dark:text-success">
-              <TrendingUp size={20} />
+        <div className="relative overflow-hidden bg-card p-3.5 sm:p-4.5 lg:p-5 rounded-xl border border-success/20 dark:border-success/20 shadow-sm flex flex-col justify-between group hover:border-success/40 transition-all">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <span className="text-[11px] sm:text-xs font-bold text-dim uppercase tracking-wider">Total Pendapatan</span>
+            <div className="p-2 sm:p-2.5 rounded-xl bg-success/10 text-success dark:text-success">
+              <TrendingUp size={18} />
             </div>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-heading tracking-tight">
+            <h3 className="text-xl sm:text-2xl font-black text-heading tracking-tight font-mono">
               Rp {totalRevenue.toLocaleString('id-ID')}
             </h3>
-            <p className="text-[11px] text-success dark:text-success font-semibold mt-1 flex items-center gap-1">
+            <p className="text-[10px] sm:text-[11px] text-success dark:text-success font-semibold mt-1 flex items-center gap-1">
               <CheckCircle2 size={12} /> Penjualan lunas tercatat
             </p>
           </div>
         </div>
 
         {/* Transaction Count & Basket */}
-        <div className="relative overflow-hidden bg-card p-5 rounded-xl border border-accent/20 dark:border-accent/20 shadow-sm flex flex-col justify-between group hover:border-accent/40 transition-all">
-          <div className="flex justify-between items-start mb-3">
-            <span className="text-xs font-bold text-dim uppercase tracking-wider">Transaksi Kasir</span>
-            <div className="p-2.5 rounded-xl bg-accent/10 text-accent dark:text-accent">
-              <ShoppingCart size={20} />
+        <div className="relative overflow-hidden bg-card p-3.5 sm:p-4.5 lg:p-5 rounded-xl border border-accent/20 dark:border-accent/20 shadow-sm flex flex-col justify-between group hover:border-accent/40 transition-all">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <span className="text-[11px] sm:text-xs font-bold text-dim uppercase tracking-wider">Transaksi Kasir</span>
+            <div className="p-2 sm:p-2.5 rounded-xl bg-accent/10 text-accent dark:text-accent">
+              <ShoppingCart size={18} />
             </div>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-heading tracking-tight">
-              {transactionCount} <span className="text-sm font-semibold text-dim">Struk</span>
+            <h3 className="text-xl sm:text-2xl font-black text-heading tracking-tight font-mono">
+              {transactionCount} <span className="text-xs sm:text-sm font-semibold text-dim font-sans">Struk</span>
             </h3>
-            <p className="text-[11px] text-accent dark:text-accent font-semibold mt-1">
+            <p className="text-[10px] sm:text-[11px] text-accent dark:text-accent font-semibold mt-1">
               Rata-rata: Rp {avgBasket.toLocaleString('id-ID')} / trx
             </p>
           </div>
         </div>
 
         {/* Gross Profit & Margin */}
-        <div className="relative overflow-hidden bg-card p-5 rounded-xl border border-primary/20 dark:border-primary/20 shadow-sm flex flex-col justify-between group hover:border-primary/40 transition-all">
-          <div className="flex justify-between items-start mb-3">
-            <span className="text-xs font-bold text-dim uppercase tracking-wider">Estimasi Laba Kotor</span>
-            <div className="p-2.5 rounded-xl bg-primary-soft text-primary ">
-              <Sparkles size={20} />
+        <div className="relative overflow-hidden bg-card p-3.5 sm:p-4.5 lg:p-5 rounded-xl border border-primary/20 dark:border-primary/20 shadow-sm flex flex-col justify-between group hover:border-primary/40 transition-all">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <span className="text-[11px] sm:text-xs font-bold text-dim uppercase tracking-wider">Estimasi Laba Kotor</span>
+            <div className="p-2 sm:p-2.5 rounded-xl bg-primary-soft text-primary">
+              <Sparkles size={18} />
             </div>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-heading tracking-tight">
+            <h3 className="text-xl sm:text-2xl font-black text-heading tracking-tight font-mono">
               Rp {grossProfit.toLocaleString('id-ID')}
             </h3>
-            <p className="text-[11px] text-primary  font-semibold mt-1">
+            <p className="text-[10px] sm:text-[11px] text-primary font-semibold mt-1">
               Margin Laba: <strong className="font-bold">{profitMargin}%</strong>
             </p>
           </div>
         </div>
 
         {/* Stock Valuation */}
-        <div className="relative overflow-hidden bg-card p-5 rounded-xl border border-warning/20 dark:border-warning/20 shadow-sm flex flex-col justify-between group hover:border-warning/40 transition-all">
-          <div className="flex justify-between items-start mb-3">
-            <span className="text-xs font-bold text-dim uppercase tracking-wider">Valuasi Persediaan</span>
-            <div className="p-2.5 rounded-xl bg-warning/10 text-warning dark:text-warning">
-              <PackageCheck size={20} />
+        <div className="relative overflow-hidden bg-card p-3.5 sm:p-4.5 lg:p-5 rounded-xl border border-warning/20 dark:border-warning/20 shadow-sm flex flex-col justify-between group hover:border-warning/40 transition-all">
+          <div className="flex justify-between items-start mb-2 sm:mb-3">
+            <span className="text-[11px] sm:text-xs font-bold text-dim uppercase tracking-wider">Valuasi Persediaan</span>
+            <div className="p-2 sm:p-2.5 rounded-xl bg-warning/10 text-warning dark:text-warning">
+              <PackageCheck size={18} />
             </div>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-heading tracking-tight">
+            <h3 className="text-xl sm:text-2xl font-black text-heading tracking-tight font-mono">
               Rp {totalStockValuation.toLocaleString('id-ID')}
             </h3>
-            <p className="text-[11px] text-warning dark:text-warning font-semibold mt-1">
+            <p className="text-[10px] sm:text-[11px] text-warning dark:text-warning font-semibold mt-1">
               Total modal persediaan aktif
             </p>
           </div>
@@ -434,46 +434,80 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
                 <span>Belum ada transaksi tercatat. Tekan Kasir POS untuk membuat transaksi baru.</span>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-muted/70 dark:bg-card/50 border-b border-line text-dim font-bold uppercase tracking-wider">
-                    <tr>
-                      <th className="py-3 px-5">Waktu</th>
-                      <th className="py-3 px-5">No Transaksi</th>
-                      <th className="py-3 px-5">Pelanggan</th>
-                      <th className="py-3 px-5 text-right">Total</th>
-                      <th className="py-3 px-5 text-center">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line dark:divide-line">
-                    {sales.map(s => (
-                      <tr key={s.id} className="hover:bg-muted/50 dark:hover:bg-card/30 transition-colors">
-                        <td className="py-3.5 px-5 font-mono text-dim">
-                          {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                        <td className="py-3.5 px-5 font-mono font-bold text-heading">
-                          {s.transaction_no}
-                        </td>
-                        <td className="py-3.5 px-5 text-heading">
+              <>
+                {/* Mobile Card List (< sm) */}
+                <div className="sm:hidden divide-y divide-line">
+                  {sales.map(s => (
+                    <div
+                      key={s.id}
+                      onClick={() => setSelectedSaleId(s.id)}
+                      className="p-3.5 flex items-center justify-between gap-3 hover:bg-muted/40 active:bg-muted/60 transition-colors cursor-pointer"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs text-heading truncate">
+                            {s.transaction_no}
+                          </span>
+                          <span className="text-[10px] font-mono text-dim shrink-0">
+                            {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-xs text-dim mt-0.5 truncate">
                           {(s as any).customer_name || (s.customer_id ? 'Pelanggan Terdaftar' : 'Pelanggan Umum')}
-                        </td>
-                        <td className="py-3.5 px-5 text-right font-extrabold text-success dark:text-success">
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs font-black text-success font-mono">
                           Rp {s.grand_total.toLocaleString('id-ID')}
-                        </td>
-                        <td className="py-3.5 px-5 text-center">
-                          <button
-                            onClick={() => setSelectedSaleId(s.id)}
-                            className="p-1.5 text-dim hover:text-primary hover:bg-primary-soft rounded-lg transition-all"
-                            title="Lihat Detail Struk"
-                          >
-                            <Eye size={15} />
-                          </button>
-                        </td>
+                        </span>
+                        <ChevronRight size={14} className="text-dim" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Tablet & Desktop Table (>= sm) */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-muted/70 dark:bg-card/50 border-b border-line text-dim font-bold uppercase tracking-wider">
+                      <tr>
+                        <th className="py-2.5 px-4 sm:py-3 sm:px-5">Waktu</th>
+                        <th className="py-2.5 px-4 sm:py-3 sm:px-5">No Transaksi</th>
+                        <th className="py-2.5 px-4 sm:py-3 sm:px-5">Pelanggan</th>
+                        <th className="py-2.5 px-4 sm:py-3 sm:px-5 text-right">Total</th>
+                        <th className="py-2.5 px-4 sm:py-3 sm:px-5 text-center">Aksi</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-line dark:divide-line">
+                      {sales.map(s => (
+                        <tr key={s.id} className="hover:bg-muted/50 dark:hover:bg-card/30 transition-colors">
+                          <td className="py-2.5 px-4 sm:py-3 sm:px-5 font-mono text-dim">
+                            {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="py-2.5 px-4 sm:py-3 sm:px-5 font-mono font-bold text-heading">
+                            {s.transaction_no}
+                          </td>
+                          <td className="py-2.5 px-4 sm:py-3 sm:px-5 text-heading">
+                            {(s as any).customer_name || (s.customer_id ? 'Pelanggan Terdaftar' : 'Pelanggan Umum')}
+                          </td>
+                          <td className="py-2.5 px-4 sm:py-3 sm:px-5 text-right font-extrabold text-success dark:text-success font-mono">
+                            Rp {s.grand_total.toLocaleString('id-ID')}
+                          </td>
+                          <td className="py-2.5 px-4 sm:py-3 sm:px-5 text-center">
+                            <button
+                              onClick={() => setSelectedSaleId(s.id)}
+                              className="p-1.5 text-dim hover:text-primary hover:bg-primary-soft rounded-lg transition-all cursor-pointer"
+                              title="Lihat Detail Struk"
+                            >
+                              <Eye size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
 

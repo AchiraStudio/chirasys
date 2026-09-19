@@ -759,7 +759,7 @@ export default function POS() {
         </div>
 
         {/* Catalog Items Stream */}
-        <div className="flex-1 overflow-y-auto p-3.5 custom-scrollbar tour-pos-catalog">
+        <div className={`flex-1 overflow-y-auto p-2.5 sm:p-3.5 custom-scrollbar tour-pos-catalog ${cart.length > 0 && mobilePosTab === 'catalog' ? 'pb-24 lg:pb-3.5' : ''}`}>
           {loading ? (
             <div className="h-full flex flex-col justify-center items-center gap-2.5">
               <Loader2 className="animate-spin text-primary" size={32} />
@@ -878,7 +878,7 @@ export default function POS() {
         </div>
 
         {/* Accessible Keyboard Hint Bar */}
-        <div className="py-2.5 px-4 bg-muted/90 dark:bg-input/80 border-t border-line flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-dim font-medium shrink-0">
+        <div className="py-2.5 px-4 bg-muted/90 dark:bg-input/80 border-t border-line hidden lg:flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-dim font-medium shrink-0">
           {[
             ['F1', 'Cari Barang'],
             ['F2', 'Buka Laci'],

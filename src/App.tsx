@@ -378,7 +378,7 @@ export default function App() {
             onOpenHostQr={() => setIsHostQrOpen(true)}
             onOpenMenuDrawer={() => setIsMobileMenuOpen(true)}
           />
-          <div className={`flex-1 min-h-0 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0 pb-16 md:pb-0' : 'p-3 sm:p-4 lg:p-5 pb-24 md:pb-0'}`}>
+          <div className={`flex-1 min-h-0 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0 pb-16 md:pb-0' : 'p-2 sm:p-3 md:p-4 lg:p-5 pb-20 md:pb-0'}`}>
             <MainContent
               activeMenu={activeMenu}
               setActiveMenu={setActiveMenu}

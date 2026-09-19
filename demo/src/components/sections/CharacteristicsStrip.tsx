@@ -1,15 +1,16 @@
 import React from 'react';
-import { WifiOff, GitBranch, KeyRound, Database, Cloud, Wifi, Code2 } from 'lucide-react';
+import { WifiOff, GitBranch, KeyRound, Database, Cloud, Wifi, Code2, QrCode } from 'lucide-react';
 
 export const CharacteristicsStrip: React.FC = () => {
   const items = [
     { icon: WifiOff, title: '100% Offline-First', desc: 'Kasir melayani transaksi tanpa internet', delay: '0ms' },
-    { icon: GitBranch, title: 'Multi-Cabang', desc: 'Satu workspace terhubung untuk semua toko', delay: '50ms' },
-    { icon: KeyRound, title: 'Model BYOK', desc: 'Kunci API & database seutuhnya milik Anda', delay: '100ms' },
-    { icon: Database, title: 'SQLite Lokal', desc: 'Performa SSD lokal super cepat 0ms latensi', delay: '150ms' },
-    { icon: Cloud, title: 'Supabase Cloud', desc: 'Sinkronisasi otomatis di background saat online', delay: '200ms' },
-    { icon: Wifi, title: 'LAN P2P Mesh', desc: 'Komunikasi antar kasir via UDP tanpa router internet', delay: '250ms' },
-    { icon: Code2, title: 'Open Source', desc: 'Berlisensi MIT, transparan dan bebas biaya lock-in', delay: '300ms' },
+    { icon: QrCode, title: 'Web Terminal v1.4', desc: 'Scan QR buka kasir di HP & Tablet via LAN tanpa instalasi', delay: '50ms' },
+    { icon: GitBranch, title: 'Multi-Cabang', desc: 'Satu workspace terhubung untuk semua toko', delay: '100ms' },
+    { icon: KeyRound, title: 'Model BYOK', desc: 'Kunci API & database seutuhnya milik Anda', delay: '150ms' },
+    { icon: Database, title: 'SQLite Lokal', desc: 'Performa SSD lokal super cepat 0ms latensi', delay: '200ms' },
+    { icon: Cloud, title: 'Supabase Cloud', desc: 'Sinkronisasi otomatis di background saat online', delay: '250ms' },
+    { icon: Wifi, title: 'LAN P2P Mesh', desc: 'Komunikasi antar kasir via UDP tanpa router internet', delay: '300ms' },
+    { icon: Code2, title: 'Open Source', desc: 'Berlisensi MIT, transparan dan bebas biaya lock-in', delay: '350ms' },
   ];
 
   return (

@@ -47,23 +47,23 @@ export default function Topbar({ activeMenu, onOpenAIChat, onOpenHostQr, onOpenM
   const title = PAGE_TITLES[activeMenu] ?? activeMenu.replace(/-/g, ' ');
 
   return (
-    <header className="h-13 sm:h-14 bg-card border-b border-line flex items-center px-4 sm:px-6 justify-between sticky top-0 z-10 shrink-0">
+    <header className="h-12 sm:h-13 lg:h-14 bg-card border-b border-line flex items-center px-3 sm:px-4 lg:px-6 justify-between sticky top-0 z-10 shrink-0 select-none">
 
       {/* Dynamic Page Title */}
-      <div className="min-w-0 mr-3">
-        <h2 className="text-sm sm:text-base font-bold text-heading tracking-tight truncate">
+      <div className="min-w-0 mr-2 sm:mr-3">
+        <h2 className="text-xs sm:text-sm lg:text-base font-bold text-heading tracking-tight truncate">
           {title}
         </h2>
       </div>
 
-      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2 lg:gap-2.5 shrink-0">
 
         {/* LAN Mesh Status */}
         <div 
           className="hidden sm:flex items-center" 
           title={`LAN: ${lanPeerCount} perangkat terdeteksi di jaringan lokal`}
         >
-          <span className="flex items-center gap-1.5 text-xs font-medium text-dim bg-muted/70 px-2.5 py-1 rounded-full border border-line">
+          <span className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-dim bg-muted/70 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-line">
             <Radio size={12} className={lanPeerCount > 1 ? "animate-pulse text-success" : "text-dim"} />
             <span>LAN {lanPeerCount}</span>
           </span>
@@ -75,24 +75,24 @@ export default function Topbar({ activeMenu, onOpenAIChat, onOpenHostQr, onOpenM
           title={status === 'connected' ? (lastSyncTime ? `Online • Terakhir: ${lastSyncTime.toLocaleTimeString('id-ID')}` : 'Online') : status === 'connecting' ? 'Menghubungkan ke Cloud...' : 'Mode Lokal (Offline)'}
         >
           {status === 'connected' ? (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-success bg-success-soft px-2.5 py-1 rounded-full border border-success/20">
-              <Cloud size={13} /> Online
+            <span className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-success bg-success-soft px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-success/20">
+              <Cloud size={12} /> Online
             </span>
           ) : status === 'connecting' ? (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-warning bg-warning-soft px-2.5 py-1 rounded-full border border-warning/20">
+            <span className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-warning bg-warning-soft px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-warning/20">
               <RefreshCw size={12} className="animate-spin" /> Sinkron...
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-dim bg-muted/70 px-2.5 py-1 rounded-full border border-line">
-              <CloudOff size={13} /> Lokal
+            <span className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-dim bg-muted/70 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-line">
+              <CloudOff size={12} /> Lokal
             </span>
           )}
         </div>
 
-        <div className="h-5 w-px bg-line mx-0.5 hidden md:block"></div>
+        <div className="h-4 w-px bg-line mx-0.5 hidden lg:block"></div>
 
-        {/* Zoom Controls (Desktop only) */}
-        <div className="hidden md:flex items-center gap-0.5 bg-muted/60 border border-line rounded-lg p-0.5">
+        {/* Zoom Controls (Desktop only > 1024px) */}
+        <div className="hidden lg:flex items-center gap-0.5 bg-muted/60 border border-line rounded-lg p-0.5">
           <button
             onClick={zoomOut}
             className="text-dim hover:text-heading transition-colors p-1 rounded hover:bg-card cursor-pointer"

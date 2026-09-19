@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -17,6 +17,11 @@ import {
   Minus,
   Square,
   X,
+  QrCode,
+  Copy,
+  Check,
+  Smartphone,
+  Tablet,
 } from 'lucide-react';
 import { KivoMark } from '../common/BrandLogo';
 import RealDashboardView from '../views/RealDashboardView';
@@ -48,6 +53,8 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   const BRANCHES = ['Flagship Store (HQ)', 'Downtown Branch (Store 02)', 'West Coast Branch (Store 03)'];
 
@@ -206,6 +213,18 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
                 <span>LAN 1</span>
               </div>
 
+              {/* v1.4.0 Host Web Terminal QR Button */}
+              <button
+                type="button"
+                className="topbar-chip-pill cursor-pointer"
+                onClick={() => setIsQrModalOpen(true)}
+                title="v1.4.0: Buka QR Host Terminal untuk Kasir HP / Tablet"
+                style={{ background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.35)', color: 'var(--primary)' }}
+              >
+                <QrCode size={12} />
+                <span style={{ fontWeight: 700 }}>Host QR v1.4</span>
+              </button>
+
               {/* Cloud Sync Status */}
               <div
                 className="topbar-chip-pill cursor-pointer"
@@ -308,6 +327,134 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
 
       {/* Real AI Chat Copilot Drawer Modal */}
       <RealAiChatModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
+
+      {/* v1.4.0 Interactive Host QR Code Modal */}
+      {isQrModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setIsQrModalOpen(false)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '430px',
+              backgroundColor: 'var(--card)',
+              border: '1px solid var(--line)',
+              borderRadius: '20px',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              color: 'var(--heading)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'between', paddingBottom: '14px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <QrCode size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: 800, margin: 0 }}>Terminal Web Kasir (v1.4.0)</h3>
+                  <p style={{ fontSize: '11px', color: 'var(--dim)', margin: '2px 0 0 0' }}>Buka kasir di smartphone / tablet staf via Wi-Fi lokal</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQrModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--dim)', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* QR Visual Presentation */}
+            <div style={{ margin: '18px 0', padding: '20px', borderRadius: '16px', backgroundColor: 'var(--muted)', border: '1px solid var(--line)', textAlign: 'center' }}>
+              <div style={{ display: 'inline-block', padding: '12px', background: '#ffffff', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                <QrCode size={130} style={{ color: '#0f172a' }} strokeWidth={1.5} />
+              </div>
+              <div style={{ marginTop: '12px', fontFamily: 'monospace', fontWeight: 700, fontSize: '13px', color: 'var(--heading)' }}>
+                http://192.168.1.7:3699
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText('http://192.168.1.7:3699');
+                  setCopiedUrl(true);
+                  setTimeout(() => setCopiedUrl(false), 1500);
+                }}
+                style={{
+                  marginTop: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  color: 'var(--primary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  cursor: 'pointer',
+                }}
+              >
+                {copiedUrl ? <Check size={13} style={{ color: 'var(--success)' }} /> : <Copy size={13} />}
+                <span>{copiedUrl ? 'URL Berhasil Disalin!' : 'Salin Alamat URL'}</span>
+              </button>
+            </div>
+
+            {/* Connected Live LAN Terminals */}
+            <div style={{ marginBottom: '18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: '10.5px', fontWeight: 800, color: 'var(--dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span>Perangkat Kasir Terhubung (2)</span>
+                <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', display: 'inline-block' }} /> Live LAN
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ padding: '8px 12px', borderRadius: '10px', backgroundColor: 'var(--muted)', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Tablet size={14} style={{ color: 'var(--primary)' }} />
+                    <span style={{ fontWeight: 600 }}>iPad POS 02 (Meja Depan)</span>
+                  </div>
+                  <span style={{ fontSize: '9.5px', fontFamily: 'monospace', color: 'var(--success)', fontWeight: 700, background: 'rgba(20, 202, 122, 0.15)', padding: '2px 6px', borderRadius: '4px' }}>
+                    Auto-Login
+                  </span>
+                </div>
+
+                <div style={{ padding: '8px 12px', borderRadius: '10px', backgroundColor: 'var(--muted)', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Smartphone size={14} style={{ color: 'var(--accent)' }} />
+                    <span style={{ fontWeight: 600 }}>iPhone 15 (Pelayan / Waiter)</span>
+                  </div>
+                  <span style={{ fontSize: '9.5px', fontFamily: 'monospace', color: 'var(--success)', fontWeight: 700, background: 'rgba(20, 202, 122, 0.15)', padding: '2px 6px', borderRadius: '4px' }}>
+                    Auto-Login
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Close */}
+            <button
+              type="button"
+              onClick={() => setIsQrModalOpen(false)}
+              className="btn btn-primary"
+              style={{ width: '100%', justifyContent: 'center', height: '42px', fontSize: '13px', borderRadius: '12px' }}
+            >
+              Tutup &amp; Lanjutkan Demo
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

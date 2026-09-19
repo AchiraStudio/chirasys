@@ -251,14 +251,14 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
             subtitle="Pilih metode pembayaran dan masukkan jumlah bayar"
             noPadding={true}
         >
-            <div className="p-8 grid grid-cols-1 md:grid-cols-12 gap-8">
+            <div className="p-3.5 sm:p-5 md:p-6 lg:p-7 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
                 {/* Left Column: Payment Inputs & Methods (7 cols) */}
-                <div className="md:col-span-7 space-y-6">
+                <div className="lg:col-span-7 space-y-4 sm:space-y-5">
                         
                         {/* Payment Methods Grid Selector */}
                         <div>
-                            <label className="text-xs font-bold text-dim uppercase tracking-wider block mb-3">Metode Pembayaran</label>
-                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            <label className="text-[11px] font-bold text-dim uppercase tracking-wider block mb-2.5">Metode Pembayaran</label>
+                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
                                 {PAYMENT_METHODS.map((method) => {
                                     const Icon = method.icon;
                                     const isActive = activeMethod === method.key;
@@ -267,16 +267,16 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                                         <button
                                             key={method.key}
                                             onClick={() => handleSelectMethod(method.key)}
-                                            className={`relative p-3.5 rounded-xl flex flex-col items-center justify-center gap-2 border transition-all text-center group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary ${
+                                            className={`relative p-2.5 sm:p-3 rounded-xl flex flex-col items-center justify-center gap-1.5 border transition-all text-center group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary ${
                                                 isActive 
                                                     ? 'bg-primary-soft border-primary text-primary shadow-sm shadow-primary/10' 
                                                     : 'bg-muted/40 border-line hover:border-line-strong dark:hover:border-line-strong text-body hover:text-heading dark:hover:text-white'
                                             }`}
                                         >
-                                            <div className={`p-2.5 rounded-xl transition-colors ${method.colorClass}`}>
-                                                <Icon size={20} />
+                                            <div className={`p-2 rounded-xl transition-colors ${method.colorClass}`}>
+                                                <Icon size={18} />
                                             </div>
-                                            <span className="text-xs font-bold tracking-tight">{method.label}</span>
+                                            <span className="text-[11px] sm:text-xs font-bold tracking-tight">{method.label}</span>
                                             
                                             {/* Badge indicating this method has an entered amount */}
                                             {hasValue && !isActive && (
@@ -460,10 +460,10 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                     </div>
 
                     {/* Right Column: Billing Summary, Item Details & Actions (5 cols) */}
-                    <div className="md:col-span-5 flex flex-col space-y-5">
+                    <div className="lg:col-span-5 flex flex-col space-y-4 sm:space-y-5">
                         
                         {/* Summary Sticky/Visual Card */}
-                        <div className="bg-card rounded-xl p-6 space-y-5 shadow-sm relative overflow-hidden border border-line">
+                        <div className="bg-card rounded-xl p-4 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 shadow-sm relative overflow-hidden border border-line">
                             
                             
                             
