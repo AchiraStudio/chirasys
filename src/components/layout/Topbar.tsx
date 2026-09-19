@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sun, Moon, Cloud, CloudOff, RefreshCw, ZoomIn, ZoomOut, Sparkles, Radio } from 'lucide-react';
+import { Sun, Moon, Cloud, CloudOff, RefreshCw, ZoomIn, ZoomOut, Sparkles, Radio, QrCode, Menu } from 'lucide-react';
 import { useTheme } from '../ThemeProvider';
 import { useSyncStore } from '../../store/SyncStore';
 import { useZoomStore } from '../../store/ZoomStore';
@@ -10,9 +10,11 @@ interface TopbarProps {
   activeMenu: string;
   setActiveMenu?: (menu: string) => void;
   onOpenAIChat?: () => void;
+  onOpenHostQr?: () => void;
+  onOpenMenuDrawer?: () => void;
 }
 
-export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
+export default function Topbar({ activeMenu, onOpenAIChat, onOpenHostQr, onOpenMenuDrawer }: TopbarProps) {
   const { theme, setTheme } = useTheme();
   const { status, lastSyncTime } = useSyncStore();
   const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
@@ -87,10 +89,10 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
           )}
         </div>
 
-        <div className="h-5 w-px bg-line mx-0.5 hidden sm:block"></div>
+        <div className="h-5 w-px bg-line mx-0.5 hidden md:block"></div>
 
-        {/* Zoom Controls */}
-        <div className="flex items-center gap-0.5 bg-muted/60 border border-line rounded-lg p-0.5">
+        {/* Zoom Controls (Desktop only) */}
+        <div className="hidden md:flex items-center gap-0.5 bg-muted/60 border border-line rounded-lg p-0.5">
           <button
             onClick={zoomOut}
             className="text-dim hover:text-heading transition-colors p-1 rounded hover:bg-card cursor-pointer"
@@ -114,6 +116,17 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
           </button>
         </div>
 
+        {/* Host Server QR Access */}
+        {onOpenHostQr && (
+          <button
+            onClick={onOpenHostQr}
+            className="text-dim hover:text-heading transition-colors p-1.5 rounded-lg hover:bg-muted cursor-pointer"
+            title="Akses Kasir Mobile & QR Code"
+          >
+            <QrCode size={17} />
+          </button>
+        )}
+
         {/* Theme Toggle */}
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -132,6 +145,17 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
           >
             <Sparkles size={14} aria-hidden="true" />
             <span className="hidden sm:inline">Tanya Kivo AI</span>
+          </button>
+        )}
+
+        {/* Mobile Menu Drawer Toggle (< 768px) */}
+        {onOpenMenuDrawer && (
+          <button
+            onClick={onOpenMenuDrawer}
+            className="md:hidden text-dim hover:text-heading transition-colors p-1.5 rounded-lg hover:bg-muted cursor-pointer ml-0.5"
+            title="Buka Menu Navigasi"
+          >
+            <Menu size={18} />
           </button>
         )}
       </div>

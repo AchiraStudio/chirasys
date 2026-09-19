@@ -476,6 +476,7 @@ pub async fn create_sale(
     }
 
     tx.commit().await.map_err(|e| e.to_string())?;
+    crate::commands::lan::notify_mutation("sales");
 
     Ok(sale_id)
 }
@@ -619,6 +620,7 @@ pub async fn create_sale_return(
     }
 
     tx.commit().await.map_err(|e| e.to_string())?;
+    crate::commands::lan::notify_mutation("sales");
     Ok(())
 }
 
@@ -692,6 +694,7 @@ pub async fn delete_sale(
         .map_err(|e| e.to_string())?;
 
     tx.commit().await.map_err(|e| e.to_string())?;
+    crate::commands::lan::notify_mutation("sales");
     Ok(())
 }
 

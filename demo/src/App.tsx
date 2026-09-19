@@ -3,6 +3,7 @@ import Navbar from './components/layout/Navbar';
 import Hero from './components/hero/Hero';
 import FeatureGrid from './components/sections/FeatureGrid';
 import OfflineSimulator from './components/interactive/OfflineSimulator';
+import { HostSyncSection } from './components/sections/HostSyncSection';
 import AiAssistantDemo from './components/interactive/AiAssistantDemo';
 import HardwareSection from './components/sections/HardwareSection';
 import SecuritySection from './components/sections/SecuritySection';
@@ -72,6 +73,9 @@ export const App: React.FC = () => {
 
         {/* Offline-First SQLite Simulator & Reconnect Draining */}
         <OfflineSimulator />
+
+        {/* Multi-Device Host System & Instant Mobile Terminal */}
+        <HostSyncSection />
 
         {/* In-App Conversational AI Assistant & Business Analytics */}
         <AiAssistantDemo />

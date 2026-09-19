@@ -217,6 +217,12 @@ export default function LaporanPenjualan({ onBack, initialSubtype = 'recap' }: P
     fetchReportData();
   }, [activeSubtype, dateFrom, dateTo, selectedCustomerId, selectedUserId, selectedPaymentMethod, selectedCategoryId, selectedPriceType]);
 
+  useEffect(() => {
+    const handleSync = () => fetchReportData();
+    window.addEventListener('chirasys:sync', handleSync);
+    return () => window.removeEventListener('chirasys:sync', handleSync);
+  }, [activeSubtype, dateFrom, dateTo, selectedCustomerId, selectedUserId, selectedPaymentMethod, selectedCategoryId, selectedPriceType]);
+
   // Aggregated KPI Calculations
   const kpi = useMemo(() => {
     if (activeSubtype === 'detailed') {

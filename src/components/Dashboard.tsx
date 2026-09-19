@@ -153,6 +153,15 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
     fetchDashboardData();
   }, [period, branchId]);
 
+  // Real-time sync listener across LAN devices
+  useEffect(() => {
+    const handleSync = () => {
+      fetchDashboardData(true);
+    };
+    window.addEventListener('chirasys:sync', handleSync);
+    return () => window.removeEventListener('chirasys:sync', handleSync);
+  }, [period, branchId]);
+
   // Derived KPI Metrics
   const totalRevenue = summary?.total_revenue || 0;
   const transactionCount = summary?.transaction_count || 0;

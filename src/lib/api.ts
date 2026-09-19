@@ -1,4 +1,5 @@
-import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+﻿import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { isTauri, getHostUrl } from './runtime';
 
 // --- LAN Client-Server (Model B) State & Gateway ---
 let cachedParentUrl: string | null = null;
@@ -15,6 +16,9 @@ export const setLanParentHost = (url: string | null) => {
 
 // fallow-ignore-next-line unused-export
 export const getLanParentHost = (): string | null => {
+  if (!isTauri()) {
+    return getHostUrl();
+  }
   // Only route business queries to LAN Parent if user is actively logged in!
   try {
     const authRaw = localStorage.getItem('chirasys-auth');

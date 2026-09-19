@@ -50,6 +50,15 @@ export default function SalesHistoryModal({ isOpen, onClose }: Props) {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleSync = () => {
+      fetchSales();
+    };
+    window.addEventListener('chirasys:sync', handleSync);
+    return () => window.removeEventListener('chirasys:sync', handleSync);
+  }, [isOpen]);
+
   const handleDelete = async (saleId: string) => {
     setDeleting(true);
     try {

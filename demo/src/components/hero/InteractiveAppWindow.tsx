@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -134,7 +134,7 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
             title="SQLite to Supabase Cloud sync status"
           >
             <span className={`sync-dot ${isSyncing ? 'pulse' : 'online'}`} />
-            <span>{isSyncing ? 'SYNCING…' : 'ONLINE · 42ms'}</span>
+            <span>{isSyncing ? 'SYNCINGΓÇª' : 'ONLINE ┬╖ 42ms'}</span>
           </button>
 
           <div className="titlebar-window-buttons">
@@ -185,8 +185,8 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
           <div className="sidebar-user-footer">
             <div className="user-avatar-circle">A</div>
             <div className="user-meta">
-              <div className="user-name">admin · Owner</div>
-              <div className="user-role">KIVO-MAIN · POS 01</div>
+              <div className="user-name">admin ┬╖ Owner</div>
+              <div className="user-role">KIVO-MAIN ┬╖ POS 01</div>
             </div>
           </div>
         </aside>
@@ -260,6 +260,25 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
               </button>
             </div>
           </header>
+
+          {/* Mobile View Switcher Strip (Only on mobile / small screens) */}
+          <div className="app-mobile-nav-strip">
+            {SIDEBAR_MENUS.map(menu => {
+              const Icon = menu.icon;
+              const isActive = activeMenu === menu.id;
+              return (
+                <button
+                  key={menu.id}
+                  type="button"
+                  className={`app-mobile-nav-btn ${isActive ? 'active' : ''}`}
+                  onClick={() => setActiveMenu(menu.id)}
+                >
+                  <Icon size={13} />
+                  <span>{menu.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
           {/* Real View Content */}
           <main className="app-view-container">

@@ -53,6 +53,12 @@ export default function JournalList() {
     fetchEntries();
   }, []);
 
+  useEffect(() => {
+    const handleSync = () => fetchEntries();
+    window.addEventListener('chirasys:sync', handleSync);
+    return () => window.removeEventListener('chirasys:sync', handleSync);
+  }, []);
+
   const filteredEntries = entries.filter(e => {
     const d = new Date(e.date);
     const start = startDate ? new Date(startDate) : null;

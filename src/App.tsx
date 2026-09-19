@@ -18,10 +18,15 @@ import { getCurrentUser, kickCashDrawer, getSyncStatus, getSettings } from './li
 import { supabase } from './lib/supabase';
 import { invoke } from '@tauri-apps/api/core';
 import { useSyncStore } from './store/SyncStore';
-import { Package, Loader2 } from 'lucide-react';
 import { useZoomStore } from './store/ZoomStore';
+import { Package, Loader2 } from 'lucide-react';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 import SetupWizard from './pages/onboarding/SetupWizard';
+import MobileNav from './components/layout/MobileNav';
+import MobileMenuDrawer from './components/layout/MobileMenuDrawer';
+import HostQrModal from './components/common/HostQrModal';
+import { logoutUser, setSetting } from './lib/api';
+import { isTauri } from './lib/runtime';
 
 interface MainContentProps {
   activeMenu: string;
@@ -110,6 +115,24 @@ export default function App() {
       return next;
     });
   }, []);
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isHostQrOpen, setIsHostQrOpen] = useState(false);
+
+  // Auto-collapse sidebar on tablet screens (< 1024px)
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setIsSidebarCollapsed(true);
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    if (isTauri()) {
+      setSetting('active_host_token', '').catch(() => {});
+    }
+    if (token) await logoutUser(token);
+    clearAuth();
+  };
 
   // Check if first-run setup has been completed
   useEffect(() => {
@@ -327,8 +350,14 @@ export default function App() {
           onToggleCollapse={toggleSidebar}
         />
         <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-background">
-          <Topbar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
-          <div className={`flex-1 min-h-0 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0' : 'p-3 sm:p-4 lg:p-5'}`}>
+          <Topbar 
+            activeMenu={activeMenu} 
+            setActiveMenu={setActiveMenu} 
+            onOpenAIChat={() => setIsAIChatOpen(true)}
+            onOpenHostQr={() => setIsHostQrOpen(true)}
+            onOpenMenuDrawer={() => setIsMobileMenuOpen(true)}
+          />
+          <div className={`flex-1 min-h-0 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0 pb-16 md:pb-0' : 'p-3 sm:p-4 lg:p-5 pb-24 md:pb-0'}`}>
             <MainContent
               activeMenu={activeMenu}
               setActiveMenu={setActiveMenu}
@@ -350,6 +379,29 @@ export default function App() {
             isOpen={isAIChatOpen}
             onClose={() => setIsAIChatOpen(false)}
             branchId={user.branch_id || 'branch_001'}
+          />
+
+          {/* Mobile Bottom Navigation Bar (< 768px) */}
+          <MobileNav
+            activeMenu={activeMenu}
+            setActiveMenu={setActiveMenu}
+            onOpenMenuDrawer={() => setIsMobileMenuOpen(true)}
+          />
+
+          {/* Mobile Slide-Over Menu Drawer */}
+          <MobileMenuDrawer
+            isOpen={isMobileMenuOpen}
+            onClose={() => setIsMobileMenuOpen(false)}
+            activeMenu={activeMenu}
+            setActiveMenu={setActiveMenu}
+            onOpenHostQr={() => setIsHostQrOpen(true)}
+            onLogout={handleLogout}
+          />
+
+          {/* Host Server & Mobile QR Code Modal */}
+          <HostQrModal
+            isOpen={isHostQrOpen}
+            onClose={() => setIsHostQrOpen(false)}
           />
         </main>
       </div>

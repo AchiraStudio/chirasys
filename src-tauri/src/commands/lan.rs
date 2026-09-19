@@ -155,6 +155,38 @@ pub type PeerRegistry = Arc<RwLock<HashMap<String, LanPeer>>>;
 // Global lazy state for LAN services
 lazy_static::lazy_static! {
     pub static ref PEER_REGISTRY: PeerRegistry = Arc::new(RwLock::new(HashMap::new()));
+    pub static ref GLOBAL_APP_HANDLE: Arc<RwLock<Option<AppHandle>>> = Arc::new(RwLock::new(None));
+    pub static ref LAN_MUTATION_WATCH: (tokio::sync::watch::Sender<i64>, tokio::sync::watch::Receiver<i64>) = {
+        let (tx, rx) = tokio::sync::watch::channel(1i64);
+        (tx, rx)
+    };
+    pub static ref LAST_MUTATED_TABLE: Arc<RwLock<String>> = Arc::new(RwLock::new("init".to_string()));
+}
+
+/// Called by any mutating Tauri command to instantly notify all connected devices.
+pub fn notify_mutation(table: &str) {
+    let current_v = *LAN_MUTATION_WATCH.1.borrow();
+    let new_v = current_v.wrapping_add(1);
+
+    if let Ok(mut t) = LAST_MUTATED_TABLE.try_write() {
+        *t = table.to_string();
+    }
+    let _ = LAN_MUTATION_WATCH.0.send(new_v);
+
+    println!("⚡ [Realtime LAN] Mutation: table='{}', version={}", table, new_v);
+
+    // Also emit native Tauri event to the desktop window
+    let table_owned = table.to_string();
+    tauri::async_runtime::spawn(async move {
+        let guard = GLOBAL_APP_HANDLE.read().await;
+        if let Some(handle) = guard.as_ref() {
+            let _ = handle.emit("chirasys:sync", serde_json::json!({
+                "source": "lan_mutation",
+                "table": table_owned,
+                "version": new_v
+            }));
+        }
+    });
 }
 
 fn now_epoch_secs() -> u64 {
@@ -193,7 +225,85 @@ struct ServerContext {
     app_handle: AppHandle,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct LanPollQuery {
+    pub version: Option<i64>,
+    pub timeout: Option<u64>,
+}
+
+/// Long-poll endpoint: waits until server version exceeds client's version, or timeout.
+/// Used by mobile/tablet browsers for real-time updates without WebSockets.
+pub async fn handle_lan_poll(
+    Query(q): Query<LanPollQuery>,
+) -> Json<serde_json::Value> {
+    let client_version = q.version.unwrap_or(0);
+    let timeout_secs = q.timeout.unwrap_or(20).min(30);
+
+    let mut rx = LAN_MUTATION_WATCH.1.clone();
+    let current_version = *rx.borrow();
+
+    // If client is behind current server version, respond immediately
+    if client_version > 0 && current_version > client_version {
+        let last_table = LAST_MUTATED_TABLE.read().await.clone();
+        return Json(serde_json::json!({
+            "changed": true,
+            "version": current_version,
+            "table": last_table,
+            "immediate": true
+        }));
+    }
+
+    // Otherwise wait for next mutation or timeout
+    let sleep = tokio::time::sleep(Duration::from_secs(timeout_secs));
+    tokio::pin!(sleep);
+
+    tokio::select! {
+        res = rx.changed() => {
+            if res.is_ok() {
+                let updated_version = *rx.borrow();
+                let last_table = LAST_MUTATED_TABLE.read().await.clone();
+                Json(serde_json::json!({
+                    "changed": true,
+                    "version": updated_version,
+                    "table": last_table,
+                    "immediate": false
+                }))
+            } else {
+                Json(serde_json::json!({
+                    "changed": false,
+                    "version": current_version,
+                    "error": "channel_closed"
+                }))
+            }
+        }
+        _ = &mut sleep => {
+            Json(serde_json::json!({
+                "changed": false,
+                "version": current_version,
+                "timeout": true
+            }))
+        }
+    }
+}
+
+/// Version endpoint: returns current mutation version instantly (used for wake-up resync).
+pub async fn handle_lan_version() -> Json<serde_json::Value> {
+    let current_version = *LAN_MUTATION_WATCH.1.borrow();
+    let last_table = LAST_MUTATED_TABLE.read().await.clone();
+    Json(serde_json::json!({
+        "version": current_version,
+        "table": last_table,
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    }))
+}
+
 pub async fn start_lan_http_server(pool: SqlitePool, app_handle: AppHandle, port: u16) {
+    // Store AppHandle globally so notify_mutation() can emit to desktop window
+    {
+        let mut g = GLOBAL_APP_HANDLE.write().await;
+        *g = Some(app_handle.clone());
+    }
+
     let ctx = ServerContext {
         pool: pool.clone(),
         app_handle: app_handle.clone(),
@@ -201,11 +311,15 @@ pub async fn start_lan_http_server(pool: SqlitePool, app_handle: AppHandle, port
 
     let router = Router::new()
         .route("/api/lan/info", get(handle_lan_info))
+        .route("/api/lan/active_session", get(handle_active_session))
+        .route("/api/lan/poll", get(handle_lan_poll))
+        .route("/api/lan/version", get(handle_lan_version))
         .route("/api/lan/rpc", post(handle_lan_rpc))
         .route("/api/lan/export_snapshot", get(handle_export_snapshot))
         .route("/api/lan/queue/push", post(handle_queue_push))
         .route("/api/lan/queue/pull", get(handle_queue_pull))
         .route("/api/lan/remote/kick_drawer", post(handle_remote_kick_drawer))
+
         .route("/api/lan/remote/print_receipt", post(handle_remote_print_receipt))
         .route("/api/lan/pair_with_parent", post(handle_pair_with_parent))
         .layer(CorsLayer::permissive())
@@ -259,7 +373,7 @@ async fn handle_lan_info(AxumState(ctx): AxumState<ServerContext>) -> Json<serde
 
     Json(serde_json::json!({
         "app": "chirasys",
-        "version": "1.3.0",
+        "version": "1.4.0",
         "device_id": get_device_unique_id(),
         "device_name": device_name,
         "role": role,
@@ -268,6 +382,86 @@ async fn handle_lan_info(AxumState(ctx): AxumState<ServerContext>) -> Json<serde
         "sales_count": sales_count,
         "timestamp": chrono::Utc::now().to_rfc3339()
     }))
+}
+
+// ---------------------------------------------------------------------------
+// 1.2. ACTIVE SESSION ENDPOINT (Used by mobile clients to auto-login)
+// ---------------------------------------------------------------------------
+
+async fn handle_active_session(AxumState(ctx): AxumState<ServerContext>) -> Json<serde_json::Value> {
+    let state = ctx.app_handle.state::<crate::AppState>();
+
+    // 1. Check global_settings active_host_token
+    let candidate_token: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'active_host_token' AND value != ''"
+    )
+    .fetch_optional(&ctx.pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some(ref t) = candidate_token {
+        if let Ok(user) = crate::commands::auth::get_current_user(t.clone(), state.clone()).await {
+            return Json(serde_json::json!({
+                "success": true,
+                "token": t,
+                "user": user
+            }));
+        }
+    }
+
+    // 2. Check local_sessions for latest valid session
+    let latest_session_token: Option<String> = sqlx::query_scalar(
+        "SELECT token FROM local_sessions WHERE expires_at > datetime('now') ORDER BY created_at DESC LIMIT 1"
+    )
+    .fetch_optional(&ctx.pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some(ref t) = latest_session_token {
+        if let Ok(user) = crate::commands::auth::get_current_user(t.clone(), state.clone()).await {
+            let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('active_host_token', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+                .bind(t)
+                .execute(&ctx.pool)
+                .await;
+
+            return Json(serde_json::json!({
+                "success": true,
+                "token": t,
+                "user": user
+            }));
+        }
+    }
+
+    // 3. Auto-generate a 24-hour session for the top-priority active user
+    let fallback_user_id: Option<String> = sqlx::query_scalar(
+        "SELECT id FROM users WHERE active = 1 ORDER BY CASE role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 WHEN 'manager' THEN 3 ELSE 4 END ASC, id ASC LIMIT 1"
+    )
+    .fetch_optional(&ctx.pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some(uid) = fallback_user_id {
+        let new_token = uuid::Uuid::new_v4().to_string();
+        let expires_at = (chrono::Utc::now() + chrono::Duration::hours(24)).to_rfc3339();
+
+        let _ = sqlx::query("INSERT INTO local_sessions (token, user_id, expires_at) VALUES (?, ?, ?)")
+            .bind(&new_token).bind(&uid).bind(&expires_at)
+            .execute(&ctx.pool).await;
+
+        let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('active_host_token', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+            .bind(&new_token)
+            .execute(&ctx.pool).await;
+
+        if let Ok(user) = crate::commands::auth::get_current_user(new_token.clone(), state).await {
+            return Json(serde_json::json!({
+                "success": true,
+                "token": new_token,
+                "user": user
+            }));
+        }
+    }
+
+    Json(serde_json::json!({ "success": false }))
 }
 
 // ---------------------------------------------------------------------------
@@ -873,6 +1067,24 @@ async fn handle_lan_rpc(
         unknown => Err(format!("Perintah RPC '{}' tidak didukung oleh Server Induk", unknown)),
     };
 
+    // Broadcast to all connected devices if this was a mutating RPC call
+    let is_mutation = !matches!(cmd,
+        "get_items_filtered" | "get_item" | "get_categories" | "get_brands" | "get_banks" | "get_settings" |
+        "get_units_for_item" | "get_prices_for_item" | "get_price_tiers_for_item" |
+        "get_customers" | "get_customer_tiers" | "get_suppliers" | "get_purchases" | "get_purchase_orders" |
+        "get_sales" | "get_sale_detail" | "get_sales_summary" | "get_top_selling_items" | "get_sales_by_payment_method" |
+        "get_low_stock_alerts" | "get_expiring_items" | "get_stock_valuation" | "get_stock_opnames" | "get_stock_opname_detail" |
+        "get_accounts" | "get_journal_entries" | "get_general_ledger" | "get_income_statement" | "get_balance_sheet" |
+        "get_trial_balance" | "get_cash_flow_summary" | "get_promos" | "get_users" | "get_current_user" |
+        "get_permission_definitions" | "get_role_default_permissions" | "get_user_permissions" |
+        "get_sync_status" | "get_lan_status" | "get_lan_peers" | "list_printers" | "send_ai_chat_request" |
+        "login" | "logout" | "receive_cloud_sync"
+    );
+
+    if is_mutation && res.is_ok() {
+        notify_mutation(cmd);
+    }
+
     match res {
         Ok(data) => (StatusCode::OK, Json(LanRpcResponse { success: true, data: Some(data), error: None })),
         Err(err) => (StatusCode::OK, Json(LanRpcResponse { success: false, data: None, error: Some(err) })),
@@ -1152,7 +1364,7 @@ pub async fn spawn_lan_discovery_service(pool: SqlitePool, app_handle: AppHandle
 
             let packet = LanBeaconPacket {
                 app: "chirasys".to_string(),
-                version: "1.3.0".to_string(),
+                version: "1.4.0".to_string(),
                 workspace_id,
                 device_id: device_id.clone(),
                 device_name,
@@ -1713,7 +1925,7 @@ pub async fn test_lan_connection(
                     role: info.get("role").and_then(|v| v.as_str()).unwrap_or("parent").to_string(),
                     workspace_id: info.get("workspace_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                     items_count: info.get("items_count").and_then(|v| v.as_i64()).unwrap_or(0),
-                    version: info.get("version").and_then(|v| v.as_str()).unwrap_or("1.3.0").to_string(),
+                    version: info.get("version").and_then(|v| v.as_str()).unwrap_or("1.4.0").to_string(),
                     server_time: info.get("timestamp").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                     error: None,
                 })
