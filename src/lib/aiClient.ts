@@ -1,7 +1,6 @@
 import { aiTools, executeTool } from './aiTools';
 import { useAuthStore, UserInfo } from '../store/AuthStore';
-import { invoke } from '@tauri-apps/api/core';
-import { getSettings } from './api';
+import { invoke, getSettings } from './api';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';

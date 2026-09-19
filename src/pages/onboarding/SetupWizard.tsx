@@ -20,9 +20,9 @@ import {
   setCloudConfig,
   testCloudConnection,
   getBootstrapSql,
-  openBrowserUrl
+  openBrowserUrl,
+  invoke
 } from '../../lib/api';
-import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
 import { supabase, updateSupabaseCredentials, getSavedSupabaseCredentials } from '../../lib/supabase';

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Loader2, Eye, Trash2, Edit, Upload, Download, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel, getCategories, Category, setItemPrice, setItemCostPrice } from '../../lib/api';
+import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel, getCategories, Category, setItemPrice, setItemCostPrice, invoke } from '../../lib/api';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
 import TourGuide from '../../components/ui/TourGuide';
 import { usePermissions } from '../../lib/permissions';
 

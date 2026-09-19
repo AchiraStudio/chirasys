@@ -88,9 +88,13 @@ const LOCAL_ONLY_COMMANDS = new Set([
 
 // fallow-ignore-next-line unused-export
 export const invoke = async <T>(cmd: string, args?: Record<string, any>): Promise<T> => {
+  if (cmd === 'open_devtools' && !isTauri()) {
+    return undefined as unknown as T;
+  }
+
   const parentUrl = getLanParentHost();
-  // Route to parent host if configured, or if running in an external web browser
-  if (parentUrl && (!LOCAL_ONLY_COMMANDS.has(cmd) || !isTauri())) {
+  // Route to parent host if configured, unless it is a machine-local command
+  if (parentUrl && !LOCAL_ONLY_COMMANDS.has(cmd)) {
     try {
       const response = await fetch(`${parentUrl}/api/lan/rpc`, {
         method: 'POST',

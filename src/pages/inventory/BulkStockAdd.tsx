@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, Layers, Loader2, Search } from 'lucide-react';
-import { getCategories, getItemsFiltered, Category, Item } from '../../lib/api';
-import { invoke } from '@tauri-apps/api/core';
+import { getCategories, getItemsFiltered, Category, Item, invoke } from '../../lib/api';
 import Modal from '../../components/ui/Modal';
 
 import { toast } from '../../components/ui/Toast';

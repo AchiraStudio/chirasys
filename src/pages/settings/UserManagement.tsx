@@ -1,11 +1,10 @@
 // Force HMR reload
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders, Cloud, Search, Building2, X, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import Modal from '../../components/ui/Modal';
-import { sysadminGetWorkspaces, getAvailableWorkspaces, getSyncStatus, WorkspaceListInfo, assignUserWorkspace, UserRowFull } from '../../lib/api';
+import { sysadminGetWorkspaces, getAvailableWorkspaces, getSyncStatus, WorkspaceListInfo, assignUserWorkspace, UserRowFull, invoke } from '../../lib/api';
 import UserPermissionsModal from './UserPermissionsModal';
 import RoleDefaultsModal from './RoleDefaultsModal';
 

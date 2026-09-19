@@ -34,7 +34,7 @@ import {
   LanConnectionTestResult,
   LanSyncResult
 } from '../../lib/api';
-import { listen } from '@tauri-apps/api/event';
+import { listen } from '../../lib/events';
 import Modal from '../../components/ui/Modal';
 
 export default function LanSyncSettings() {

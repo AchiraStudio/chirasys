@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSales, Sale } from '../../lib/api';
+import { getSales, Sale, invoke } from '../../lib/api';
 import { Loader2, Printer, RotateCcw, Trash2, FileText } from 'lucide-react';
 import ReceiptModal from './ReceiptModal';
 import SaleReturnModal from './SaleReturnModal';
@@ -7,7 +7,6 @@ import SaleDetailModal from '../../components/pos/SaleDetailModal';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import Modal from '../../components/ui/Modal';
 import { usePermissions } from '../../lib/permissions';
-import { invoke } from '@tauri-apps/api/core';
 
 
 

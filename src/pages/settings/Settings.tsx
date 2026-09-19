@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Database, CheckCircle2, Loader2, Save, AlertTriangle, Globe, RefreshCw, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown, ChevronUp, Network, Link2, Zap, Flame, Activity, Plus, Eye, EyeOff, ExternalLink, Copy, CheckCheck, Server, Cloud, ShieldCheck } from 'lucide-react';
-import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, joinWorkspace, createWorkspace, getAvailableWorkspaces, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminDeleteWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData, getCloudConfig, setCloudConfig, testCloudConnection, getBootstrapSql, getTruncateSql, openBrowserUrl } from '../../lib/api';
-import { invoke } from '@tauri-apps/api/core';
+import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, joinWorkspace, createWorkspace, getAvailableWorkspaces, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminDeleteWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData, getCloudConfig, setCloudConfig, testCloudConnection, getBootstrapSql, getTruncateSql, openBrowserUrl, invoke } from '../../lib/api';
 import { save } from '@tauri-apps/plugin-dialog';
 import { useAuthStore } from '../../store/AuthStore';
 import { supabase, updateSupabaseCredentials, getSavedSupabaseCredentials } from '../../lib/supabase';

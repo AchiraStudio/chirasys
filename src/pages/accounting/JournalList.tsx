@@ -1,10 +1,9 @@
 // Force HMR reload
 import { useEffect, useState } from 'react';
-import { getJournalEntries, JournalEntry } from '../../lib/api';
+import { getJournalEntries, JournalEntry, invoke } from '../../lib/api';
 import { FileText, Plus, Search, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import JournalVoucher from './JournalVoucher';
 import ManualJournalModal from './ManualJournalModal';
-import { invoke } from '@tauri-apps/api/core';
 import Modal from '../../components/ui/Modal';
 
 import { toast } from '../../components/ui/Toast';

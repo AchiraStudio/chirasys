@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Copy, Navigation, RefreshCw, ClipboardPaste, Code2 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../lib/api';
+import { isTauri } from '../../lib/runtime';
 
 export default function ContextMenu() {
   const [show, setShow] = useState(false);
@@ -81,20 +82,24 @@ export default function ContextMenu() {
         <Navigation size={14} className="text-dim -rotate-90" /> Go Back
       </button>
 
-      <div className="h-px bg-muted my-1"></div>
-      <button
-        onClick={async () => {
-          setShow(false);
-          try {
-            await invoke('open_devtools');
-          } catch (err) {
-            console.error('Failed to open devtools:', err);
-          }
-        }}
-        className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-warning dark:text-warning hover:bg-warning-soft dark:hover:bg-warning/20 transition-colors cursor-pointer"
-      >
-        <Code2 size={14} /> Inspect Element
-      </button>
+      {isTauri() && (
+        <>
+          <div className="h-px bg-muted my-1"></div>
+          <button
+            onClick={async () => {
+              setShow(false);
+              try {
+                await invoke('open_devtools');
+              } catch (err) {
+                console.error('Failed to open devtools:', err);
+              }
+            }}
+            className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-warning dark:text-warning hover:bg-warning-soft dark:hover:bg-warning/20 transition-colors cursor-pointer"
+          >
+            <Code2 size={14} /> Inspect Element
+          </button>
+        </>
+      )}
     </div>
   );
 }

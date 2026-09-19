@@ -2,9 +2,8 @@
 // Redesigned UI — Modern, responsive 2-column layout, quick-cash helpers, and theme consistency.
 import { useState, useEffect, useRef } from 'react';
 import { PosLine } from './POSStore';
-import { createSale, CreateSaleInput } from '../../lib/api';
+import { createSale, CreateSaleInput, invoke } from '../../lib/api';
 import { Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2, CheckCircle2, Ticket, ShoppingBag } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
 import Modal from '../../components/ui/Modal';
 import { useAuthStore } from '../../store/AuthStore';
 

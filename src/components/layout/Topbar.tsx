@@ -4,7 +4,7 @@ import { useTheme } from '../ThemeProvider';
 import { useSyncStore } from '../../store/SyncStore';
 import { useZoomStore } from '../../store/ZoomStore';
 import { getLanPeers, LanPeer } from '../../lib/api';
-import { listen } from '@tauri-apps/api/event';
+import { listen } from '../../lib/events';
 
 interface TopbarProps {
   activeMenu: string;

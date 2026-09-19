@@ -4,7 +4,7 @@ import {
   FileText, LogOut, Truck, RefreshCw, PanelLeftClose, PanelLeftOpen,
   CheckCircle2, AlertTriangle, LucideIcon
 } from 'lucide-react';
-import { listen } from '@tauri-apps/api/event';
+import { listen } from '../../lib/events';
 import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus, LanSyncProgress, getLanStatus } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../ui/ConfirmModal';

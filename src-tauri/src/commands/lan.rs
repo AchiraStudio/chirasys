@@ -1064,6 +1064,35 @@ async fn handle_lan_rpc(
             crate::commands::auth::get_user_permissions(user_id, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
         }
 
+        // --- SYSTEM, SYNC & MAINTENANCE ---
+        "logout" => {
+            let token: String = p.get("token").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::auth::logout(token, state).await.map(|_| serde_json::json!({ "success": true }))
+        }
+        "get_sync_status" => {
+            crate::commands::sync::get_sync_status(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_lan_status" => {
+            get_lan_status(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "get_lan_peers" => {
+            get_lan_peers(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "list_printers" => {
+            crate::commands::maintenance::list_printers().await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "send_ai_chat_request" => {
+            match serde_json::from_value(p) {
+                Ok(req) => crate::commands::ai::send_ai_chat_request(req, state).await,
+                Err(e) => Err(format!("Format permintaan AI tidak valid: {}", e)),
+            }
+        }
+        "receive_cloud_sync" => {
+            let table_name: String = p.get("tableName").or_else(|| p.get("table_name")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let payload: serde_json::Value = p.get("payload").cloned().unwrap_or(serde_json::Value::Null);
+            crate::commands::sync::receive_cloud_sync(table_name, payload, state).await.map(|_| serde_json::json!({ "success": true }))
+        }
+
         unknown => Err(format!("Perintah RPC '{}' tidak didukung oleh Server Induk", unknown)),
     };
 

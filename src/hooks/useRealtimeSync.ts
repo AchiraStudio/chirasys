@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
+import { listen } from '../lib/events';
 import { isTauri, getHostUrl } from '../lib/runtime';
 
 /**
