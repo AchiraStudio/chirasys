@@ -15,6 +15,7 @@ import {
   Sparkles,
   LayoutGrid,
   List,
+  ArrowRight,
 } from 'lucide-react';
 
 interface PosProduct {
@@ -56,6 +57,7 @@ export const RealPosView: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'card'>('cash');
   const [cashGiven, setCashGiven] = useState<number>(50);
   const [receiptSuccess, setReceiptSuccess] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
 
   // Cart state initialized with realistic starter items
   const [cart, setCart] = useState<CartItem[]>([
@@ -130,8 +132,29 @@ export const RealPosView: React.FC = () => {
 
   return (
     <div className="real-pos-layout">
+      {/* Mobile Segmented Toggle (Only on mobile <= 1024px) */}
+      <div className="pos-mobile-segmented-bar">
+        <button
+          type="button"
+          className={`pos-mobile-tab-btn ${mobileTab === 'catalog' ? 'active' : ''}`}
+          onClick={() => setMobileTab('catalog')}
+        >
+          <LayoutGrid size={14} />
+          <span>Catalog ({filteredProducts.length})</span>
+        </button>
+        <button
+          type="button"
+          className={`pos-mobile-tab-btn ${mobileTab === 'cart' ? 'active' : ''}`}
+          onClick={() => setMobileTab('cart')}
+        >
+          <ShoppingCart size={14} />
+          <span>Cart ({cart.reduce((sum, item) => sum + item.qty, 0)}) · {fmtPrice(grandTotal)}</span>
+          {cart.length > 0 && <span className="pos-mobile-cart-badge">{cart.reduce((sum, item) => sum + item.qty, 0)}</span>}
+        </button>
+      </div>
+
       {/* Left Column: Product Catalog & Category Tabs */}
-      <div className="pos-catalog-side">
+      <div className={`pos-catalog-side ${mobileTab === 'catalog' ? 'mobile-visible' : 'mobile-hidden'}`}>
         {/* Search & Layout Bar */}
         <div className="pos-top-toolbar">
           <div className="pos-search-input-box">
@@ -208,7 +231,17 @@ export const RealPosView: React.FC = () => {
       </div>
 
       {/* Right Column: Active Cart & Cashier Checkout */}
-      <div className="pos-cart-side">
+      <div className={`pos-cart-side ${mobileTab === 'cart' ? 'mobile-visible' : 'mobile-hidden'}`}>
+        {/* Mobile back to catalog button */}
+        <div className="pos-mobile-cart-back-row">
+          <button
+            type="button"
+            className="pos-mobile-back-btn"
+            onClick={() => setMobileTab('catalog')}
+          >
+            ← Back to Products Catalog
+          </button>
+        </div>
         {/* Cart Header */}
         <div className="pos-cart-header">
           <div className="cart-header-left">
@@ -463,6 +496,21 @@ export const RealPosView: React.FC = () => {
                 <span>New Sale (Esc)</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Mobile Cart Bar (When on mobile catalog tab) */}
+      {cart.length > 0 && mobileTab === 'catalog' && (
+        <div className="pos-floating-mobile-bar" onClick={() => setMobileTab('cart')}>
+          <div className="pfm-left">
+            <span className="pfm-count">{cart.reduce((s, i) => s + i.qty, 0)} Items</span>
+            <span className="pfm-sep">·</span>
+            <span className="pfm-total">{fmtPrice(grandTotal)}</span>
+          </div>
+          <div className="pfm-right">
+            <span>Checkout</span>
+            <ArrowRight size={14} />
           </div>
         </div>
       )}

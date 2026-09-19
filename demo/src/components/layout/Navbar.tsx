@@ -5,6 +5,14 @@ import {
   Menu,
   X,
   Download,
+  Sparkles,
+  Monitor,
+  ShieldCheck,
+  Smartphone,
+  Cpu,
+  Printer,
+  Layers,
+  ArrowRight,
 } from 'lucide-react';
 import { BrandLogo, GithubIcon } from '../common/BrandLogo';
 import { scrollToTarget } from '../../utils/scroll';
@@ -13,15 +21,17 @@ interface NavLinkItem {
   label: string;
   href: string;
   isLive?: boolean;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
 }
 
 const NAV_LINKS: NavLinkItem[] = [
-  { label: 'Showcase', href: '#features' },
-  { label: 'Live App', href: '#appWin', isLive: true },
-  { label: 'Offline Engine', href: '#offline' },
-  { label: 'AI Intelligence', href: '#ai' },
-  { label: 'Hardware', href: '#hardware' },
-  { label: 'Architecture', href: '#how' },
+  { label: 'Showcase', href: '#features', icon: Sparkles },
+  { label: 'Live App', href: '#appWin', isLive: true, icon: Monitor },
+  { label: 'Offline Engine', href: '#offline', icon: ShieldCheck },
+  { label: 'Multi-Device Host', href: '#host', icon: Smartphone },
+  { label: 'AI Intelligence', href: '#ai', icon: Cpu },
+  { label: 'Hardware', href: '#hardware', icon: Printer },
+  { label: 'Architecture', href: '#how', icon: Layers },
 ];
 
 export const Navbar: React.FC = () => {
@@ -48,9 +58,21 @@ export const Navbar: React.FC = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
+
   // Scroll spy & reading progress
   useEffect(() => {
-    const sections = ['top', 'features', 'appWin', 'offline', 'ai', 'hardware', 'how', 'download'];
+    const sections = ['top', 'features', 'appWin', 'offline', 'host', 'ai', 'hardware', 'how', 'download'];
 
     const handleScroll = () => {
       const scrollPos = window.scrollY + 140;
@@ -99,7 +121,7 @@ export const Navbar: React.FC = () => {
             >
               <BrandLogo size={28} />
             </a>
-            <span className="nav-version-tag">v1.3.2</span>
+            <span className="nav-version-tag">v1.4.0</span>
           </div>
 
           {/* Desktop Navigation Links */}
@@ -169,31 +191,86 @@ export const Navbar: React.FC = () => {
         </div>
       </header>
 
-      {/* Mobile Drawer Overlay */}
+      {/* Modern Glassmorphic Mobile Drawer Overlay */}
       {mobileOpen && (
-        <div className="nav-mobile-drawer">
-          <nav className="nav-mobile-links">
-            {NAV_LINKS.map(item => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="nav-mobile-link"
-                onClick={e => handleNavClick(e, item.href)}
+        <div className="nav-mobile-backdrop" onClick={() => setMobileOpen(false)}>
+          <div className="nav-mobile-drawer" onClick={e => e.stopPropagation()}>
+            <div className="nav-mobile-header">
+              <div className="nav-mobile-brand">
+                <BrandLogo size={24} />
+                <span className="nav-version-tag">v1.4.0</span>
+              </div>
+              <button
+                type="button"
+                className="nav-mobile-close-btn"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close Mobile Menu"
               >
-                <span>{item.label}</span>
-                {item.isLive && <span className="nav-live-dot" />}
+                <X size={18} />
+              </button>
+            </div>
+
+            <nav className="nav-mobile-links">
+              {NAV_LINKS.map(item => {
+                const Icon = item.icon;
+                const targetId = item.href.replace('#', '');
+                const isActive = activeSection === targetId;
+                return (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className={`nav-mobile-link ${isActive ? 'active' : ''}`}
+                    onClick={e => handleNavClick(e, item.href)}
+                  >
+                    <div className="nav-mobile-link-left">
+                      <div className="nav-mobile-icon-box">
+                        <Icon size={16} />
+                      </div>
+                      <span className="nav-mobile-label">{item.label}</span>
+                    </div>
+                    <div className="nav-mobile-link-right">
+                      {item.isLive && <span className="nav-live-dot" />}
+                      <ArrowRight size={13} className="nav-arrow" />
+                    </div>
+                  </a>
+                );
+              })}
+            </nav>
+
+            <div className="nav-mobile-footer">
+              <div className="nav-mobile-quick-actions">
+                {/* Dark / Light Toggle Pill */}
+                <button
+                  type="button"
+                  className="nav-mobile-action-pill"
+                  onClick={toggleTheme}
+                >
+                  {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                  <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                </button>
+
+                {/* GitHub Pill */}
+                <a
+                  href="https://github.com/AchiraStudio/kivo"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="nav-mobile-action-pill"
+                >
+                  <GithubIcon size={15} />
+                  <span>GitHub</span>
+                </a>
+              </div>
+
+              <a
+                href="#download"
+                className="nav-mobile-cta"
+                onClick={e => handleNavClick(e, '#download')}
+              >
+                <Download size={16} />
+                <span>Download v1.4.0 (.msi)</span>
               </a>
-            ))}
-            <div className="nav-mobile-divider" />
-            <a
-              href="#download"
-              className="nav-mobile-cta"
-              onClick={e => handleNavClick(e, '#download')}
-            >
-              <Download size={16} />
-              <span>Download Desktop Installer</span>
-            </a>
-          </nav>
+            </div>
+          </div>
         </div>
       )}
     </>

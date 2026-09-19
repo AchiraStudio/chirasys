@@ -44,7 +44,7 @@ export const Footer: React.FC = () => {
               Documentation Guide
             </a>
             <a href="https://github.com/AchiraStudio/kivo/releases" target="_blank" rel="noopener noreferrer">
-              Release Notes (v1.3.2)
+              Release Notes (v1.4.0)
             </a>
             <a href="https://github.com/AchiraStudio/kivo/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">
               MIT Open Source License

@@ -29,7 +29,7 @@ export const DownloadSection: React.FC = () => {
               Kivo Desktop for Windows
             </h3>
             <p style={{ fontSize: '14px', color: 'var(--body)', marginTop: '6px', marginBottom: '26px' }}>
-              Production Release v1.3.2 · Compatible with Windows 10 &amp; 11 (64-bit MSI / Portable)
+              Production Release v1.4.0 · Compatible with Windows 10 &amp; 11 (64-bit MSI / Portable)
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -41,7 +41,7 @@ export const DownloadSection: React.FC = () => {
                 style={{ width: '100%', justifyContent: 'center', height: '52px', fontSize: '15.5px' }}
               >
                 <Download size={18} />
-                <span>Download v1.3.2 Installer (.msi)</span>
+                <span>Download v1.4.0 Installer (.msi)</span>
               </a>
 
               <a

@@ -1240,7 +1240,7 @@ export default function Settings() {
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-extrabold text-heading">Profil Perusahaan & Cabang</h2>
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-primary-soft text-primary border border-primary/20">
-                      Kivo v1.3
+                      Kivo v1.4
                     </span>
                   </div>
                   <p className="text-xs text-dim">Identitas utama bisnis yang ditampilkan pada sidebar & nota transaksi</p>

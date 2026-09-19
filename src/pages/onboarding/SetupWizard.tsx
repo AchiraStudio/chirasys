@@ -491,7 +491,7 @@ export default function SetupWizard({ onComplete, onCancel }: SetupWizardProps) 
               Kivo Setup
             </span>
             <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-primary-soft text-primary dark:bg-primary-soft dark:text-brand-light border border-primary/20 dark:border-primary/30">
-              v1.3
+              v1.4
             </span>
             <span className="text-[10px] font-mono font-bold px-2 py-0.2 rounded-full bg-muted text-dim border border-line">
               {mode === 'new' ? 'Buat Toko Baru' : mode === 'join' ? 'Gabung Workspace' : 'Pulihkan Cloud'}

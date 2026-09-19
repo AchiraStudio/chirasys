@@ -61,7 +61,7 @@ function buildConversationPrompt(messages: ChatMessage[], user: UserInfo, branch
     minute: '2-digit'
   });
 
-  const systemContent = `Kamu adalah Kivo AI, asisten AI cerdas untuk platform bisnis dan kasir Kivo (Kivo 1.3).
+  const systemContent = `Kamu adalah Kivo AI, asisten AI cerdas untuk platform bisnis dan kasir Kivo (Kivo 1.4).
 Pengguna: ${user.username} | Role: ${user.role} | Branch: ${branchId}
 Waktu Saat Ini: ${todayReadable}, pukul ${timeReadable} (ISO: ${todayIso}).
 

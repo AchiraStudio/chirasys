@@ -12,7 +12,7 @@ export const Hero: React.FC = () => {
           <div className="hero-telemetry-header">
             <div className="telemetry-beacon">
               <span className="telemetry-dot" />
-              <span>Kivo v1.3.2</span>
+              <span>Kivo v1.4.0</span>
             </div>
             <span className="telemetry-sep">·</span>
             <span className="telemetry-meta">Native Desktop · Offline-First · Open Source</span>
@@ -35,7 +35,7 @@ export const Hero: React.FC = () => {
               <Download size={18} />
               <div className="btn-label-group">
                 <span className="btn-main-label">Download for Windows</span>
-                <span className="btn-sub-label">v1.3.2 · 64-bit MSI / Portable</span>
+                <span className="btn-sub-label">v1.4.0 · 64-bit MSI / Portable</span>
               </div>
             </a>
             <button

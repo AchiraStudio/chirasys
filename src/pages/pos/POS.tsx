@@ -52,6 +52,7 @@ export default function POS() {
   const [editingPriceVal, setEditingPriceVal] = useState<string>('');
   const [editingSubtotalIdx, setEditingSubtotalIdx] = useState<number>(-1);
   const [editingSubtotalVal, setEditingSubtotalVal] = useState<string>('');
+  const [mobilePosTab, setMobilePosTab] = useState<'catalog' | 'cart'>('catalog');
 
   // DOM Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -605,10 +606,44 @@ export default function POS() {
   const TIER_LABEL: Record<string, string> = { regular: 'Regular', member: 'Member', vip: 'VIP' };
 
   return (
-    <div className="flex h-full w-full bg-muted p-2.5 sm:p-3 gap-3 animate-fade-in select-none">
-      
+    <div className="flex flex-col lg:flex-row h-full w-full bg-muted p-2 sm:p-3 gap-2.5 sm:gap-3 animate-fade-in select-none relative">
+      {/* Mobile Top Segmented Control (Only on screens < 1024px) */}
+      <div className="lg:hidden flex items-center bg-card dark:bg-card/60 border border-line rounded-xl p-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobilePosTab('catalog')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            mobilePosTab === 'catalog'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-dim hover:text-heading'
+          }`}
+        >
+          <Search size={14} />
+          <span>Katalog Produk</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobilePosTab('cart')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer relative ${
+            mobilePosTab === 'cart'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-dim hover:text-heading'
+          }`}
+        >
+          <ShoppingCart size={14} />
+          <span>Keranjang ({cart.length}) · Rp {finalPayableTotal.toLocaleString('id-ID')}</span>
+          {cart.length > 0 && (
+            <span className="min-w-4 h-4 px-1 rounded-full bg-warning text-white text-[9px] font-black flex items-center justify-center">
+              {cart.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* ─── LEFT: CATALOG & OMNICHANNEL SEARCH SECTION ─── */}
-      <div className="flex-1 flex flex-col bg-card rounded-xl shadow-sm border border-line overflow-hidden min-w-0">
+      <div className={`flex-1 flex-col bg-card rounded-xl shadow-sm border border-line overflow-hidden min-w-0 ${
+        mobilePosTab === 'catalog' ? 'flex' : 'hidden lg:flex'
+      }`}>
         
         {/* Top Control Bar */}
         <div className="p-3.5 border-b border-line flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-muted/50 dark:bg-card/30 shrink-0">
@@ -866,7 +901,23 @@ export default function POS() {
       </div>
 
       {/* ─── RIGHT: ERGONOMIC CART & CHECKOUT PANEL ─── */}
-      <div className="flex flex-col bg-card rounded-xl shadow-sm border border-line overflow-hidden w-84 lg:w-96 2xl:w-[410px] shrink-0">
+      <div className={`flex-col bg-card rounded-xl shadow-sm border border-line overflow-hidden w-full lg:w-96 2xl:w-[410px] shrink-0 ${
+        mobilePosTab === 'cart' ? 'flex' : 'hidden lg:flex'
+      }`}>
+        {/* Mobile Back Button to Catalog */}
+        <div className="lg:hidden px-3.5 py-2.5 border-b border-line bg-muted/40 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setMobilePosTab('catalog')}
+            className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline cursor-pointer"
+          >
+            <RotateCcw size={13} />
+            <span>Kembali ke Katalog Produk</span>
+          </button>
+          <span className="text-xs font-black text-heading font-mono">
+            Total: Rp {finalPayableTotal.toLocaleString('id-ID')}
+          </span>
+        </div>
         
         {/* Customer Header Button */}
         <button
@@ -1297,6 +1348,27 @@ export default function POS() {
         run={runTour}
         onFinish={() => setRunTour(false)}
       />
+
+      {/* Floating Bottom Cart Pill (When mobile cashier is browsing catalog with items in cart) */}
+      {cart.length > 0 && mobilePosTab === 'catalog' && (
+        <div
+          onClick={() => setMobilePosTab('cart')}
+          className="lg:hidden fixed bottom-18 left-3 right-3 z-30 bg-primary text-white p-3.5 rounded-2xl shadow-xl shadow-primary/30 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform animate-fade-in"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-black">
+              {cart.reduce((sum, item) => sum + item.qty, 0)}
+            </span>
+            <span className="text-xs font-black">
+              Rp {finalPayableTotal.toLocaleString('id-ID')}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 text-xs font-bold">
+            <span>Lihat Keranjang &amp; Bayar</span>
+            <ArrowRight size={14} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

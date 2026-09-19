@@ -214,7 +214,7 @@ export default function LoginPage({ onOpenSetupWizard }: LoginPageProps) {
 
       {/* Footer Branding */}
       <footer className="relative z-10 mt-6 text-center text-[10px] text-dim">
-        <span>Kivo Platform v1.3 &copy; {new Date().getFullYear()} — Multi-Branch Business &amp; POS Solution</span>
+        <span>Kivo Platform v1.4 &copy; {new Date().getFullYear()} — Multi-Branch Business &amp; POS Solution</span>
       </footer>
     </div>
   );

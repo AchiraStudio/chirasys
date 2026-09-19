@@ -732,6 +732,11 @@ async fn fetch_and_save_workspace(
             .execute(pool).await.map_err(|e| e.to_string())?;
     }
 
+    // Auto-reconcile any local users with empty or stale workspace_id to the active workspace
+    let _ = sqlx::query("UPDATE users SET workspace_id = ? WHERE workspace_id IS NULL OR workspace_id = ''")
+        .bind(workspace_id)
+        .execute(pool).await;
+
     println!("✅ Joined workspace: {} ({})", name, code);
     Ok(WorkspaceInfo { id: workspace_id.to_string(), name, code })
 }
@@ -1228,61 +1233,7 @@ pub async fn get_available_workspaces(
     let mut result: Vec<WorkspaceListInfo> = Vec::new();
     let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    // 1. Primary Source: Local active workspace from global_settings
-    let active_id: Option<String> = sqlx::query_scalar(
-        "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
-    )
-    .fetch_optional(&state.db_pool)
-    .await
-    .unwrap_or(None);
-
-    if let Some(ws_id) = active_id {
-        let ws_name: String = sqlx::query_scalar(
-            "SELECT value FROM global_settings WHERE key = 'workspace_name' AND value != ''"
-        )
-        .fetch_optional(&state.db_pool)
-        .await
-        .unwrap_or(None)
-        .unwrap_or_else(|| "Workspace Aktif".to_string());
-
-        let ws_code: String = sqlx::query_scalar(
-            "SELECT value FROM global_settings WHERE key = 'workspace_code' AND value != ''"
-        )
-        .fetch_optional(&state.db_pool)
-        .await
-        .unwrap_or(None)
-        .unwrap_or_else(|| "MAIN".to_string());
-
-        seen_ids.insert(ws_id.clone());
-        result.push(WorkspaceListInfo {
-            id: ws_id,
-            name: ws_name,
-            code: ws_code,
-            created_at: chrono::Utc::now().to_rfc3339(),
-        });
-    }
-
-    // 2. Secondary Source: Any distinct workspaces assigned to existing local users
-    let user_workspaces: Vec<String> = sqlx::query_scalar(
-        "SELECT DISTINCT workspace_id FROM users WHERE workspace_id IS NOT NULL AND workspace_id != ''"
-    )
-    .fetch_all(&state.db_pool)
-    .await
-    .unwrap_or_default();
-
-    for ws_id in user_workspaces {
-        if !seen_ids.contains(&ws_id) {
-            seen_ids.insert(ws_id.clone());
-            result.push(WorkspaceListInfo {
-                id: ws_id.clone(),
-                name: format!("Workspace ({})", &ws_id[..8.min(ws_id.len())]),
-                code: "USER-WS".to_string(),
-                created_at: String::new(),
-            });
-        }
-    }
-
-    // 3. Tertiary Source: Fetch all available workspaces from Supabase Cloud if accessible
+    // 1. Authoritative Source: Fetch all verified workspaces from Supabase Cloud if credentials available
     let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
     if !supabase_url.is_empty() && !supabase_key.is_empty() {
         if let Ok(client) = Client::builder().timeout(std::time::Duration::from_secs(5)).build() {
@@ -1300,14 +1251,68 @@ pub async fn get_available_workspaces(
                             if !seen_ids.contains(&ws.id) {
                                 seen_ids.insert(ws.id.clone());
                                 result.push(ws);
-                            } else if let Some(existing) = result.iter_mut().find(|w| w.id == ws.id) {
-                                // Refresh names with latest cloud names if available
-                                existing.name = ws.name;
-                                existing.code = ws.code;
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // 2. Local Active Workspace from global_settings
+    let active_id: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
+    )
+    .fetch_optional(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some(ws_id) = active_id {
+        if !seen_ids.contains(&ws_id) {
+            let ws_name: String = sqlx::query_scalar(
+                "SELECT value FROM global_settings WHERE key = 'workspace_name' AND value != ''"
+            )
+            .fetch_optional(&state.db_pool)
+            .await
+            .unwrap_or(None)
+            .unwrap_or_else(|| "Workspace Aktif".to_string());
+
+            let ws_code: String = sqlx::query_scalar(
+                "SELECT value FROM global_settings WHERE key = 'workspace_code' AND value != ''"
+            )
+            .fetch_optional(&state.db_pool)
+            .await
+            .unwrap_or(None)
+            .unwrap_or_else(|| "MAIN".to_string());
+
+            seen_ids.insert(ws_id.clone());
+            result.push(WorkspaceListInfo {
+                id: ws_id,
+                name: ws_name,
+                code: ws_code,
+                created_at: chrono::Utc::now().to_rfc3339(),
+            });
+        }
+    }
+
+    // 3. Fallback ONLY if no cloud workspaces and no local active workspace are found (offline fresh start)
+    if result.is_empty() {
+        let user_workspaces: Vec<String> = sqlx::query_scalar(
+            "SELECT DISTINCT workspace_id FROM users WHERE workspace_id IS NOT NULL AND workspace_id != ''"
+        )
+        .fetch_all(&state.db_pool)
+        .await
+        .unwrap_or_default();
+
+        for ws_id in user_workspaces {
+            if !seen_ids.contains(&ws_id) {
+                seen_ids.insert(ws_id.clone());
+                result.push(WorkspaceListInfo {
+                    id: ws_id.clone(),
+                    name: format!("Workspace ({})", &ws_id[..8.min(ws_id.len())]),
+                    code: "LOCAL-WS".to_string(),
+                    created_at: String::new(),
+                });
             }
         }
     }

@@ -1,5 +1,5 @@
 -- ============================================================================
--- KIVO CLOUD: FULL SUPABASE BOOTSTRAP SCRIPT (v1.3)
+-- KIVO CLOUD: FULL SUPABASE BOOTSTRAP SCRIPT (v1.4)
 -- ============================================================================
 -- This script sets up a 100% complete, sync-ready PostgreSQL database on any
 -- brand-new, empty Supabase project for Kivo Platform.
