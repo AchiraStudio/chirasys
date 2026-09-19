@@ -1,4 +1,4 @@
-﻿// src/lib/runtime.ts
+// src/lib/runtime.ts
 // Multi-Device Runtime Detector & Host Gateway Resolver
 
 export const isTauri = (): boolean => {
@@ -14,6 +14,10 @@ export const getHostUrl = (): string => {
 
   // 2. If running in a web browser (e.g. mobile Safari / Chrome)
   if (typeof window !== 'undefined') {
+    // If running on Vite dev server (port 1420), route API calls to the Rust Axum LAN server on port 3699
+    if (window.location.port === '1420') {
+      return `http://${window.location.hostname}:3699`;
+    }
     return window.location.origin;
   }
 

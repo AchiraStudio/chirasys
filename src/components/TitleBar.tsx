@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, Square, X, Copy } from 'lucide-react';
+import { isTauri } from '../lib/runtime';
 
 interface TitleBarProps {
   className?: string;
@@ -19,21 +20,30 @@ export default function TitleBar({
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
-    const win = getCurrentWindow();
-    win.isMaximized().then(setIsMaximized);
+    if (!isTauri()) return;
+    try {
+      const win = getCurrentWindow();
+      win.isMaximized().then(setIsMaximized);
 
-    let unlisten: (() => void) | undefined;
-    win.onResized(async () => {
-      const max = await win.isMaximized();
-      setIsMaximized(max);
-    }).then(fn => { unlisten = fn; });
+      let unlisten: (() => void) | undefined;
+      win.onResized(async () => {
+        const max = await win.isMaximized();
+        setIsMaximized(max);
+      }).then(fn => { unlisten = fn; });
 
-    return () => { unlisten?.(); };
+      return () => { unlisten?.(); };
+    } catch (e) {
+      console.warn('Could not initialize window controls:', e);
+    }
   }, []);
 
-  const minimize   = () => getCurrentWindow().minimize();
-  const toggleMax  = () => isMaximized ? getCurrentWindow().unmaximize() : getCurrentWindow().maximize();
-  const close      = () => getCurrentWindow().close();
+  if (!isTauri()) {
+    return null;
+  }
+
+  const minimize   = () => { if (isTauri()) getCurrentWindow().minimize(); };
+  const toggleMax  = () => { if (isTauri()) (isMaximized ? getCurrentWindow().unmaximize() : getCurrentWindow().maximize()); };
+  const close      = () => { if (isTauri()) getCurrentWindow().close(); };
 
   return (
     <div

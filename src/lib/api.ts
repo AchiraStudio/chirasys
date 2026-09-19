@@ -1,4 +1,4 @@
-﻿import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { isTauri, getHostUrl } from './runtime';
 
 // --- LAN Client-Server (Model B) State & Gateway ---
@@ -89,7 +89,8 @@ const LOCAL_ONLY_COMMANDS = new Set([
 // fallow-ignore-next-line unused-export
 export const invoke = async <T>(cmd: string, args?: Record<string, any>): Promise<T> => {
   const parentUrl = getLanParentHost();
-  if (parentUrl && !LOCAL_ONLY_COMMANDS.has(cmd)) {
+  // Route to parent host if configured, or if running in an external web browser
+  if (parentUrl && (!LOCAL_ONLY_COMMANDS.has(cmd) || !isTauri())) {
     try {
       const response = await fetch(`${parentUrl}/api/lan/rpc`, {
         method: 'POST',
@@ -116,6 +117,12 @@ export const invoke = async <T>(cmd: string, args?: Record<string, any>): Promis
       }
       throw err;
     }
+  }
+
+  // Safe fallback when running in a standalone web browser without Tauri desktop
+  if (!isTauri()) {
+    console.warn(`[Web Runtime] Cannot invoke native command '${cmd}' outside Tauri desktop environment.`);
+    return [] as unknown as T;
   }
 
   return tauriInvoke<T>(cmd, args);
