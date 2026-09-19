@@ -1081,6 +1081,15 @@ async fn handle_lan_rpc(
         "list_printers" => {
             crate::commands::maintenance::list_printers().await.map(|d| serde_json::to_value(d).unwrap_or_default())
         }
+        "kick_cash_drawer" | "lan_remote_kick_drawer" => {
+            let printer_name: String = p.get("printerName").or_else(|| p.get("printer_name")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::maintenance::kick_cash_drawer(printer_name).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "print_raw_receipt" | "lan_remote_print_receipt" => {
+            let printer_name: String = p.get("printerName").or_else(|| p.get("printer_name")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let bytes: Vec<u8> = p.get("bytes").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+            crate::commands::maintenance::print_raw_receipt(printer_name, bytes).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
         "send_ai_chat_request" => {
             match serde_json::from_value(p) {
                 Ok(req) => crate::commands::ai::send_ai_chat_request(req, state).await,

@@ -14,7 +14,7 @@ import { isTauri, getHostUrl } from '../lib/runtime';
  */
 export function useRealtimeSync() {
   useEffect(() => {
-    console.log('≡ƒöî useRealtimeSync: active across native & web network');
+    console.log('⚡ useRealtimeSync: active across native & web network');
 
     const unlistens: (() => void)[] = [];
 
@@ -22,17 +22,17 @@ export function useRealtimeSync() {
     if (isTauri()) {
       listen<string>('sync-received', (event) => {
         const table = event.payload;
-        console.log(`≡ƒöä Cloud sync received for table: ${table}`);
+        console.log(`🔄 Cloud sync received for table: ${table}`);
         window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { table, source: 'cloud' } }));
       }).then(unsub => unlistens.push(unsub));
 
       listen('chirasys:sync', (event) => {
-        console.log('≡ƒöä LAN sync updated database:', event.payload);
+        console.log('🔄 LAN sync updated database:', event.payload);
         window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { source: 'lan', ...(event.payload as object || {}) } }));
       }).then(unsub => unlistens.push(unsub));
 
       listen('chirasys:lan_status_updated', () => {
-        console.log('≡ƒöä LAN status updated ΓÇö refreshing data');
+        console.log('🔄 LAN status updated — refreshing data');
         window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { source: 'lan_status' } }));
       }).then(unsub => unlistens.push(unsub));
     }

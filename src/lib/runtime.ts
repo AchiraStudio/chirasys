@@ -14,8 +14,8 @@ export const getHostUrl = (): string => {
 
   // 2. If running in a web browser (e.g. mobile Safari / Chrome)
   if (typeof window !== 'undefined') {
-    // If running on Vite dev server (port 1420), route API calls to the Rust Axum LAN server on port 3699
-    if (window.location.port === '1420') {
+    // If running on Vite dev server (port 1420, 5173, etc.), route API calls to the Rust Axum LAN server on port 3699
+    if (window.location.port === '1420' || window.location.port === '5173' || window.location.port === '5174') {
       return `http://${window.location.hostname}:3699`;
     }
     return window.location.origin;

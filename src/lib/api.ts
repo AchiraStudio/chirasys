@@ -35,7 +35,22 @@ export const getLanParentHost = (): string | null => {
   return cachedParentUrl;
 };
 
-// Commands that MUST run locally (Hardware, Cloud Supabase Auth & Direct Sync, LAN Admin)
+// Commands that cannot run on a standalone web browser client without a desktop shell
+const WEB_UNSUPPORTED_COMMANDS = new Set([
+  'open_devtools',
+  'scan_lan_subnet',
+  'set_lan_role',
+  'set_lan_device_name',
+  'set_lan_auto_connect',
+  'test_lan_connection',
+  'connect_lan_parent',
+  'disconnect_lan_parent',
+  'parent_request_connect_child',
+  'trigger_lan_sync_now',
+  'clone_from_parent',
+]);
+
+// Commands that MUST run locally on Desktop (when running in Tauri Desktop with local DB)
 const LOCAL_ONLY_COMMANDS = new Set([
   // Auth & Session (ALWAYS Cloud Supabase / Native Local)
   'login',
@@ -92,9 +107,20 @@ export const invoke = async <T>(cmd: string, args?: Record<string, any>): Promis
     return undefined as unknown as T;
   }
 
+  const isWeb = !isTauri();
   const parentUrl = getLanParentHost();
-  // Route to parent host if configured, unless it is a machine-local command
-  if (parentUrl && !LOCAL_ONLY_COMMANDS.has(cmd)) {
+
+  // If in a Web Browser (!isTauri()):
+  // Route ALL supported commands to the host server via /api/lan/rpc.
+  // If in Tauri Desktop:
+  // Route to parent host if configured, UNLESS it's a desktop-local command.
+  const shouldRouteToHost = parentUrl && (
+    isWeb 
+      ? !WEB_UNSUPPORTED_COMMANDS.has(cmd)
+      : !LOCAL_ONLY_COMMANDS.has(cmd)
+  );
+
+  if (shouldRouteToHost) {
     try {
       const response = await fetch(`${parentUrl}/api/lan/rpc`, {
         method: 'POST',
@@ -117,6 +143,13 @@ export const invoke = async <T>(cmd: string, args?: Record<string, any>): Promis
     } catch (err: any) {
       console.warn(`[LAN RPC] Failed to call ${cmd} on parent (${parentUrl}):`, err);
       if (err.name === 'TimeoutError' || (err.message && (err.message.includes('Failed to fetch') || err.message.includes('network') || err.message.includes('timed out')))) {
+        if (isWeb) {
+          // Graceful fallback when web browser is loaded without an active host connection
+          if (cmd === 'get_settings') return [] as unknown as T;
+          if (cmd === 'get_sync_status') return { workspace_id: '', auto_sync: false } as unknown as T;
+          if (cmd === 'get_current_user') return null as unknown as T;
+          return [] as unknown as T;
+        }
         throw new Error(`Tidak dapat terhubung ke Server Induk di ${parentUrl}. Pastikan Server Induk menyala dan terhubung ke Wi-Fi yang sama.`);
       }
       throw err;
