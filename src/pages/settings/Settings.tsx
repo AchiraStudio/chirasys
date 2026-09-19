@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
+<<<<<<< Updated upstream
 import { Database, CheckCircle2, Loader2, Save, AlertTriangle, X, Settings as SettingsIcon, Globe, Link2, Copy, RefreshCw, Wifi, WifiOff, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck } from 'lucide-react';
 import { optimizeDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, createWorkspaceInvite, leaveWorkspace, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminCreateWorkspaceInvite, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace } from '../../lib/api';
+=======
+import { Database, CheckCircle2, Loader2, Save, AlertTriangle, Globe, RefreshCw, LogOut, Building2, MapPin, Lock, Printer, Sliders, UserCheck, Download, Trash2, UploadCloud, DownloadCloud, ChevronDown, ChevronUp, Network, Link2, Zap, Flame, Activity, Plus, Eye, EyeOff, ExternalLink, Copy, CheckCheck, Server, Cloud, ShieldCheck } from 'lucide-react';
+import { optimizeDatabase, exportDatabase, getSettings, setSetting, getSyncStatus, SyncStatus, leaveWorkspace, joinWorkspace, createWorkspace, getAvailableWorkspaces, sysadminGetWorkspaces, sysadminCreateWorkspace, sysadminDeleteWorkspace, WorkspaceListInfo, UserRowFull, getUsers, assignUserWorkspace, triggerSyncPush, triggerSyncPull, resetDbSpecific, nukeCloudWorkspaceData, getCloudConfig, setCloudConfig, testCloudConnection, getBootstrapSql, getTruncateSql, openBrowserUrl, invoke } from '../../lib/api';
+import { save } from '@tauri-apps/plugin-dialog';
+>>>>>>> Stashed changes
 import { useAuthStore } from '../../store/AuthStore';
 import UserManagement from './UserManagement';
 import HardwareSettings from './HardwareSettings';
@@ -443,8 +449,18 @@ export default function Settings() {
                   <Building2 size={22} />
                 </div>
                 <div>
+<<<<<<< Updated upstream
                   <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Profil Perusahaan & Cabang</h2>
                   <p className="text-xs text-slate-500">Identitas utama bisnis yang ditampilkan pada sidebar & nota transaksi</p>
+=======
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-extrabold text-heading">Profil Perusahaan & Cabang</h2>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-primary-soft text-primary border border-primary/20">
+                      Kivo v1.4
+                    </span>
+                  </div>
+                  <p className="text-xs text-dim">Identitas utama bisnis yang ditampilkan pada sidebar & nota transaksi</p>
+>>>>>>> Stashed changes
                 </div>
               </div>
               {profileSuccess && (

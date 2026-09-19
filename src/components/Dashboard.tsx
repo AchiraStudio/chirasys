@@ -15,6 +15,7 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
   const [sales, setSales] = useState<Sale[]>([]);
 
   useEffect(() => {
+<<<<<<< Updated upstream
     setAlertsLoading(true);
     getLowStockAlerts(DEFAULT_BRANCH_ID)
       .then(setAlerts)
@@ -30,6 +31,35 @@ export default function Dashboard({ setActiveMenu }: DashboardProps) {
       setSales(res.slice(0, 5));
     }).catch(console.error);
   }, []);
+=======
+    fetchDashboardData();
+  }, [period, branchId]);
+
+  // Real-time synchronization listener (updates dashboard live when any device transacts)
+  useEffect(() => {
+    const handleSync = () => {
+      fetchDashboardData(true);
+    };
+    window.addEventListener('chirasys:sync', handleSync);
+    return () => window.removeEventListener('chirasys:sync', handleSync);
+  }, [period, branchId]);
+
+  // Derived KPI Metrics
+  const totalRevenue = summary?.total_revenue || 0;
+  const transactionCount = summary?.transaction_count || 0;
+  const grossProfit = summary?.gross_profit || 0;
+  const avgBasket = transactionCount > 0 ? Math.round(totalRevenue / transactionCount) : 0;
+  const profitMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0';
+
+  const totalPaymentsAmount = paymentMethods.reduce((s, p) => s + p.total_amount, 0);
+
+  // Maximum revenue in 7 days for relative chart scaling
+  const maxDayRevenue = useMemo(() => {
+    if (weeklySummary.length === 0) return 100000;
+    const maxVal = Math.max(...weeklySummary.map(d => d.total_revenue));
+    return maxVal > 0 ? maxVal : 100000;
+  }, [weeklySummary]);
+>>>>>>> Stashed changes
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-6 animate-in fade-in duration-500 w-full max-w-7xl mx-auto">

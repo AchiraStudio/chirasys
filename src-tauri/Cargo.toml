@@ -1,6 +1,10 @@
 [package]
 name = "chirasys"
+<<<<<<< Updated upstream
 version = "0.1.0"
+=======
+version = "1.4.0"
+>>>>>>> Stashed changes
 description = "Modern Inventory & Cashier System"
 authors = ["you"]
 edition = "2021"

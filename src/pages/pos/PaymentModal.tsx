@@ -2,8 +2,14 @@
 // Redesigned UI — Modern, responsive 2-column layout, quick-cash helpers, and theme consistency.
 import { useState, useEffect, useRef } from 'react';
 import { PosLine } from './POSStore';
+<<<<<<< Updated upstream
 import { createSale, CreateSaleInput } from '../../lib/api';
 import { X, Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2, CheckCircle2, Ticket, ShoppingBag } from 'lucide-react';
+=======
+import { createSale, CreateSaleInput, invoke } from '../../lib/api';
+import { Banknote, CreditCard, Smartphone, ArrowRightLeft, Loader2, CheckCircle2, Ticket, ShoppingBag } from 'lucide-react';
+import Modal from '../../components/ui/Modal';
+>>>>>>> Stashed changes
 import { useAuthStore } from '../../store/AuthStore';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -201,6 +207,7 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
     };
 
     return (
+<<<<<<< Updated upstream
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
             <div className="bg-white dark:bg-[#0B0F19] rounded-[2rem] shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-200/80 dark:border-slate-800/85 animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
                 
@@ -220,6 +227,19 @@ export default function PaymentModal({ branchId, cart, total, priceType, custome
                     
                     {/* Left Column: Payment Inputs & Methods (7 cols) */}
                     <div className="md:col-span-7 space-y-6">
+=======
+        <Modal
+            isOpen={true}
+            onClose={onClose}
+            size="5xl"
+            title="Checkout Transaksi"
+            subtitle="Pilih metode pembayaran dan masukkan jumlah bayar"
+            noPadding={true}
+        >
+            <div className="p-4 sm:p-6 md:p-8 grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-8 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                {/* Left Column: Payment Inputs & Methods (7 cols) */}
+                <div className="md:col-span-7 space-y-4 sm:space-y-6">
+>>>>>>> Stashed changes
                         
                         {/* Payment Methods Grid Selector */}
                         <div>

@@ -20,17 +20,111 @@ import Reports from './pages/reports/Reports';
 import Settings from './pages/settings/Settings';
 import LoginPage from './pages/auth/LoginPage';
 import ContextMenu from './components/layout/ContextMenu';
+<<<<<<< Updated upstream
 import { useAuthStore } from './store/AuthStore';
 import { getCurrentUser } from './lib/api';
 import { useSyncStore } from './store/SyncStore';
 import { Package, Loader2 } from 'lucide-react';
 import { useZoomStore } from './store/ZoomStore';
+=======
+import { useAuthStore, decodeSessionPayload } from './store/AuthStore';
+import { getCurrentUser, kickCashDrawer, getSyncStatus, getSettings, setSetting, invoke, logoutUser } from './lib/api';
+import { supabase } from './lib/supabase';
+import { useSyncStore } from './store/SyncStore';
+import { Package, Loader2 } from 'lucide-react';
+import { useZoomStore } from './store/ZoomStore';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
+import SetupWizard from './pages/onboarding/SetupWizard';
+import MobileNav from './components/layout/MobileNav';
+import MobileMenuDrawer from './components/layout/MobileMenuDrawer';
+import HostQrModal from './components/common/HostQrModal';
+import { isTauri, getHostUrl } from './lib/runtime';
+
+interface MainContentProps {
+  activeMenu: string;
+  setActiveMenu: (menu: string) => void;
+  refreshTrigger: number;
+  setEditItemId: (id: string | null) => void;
+  setIsDrawerOpen: (open: boolean) => void;
+}
+
+function MainContent({
+  activeMenu,
+  setActiveMenu,
+  refreshTrigger,
+  setEditItemId,
+  setIsDrawerOpen,
+}: MainContentProps) {
+  switch (activeMenu) {
+    case 'dashboard':
+      return <Dashboard setActiveMenu={setActiveMenu} />;
+    case 'pos':
+      return <POS />;
+    case 'inventory':
+    case 'opname':
+    case 'stock-opname':
+      return (
+        <InventoryPage
+          refreshTrigger={refreshTrigger}
+          onEditItem={(itemId: string) => {
+            setEditItemId(itemId);
+            setIsDrawerOpen(true);
+          }}
+          onAddItem={() => {
+            setEditItemId(null);
+            setIsDrawerOpen(true);
+          }}
+        />
+      );
+    case 'purchasing':
+      return <PurchasingPage />;
+    case 'customers':
+      return <CustomerPromoPage />;
+    case 'reports':
+    case 'laporan-penjualan':
+    case 'laporan-item':
+    case 'laporan-metode-pembayaran':
+      return <ReportsAccountingPage initialTab="reports" />;
+    case 'accounting':
+    case 'buku-kas':
+    case 'jurnal':
+    case 'buku-besar':
+      return <ReportsAccountingPage initialTab="accounting" />;
+    case 'settings':
+      return <Settings />;
+    default:
+      return (
+        <div className="bg-card border border-line rounded-2xl p-12 text-center h-full flex flex-col items-center justify-center">
+          <div className="p-4 bg-muted rounded-2xl mb-4">
+            <Package size={36} className="text-dim" />
+          </div>
+          <h3 className="text-base font-bold tracking-tight text-heading mb-1">
+            Menu Tidak Ditemukan
+          </h3>
+          <p className="text-xs text-dim mb-5 max-w-xs">
+            Halaman ini tidak ditemukan atau Anda tidak memiliki akses ke rute ini.
+          </p>
+          <button
+            type="button"
+            onClick={() => setActiveMenu('dashboard')}
+            className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-xl hover:bg-primary/90 transition-colors cursor-pointer"
+          >
+            Kembali ke Dashboard
+          </button>
+        </div>
+      );
+  }
+}
+
+>>>>>>> Stashed changes
 
 export default function App() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const [isHostQrOpen, setIsHostQrOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [editItemId, setEditItemId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -38,6 +132,53 @@ export default function App() {
   const [isVerifying, setIsVerifying] = useState(true);
 
   const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
+<<<<<<< Updated upstream
+=======
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem('kivo_sidebar_collapsed') ?? localStorage.getItem('chirasys_sidebar_collapsed');
+    if (saved !== null) return saved === 'true';
+    if (typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1024) {
+      return true;
+    }
+    return false;
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('kivo_sidebar_collapsed', String(next));
+      return next;
+    });
+  }, []);
+
+  // Check if first-run setup has been completed
+  useEffect(() => {
+    // Web clients (mobile/tablet terminals) never need to run setup wizard
+    if (!isTauri()) {
+      setHasCompletedSetup(true);
+      return;
+    }
+
+    getSettings()
+      .then((settings) => {
+        const completed = settings.find(s => s.key === 'has_completed_setup')?.value === 'true';
+        setHasCompletedSetup(completed);
+      })
+      .catch((err) => {
+        console.warn('Could not check has_completed_setup:', err);
+        setHasCompletedSetup(true);
+      });
+  }, []);
+
+  useRealtimeSync();
+
+  // Bump refreshTrigger whenever the pull-worker syncs cloud data locally
+  useEffect(() => {
+    const handler = () => setRefreshTrigger(p => p + 1);
+    window.addEventListener('chirasys:sync', handler);
+    return () => window.removeEventListener('chirasys:sync', handler);
+  }, []);
+>>>>>>> Stashed changes
 
   useEffect(() => {
     (document.documentElement.style as any).zoom = `${zoom}%`;
@@ -64,16 +205,86 @@ export default function App() {
 
   useEffect(() => {
     const verifySession = async () => {
-      if (!token) {
+      let targetToken = token;
+      let targetUser = user;
+
+      // 1. Check if token or embedded session payload is passed in URL
+      if (typeof window !== 'undefined') {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const sessionParam = urlParams.get('session');
+          if (sessionParam) {
+            const decoded = decodeSessionPayload(sessionParam);
+            if (decoded) {
+              targetToken = decoded.token;
+              targetUser = decoded.user;
+              setAuth(decoded.token, decoded.user);
+            }
+          }
+
+          const urlToken = urlParams.get('auth_token') || urlParams.get('token');
+          if (!targetToken && urlToken && urlToken.trim() !== '') {
+            targetToken = urlToken.trim();
+          }
+
+          // Clean URL query parameters without reloading the page
+          if (sessionParam || urlToken) {
+            const cleanUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        } catch {}
+      }
+
+      // 2. If running as Web Client (!isTauri()) and no token, auto-fetch Host active session
+      if (!targetToken && !isTauri()) {
+        try {
+          const hostUrl = getHostUrl();
+          let res = await fetch(`${hostUrl}/api/lan/active_session`, {
+            signal: AbortSignal.timeout(3000),
+          }).catch(() => null);
+
+          // Fallback to direct port 3699 if same-origin failed
+          if (!res || !res.ok) {
+            const fallbackUrl = `http://${window.location.hostname || 'localhost'}:3699`;
+            res = await fetch(`${fallbackUrl}/api/lan/active_session`, {
+              signal: AbortSignal.timeout(3000),
+            }).catch(() => null);
+          }
+
+          if (res && res.ok) {
+            const data = await res.json();
+            if (data?.success && data?.token && data?.user) {
+              setAuth(data.token, data.user);
+              setIsVerifying(false);
+              return;
+            }
+          }
+        } catch (err) {
+          console.log('[Web Auto-Login] Host active session check:', err);
+        }
+      }
+
+      if (!targetToken) {
         setIsVerifying(false);
         return;
       }
+
       try {
-        const validUser = await getCurrentUser(token);
-        setAuth(token, validUser);
-      } catch (e) {
-        console.error("Session invalid:", e);
-        clearAuth();
+        const validUser = await getCurrentUser(targetToken);
+        setAuth(targetToken, validUser);
+
+        // If running on desktop Host, register active token so web clients can auto-login
+        if (isTauri()) {
+          setSetting('active_host_token', targetToken).catch(() => {});
+        }
+      } catch (e: any) {
+        // If we already have a user in memory (e.g. from session payload or store), do NOT wipe on network error!
+        if (!targetUser) {
+          console.error("Session invalid:", e);
+          clearAuth();
+        } else {
+          console.warn("Retaining active user session despite verification warning:", e);
+        }
       } finally {
         setIsVerifying(false);
       }
@@ -170,10 +381,19 @@ export default function App() {
     );
   }
 
+  const handleLogout = async () => {
+    if (isTauri()) {
+      setSetting('active_host_token', '').catch(() => {});
+    }
+    if (token) await logoutUser(token);
+    clearAuth();
+  };
+
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-[#09090b] transition-colors duration-300">
       <ContextMenu />
       <TitleBar />
+<<<<<<< Updated upstream
       <div className="flex flex-1 overflow-hidden pt-10">
         <Sidebar activeMenu={activeMenu} setActiveMenu={setActiveMenu} onOpenAIChat={() => setIsAIChatOpen(true)} />
         <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50 dark:bg-[#0B0F19]">
@@ -214,6 +434,70 @@ export default function App() {
 
 
           <AIChat isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} branchId={user.branch_id || 'branch_001'} />
+=======
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <Sidebar
+          activeMenu={activeMenu}
+          setActiveMenu={setActiveMenu}
+          onOpenAIChat={() => setIsAIChatOpen(true)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
+        />
+        <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-background">
+          <Topbar 
+            activeMenu={activeMenu} 
+            setActiveMenu={setActiveMenu} 
+            onOpenAIChat={() => setIsAIChatOpen(true)} 
+            onOpenHostQr={() => setIsHostQrOpen(true)}
+            onOpenMenuDrawer={() => setIsMobileMenuOpen(true)}
+          />
+          <div className={`flex-1 min-h-0 overflow-hidden relative flex flex-col ${activeMenu === 'pos' ? 'p-0 pb-16 md:pb-0' : 'p-3 sm:p-4 lg:p-5 pb-24 md:pb-0'}`}>
+            <MainContent
+              activeMenu={activeMenu}
+              setActiveMenu={setActiveMenu}
+              refreshTrigger={refreshTrigger}
+              setEditItemId={setEditItemId}
+              setIsDrawerOpen={setIsDrawerOpen}
+            />
+          </div>
+          <ItemDrawer
+            isOpen={isDrawerOpen}
+            onClose={() => {
+              setIsDrawerOpen(false);
+              setEditItemId(null);
+            }}
+            onItemAdded={() => setRefreshTrigger(prev => prev + 1)}
+            editItemId={editItemId}
+          />
+          <AIChat
+            isOpen={isAIChatOpen}
+            onClose={() => setIsAIChatOpen(false)}
+            branchId={user.branch_id || 'branch_001'}
+          />
+
+          {/* Mobile Bottom Navigation Bar (< 768px) */}
+          <MobileNav
+            activeMenu={activeMenu}
+            setActiveMenu={setActiveMenu}
+            onOpenMenuDrawer={() => setIsMobileMenuOpen(true)}
+          />
+
+          {/* Mobile Slide-Over Menu Drawer */}
+          <MobileMenuDrawer
+            isOpen={isMobileMenuOpen}
+            onClose={() => setIsMobileMenuOpen(false)}
+            activeMenu={activeMenu}
+            setActiveMenu={setActiveMenu}
+            onOpenHostQr={() => setIsHostQrOpen(true)}
+            onLogout={handleLogout}
+          />
+
+          {/* Host Server & Mobile QR Code Modal */}
+          <HostQrModal
+            isOpen={isHostQrOpen}
+            onClose={() => setIsHostQrOpen(false)}
+          />
+>>>>>>> Stashed changes
         </main>
       </div>
     </div>

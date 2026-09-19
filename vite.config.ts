@@ -16,7 +16,18 @@ export default defineConfig(async () => ({
   server: {
     port: 1420,
     strictPort: true,
+<<<<<<< Updated upstream
     host: host || false,
+=======
+    host: host || true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:3699',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+>>>>>>> Stashed changes
     hmr: host
       ? {
           protocol: "ws",

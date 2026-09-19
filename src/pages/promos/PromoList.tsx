@@ -55,8 +55,13 @@ export default function PromoList() {
 
       <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1 custom-scrollbar relative">
+<<<<<<< Updated upstream
           <table className="w-full text-sm text-left border-collapse">
             <thead className="text-xs text-slate-600 bg-slate-50/50 dark:bg-slate-800/50 uppercase font-semibold sticky top-0 backdrop-blur-md">
+=======
+          <table className="w-full min-w-[780px] text-left text-xs border-collapse">
+            <thead className="bg-muted/60 border-b border-line text-[11px] uppercase text-dim font-bold sticky top-0 z-10">
+>>>>>>> Stashed changes
               <tr>
                 <th className="px-6 py-4 rounded-tl-xl">Name</th>
                 <th className="px-6 py-4">Type</th>

@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 <!doctype html>
 <html lang="en">
   <head>
@@ -12,3 +13,37 @@
     <div id="root"></div>
   </body>
 </html>
+=======
+<!doctype html>
+<html lang="en" class="h-full overflow-hidden">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/kivo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kivo — Platform Manajemen Bisnis</title>
+    <script>
+      // Apply the persisted theme before first paint to avoid a light flash.
+      (function () {
+        try {
+          var t = localStorage.getItem("kivo-theme") || localStorage.getItem("kivo-ui-theme") || localStorage.getItem("chirasys-ui-theme") || "dark";
+          if (t === "system") {
+            t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.classList.add(t === "light" ? "light" : "dark");
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-DMI8Qf_7.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-2kLfHwn1.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-tauri-MejLa6v5.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-icons-CZOuvap4.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-supabase-PEOrq77g.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-Clw9LXlM.css">
+  </head>
+  <body class="bg-background text-body m-0 p-0 h-full w-full overflow-hidden">
+    <div id="root" class="h-full w-full overflow-hidden"></div>
+  </body>
+</html>
+>>>>>>> Stashed changes

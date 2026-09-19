@@ -22,6 +22,17 @@ export default function POS() {
   const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail');
   const [loading, setLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+<<<<<<< Updated upstream
+=======
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+
+  // Grand Total Override states
+  const [customGrandTotal, setCustomGrandTotal] = useState<number | null>(null);
+  const [isEditingTotal, setIsEditingTotal] = useState(false);
+  const [customTotalInput, setCustomTotalInput] = useState('');
+
+  // Tax & Member Discount settings
+>>>>>>> Stashed changes
   const [taxMode, setTaxMode] = useState<string>('none');
   const [taxRate, setTaxRate] = useState<number>(0);
   const [tierMemberDiscount, setTierMemberDiscount] = useState<number>(0);
@@ -420,16 +431,46 @@ export default function POS() {
   const handlePaymentSuccess = (saleId: string, print: boolean) => {
     setCart([]); setCartDiscount(0); setSearch(''); setShowPayment(false);
     setSelectedCartIdx(-1);
+<<<<<<< Updated upstream
     if (print) setReceiptSaleId(saleId);
+=======
+    
+    // Immediately refresh POS catalog stock and trigger real-time sync for all components
+    fetchItems();
+    window.dispatchEvent(new CustomEvent('chirasys:sync', { detail: { source: 'local_sale', table: 'sales' } }));
+
+    if (print) {
+      setReceiptSaleId(saleId);
+    } else {
+      getSettings().then(settings => {
+        const pName = settings.find(s => s.key === 'printer_name')?.value;
+        if (pName) {
+          kickCashDrawer(pName).catch((err: unknown) => console.error("Drawer kick failed", err));
+        }
+      }).catch(console.error);
+    }
+>>>>>>> Stashed changes
   };
 
   const TIER_LABEL: Record<string, string> = { regular: 'Regular', member: 'Member', vip: 'VIP' };
 
   return (
+<<<<<<< Updated upstream
     <div className="flex h-full w-full bg-slate-100 dark:bg-[#0B0F19] p-3 gap-3 animate-in fade-in">
       {/* LEFT: Item Search */}
       <div className="flex-[2] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden min-w-0">
         <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/50 shrink-0">
+=======
+    <div className="flex flex-col md:flex-row h-full w-full bg-muted p-1 sm:p-3 gap-2 sm:gap-3 animate-fade-in select-none relative overflow-hidden">
+      
+      {/* ─── LEFT: CATALOG & OMNICHANNEL SEARCH SECTION ─── */}
+      <div className="flex-1 flex flex-col bg-card rounded-xl shadow-sm border border-line overflow-hidden min-w-0">
+        
+        {/* Top Control Bar */}
+        <div className="p-3.5 border-b border-line flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-muted/50 dark:bg-card/30 shrink-0">
+          
+          {/* Main Search Box */}
+>>>>>>> Stashed changes
           <div className="flex-1 relative tour-pos-search">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
@@ -452,6 +493,7 @@ export default function POS() {
           </button>
         </div>
 
+<<<<<<< Updated upstream
         <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
           {search.length < 2 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 select-none">
@@ -463,13 +505,109 @@ export default function POS() {
                   ↑↓ Navigasi keranjang · ±/- Ubah qty · Alt+H Edit harga · Del Hapus
                 </p>
               )}
+=======
+        {/* Category Quick Pills */}
+        <div className="px-3 py-2 border-b border-line/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 bg-card select-none">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('all')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all active:scale-95 cursor-pointer ${
+              selectedCategory === 'all'
+                ? 'bg-primary text-white shadow-xs'
+                : 'bg-muted/70 hover:bg-muted text-body hover:text-heading border border-line/40'
+            }`}
+          >
+            Semua Produk
+          </button>
+          {Array.from(new Map(categories.map(c => [c.name.trim().toUpperCase(), c])).values()).map(cat => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all active:scale-95 cursor-pointer ${
+                selectedCategory === cat.id
+                  ? 'bg-primary text-white shadow-xs'
+                  : 'bg-muted/70 hover:bg-muted text-body hover:text-heading border border-line/40'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Catalog Items Stream */}
+        <div className="flex-1 overflow-y-auto p-3.5 custom-scrollbar tour-pos-catalog">
+          {loading ? (
+            <div className="h-full flex flex-col justify-center items-center gap-2.5">
+              <Loader2 className="animate-spin text-primary" size={32} />
+              <span className="text-xs text-dim font-bold">Memuat data produk...</span>
+>>>>>>> Stashed changes
             </div>
           ) : loading ? (
             <div className="h-full flex justify-center items-center"><Loader2 className="animate-spin text-brand" size={28} /></div>
           ) : items.length === 0 ? (
+<<<<<<< Updated upstream
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
               <Search size={36} className="mb-2 opacity-30" />
               <p className="text-sm">Tidak ada produk ditemukan</p>
+=======
+            <div className="h-full flex flex-col items-center justify-center text-dim p-8 text-center">
+              <div className="w-14 h-14 rounded-xl bg-muted/80 flex items-center justify-center text-dim mb-3 border border-line/80 dark:border-line-strong/80">
+                <Search size={24} className="opacity-50" />
+              </div>
+              <p className="text-sm font-bold text-heading">Tidak ada produk ditemukan</p>
+              <p className="text-xs text-dim mt-1">Coba pilih kategori lain atau ubah kata kunci pencarian.</p>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 sm:gap-3">
+              {items.map((item, idx) => {
+                const activePrice = priceType === 'wholesale' && item.wholesale_price ? item.wholesale_price : (item.price || 0);
+                return (
+                  <button
+                    key={item.id}
+                    ref={el => { itemRefs.current[idx] = el; }}
+                    onClick={() => addToCart(item)}
+                    className="flex flex-col text-left bg-card border border-line/90 dark:border-line rounded-xl p-3.5 hover:border-primary hover:shadow-md hover:scale-[1.01] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-primary shadow-xs transition-all group cursor-pointer relative"
+                  >
+                    <div className="flex items-start justify-between gap-1 mb-2">
+                      <span className="text-[10px] font-mono font-bold text-dim bg-muted px-1.5 py-0.5 rounded-lg truncate max-w-[120px]">
+                        {item.sku}
+                      </span>
+                      {item.current_stock !== undefined && (
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 font-mono ${
+                          item.current_stock > 0
+                            ? 'text-success bg-success-soft dark:bg-success/40 dark:text-success border border-success/30 dark:border-success/40'
+                            : item.current_stock === 0
+                            ? 'text-body bg-muted dark:text-body border border-line'
+                            : 'text-danger bg-danger-soft dark:bg-danger/40 dark:text-danger border border-danger/30 dark:border-danger/40 font-black'
+                        }`}>
+                          Stok: {item.current_stock}
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="font-extrabold text-xs text-heading line-clamp-2 leading-snug group-hover:text-primary transition-colors mb-1.5">
+                      {item.name}
+                    </h4>
+
+                    {item.category_name && (
+                      <span className="text-[10px] text-dim mb-2 truncate">
+                        {item.category_name}
+                      </span>
+                    )}
+
+                    <div className="mt-auto pt-2 border-t border-line flex items-center justify-between">
+                      <span className="font-black text-primary text-xs sm:text-sm font-mono">
+                        Rp {activePrice.toLocaleString('id-ID')}
+                      </span>
+                      <span className="text-[10px] text-dim font-semibold">
+                        /{item.base_unit_name || 'Unit'}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+>>>>>>> Stashed changes
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -489,17 +627,113 @@ export default function POS() {
           )}
         </div>
 
+<<<<<<< Updated upstream
         {/* Keyboard Shortcut Hint Bar */}
         <div className="p-2.5 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-slate-500 font-medium shrink-0">
           {[['F1/F2','Cari'],['F3','Pelanggan'],['F4','Tahan'],['F5','Lanjut'],['F9','Baru'],['F10/End','Bayar'],['Alt+H','Edit Harga'],['F11','Layar Penuh'],['F12','Hapus Baris']].map(([k, v]) => (
             <span key={k} className="flex items-center gap-1.5"><kbd className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 dark:text-slate-300">{k}</kbd> {v}</span>
+=======
+        {/* Accessible Keyboard Hint Bar (Desktop only) */}
+        <div className="hidden md:flex py-2.5 px-4 bg-muted/90 dark:bg-input/80 border-t border-line flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-dim font-medium shrink-0">
+          {[
+            ['F1', 'Cari Barang'],
+            ['F2', 'Buka Laci'],
+            ['F3', 'Pilih Pelanggan'],
+            ['F4', 'Tahan Nota'],
+            ['F8 / Alt+T', 'Ubah Total'],
+            ['Alt+H', 'Edit Harga'],
+            ['Alt+S', 'Edit Subtotal'],
+            ['F7', 'Riwayat Nota'],
+            ['End', 'Bayar'],
+          ].map(([key, label]) => (
+            <span key={key} className="flex items-center gap-1.5">
+              <kbd className="bg-card dark:bg-muted border border-line shadow-xs px-2 py-0.5 rounded-lg text-[10px] font-black text-body dark:text-heading">
+                {key}
+              </kbd>
+              <span>{label}</span>
+            </span>
+>>>>>>> Stashed changes
           ))}
         </div>
       </div>
 
+<<<<<<< Updated upstream
       {/* RIGHT: Cart */}
       <div className="flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden w-80 xl:w-96 shrink-0">
         {/* Customer Header */}
+=======
+      {/* ─── MOBILE FLOATING STICKY CART BAR (< 768px) ─── */}
+      {cart.length > 0 && !isMobileCartOpen && (
+        <div className="md:hidden fixed bottom-[calc(env(safe-area-inset-bottom)+74px)] left-3 right-3 max-w-md mx-auto z-30 bg-card/95 dark:bg-[#0d121f]/95 backdrop-blur-2xl border border-primary/30 dark:border-primary/40 p-2.5 rounded-2xl shadow-2xl shadow-primary/10 flex items-center justify-between animate-slide-in-up">
+          <button
+            type="button"
+            onClick={() => setIsMobileCartOpen(true)}
+            className="flex items-center gap-3 text-left min-w-0 flex-1 cursor-pointer active:scale-[0.98] transition-transform"
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-purple-600 text-white flex items-center justify-center font-black shrink-0 relative shadow-sm">
+              <ShoppingCart size={18} />
+              <span className="absolute -top-1.5 -right-1.5 bg-danger text-white text-[10px] font-black px-1.5 rounded-full min-w-4 h-4 flex items-center justify-center shadow-xs">
+                {cart.reduce((sum, line) => sum + line.qty, 0)}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-black text-heading font-mono tracking-tight truncate">
+                Rp {Math.round(finalPayableTotal).toLocaleString('id-ID')}
+              </div>
+              <div className="text-[10px] text-dim truncate flex items-center gap-1 mt-0.5">
+                <span>{selectedCustomer ? selectedCustomer.name : 'Pelanggan Umum'}</span>
+                <span>•</span>
+                <span className="text-primary font-bold">Rincian Nota</span>
+              </div>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPayment(true)}
+            className="px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl font-black text-xs shadow-md shadow-primary/25 flex items-center gap-1.5 shrink-0 active:scale-95 transition-all cursor-pointer"
+          >
+            <span>Bayar</span>
+            <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* ─── RIGHT: ERGONOMIC CART & CHECKOUT PANEL ─── */}
+      <div className={`
+        ${isMobileCartOpen 
+          ? 'fixed inset-0 z-50 flex flex-col bg-card/98 dark:bg-[#0b0f19]/98 backdrop-blur-2xl animate-slide-in-up pb-[env(safe-area-inset-bottom)]' 
+          : 'hidden md:flex flex-col bg-card rounded-xl shadow-sm border border-line overflow-hidden w-80 lg:w-96 2xl:w-[410px] shrink-0'
+        }
+      `}>
+        {/* Mobile Header with Pull Grabber Handle & Close Button */}
+        {isMobileCartOpen && (
+          <div className="md:hidden flex flex-col border-b border-line/80 bg-muted/40 shrink-0">
+            {/* Grabber Notch */}
+            <div className="w-10 h-1 rounded-full bg-line-strong/60 mx-auto mt-2 mb-0.5" />
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center">
+                  <ShoppingCart size={15} />
+                </div>
+                <div>
+                  <span className="text-xs font-black text-heading">
+                    Keranjang Pesanan ({cart.reduce((sum, line) => sum + line.qty, 0)} item)
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileCartOpen(false)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-dim hover:text-heading hover:bg-muted active:scale-90 transition-all cursor-pointer border border-line/40"
+              >
+                <XIcon size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Customer Header Button */}
+>>>>>>> Stashed changes
         <button
           className="w-full px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/30 flex justify-between items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/40 focus:outline-none focus:bg-slate-100 dark:focus:bg-slate-800 focus:ring-inset focus:ring-2 focus:ring-brand transition-colors tour-pos-customer"
           onClick={() => setShowCustomerPicker(true)}
@@ -607,7 +841,29 @@ export default function POS() {
                       )}
                     </div>
                     {!l.is_bogo_free && (
+<<<<<<< Updated upstream
                       <button onClick={e => { e.stopPropagation(); removeItem(l.item_id); }} className="text-slate-400 hover:text-rose-500 focus:outline-none focus:text-rose-500 focus:bg-rose-50 dark:focus:bg-rose-500/10 rounded p-0.5 self-start"><Trash2 size={14}/></button>
+=======
+                      <div className="flex items-center bg-muted/80 rounded-xl p-0.5 sm:p-1 border border-line/80 dark:border-line-strong/80 shadow-xs">
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); updateQty(l.item_id, -1); }}
+                          className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center bg-card dark:bg-line-strong text-body dark:text-heading hover:bg-danger-soft hover:text-danger rounded-lg transition-all font-bold shadow-xs active:scale-90 cursor-pointer"
+                        >
+                          <Minus size={13} />
+                        </button>
+                        <span className="w-8 text-center text-xs font-black text-heading font-mono select-none">
+                          {l.qty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); updateQty(l.item_id, 1); }}
+                          className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center bg-card dark:bg-line-strong text-body dark:text-heading hover:bg-primary hover:text-white rounded-lg transition-all font-bold shadow-xs active:scale-90 cursor-pointer"
+                        >
+                          <Plus size={13} />
+                        </button>
+                      </div>
+>>>>>>> Stashed changes
                     )}
                   </div>
                 );

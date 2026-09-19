@@ -1,10 +1,18 @@
 // Force HMR reload
 import { useEffect, useState } from 'react';
+<<<<<<< Updated upstream
 import { getJournalEntries, JournalEntry } from '../../lib/api';
 import { FileText, Plus, Search, Trash2 } from 'lucide-react';
 import JournalVoucher from './JournalVoucher';
 import ManualJournalModal from './ManualJournalModal';
 import { invoke } from '@tauri-apps/api/core';
+=======
+import { getJournalEntries, JournalEntry, invoke } from '../../lib/api';
+import { FileText, Plus, Search, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import JournalVoucher from './JournalVoucher';
+import ManualJournalModal from './ManualJournalModal';
+import Modal from '../../components/ui/Modal';
+>>>>>>> Stashed changes
 
 export default function JournalList() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -49,6 +57,9 @@ export default function JournalList() {
 
   useEffect(() => {
     fetchEntries();
+    const handleSync = () => fetchEntries();
+    window.addEventListener('chirasys:sync', handleSync);
+    return () => window.removeEventListener('chirasys:sync', handleSync);
   }, []);
 
   const filteredEntries = entries.filter(e => {

@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Copy, Navigation, RefreshCw, ClipboardPaste, Code2 } from 'lucide-react';
+<<<<<<< Updated upstream
 import { useAuthStore } from '../../store/AuthStore';
+=======
+import { invoke } from '../../lib/api';
+import { isTauri } from '../../lib/runtime';
+>>>>>>> Stashed changes
 
 export default function ContextMenu() {
   const [show, setShow] = useState(false);
@@ -83,6 +88,7 @@ export default function ContextMenu() {
         <Navigation size={14} className="text-slate-400 -rotate-90" /> Go Back
       </button>
 
+<<<<<<< Updated upstream
       {isAdmin && (
         <>
         <div className="h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
@@ -104,6 +110,21 @@ export default function ContextMenu() {
               }
             }}
             className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+=======
+      {isTauri() && (
+        <>
+          <div className="h-px bg-muted my-1"></div>
+          <button
+            onClick={async () => {
+              setShow(false);
+              try {
+                await invoke('open_devtools');
+              } catch (err) {
+                console.error('Failed to open devtools:', err);
+              }
+            }}
+            className="w-full px-3 py-2 flex items-center gap-3 text-sm font-medium text-warning dark:text-warning hover:bg-warning-soft dark:hover:bg-warning/20 transition-colors cursor-pointer"
+>>>>>>> Stashed changes
           >
             <Code2 size={14} /> Inspect Element
           </button>

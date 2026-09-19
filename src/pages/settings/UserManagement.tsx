@@ -1,5 +1,6 @@
 // Force HMR reload
 import { useState, useEffect } from 'react';
+<<<<<<< Updated upstream
 import { invoke } from '@tauri-apps/api/core';
 import { Users, Loader2, User, Plus, X, Eye, EyeOff, Power, Save, Pencil } from 'lucide-react';
 import { useAuthStore } from '../../store/AuthStore';
@@ -15,6 +16,15 @@ interface UserRow {
   created_at: string;
   workspace_id?: string;
 }
+=======
+import { Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders, Cloud, Search, Building2, X, AlertTriangle } from 'lucide-react';
+import { useAuthStore } from '../../store/AuthStore';
+import ConfirmModal from '../../components/ui/ConfirmModal';
+import Modal from '../../components/ui/Modal';
+import { sysadminGetWorkspaces, getAvailableWorkspaces, getSyncStatus, WorkspaceListInfo, assignUserWorkspace, UserRowFull, invoke } from '../../lib/api';
+import UserPermissionsModal from './UserPermissionsModal';
+import RoleDefaultsModal from './RoleDefaultsModal';
+>>>>>>> Stashed changes
 
 const ROLES = [
   { value: 'staff',  label: 'Staff',           desc: 'Akses POS, inventaris, gudang, dan pelanggan' },

@@ -50,9 +50,15 @@ export default function CustomerList() {
             />
           </div>
         </div>
+<<<<<<< Updated upstream
         {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
           <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
             <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
+=======
+        {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" size={32} /></div> : (
+          <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative"><table className="w-full min-w-[600px] text-left">
+            <thead className="sticky top-0 bg-background border-b border-line text-xs uppercase text-body font-semibold z-10">
+>>>>>>> Stashed changes
               <tr><th className="py-4 px-6">Name</th><th className="py-4 px-6">Phone</th><th className="py-4 px-6">Tier & Expiry</th><th className="py-4 px-6 text-right">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
@@ -76,8 +82,13 @@ export default function CustomerList() {
                     </div>
                   </td>
                   <td className="py-4 px-6 text-right flex justify-end gap-2">
+<<<<<<< Updated upstream
                     <button onClick={() => setProfileCustomer(c)} className="p-2 text-brand bg-brand/10 hover:bg-brand/20 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"><Eye size={14} /></button>
                     <button onClick={() => openEdit(c)} className="p-2 text-slate-500 hover:text-brand bg-slate-100 dark:bg-slate-800 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={14} /></button>
+=======
+                    <button onClick={() => setProfileCustomer(c)} className="p-2 text-primary bg-primary-soft hover:bg-primary/20 rounded-md sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer"><Eye size={14} /></button>
+                    <button onClick={() => openEdit(c)} className="p-2 text-dim hover:text-primary bg-muted rounded-md sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer"><Edit2 size={14} /></button>
+>>>>>>> Stashed changes
                   </td>
                 </tr>
               ))}

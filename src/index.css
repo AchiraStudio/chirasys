@@ -67,8 +67,27 @@
   @apply bg-white/70 dark:bg-[#0B0F19]/70 backdrop-blur-xl border border-white/20 dark:border-white/5;
 }
 
+<<<<<<< Updated upstream
 .glass-card {
   @apply bg-white dark:bg-[#0B0F19] border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-all duration-300;
+=======
+/* Clean Touch Scrolling without ugly scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   High-Performance Rendering for Low-End Devices (Without Paint Clipping)
+   ───────────────────────────────────────────────────────────── */
+.fast-render-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 58px;
+  contain: layout style;
+>>>>>>> Stashed changes
 }
 
 /* Print styles for thermal receipt printers (58mm / 80mm) */

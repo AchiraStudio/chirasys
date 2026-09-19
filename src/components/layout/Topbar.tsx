@@ -1,18 +1,52 @@
+<<<<<<< Updated upstream
 import { Sun, Moon, Bell, Search, Cloud, CloudOff, RefreshCw, ZoomIn, ZoomOut, Sparkles } from 'lucide-react';
 import { useTheme } from '../ThemeProvider';
 import { useSyncStore } from '../../store/SyncStore';
 import { useZoomStore } from '../../store/ZoomStore';
+=======
+import { useState, useEffect } from 'react';
+import { Sun, Moon, Cloud, CloudOff, RefreshCw, ZoomIn, ZoomOut, Sparkles, Radio, QrCode, Menu } from 'lucide-react';
+import { useTheme } from '../ThemeProvider';
+import { useSyncStore } from '../../store/SyncStore';
+import { useZoomStore } from '../../store/ZoomStore';
+import { getLanPeers, LanPeer } from '../../lib/api';
+import { listen } from '@tauri-apps/api/event';
+import { isTauri } from '../../lib/runtime';
+>>>>>>> Stashed changes
 
 interface TopbarProps {
   activeMenu: string;
   setActiveMenu?: (menu: string) => void;
   onOpenAIChat?: () => void;
+  onOpenHostQr?: () => void;
+  onOpenMenuDrawer?: () => void;
 }
 
-export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
+export default function Topbar({ activeMenu, onOpenAIChat, onOpenHostQr, onOpenMenuDrawer }: TopbarProps) {
   const { theme, setTheme } = useTheme();
   const { status, lastSyncTime } = useSyncStore();
   const { zoom, zoomIn, zoomOut, reset } = useZoomStore();
+<<<<<<< Updated upstream
+=======
+  const [lanPeerCount, setLanPeerCount] = useState(0);
+
+  useEffect(() => {
+    getLanPeers().then(p => setLanPeerCount(p.length)).catch(() => {});
+    
+    let unlisten: (() => void) | undefined;
+    if (isTauri()) {
+      listen<LanPeer[]>('chirasys:lan_peers_updated', e => {
+        setLanPeerCount(e.payload.length);
+      }).then(u => {
+        unlisten = u;
+      }).catch(() => {});
+    }
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+>>>>>>> Stashed changes
 
   const PAGE_TITLES: Record<string, string> = {
     dashboard: 'Overview',
@@ -23,10 +57,19 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
     customers: 'Customers',
     purchasing: 'Purchasing',
     pos: 'Point of Sale',
+<<<<<<< Updated upstream
     promos: 'Promotions',
     accounting: 'Accounting',
     reports: 'Reports',
     settings: 'Settings',
+=======
+    inventory: 'Inventaris & Produk',
+    purchasing: 'Pembelian & Pemasok',
+    customers: 'Pelanggan & Promo',
+    reports: 'Laporan & Analisis',
+    accounting: 'Buku Kas & Akuntansi',
+    settings: 'Pengaturan',
+>>>>>>> Stashed changes
   };
 
   const title = PAGE_TITLES[activeMenu] ?? activeMenu.replace(/-/g, ' ');
@@ -34,14 +77,46 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
   return (
     <header className="h-20 glass border-b flex items-center px-8 justify-between sticky top-0 z-10 transition-colors duration-300">
 
+<<<<<<< Updated upstream
       {/* Dynamic Page Title */}
       <div>
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white capitalize tracking-tight">
+=======
+      {/* Left Group: Mobile Menu Trigger + Dynamic Page Title */}
+      <div className="flex items-center min-w-0 mr-3">
+        {onOpenMenuDrawer && (
+          <button
+            type="button"
+            onClick={onOpenMenuDrawer}
+            className="md:hidden p-1.5 -ml-2 mr-2 text-dim hover:text-heading hover:bg-muted rounded-xl transition-colors cursor-pointer"
+            title="Buka Menu"
+          >
+            <Menu size={18} />
+          </button>
+        )}
+        <h2 className="text-sm sm:text-base font-bold text-heading tracking-tight truncate">
+>>>>>>> Stashed changes
           {title}
         </h2>
       </div>
 
+<<<<<<< Updated upstream
       <div className="flex items-center gap-5">
+=======
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Host QR Code Button */}
+        {onOpenHostQr && (
+          <button
+            type="button"
+            onClick={onOpenHostQr}
+            className="flex items-center gap-1.5 text-xs font-bold text-primary bg-primary-soft hover:bg-primary/20 px-2.5 py-1.5 rounded-xl border border-primary/20 transition-all cursor-pointer shadow-xs"
+            title="Buka QR Code untuk Menghubungkan HP atau Tablet"
+          >
+            <QrCode size={14} />
+            <span className="hidden sm:inline">Akses Mobile</span>
+          </button>
+        )}
+>>>>>>> Stashed changes
 
         {/* Global Search Bar */}
         <div className="hidden md:flex items-center bg-slate-100/80 dark:bg-slate-900/80 rounded-full px-4 py-2 border border-slate-200 dark:border-slate-800 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all shadow-inner">
@@ -81,8 +156,13 @@ export default function Topbar({ activeMenu, onOpenAIChat }: TopbarProps) {
           <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-[#09090b]"></span>
         </button>
 
+<<<<<<< Updated upstream
         {/* Zoom Controls */}
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full p-1">
+=======
+        {/* Zoom Controls (Desktop only) */}
+        <div className="hidden md:flex items-center gap-0.5 bg-muted/60 border border-line rounded-lg p-0.5">
+>>>>>>> Stashed changes
           <button
             onClick={zoomOut}
             className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-1.5 rounded-full hover:bg-white dark:hover:bg-slate-800"

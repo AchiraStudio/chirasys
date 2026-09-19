@@ -159,8 +159,13 @@ export default function PurchasingDashboard() {
             </select>
           </div>
           {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={32} /></div> : (
+<<<<<<< Updated upstream
             <div className="flex-1 overflow-y-auto custom-scrollbar relative"><table className="w-full text-left">
               <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
+=======
+            <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative"><table className="w-full min-w-[650px] text-left">
+              <thead className="sticky top-0 bg-slate-50 dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 text-xs uppercase text-slate-600 font-semibold z-10">
+>>>>>>> Stashed changes
                 <tr>
                   <th className="py-4 px-6">Invoice No</th>
                   <th className="py-4 px-6">Supplier</th>

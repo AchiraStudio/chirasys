@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
+<<<<<<< Updated upstream
 import { Plus, Search, Loader2, Eye, Trash2, Edit, Upload, Download, HelpCircle } from 'lucide-react';
 import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel } from '../../lib/api';
+=======
+import { Plus, Search, Loader2, Eye, Trash2, Edit, Upload, Download, HelpCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { getItemsFiltered, deleteItem, Item, importItemsExcel, exportItemsExcel, getCategories, Category, setItemPrice, setItemCostPrice, invoke } from '../../lib/api';
+>>>>>>> Stashed changes
 import { open, save } from '@tauri-apps/plugin-dialog';
 import TourGuide from '../../components/ui/TourGuide';
 
@@ -157,6 +162,7 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
           </div>
         </div>
 
+<<<<<<< Updated upstream
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm z-10">
@@ -165,6 +171,50 @@ export default function ItemList({ onViewItem, onEditItem, onAddItem, refreshTri
                 <th className="py-4 px-6">SKU</th>
                 <th className="py-4 px-6 text-right w-44">Harga Eceran (Retail)</th>
                 <th className="py-4 px-6 text-right w-44">Harga Grosir (Wholesale)</th>
+=======
+        <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative">
+          <table className="w-full min-w-[850px] text-left border-collapse">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-[#0B0F19] z-10">
+              <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800 select-none">
+                <th 
+                  onClick={() => handleSort('name')}
+                  className="py-4 px-6 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Nama Item</span>
+                    {renderSortIcon('name')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('sku')}
+                  className="py-4 px-6 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>SKU</span>
+                    {renderSortIcon('sku')}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('category')}
+                  className="py-4 px-6 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Kategori</span>
+                    {renderSortIcon('category')}
+                  </div>
+                </th>
+                <th className="py-4 px-6 text-right w-36">Harga Pokok</th>
+                <th 
+                  onClick={() => handleSort('price')}
+                  className="py-4 px-6 text-right w-44 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>Harga Eceran (Retail)</span>
+                    {renderSortIcon('price')}
+                  </div>
+                </th>
+                <th className="py-4 px-6 text-left min-w-[220px]">Tier Harga Volume (Jml 1..N)</th>
+>>>>>>> Stashed changes
                 <th className="py-4 px-6 text-center w-28">Status</th>
                 <th className="py-4 px-6 text-right w-36">Aksi</th>
               </tr>

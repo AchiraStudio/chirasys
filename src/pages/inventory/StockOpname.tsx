@@ -168,7 +168,11 @@ export default function StockOpname() {
       await submitOpnameLines(sessionId, changedLines);
       await finalizeOpname(sessionId);
       
+<<<<<<< Updated upstream
       alert(`Stock Opname berhasil! ${changedLines.length} item telah disesuaikan.`);
+=======
+      toast.success(`Stock Opname berhasil! ${changedLines.length} item telah disesuaikan.`);
+>>>>>>> Stashed changes
       fetchStock();
     } catch (e: any) {
       alert("Gagal memproses stock opname: " + e.toString());
@@ -325,7 +329,7 @@ export default function StockOpname() {
         </div>
 
         {/* Table View */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar tour-so-table relative">
+        <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar tour-so-table relative">
           {loading ? (
             <div className="py-24 flex flex-col items-center justify-center text-slate-400">
               <Loader2 size={32} className="animate-spin mb-3 text-brand" />
@@ -337,8 +341,13 @@ export default function StockOpname() {
               <p className="text-xs font-bold">Tidak ada barang yang sesuai dengan filter.</p>
             </div>
           ) : (
+<<<<<<< Updated upstream
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50 dark:bg-slate-900/90 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 uppercase text-[11px] text-slate-400 font-extrabold sticky top-0 z-10">
+=======
+            <table className="w-full min-w-[750px] text-left text-xs border-collapse">
+              <thead className="bg-background border-b border-line uppercase text-[11px] text-dim font-extrabold sticky top-0 z-10">
+>>>>>>> Stashed changes
                 <tr>
                   <th className="py-3.5 px-4 w-10 text-center">
                     <input 

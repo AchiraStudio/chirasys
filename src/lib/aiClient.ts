@@ -1,5 +1,10 @@
 import { aiTools, executeTool } from './aiTools';
+<<<<<<< Updated upstream
 import { useAuthStore } from '../store/AuthStore';
+=======
+import { useAuthStore, UserInfo } from '../store/AuthStore';
+import { getSettings, invoke } from './api';
+>>>>>>> Stashed changes
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -9,6 +14,164 @@ export interface ChatMessage {
   name?: string;
 }
 
+<<<<<<< Updated upstream
+=======
+export async function getOpenAIApiKey(): Promise<string> {
+  // 1. Check localStorage
+  const localKey = localStorage.getItem('kivo_openai_api_key') || localStorage.getItem('chirasys_openai_api_key');
+  if (localKey && localKey.trim()) return localKey.trim();
+
+  // 2. Check DB settings
+  try {
+    const settings = await getSettings();
+    const dbKey = settings.find((s: any) => s.key === 'openai_api_key')?.value;
+    if (dbKey && dbKey.trim()) return dbKey.trim();
+  } catch {}
+
+  // 3. Fallback to Vite env
+  const envKey = import.meta.env.VITE_OPENAI_API_KEY;
+  if (envKey && envKey.trim()) return envKey.trim();
+
+  return '';
+}
+
+export async function getSelectedAIModel(): Promise<string> {
+  const localModel = localStorage.getItem('kivo_ai_model') || localStorage.getItem('chirasys_ai_model');
+  if (localModel && localModel.trim()) return localModel.trim();
+
+  try {
+    const settings = await getSettings();
+    const dbModel = settings.find((s: any) => s.key === 'openai_model')?.value;
+    if (dbModel && dbModel.trim()) return dbModel.trim();
+  } catch {}
+
+  return 'gpt-4o-mini';
+}
+
+function buildConversationPrompt(messages: ChatMessage[], user: UserInfo, branchId: string): ChatMessage[] {
+  let conversation = [...messages];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayIso = `${year}-${month}-${day}`;
+  const todayReadable = now.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  const timeReadable = now.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const systemContent = `Kamu adalah Kivo AI, asisten AI cerdas untuk platform bisnis dan kasir Kivo (Kivo 1.4).
+Pengguna: ${user.username} | Role: ${user.role} | Branch: ${branchId}
+Waktu Saat Ini: ${todayReadable}, pukul ${timeReadable} (ISO: ${todayIso}).
+
+INFORMASI TANGGAL & TRANSAKSI PENTING:
+- Tanggal hari ini adalah ${todayReadable} (${todayIso}).
+- Jika pengguna menanyakan transaksi "hari ini", penjualan "hari ini", omset "hari ini", atau performa "hari ini", SELALU gunakan "${todayIso}" sebagai nilai date_from dan date_to saat memanggil tool get_sales_summary.
+- Jangan pernah berhalusinasi atau berasumsi tahun lama (seperti 2023 atau 2024). Waktu nyata saat ini adalah tahun ${year}.
+
+Aturan:
+- Gunakan format Markdown (bold, italic, list) dalam jawabanmu.
+- Kamu punya akses ke tools untuk mengontrol aplikasi. SELALU gunakan tools jika diminta tindakan (cek stok, cek penjualan/transaksi, buat promo, ubah harga, dll).
+- Jangan menyuruh pengguna melakukan manual jika kamu bisa melakukannya dengan tools yang tersedia.
+- Jika tools mengembalikan error Permission Denied, jelaskan bahwa role '${user.role}' tidak punya izin.
+- Untuk promo bundle: gunakan tool create_promo dengan promo_type='bundle', bundle_items berisi array item, applies_to='item', dan sertakan discount_percent atau discount_value.
+- Saat membuat bundle, kamu TIDAK perlu mengisi item_id tunggal — cukup isi bundle_items saja.`;
+
+  const otherMsgs = conversation.filter(m => m.role !== 'system');
+  const systemMsg: ChatMessage = {
+    role: 'system',
+    content: systemContent
+  };
+
+  // Keep last 14 messages while ensuring no orphan tool message at the start of recent list
+  let recentMsgs = otherMsgs.slice(-14);
+  while (recentMsgs.length > 0 && recentMsgs[0].role === 'tool') {
+    recentMsgs.shift();
+  }
+
+  return [systemMsg, ...recentMsgs];
+}
+
+async function fetchChatCompletion(conversation: ChatMessage[], apiKey?: string): Promise<any> {
+  const resolvedKey = apiKey || (await getOpenAIApiKey());
+  const selectedModel = await getSelectedAIModel();
+
+  try {
+    return await invoke('send_ai_chat_request', {
+      request: {
+        model: selectedModel,
+        messages: conversation,
+        tools: aiTools,
+        tool_choice: 'auto',
+        api_key: resolvedKey || undefined,
+      }
+    });
+  } catch (tauriError: any) {
+    const errMsg = tauriError?.message || String(tauriError);
+
+    // Fallback: If not invoke error, try browser fetch
+    if (errMsg.includes('Command') && errMsg.includes('not found') && resolvedKey) {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${resolvedKey}`
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: conversation,
+          tools: aiTools,
+          tool_choice: 'auto'
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(`OpenAI Error (${response.status}): ${errData.error?.message || response.statusText}`);
+      }
+
+      return await response.json();
+    }
+
+    throw new Error(errMsg);
+  }
+}
+
+async function processToolCall(toolCall: any, user: UserInfo, branchId: string): Promise<ChatMessage> {
+  const functionName = toolCall.function.name;
+  const functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+  
+  let result;
+  try {
+    result = await executeTool(functionName, functionArgs, {
+      branchId,
+      userId: user.id,
+      role: user.role
+    });
+  } catch (execError: any) {
+    result = { error: execError.message || String(execError) };
+  }
+
+  let contentStr = JSON.stringify(result);
+  if (contentStr.length > 3000) {
+    contentStr = contentStr.substring(0, 3000) + '... (truncated)';
+  }
+
+  return {
+    role: 'tool',
+    tool_call_id: toolCall.id,
+    name: functionName,
+    content: contentStr
+  };
+}
+
+>>>>>>> Stashed changes
 /**
  * Send a chat completion request to OpenAI with the current conversation history.
  * If the model returns a tool call, we execute it locally and send the result back (recursive loop).

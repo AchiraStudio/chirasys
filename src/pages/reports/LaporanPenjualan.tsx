@@ -93,7 +93,16 @@ export default function LaporanPenjualan({ onBack }: Props) {
     finally { setLoading(false); }
   };
 
+<<<<<<< Updated upstream
   useEffect(() => { fetchData(); }, [dateFrom, dateTo]);
+=======
+  useEffect(() => {
+    fetchReportData();
+    const handleSync = () => fetchReportData();
+    window.addEventListener('chirasys:sync', handleSync);
+    return () => window.removeEventListener('chirasys:sync', handleSync);
+  }, [activeSubtype, dateFrom, dateTo, selectedCustomerId, selectedUserId, selectedPaymentMethod, selectedCategoryId, selectedPriceType]);
+>>>>>>> Stashed changes
 
   const dailyData = groupByDay(allSales);
 

@@ -1,9 +1,21 @@
+<<<<<<< Updated upstream
 import { useState } from 'react';
 import { Loader2, Lock, User, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { loginUser, sysadminLogin } from '../../lib/api';
+=======
+import { useState, useEffect } from 'react';
+import { Loader2, Lock, User, LogIn, Eye, EyeOff, Store, Sun, Moon, Radio } from 'lucide-react';
+import { loginUser, setSetting } from '../../lib/api';
+>>>>>>> Stashed changes
 import { useAuthStore } from '../../store/AuthStore';
 import SysadminDashboard from './SysadminDashboard';
 import { supabase } from '../../lib/supabase';
+<<<<<<< Updated upstream
+=======
+import KivoLogo from '../../components/common/KivoLogo';
+import { useTheme } from '../../components/ThemeProvider';
+import { isTauri, getHostUrl } from '../../lib/runtime';
+>>>>>>> Stashed changes
 
 type Screen = 'login' | 'sysadmin_login' | 'sysadmin_dashboard';
 
@@ -15,8 +27,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkingHost, setCheckingHost] = useState(!isTauri());
   const { setAuth } = useAuthStore();
 
+<<<<<<< Updated upstream
 
 
   // Sysadmin auth state
@@ -24,6 +38,49 @@ export default function LoginPage() {
   const [sysadminPass, setSysadminPass] = useState('');
 
   // ─── Step 1: Credential Login ─────────────────────────────────────────────
+=======
+  // If running on remote device (phone/tablet browser), try instant host auto-login
+  useEffect(() => {
+    if (isTauri()) return;
+
+    let isMounted = true;
+    const autoLoginFromHost = async () => {
+      setCheckingHost(true);
+      try {
+        const hostUrl = getHostUrl();
+        let res = await fetch(`${hostUrl}/api/lan/active_session`, {
+          signal: AbortSignal.timeout(2500),
+        }).catch(() => null);
+
+        if (!res || !res.ok) {
+          const directFallback = `http://${window.location.hostname || 'localhost'}:3699`;
+          res = await fetch(`${directFallback}/api/lan/active_session`, {
+            signal: AbortSignal.timeout(2500),
+          }).catch(() => null);
+        }
+
+        if (res && res.ok) {
+          const data = await res.json();
+          if (data?.success && data?.token && data?.user && isMounted) {
+            setAuth(data.token, data.user);
+            return;
+          }
+        }
+      } catch (e) {
+        console.log('[LoginPage] Host active session check:', e);
+      } finally {
+        if (isMounted) setCheckingHost(false);
+      }
+    };
+
+    autoLoginFromHost();
+    return () => {
+      isMounted = false;
+    };
+  }, [setAuth]);
+
+  // ─── Credential Login ─────────────────────────────────────────────
+>>>>>>> Stashed changes
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) return;
@@ -35,6 +92,10 @@ export default function LoginPage() {
         await supabase.auth.setSession({ access_token: res.supabase_token, refresh_token: '' });
       }
       setAuth(res.token, res.user);
+
+      if (isTauri()) {
+        setSetting('active_host_token', res.token).catch(() => {});
+      }
     } catch (err: any) {
       setError(err.message || String(err));
     } finally {
@@ -173,6 +234,7 @@ export default function LoginPage() {
           <p className="text-sm text-slate-500 mt-2 text-center">Modern Inventory & Cashier System</p>
         </div>
 
+<<<<<<< Updated upstream
         {/* Login Form */}
         <form onSubmit={handleLogin} className="p-8 flex flex-col gap-5">
           {error && (
@@ -194,8 +256,20 @@ export default function LoginPage() {
                 placeholder="Masukkan username..."
                 className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all"
               />
+=======
+        {checkingHost ? (
+          <div className="p-10 flex flex-col items-center justify-center gap-3 text-center animate-fade-in">
+            <div className="w-12 h-12 rounded-2xl bg-primary-soft text-primary flex items-center justify-center">
+              <Radio size={24} className="animate-pulse" />
+>>>>>>> Stashed changes
             </div>
+            <div className="text-sm font-bold text-heading mt-2">Menghubungkan ke Kivo Host...</div>
+            <p className="text-xs text-dim max-w-xs">
+              Menyinkronkan sesi aktif komputer kasir utama otomatis tanpa perlu login.
+            </p>
+            <Loader2 className="animate-spin text-primary mt-2" size={20} />
           </div>
+<<<<<<< Updated upstream
 
           {/* Password */}
           <div className="space-y-1">
@@ -226,6 +300,111 @@ export default function LoginPage() {
           </p>
         </form>
       </div>
+=======
+        ) : (
+          /* Login Form */
+          <form onSubmit={handleLogin} className="p-7 flex flex-col gap-4">
+            {error && (
+              <div className="p-3 rounded-xl bg-danger-soft border border-danger/30 text-danger text-xs font-medium flex items-center gap-2 animate-fade-in">
+                <span className="shrink-0">•</span>
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Username */}
+            <div className="space-y-1">
+              <label className={LABEL_CLASS}>Username</label>
+              <div className="relative flex items-center">
+                <User size={16} className="absolute left-3.5 text-dim pointer-events-none" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Masukkan username Anda..."
+                  className={INPUT_CLASS}
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="space-y-1">
+              <label className={LABEL_CLASS}>Password</label>
+              <div className="relative flex items-center">
+                <Lock size={16} className="absolute left-3.5 text-dim pointer-events-none" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className={INPUT_CLASS}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 text-dim hover:text-heading cursor-pointer p-1"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Sign In Button */}
+            <button
+              type="submit"
+              disabled={loading || !username || !password}
+              className="w-full h-11 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm mt-2 active:scale-[0.99] cursor-pointer"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Memproses Masuk...</span>
+                </>
+              ) : (
+                <>
+                  <LogIn size={16} />
+                  <span>Masuk Sekarang</span>
+                </>
+              )}
+            </button>
+
+            {/* Divider "atau" & Create Store Button */}
+            {onOpenSetupWizard && isTauri() && (
+              <>
+                <div className="relative my-1 flex items-center justify-center">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-line" />
+                  </div>
+                  <span className="relative bg-card px-3 text-[11px] font-semibold text-dim uppercase tracking-wider">
+                    atau
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onOpenSetupWizard}
+                  className="w-full h-11 border border-line bg-muted/40 hover:bg-muted hover:border-line-strong text-heading font-bold rounded-xl transition-all flex items-center justify-center gap-2.5 text-xs sm:text-sm active:scale-[0.99] group cursor-pointer"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-primary-soft text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Store size={14} />
+                  </div>
+                  <span>Buat Toko Baru</span>
+                </button>
+              </>
+            )}
+
+            <p className="text-[11px] text-center text-dim mt-1">
+              Lupa password? Silakan hubungi admin sistem Anda.
+            </p>
+          </form>
+        )}
+      </div>
+
+      {/* Footer Branding */}
+      <footer className="relative z-10 mt-6 text-center text-[10px] text-dim">
+        <span>Kivo Platform v1.4 &copy; {new Date().getFullYear()} — Multi-Branch Business &amp; POS Solution</span>
+      </footer>
+>>>>>>> Stashed changes
     </div>
   );
 }

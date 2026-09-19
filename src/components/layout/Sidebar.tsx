@@ -3,6 +3,12 @@ import { LayoutDashboard, Package, ShoppingCart, Users, Settings, FileText, Chev
 import { getLowStockAlerts, logoutUser, getSyncStatus, getSettings, SyncStatus } from '../../lib/api';
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../ui/ConfirmModal';
+<<<<<<< Updated upstream
+=======
+import { usePermissions } from '../../lib/permissions';
+import KivoLogo from '../common/KivoLogo';
+import { isTauri } from '../../lib/runtime';
+>>>>>>> Stashed changes
 
 interface SidebarProps {
   activeMenu: string;
@@ -39,7 +45,73 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
     getSyncStatus()
       .then(s => setSyncStatus(s))
       .catch(() => {});
+<<<<<<< Updated upstream
   }, [user]);
+=======
+
+    const checkLan = () => {
+      getLanStatus()
+        .then((s) => {
+          if (s.role === 'child' && s.paired_parent_ip) {
+            setLanParentInfo({ ip: s.paired_parent_ip, name: s.paired_parent_name });
+          } else {
+            setLanParentInfo(null);
+          }
+        })
+        .catch(() => {});
+    };
+    checkLan();
+    const lanInterval = setInterval(checkLan, 5000);
+
+    let unlistenPush: (() => void) | undefined;
+    let unlistenPull: (() => void) | undefined;
+    let unlistenLanStatus: (() => void) | undefined;
+    let unlistenLanProgress: (() => void) | undefined;
+
+    if (isTauri()) {
+      listen('chirasys:lan_status_updated', () => checkLan())
+        .then(fn => { unlistenLanStatus = fn; }).catch(() => {});
+
+      const handleProgress = (type: 'push' | 'pull', payload: SyncEventPayload) => {
+        const rounded = Math.round(payload.percent);
+        setBgSyncProgress({
+          active: rounded < 100,
+          type,
+          percent: rounded,
+          table_name: payload.table_name
+        });
+        if (rounded >= 100) {
+          setTimeout(() => setBgSyncProgress(null), 2500);
+        }
+      };
+
+      listen<SyncEventPayload>('sync-push-progress', (e) => handleProgress('push', e.payload))
+        .then(fn => { unlistenPush = fn; }).catch(() => {});
+
+      listen<SyncEventPayload>('sync-pull-progress', (e) => handleProgress('pull', e.payload))
+        .then(fn => { unlistenPull = fn; }).catch(() => {});
+
+      listen<LanSyncProgress>('chirasys:lan_sync_progress', (e) => {
+        const p = e.payload;
+        setLanSyncProgress(p);
+        if (!p.active && (p.stage === 'complete' || p.percent >= 100)) {
+          setTimeout(() => {
+            setLanSyncProgress(null);
+            checkLan();
+          }, 3000);
+        }
+      }).then(fn => { unlistenLanProgress = fn; }).catch(() => {});
+    }
+
+    return () => {
+      clearInterval(lanInterval);
+      unlistenPush?.();
+      unlistenPull?.();
+      unlistenLanStatus?.();
+      unlistenLanProgress?.();
+    };
+  }, []);
+>>>>>>> Stashed changes
 
   const handleLogout = async () => {
     if (token) await logoutUser(token);
@@ -76,6 +148,7 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
 
   return (
     <>
+<<<<<<< Updated upstream
       <aside className="w-64 bg-white dark:bg-[#0B0F19] flex flex-col h-full shrink-0 border-r border-slate-200 dark:border-slate-800/60 z-20 transition-colors duration-300">
         
         {/* Brand & Branch Selector */}
@@ -133,6 +206,19 @@ export default function Sidebar({ activeMenu, setActiveMenu }: SidebarProps) {
             );
           })}
         </nav>
+=======
+      <aside
+        className={`${
+          isCollapsed ? 'w-16' : 'w-64'
+        } hidden md:flex bg-sidebar flex-col h-full shrink-0 border-r border-sidebar-line z-20 transition-all duration-300 select-none`}
+      >
+        <SidebarBrand
+          isCollapsed={isCollapsed}
+          companyName={companyName}
+          branchName={branchName}
+          onToggleCollapse={onToggleCollapse}
+        />
+>>>>>>> Stashed changes
 
         {/* User Profile Footer */}
         <div className="mt-auto mx-3 mb-3 flex flex-col gap-1">

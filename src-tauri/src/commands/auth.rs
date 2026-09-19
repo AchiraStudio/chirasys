@@ -84,7 +84,75 @@ pub async fn login(username: String, password_guess: String, state: State<'_, Ap
         let is_valid = if stored_hash == "hashed_password_placeholder" && password_guess == "admin" {
             true // Auto-approve the default admin on first run
         } else {
+<<<<<<< Updated upstream
             verify(&password_guess, &stored_hash).unwrap_or(false)
+=======
+            "Username tidak ditemukan.".to_string()
+        }
+    })?;
+
+    let is_active = row.get::<bool, _>("active");
+    if !is_active {
+        return Err("Akun ini telah dinonaktifkan di Cloud / Sistem.".to_string());
+    }
+
+    let stored_hash = row.get::<String, _>("password_hash");
+    let is_valid = if stored_hash == "hashed_password_placeholder" && password_guess == "admin" {
+        true
+    } else {
+        verify(&password_guess, &stored_hash).unwrap_or(false)
+    };
+
+    if is_valid {
+        if stored_hash == "hashed_password_placeholder" {
+            let new_hash = match hash(&password_guess, DEFAULT_COST) {
+                Ok(h) => h,
+                Err(_) => stored_hash.clone(),
+            };
+            let _ = sqlx::query("UPDATE users SET password_hash = ? WHERE id = ?")
+                .bind(new_hash)
+                .bind(row.get::<String, _>("id"))
+                .execute(&state.db_pool)
+                .await;
+        }
+
+        let token = Uuid::new_v4().to_string();
+        let expires_at = (Utc::now() + chrono::Duration::try_hours(12).unwrap_or(chrono::Duration::hours(12))).to_rfc3339();
+        let user_id: String = row.get("id");
+        let role: String = row.get("role");
+        let raw_perms: String = row.get::<Option<String>, _>("permissions").unwrap_or_else(|| "default".to_string());
+
+        let (is_custom, effective_perms) = resolve_effective_permissions(&state.db_pool, &role, &raw_perms).await;
+
+        let _ = sqlx::query("INSERT INTO local_sessions (token, user_id, expires_at) VALUES (?, ?, ?)")
+            .bind(&token)
+            .bind(&user_id)
+            .bind(expires_at)
+            .execute(&state.db_pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let _ = sqlx::query("INSERT INTO global_settings (key, value) VALUES ('active_host_token', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+            .bind(&token)
+            .execute(&state.db_pool)
+            .await;
+
+        let _ = sqlx::query("UPDATE users SET last_login = datetime('now') WHERE id = ?")
+            .bind(&user_id)
+            .execute(&state.db_pool)
+            .await;
+
+        let user_info = UserInfo {
+            id: user_id,
+            name: row.get("name"),
+            username: row.get("username"),
+            role: role.clone(),
+            permissions: effective_perms,
+            is_custom_perms: is_custom,
+            branch_id: row.get("branch_id"),
+            avatar_color: row.get("avatar_color"),
+            workspace_id: row.get("workspace_id"),
+>>>>>>> Stashed changes
         };
 
         if is_valid {
@@ -185,6 +253,11 @@ pub async fn logout(token: String, state: State<'_, AppState>) -> Result<(), Str
         .execute(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    let _ = sqlx::query("UPDATE global_settings SET value = '' WHERE key = 'active_host_token'")
+        .execute(&state.db_pool)
+        .await;
+
     Ok(())
 }
 

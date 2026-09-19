@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
+<<<<<<< Updated upstream
 import { X, Save, Layers, Loader2, Search } from 'lucide-react';
 import { getCategories, getItemsFiltered, Category, Item } from '../../lib/api';
+=======
+import { Save, Layers, Loader2, Search } from 'lucide-react';
+import { getCategories, getItemsFiltered, Category, Item, invoke } from '../../lib/api';
+import Modal from '../../components/ui/Modal';
+>>>>>>> Stashed changes
 
 interface BulkStockAddProps {
   isOpen: boolean;

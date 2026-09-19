@@ -25,6 +25,37 @@ pub fn run() {
                     Err(e) => {
                         panic!("❌ DATABASE FATAL ERROR: {}", e);
                     }
+<<<<<<< Updated upstream
+=======
+                    panic!("❌ DATABASE FATAL ERROR: {}", e);
+                }
+            };
+
+            app.manage(AppState { db_pool: pool.clone() });
+
+            println!("✅ Database connected & AppState managed.");
+            commands::sync::spawn_sync_worker(pool.clone());
+            commands::sync::spawn_pull_worker(pool.clone(), handle.clone());
+
+            // Spawn LAN Auto-Discovery and Embedded Local Server only if setup completed and enabled
+            // Spawn LAN Embedded Local Server (port 3699) and Discovery
+            let pool_for_lan = pool.clone();
+            let handle_for_lan = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                // The embedded HTTP host server MUST always start so mobile/tablet terminals can connect!
+                commands::lan::start_lan_http_server(pool_for_lan.clone(), handle_for_lan.clone(), 3699).await;
+
+                let lan_enabled: String = sqlx::query_scalar(
+                    "SELECT value FROM global_settings WHERE key = 'lan_auto_connect'"
+                )
+                .fetch_optional(&pool_for_lan)
+                .await
+                .unwrap_or(None)
+                .unwrap_or_default();
+
+                if lan_enabled == "true" || lan_enabled == "1" {
+                    commands::lan::spawn_lan_discovery_service(pool_for_lan, handle_for_lan).await;
+>>>>>>> Stashed changes
                 }
             });
             Ok(())

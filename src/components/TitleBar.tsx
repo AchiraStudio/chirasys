@@ -1,27 +1,45 @@
 import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, Square, X, Copy } from 'lucide-react';
+import { isTauri } from '../lib/runtime';
 
 export default function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false);
+  const inTauri = isTauri();
 
   useEffect(() => {
+<<<<<<< Updated upstream
     const win = getCurrentWindow();
 
     win.isMaximized().then(setIsMaximized);
+=======
+    if (!inTauri) return;
+>>>>>>> Stashed changes
 
-    let unlisten: (() => void) | undefined;
-    win.onResized(async () => {
-      const max = await win.isMaximized();
-      setIsMaximized(max);
-    }).then(fn => { unlisten = fn; });
+    try {
+      const win = getCurrentWindow();
+      win.isMaximized().then(setIsMaximized).catch(() => {});
 
-    return () => { unlisten?.(); };
-  }, []);
+      let unlisten: (() => void) | undefined;
+      win.onResized(async () => {
+        const max = await win.isMaximized();
+        setIsMaximized(max);
+      }).then(fn => { unlisten = fn; }).catch(() => {});
 
-  const minimize   = () => getCurrentWindow().minimize();
-  const toggleMax  = () => isMaximized ? getCurrentWindow().unmaximize() : getCurrentWindow().maximize();
-  const close      = () => getCurrentWindow().close();
+      return () => { unlisten?.(); };
+    } catch {
+      // Browser fallback
+    }
+  }, [inTauri]);
+
+  // If running in browser (Safari/Chrome on phone or tablet), omit desktop window titlebar
+  if (!inTauri) {
+    return null;
+  }
+
+  const minimize   = () => inTauri && getCurrentWindow().minimize();
+  const toggleMax  = () => inTauri && (isMaximized ? getCurrentWindow().unmaximize() : getCurrentWindow().maximize());
+  const close      = () => inTauri && getCurrentWindow().close();
 
   return (
     /* The entire bar is the drag region; buttons use stopPropagation to avoid

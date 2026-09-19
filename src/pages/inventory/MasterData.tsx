@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Tag, FolderTree, Plus, Loader2, Trash2, Edit2, Save, X, ChevronRight, Wand2, Search, Layers, Sparkles, Building2 } from 'lucide-react';
+<<<<<<< Updated upstream
 import { getBrands, addBrand, updateBrand, deleteBrand, getCategories, addCategory, updateCategory, deleteCategory, Brand, Category, discoverPotentialBrands, DiscoveredBrand } from '../../lib/api';
+=======
+import { getBrands, addBrand, updateBrand, deleteBrand, getCategories, addCategory, updateCategory, deleteCategory, Brand, Category, discoverPotentialBrands, DiscoveredBrand, invoke } from '../../lib/api';
+import Modal from '../../components/ui/Modal';
+>>>>>>> Stashed changes
 
 export default function MasterData() {
   const [activeTab, setActiveTab] = useState<'categories' | 'brands'>('categories');

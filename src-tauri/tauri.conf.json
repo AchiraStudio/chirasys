@@ -1,8 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
+<<<<<<< Updated upstream
   "productName": "ChiraSys ERP",
   "version": "1.0.0",
   "identifier": "com.chirasys.app",
+=======
+  "productName": "Kivo",
+  "version": "1.4.0",
+  "identifier": "com.chirasys.erp",
+>>>>>>> Stashed changes
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

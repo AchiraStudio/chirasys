@@ -164,10 +164,17 @@ export default function StockOverview({ refreshTrigger, onEditItem }: StockOverv
         </div>
 
         {/* Table Body */}
+<<<<<<< Updated upstream
         <div className="flex-1 overflow-y-auto custom-scrollbar relative">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm z-10">
               <tr className="text-slate-600 dark:text-slate-400 text-xs uppercase font-semibold border-b border-slate-200 dark:border-slate-800">
+=======
+        <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative">
+          <table className="w-full min-w-[750px] text-left border-collapse">
+            <thead className="sticky top-0 bg-background z-10">
+              <tr className="text-body text-xs uppercase font-semibold border-b border-line">
+>>>>>>> Stashed changes
                 <th className="py-4 px-6">Item</th>
                 <th className="py-4 px-6">SKU</th>
                 <th className="py-4 px-6 text-center">Base Unit</th>
