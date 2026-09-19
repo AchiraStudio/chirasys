@@ -1232,6 +1232,7 @@ pub async fn get_available_workspaces(
 ) -> Result<Vec<WorkspaceListInfo>, String> {
     let mut result: Vec<WorkspaceListInfo> = Vec::new();
     let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut cloud_succeeded = false;
 
     // 1. Authoritative Source: Fetch all verified workspaces from Supabase Cloud if credentials available
     let (supabase_url, supabase_key) = resolve_supabase_credentials(&state.db_pool).await;
@@ -1247,6 +1248,7 @@ pub async fn get_available_workspaces(
             {
                 if resp.status().is_success() {
                     if let Ok(cloud_ws) = resp.json::<Vec<WorkspaceListInfo>>().await {
+                        cloud_succeeded = true;
                         for ws in cloud_ws {
                             if !seen_ids.contains(&ws.id) {
                                 seen_ids.insert(ws.id.clone());
@@ -1259,7 +1261,7 @@ pub async fn get_available_workspaces(
         }
     }
 
-    // 2. Local Active Workspace from global_settings
+    // 2. Reconciliation with local active workspace in global_settings
     let active_id: Option<String> = sqlx::query_scalar(
         "SELECT value FROM global_settings WHERE key = 'workspace_id' AND value != ''"
     )
@@ -1267,31 +1269,54 @@ pub async fn get_available_workspaces(
     .await
     .unwrap_or(None);
 
-    if let Some(ws_id) = active_id {
-        if !seen_ids.contains(&ws_id) {
-            let ws_name: String = sqlx::query_scalar(
-                "SELECT value FROM global_settings WHERE key = 'workspace_name' AND value != ''"
-            )
-            .fetch_optional(&state.db_pool)
-            .await
-            .unwrap_or(None)
-            .unwrap_or_else(|| "Workspace Aktif".to_string());
+    if cloud_succeeded {
+        // If Cloud was reached successfully, Cloud is the authoritative truth!
+        // If local installation's workspace_id is NOT in the cloud list, it was deleted!
+        if let Some(ref ws_id) = active_id {
+            if !seen_ids.contains(ws_id) {
+                // Purge stale deleted workspace from global_settings and users
+                let _ = sqlx::query(
+                    "UPDATE global_settings SET value = '' WHERE key IN ('workspace_id', 'workspace_name', 'workspace_code')"
+                )
+                .execute(&state.db_pool)
+                .await;
 
-            let ws_code: String = sqlx::query_scalar(
-                "SELECT value FROM global_settings WHERE key = 'workspace_code' AND value != ''"
-            )
-            .fetch_optional(&state.db_pool)
-            .await
-            .unwrap_or(None)
-            .unwrap_or_else(|| "MAIN".to_string());
+                let _ = sqlx::query(
+                    "UPDATE users SET workspace_id = NULL WHERE workspace_id = ?"
+                )
+                .bind(ws_id)
+                .execute(&state.db_pool)
+                .await;
+            }
+        }
+    } else {
+        // Fallback ONLY when offline (no internet / cloud unreachable)
+        if let Some(ws_id) = active_id {
+            if !seen_ids.contains(&ws_id) {
+                let ws_name: String = sqlx::query_scalar(
+                    "SELECT value FROM global_settings WHERE key = 'workspace_name' AND value != ''"
+                )
+                .fetch_optional(&state.db_pool)
+                .await
+                .unwrap_or(None)
+                .unwrap_or_else(|| "Workspace Aktif".to_string());
 
-            seen_ids.insert(ws_id.clone());
-            result.push(WorkspaceListInfo {
-                id: ws_id,
-                name: ws_name,
-                code: ws_code,
-                created_at: chrono::Utc::now().to_rfc3339(),
-            });
+                let ws_code: String = sqlx::query_scalar(
+                    "SELECT value FROM global_settings WHERE key = 'workspace_code' AND value != ''"
+                )
+                .fetch_optional(&state.db_pool)
+                .await
+                .unwrap_or(None)
+                .unwrap_or_else(|| "MAIN".to_string());
+
+                seen_ids.insert(ws_id.clone());
+                result.push(WorkspaceListInfo {
+                    id: ws_id,
+                    name: ws_name,
+                    code: ws_code,
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                });
+            }
         }
     }
 
@@ -1520,6 +1545,14 @@ pub async fn sysadmin_delete_workspace(
     // 3. Clear workspace_id in local users
     let _ = sqlx::query(
         "UPDATE users SET workspace_id = NULL WHERE workspace_id = ?"
+    )
+    .bind(&workspace_id)
+    .execute(&state.db_pool)
+    .await;
+
+    // 4. Remove any pending sync queue items for this workspace
+    let _ = sqlx::query(
+        "DELETE FROM sync_queue WHERE workspace_id = ?"
     )
     .bind(&workspace_id)
     .execute(&state.db_pool)

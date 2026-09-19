@@ -150,7 +150,7 @@ export const Navbar: React.FC = () => {
               href="https://github.com/AchiraStudio/kivo"
               target="_blank"
               rel="noopener noreferrer"
-              className="nav-icon-btn"
+              className="nav-icon-btn nav-github-btn"
               title="View on GitHub"
               aria-label="GitHub Repository"
             >

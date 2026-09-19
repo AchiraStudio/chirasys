@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   ShoppingCart, Search, Plus, Minus, Trash2, UserCheck, 
   PauseCircle, PlayCircle, Loader2, HelpCircle, Edit3, Check, 
-  X as XIcon, Crown, LayoutGrid, List, ArrowRight, RotateCcw
+  X as XIcon, Crown, LayoutGrid, List, ArrowRight, RotateCcw,
+  Activity, Pill, Package, Sparkles
 } from 'lucide-react';
 import { usePosStore, PosLine, PosHold } from './POSStore';
 import { 
@@ -17,6 +18,43 @@ import CustomerPickerModal from './CustomerPickerModal';
 import SalesHistoryModal from './SalesHistoryModal';
 import TourGuide from '../../components/ui/TourGuide';
 import { useGlobalArrowNav } from '../../hooks/useGlobalArrowNav';
+
+function getCategoryAvatar(categoryName?: string) {
+  const cat = (categoryName || '').toUpperCase();
+  if (cat.includes('ALKES') || cat.includes('ALAT') || cat.includes('MEDIS') || cat.includes('JARUM') || cat.includes('SPUIT') || cat.includes('PERBAN') || cat.includes('KASA')) {
+    return {
+      Icon: Activity,
+      avatarClass: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/20',
+      badgeClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
+    };
+  }
+  if (cat.includes('BIOTIK') || cat.includes('OBAT') || cat.includes('INTERNIS') || cat.includes('BAPIL') || cat.includes('GENERIK') || cat.includes('TABLET') || cat.includes('KAPSUL') || cat.includes('SIRUP') || cat.includes('INJEKSI') || cat.includes('SALEP')) {
+    return {
+      Icon: Pill,
+      avatarClass: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20',
+      badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+    };
+  }
+  if (cat.includes('BABY') || cat.includes('ANAK') || cat.includes('BAYI') || cat.includes('KOSMETIK') || cat.includes('BEAUTY') || cat.includes('SKIN') || cat.includes('PERAWATAN')) {
+    return {
+      Icon: Sparkles,
+      avatarClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20',
+      badgeClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+    };
+  }
+  if (cat.includes('HERBAL') || cat.includes('JAMU') || cat.includes('ALAMI') || cat.includes('VITAMIN') || cat.includes('SUPLEMEN')) {
+    return {
+      Icon: Pill,
+      avatarClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
+      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    };
+  }
+  return {
+    Icon: Package,
+    avatarClass: 'bg-primary/15 text-primary border border-primary/20',
+    badgeClass: 'bg-primary/10 text-primary',
+  };
+}
 
 export default function POS() {
   useGlobalArrowNav();
@@ -605,36 +643,49 @@ export default function POS() {
 
   const TIER_LABEL: Record<string, string> = { regular: 'Regular', member: 'Member', vip: 'VIP' };
 
+  // Fast in-cart quantity map for item cards
+  const cartQtyMap = cart.reduce<Record<string, number>>((acc, line) => {
+    if (!line.is_bogo_free) {
+      acc[line.item_id] = (acc[line.item_id] || 0) + line.qty;
+    }
+    return acc;
+  }, {});
+
   return (
     <div className="flex flex-col lg:flex-row h-full w-full bg-muted p-2 sm:p-3 gap-2.5 sm:gap-3 animate-fade-in select-none relative">
       {/* Mobile Top Segmented Control (Only on screens < 1024px) */}
-      <div className="lg:hidden flex items-center bg-card dark:bg-card/60 border border-line rounded-xl p-1 shrink-0">
+      <div className="lg:hidden bg-card dark:bg-card/70 border border-line/90 rounded-2xl p-1 shrink-0 grid grid-cols-2 gap-1.5 shadow-2xs">
         <button
           type="button"
           onClick={() => setMobilePosTab('catalog')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
             mobilePosTab === 'catalog'
               ? 'bg-primary text-white shadow-xs'
-              : 'text-dim hover:text-heading'
+              : 'text-dim hover:text-heading active:bg-muted'
           }`}
         >
-          <Search size={14} />
-          <span>Katalog Produk</span>
+          <Search size={14} className={mobilePosTab === 'catalog' ? 'text-white' : 'text-dim'} />
+          <span className="truncate">Katalog Produk</span>
         </button>
+
         <button
           type="button"
           onClick={() => setMobilePosTab('cart')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer relative ${
+          className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer select-none relative ${
             mobilePosTab === 'cart'
               ? 'bg-primary text-white shadow-xs'
-              : 'text-dim hover:text-heading'
+              : 'text-dim hover:text-heading active:bg-muted'
           }`}
         >
-          <ShoppingCart size={14} />
-          <span>Keranjang ({cart.length}) · Rp {finalPayableTotal.toLocaleString('id-ID')}</span>
+          <ShoppingCart size={14} className={mobilePosTab === 'cart' ? 'text-white' : 'text-dim'} />
+          <span className="truncate">Keranjang</span>
           {cart.length > 0 && (
-            <span className="min-w-4 h-4 px-1 rounded-full bg-warning text-white text-[9px] font-black flex items-center justify-center">
-              {cart.length}
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black font-mono tracking-tight shrink-0 transition-all ${
+              mobilePosTab === 'cart'
+                ? 'bg-white text-primary'
+                : 'bg-primary text-white shadow-xs'
+            }`}>
+              {cart.reduce((sum, item) => sum + item.qty, 0)}
             </span>
           )}
         </button>
@@ -646,96 +697,106 @@ export default function POS() {
       }`}>
         
         {/* Top Control Bar */}
-        <div className="p-3.5 border-b border-line flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-muted/50 dark:bg-card/30 shrink-0">
+        <div className="p-2.5 sm:p-3.5 border-b border-line flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 bg-muted/40 dark:bg-card/30 shrink-0">
           
           {/* Main Search Box */}
           <div className="flex-1 relative tour-pos-search">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dim" size={17} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dim" size={16} />
             <input
               ref={searchInputRef}
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={handleBarcodeEnter}
-              placeholder="Scan barcode obat atau ketik nama produk... (F1 / F2)"
-              className="w-full pl-10 pr-9 py-2.5 bg-card border border-line/80 rounded-xl text-xs font-semibold focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-heading placeholder:text-dim transition-all shadow-xs"
+              placeholder="Cari obat atau scan barcode..."
+              className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-card border border-line/80 rounded-xl text-xs font-semibold focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-heading placeholder:text-dim transition-all shadow-xs"
               autoFocus
             />
             {search && (
               <button 
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-body p-0.5 rounded-full"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-body p-0.5 rounded-full cursor-pointer"
               >
                 <XIcon size={14} />
               </button>
             )}
           </div>
 
-          {/* Pricing Switcher (Retail vs Wholesale) */}
-          <div className="flex items-center bg-line/60 dark:bg-muted/60 p-1 rounded-xl shrink-0">
-            <button
-              onClick={() => setPriceType('retail')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                priceType === 'retail' 
-                  ? 'bg-card dark:bg-line-strong shadow-xs text-primary dark:text-white' 
-                  : 'text-body hover:text-heading'
-              }`}
-            >
-              Eceran
-            </button>
-            <button
-              onClick={() => setPriceType('wholesale')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                priceType === 'wholesale' 
-                  ? 'bg-card dark:bg-line-strong shadow-xs text-primary dark:text-white' 
-                  : 'text-body hover:text-heading'
-              }`}
-            >
-              Grosir
-            </button>
-          </div>
+          {/* Controls Row: Pricing Switcher, View Mode & Tour Guide */}
+          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+            {/* Pricing Switcher (Retail vs Wholesale) */}
+            <div className="flex items-center bg-line/60 dark:bg-muted/60 p-0.5 sm:p-1 rounded-xl shrink-0">
+              <button
+                onClick={() => setPriceType('retail')}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  priceType === 'retail' 
+                    ? 'bg-card dark:bg-line-strong shadow-xs text-primary dark:text-white' 
+                    : 'text-body hover:text-heading'
+                }`}
+              >
+                Eceran
+              </button>
+              <button
+                onClick={() => setPriceType('wholesale')}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  priceType === 'wholesale' 
+                    ? 'bg-card dark:bg-line-strong shadow-xs text-primary dark:text-white' 
+                    : 'text-body hover:text-heading'
+                }`}
+              >
+                Grosir
+              </button>
+            </div>
 
-          {/* View Mode Toggle (Grid vs List) */}
-          <div className="hidden md:flex items-center bg-line/60 dark:bg-muted/60 p-1 rounded-xl shrink-0">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-xl transition-all ${
-                viewMode === 'grid' 
-                  ? 'bg-card dark:bg-line-strong text-primary dark:text-white shadow-xs' 
-                  : 'text-dim hover:text-body'
-              }`}
-              title="Tampilan Grid Card"
-            >
-              <LayoutGrid size={15} />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-xl transition-all ${
-                viewMode === 'table' 
-                  ? 'bg-card dark:bg-line-strong text-primary dark:text-white shadow-xs' 
-                  : 'text-dim hover:text-body'
-              }`}
-              title="Tampilan Daftar List"
-            >
-              <List size={15} />
-            </button>
-          </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Item Count Stats */}
+              <span className="text-[11px] font-mono font-bold text-dim px-1.5 hidden md:inline-block">
+                {items.length} item
+              </span>
 
-          {/* Help Tour */}
-          <button
-            onClick={() => setRunTour(true)}
-            className="p-2 text-dim hover:text-primary hover:bg-primary-soft rounded-xl transition-colors shrink-0"
-            title="Panduan Kasir"
-          >
-            <HelpCircle size={18} />
-          </button>
+              {/* View Mode Toggle (Grid vs List) */}
+              <div className="flex items-center bg-line/60 dark:bg-muted/60 p-0.5 rounded-xl shrink-0">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    viewMode === 'grid' 
+                      ? 'bg-card dark:bg-line-strong text-primary dark:text-white shadow-xs' 
+                      : 'text-dim hover:text-body'
+                  }`}
+                  title="Tampilan Grid Card"
+                >
+                  <LayoutGrid size={14} />
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    viewMode === 'table' 
+                      ? 'bg-card dark:bg-line-strong text-primary dark:text-white shadow-xs' 
+                      : 'text-dim hover:text-body'
+                  }`}
+                  title="Tampilan Daftar List"
+                >
+                  <List size={14} />
+                </button>
+              </div>
+
+              {/* Help Tour */}
+              <button
+                onClick={() => setRunTour(true)}
+                className="p-1.5 sm:p-2 text-dim hover:text-primary hover:bg-primary-soft rounded-xl transition-colors shrink-0 cursor-pointer"
+                title="Panduan Kasir"
+              >
+                <HelpCircle size={17} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Category Quick Pills */}
-        <div className="px-3.5 py-2 border-b border-line/60 flex items-center gap-1.5 overflow-x-auto custom-scrollbar shrink-0 bg-card">
+        <div className="px-3 py-2 border-b border-line/60 flex items-center gap-1.5 overflow-x-auto custom-scrollbar shrink-0 bg-card">
           <button
             onClick={() => setSelectedCategory('all')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all ${
+            className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
               selectedCategory === 'all'
                 ? 'bg-primary text-white shadow-xs'
                 : 'bg-muted/80 text-body hover:bg-line'
@@ -747,7 +808,7 @@ export default function POS() {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all ${
+              className={`px-3 py-1 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
                 selectedCategory === cat.id
                   ? 'bg-primary text-white shadow-xs'
                   : 'bg-muted/80 text-body hover:bg-line'
@@ -774,50 +835,111 @@ export default function POS() {
               <p className="text-xs text-dim mt-1">Coba pilih kategori lain atau ubah kata kunci pencarian.</p>
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 sm:gap-3">
               {items.map((item, idx) => {
                 const activePrice = priceType === 'wholesale' && item.wholesale_price ? item.wholesale_price : (item.price || 0);
+                const inCartQty = cartQtyMap[item.id] || 0;
+                const isOutOfStock = item.current_stock !== undefined && item.current_stock <= 0;
+                const isLowStock = item.current_stock !== undefined && item.current_stock > 0 && item.current_stock <= (item.min_stock || 5);
+                const { Icon: CatIcon, avatarClass } = getCategoryAvatar(item.category_name);
+
                 return (
                   <button
                     key={item.id}
                     ref={el => { itemRefs.current[idx] = el; }}
                     onClick={() => addToCart(item)}
-                    className="flex flex-col text-left bg-card border border-line/90 dark:border-line rounded-xl p-3.5 hover:border-primary hover:shadow-md hover:scale-[1.01] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-primary shadow-xs transition-all group cursor-pointer relative"
+                    className={`group relative flex flex-col justify-between text-left rounded-2xl p-3 sm:p-3.5 transition-all duration-200 cursor-pointer select-none border ${
+                      inCartQty > 0
+                        ? 'bg-primary/[0.04] dark:bg-primary/[0.08] border-primary shadow-sm ring-2 ring-primary/25'
+                        : 'bg-card border-line/90 dark:border-line hover:border-primary/50 hover:shadow-md active:scale-[0.98] shadow-2xs'
+                    } ${isOutOfStock ? 'opacity-80 hover:opacity-100' : ''}`}
                   >
-                    <div className="flex items-start justify-between gap-1 mb-2">
-                      <span className="text-[10px] font-mono font-bold text-dim bg-muted px-1.5 py-0.5 rounded-lg truncate max-w-[120px]">
-                        {item.sku}
-                      </span>
-                      {item.current_stock !== undefined && (
-                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 font-mono ${
-                          item.current_stock > 0
-                            ? 'text-success bg-success-soft dark:bg-success/40 dark:text-success border border-success/30 dark:border-success/40'
-                            : item.current_stock === 0
-                            ? 'text-body bg-muted dark:text-body border border-line'
-                            : 'text-danger bg-danger-soft dark:bg-danger/40 dark:text-danger border border-danger/30 dark:border-danger/40 font-black'
-                        }`}>
-                          Stok: {item.current_stock}
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className="font-extrabold text-xs text-heading line-clamp-2 leading-snug group-hover:text-primary transition-colors mb-1.5">
-                      {item.name}
-                    </h4>
-
-                    {item.category_name && (
-                      <span className="text-[10px] text-dim mb-2 truncate">
-                        {item.category_name}
-                      </span>
+                    {/* Floating In-Cart Badge */}
+                    {inCartQty > 0 && (
+                      <div className="absolute -top-1.5 -right-1.5 z-10 bg-primary text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
+                        <Check size={11} strokeWidth={3} />
+                        <span>{inCartQty}</span>
+                      </div>
                     )}
 
-                    <div className="mt-auto pt-2 border-t border-line flex items-center justify-between">
-                      <span className="font-black text-primary text-xs sm:text-sm font-mono">
-                        Rp {activePrice.toLocaleString('id-ID')}
-                      </span>
-                      <span className="text-[10px] text-dim font-semibold">
-                        /{item.base_unit_name || 'Unit'}
-                      </span>
+                    {/* Top Section: Visual Avatar + SKU/Category + Stock Badge */}
+                    <div>
+                      <div className="flex items-start justify-between gap-1.5 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 shadow-2xs ${avatarClass}`}>
+                            <CatIcon size={15} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] font-mono font-bold text-dim truncate max-w-[70px] sm:max-w-[100px]">
+                              {item.sku}
+                            </span>
+                            {item.category_name && (
+                              <span className="text-[9px] font-bold text-dim/80 uppercase tracking-wider truncate max-w-[70px] sm:max-w-[100px]">
+                                {item.category_name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Stock Level Indicator */}
+                        {item.current_stock !== undefined && (
+                          <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 font-mono flex items-center gap-1 ${
+                            isOutOfStock
+                              ? 'text-danger bg-danger-soft/80 dark:bg-danger/30 border border-danger/30'
+                              : isLowStock
+                              ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30'
+                              : 'text-success bg-success-soft dark:bg-success/30 border border-success/30'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              isOutOfStock ? 'bg-danger' : isLowStock ? 'bg-amber-500 animate-pulse' : 'bg-success'
+                            }`} />
+                            <span>{item.current_stock > 0 ? item.current_stock : 'Habis'}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Product Name */}
+                      <h4 className="font-extrabold text-xs sm:text-[13px] text-heading line-clamp-2 leading-snug group-hover:text-primary transition-colors min-h-[2rem] sm:min-h-[2.3rem]">
+                        {item.name}
+                      </h4>
+
+                      {/* Generic Name / Prescription / Rack */}
+                      <div className="flex items-center gap-1.5 mt-1 min-h-[16px]">
+                        {item.requires_prescription === 1 && (
+                          <span className="px-1.5 py-0.2 bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[9px] font-black rounded border border-rose-500/30 shrink-0">
+                            Rx
+                          </span>
+                        )}
+                        {item.generic_name ? (
+                          <span className="text-[10px] text-dim italic truncate" title={item.generic_name}>
+                            {item.generic_name}
+                          </span>
+                        ) : item.rack_location ? (
+                          <span className="text-[9px] font-mono text-dim/70 truncate">
+                            Rak: {item.rack_location}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Bottom Section: Price & Tactile Action Button */}
+                    <div className="mt-2.5 pt-2 border-t border-line/70 flex items-center justify-between gap-1">
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-black text-primary text-xs sm:text-[14px] font-mono tracking-tight truncate">
+                          Rp {activePrice.toLocaleString('id-ID')}
+                        </span>
+                        <span className="text-[9px] text-dim font-bold">
+                          /{item.base_unit_name || 'Unit'}
+                        </span>
+                      </div>
+
+                      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center font-bold text-xs transition-all shrink-0 shadow-2xs ${
+                        inCartQty > 0
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
+                      }`}>
+                        <Plus size={14} strokeWidth={2.5} />
+                      </div>
                     </div>
                   </button>
                 );
@@ -840,32 +962,76 @@ export default function POS() {
                 <tbody className="divide-y divide-line dark:divide-line">
                   {items.map((item) => {
                     const activePrice = priceType === 'wholesale' && item.wholesale_price ? item.wholesale_price : (item.price || 0);
+                    const inCartQty = cartQtyMap[item.id] || 0;
+                    const isOutOfStock = item.current_stock !== undefined && item.current_stock <= 0;
+                    const isLowStock = item.current_stock !== undefined && item.current_stock > 0 && item.current_stock <= (item.min_stock || 5);
+                    const { Icon: CatIcon, avatarClass } = getCategoryAvatar(item.category_name);
+
                     return (
                       <tr 
                         key={item.id} 
                         onClick={() => addToCart(item)}
-                        className="hover:bg-primary-soft dark:hover:bg-primary-soft transition-colors cursor-pointer"
+                        className={`hover:bg-primary-soft/60 dark:hover:bg-primary-soft/20 transition-colors cursor-pointer ${
+                          inCartQty > 0 ? 'bg-primary/[0.03] dark:bg-primary/[0.06]' : ''
+                        }`}
                       >
-                        <td className="py-2.5 px-4 font-mono font-bold text-dim text-[11px]">{item.sku}</td>
-                        <td className="py-2.5 px-4 font-bold text-heading">{item.name}</td>
-                        <td className="py-2.5 px-3 text-dim text-[11px]">{item.category_name || '-'}</td>
+                        <td className="py-2.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${avatarClass}`}>
+                              <CatIcon size={12} />
+                            </div>
+                            <span className="font-mono font-bold text-dim text-[11px]">{item.sku}</span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-4 font-bold text-heading">
+                          <div className="flex items-center gap-1.5">
+                            {item.requires_prescription === 1 && (
+                              <span className="px-1 py-0.2 bg-rose-500/15 text-rose-600 text-[8px] font-black rounded border border-rose-500/30">Rx</span>
+                            )}
+                            <span>{item.name}</span>
+                          </div>
+                          {item.generic_name && (
+                            <span className="text-[10px] text-dim italic block">{item.generic_name}</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-dim text-[11px] font-semibold">{item.category_name || '-'}</td>
                         <td className="py-2.5 px-3 text-center">
                           {item.current_stock !== undefined ? (
-                            <span className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-bold ${
-                              item.current_stock > 0
-                                ? 'text-success bg-success-soft dark:bg-success/40 dark:text-success'
-                                : item.current_stock === 0
-                                ? 'text-body bg-muted dark:text-body'
-                                : 'text-danger bg-danger-soft dark:bg-danger/40 dark:text-danger font-black'
+                            <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-extrabold inline-flex items-center gap-1 ${
+                              isOutOfStock
+                                ? 'text-danger bg-danger-soft dark:bg-danger/30 border border-danger/30'
+                                : isLowStock
+                                ? 'text-amber-600 bg-amber-500/10 border border-amber-500/30'
+                                : 'text-success bg-success-soft dark:bg-success/30 border border-success/30'
                             }`}>
-                              {item.current_stock}
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                isOutOfStock ? 'bg-danger' : isLowStock ? 'bg-amber-500' : 'bg-success'
+                              }`} />
+                              <span>{item.current_stock > 0 ? item.current_stock : 'Habis'}</span>
                             </span>
                           ) : '-'}
                         </td>
-                        <td className="py-2.5 px-4 text-right font-black text-primary font-mono">Rp {activePrice.toLocaleString('id-ID')}</td>
+                        <td className="py-2.5 px-4 text-right font-black text-primary font-mono text-xs">
+                          Rp {activePrice.toLocaleString('id-ID')}
+                          <span className="text-[9px] text-dim font-normal ml-0.5">/{item.base_unit_name || 'Unit'}</span>
+                        </td>
                         <td className="py-2.5 px-3 text-center">
-                          <button className="px-2 py-1 bg-primary text-white rounded-lg font-bold text-[10px] shadow-xs cursor-pointer">
-                            + Tambah
+                          <button className={`px-2.5 py-1 rounded-lg font-bold text-[10px] shadow-xs cursor-pointer inline-flex items-center gap-1 transition-all ${
+                            inCartQty > 0
+                              ? 'bg-primary text-white'
+                              : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'
+                          }`}>
+                            {inCartQty > 0 ? (
+                              <>
+                                <Check size={10} strokeWidth={3} />
+                                <span>{inCartQty}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus size={10} strokeWidth={2.5} />
+                                <span>Tambah</span>
+                              </>
+                            )}
                           </button>
                         </td>
                       </tr>

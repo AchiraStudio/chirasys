@@ -4,7 +4,7 @@ import { Loader2, User, Plus, Eye, EyeOff, Power, Save, Pencil, Shield, Sliders,
 import { useAuthStore } from '../../store/AuthStore';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import Modal from '../../components/ui/Modal';
-import { sysadminGetWorkspaces, getAvailableWorkspaces, getSyncStatus, WorkspaceListInfo, assignUserWorkspace, UserRowFull, invoke } from '../../lib/api';
+import { sysadminGetWorkspaces, getAvailableWorkspaces, WorkspaceListInfo, assignUserWorkspace, UserRowFull, invoke } from '../../lib/api';
 import UserPermissionsModal from './UserPermissionsModal';
 import RoleDefaultsModal from './RoleDefaultsModal';
 
@@ -53,26 +53,24 @@ export default function UserManagement() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [data, wsList, syncStatus] = await Promise.all([
+      const [data, wsList] = await Promise.all([
         invoke<UserRowFull[]>('get_users'),
         getAvailableWorkspaces().catch(() => sysadminGetWorkspaces().catch(() => [] as WorkspaceListInfo[])),
-        getSyncStatus().catch(() => null),
       ]);
 
-      let mergedWorkspaces: WorkspaceListInfo[] = [...(wsList || [])];
+      const validWsList: WorkspaceListInfo[] = [...(wsList || [])];
+      const validWsIds = new Set(validWsList.map(w => w.id));
 
-      // Guarantee local active workspace is included if present
-      if (syncStatus?.workspace_id && !mergedWorkspaces.some(w => w.id === syncStatus.workspace_id)) {
-        mergedWorkspaces.unshift({
-          id: syncStatus.workspace_id,
-          name: syncStatus.workspace_name || 'Workspace Aktif',
-          code: syncStatus.workspace_code || 'MAIN',
-          created_at: '',
-        });
-      }
+      // Sanitize users: users referencing a deleted workspace become unassigned
+      const sanitizedUsers = (data || []).map(u => {
+        if (u.workspace_id && !validWsIds.has(u.workspace_id)) {
+          return { ...u, workspace_id: undefined };
+        }
+        return u;
+      });
 
-      setUsers(data);
-      setWorkspaces(mergedWorkspaces);
+      setUsers(sanitizedUsers);
+      setWorkspaces(validWsList);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };

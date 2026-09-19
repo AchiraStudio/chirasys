@@ -389,7 +389,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 
 /* ============ HERO ============ */
-.hero{padding:72px 0 100px;position:relative;scroll-margin-top:80px}
+.hero{padding:72px 0 100px;position:relative;scroll-margin-top:80px;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:-80px 0 auto 0;height:700px;pointer-events:none;
   background:radial-gradient(680px 380px at 50% 30%,color-mix(in srgb,var(--primary) 14%,transparent),transparent 70%)}
 .hero::after{content:"";position:absolute;inset:-100px auto auto 50%;transform:translateX(-50%);width:1080px;height:520px;pointer-events:none;opacity:.45;filter:blur(85px);
@@ -1438,29 +1438,121 @@ footer{border-top:1px solid var(--line);padding:64px 0 36px;position:relative;
 
 /* Tablet Portrait & Mobile Breakpoint (<= 768px) */
 @media (max-width: 768px) {
-  .wrap{padding:0 16px}
-  .section{padding:64px 0}
-  .hero{padding:36px 0 54px}
-  .hero-telemetry-header{font-size:11.5px;padding:6px 14px;gap:8px;max-width:96%;flex-wrap:wrap;justify-content:center}
-  .hero-title{font-size:clamp(28px,8vw,46px);line-height:1.1;letter-spacing:-.03em}
-  .hero-sub{font-size:15px;margin-top:16px;line-height:1.55}
-  .hero-cta{flex-direction:column;width:100%;gap:10px}
-  .hero-btn-download,.hero-btn-demo{width:100%;max-width:100%;justify-content:center}
+  .wrap{padding:0 14px}
+  .section{padding:56px 0}
+
+  /* Navbar Header Mobile */
+  .nav-header{padding:0 8px;top:8px}
+  .nav-container{height:50px;padding:0 10px 0 12px;border-radius:14px}
+  .nav-actions{gap:6px}
+  .nav-actions .nav-github-btn{display:none !important}
+  .nav-cta-btn{display:none !important}
+  .nav-version-tag{font-size:10px;padding:1px 5px}
+
+  /* Hero Mobile */
+  .hero{padding:28px 0 44px}
+  .hero-telemetry-header{font-size:11px;padding:5px 12px;gap:6px;border-radius:999px;max-width:100%;margin-bottom:20px;justify-content:center;text-align:center}
+  .telemetry-meta{font-size:10px}
+  .hero-title{font-size:clamp(28px,8vw,42px);line-height:1.12;letter-spacing:-.035em}
+  .hero-sub{font-size:14px;margin-top:14px;line-height:1.5;padding:0 4px}
+  .hero-cta{flex-direction:column;width:100%;gap:10px;margin-top:24px}
+  .hero-btn-download,.hero-btn-demo{width:100%;max-width:100%;justify-content:center;padding:12px 16px;border-radius:12px}
   .hero-metrics-strip{grid-template-columns:repeat(2,1fr);gap:8px;padding:10px;margin-top:24px}
   .hm-item{padding:8px 10px;gap:8px}
-  .hm-val{font-size:14px}
-  .hm-desc{font-size:10.5px}
+  .hm-val{font-size:13.5px}
+  .hm-desc{font-size:10px}
 
   /* Interactive App Window Mobile Ergonomics */
+  .hero-showcase-stage{margin-top:28px}
+  .app-win{border-radius:14px;box-shadow:0 16px 40px -10px rgba(0,0,0,0.6)}
   .app-sidebar-root{display:none !important}
-  .app-mobile-nav-strip{display:flex !important}
   .app-flex-root{min-height:unset;flex-direction:column}
-  .app-topbar-root{padding:0 10px;height:42px}
-  .topbar-zoom-controls,.topbar-divider-v{display:none !important}
-  .topbar-page-title{font-size:13px}
+
+  /* TitleBar Mobile */
+  .app-titlebar-root{
+    height:36px;min-height:36px;padding:0 8px;
+    display:flex;align-items:center;justify-content:space-between;gap:6px;
+    overflow:hidden;
+  }
+  .titlebar-left{flex-shrink:0;gap:6px}
+  .titlebar-brand-name{font-size:11.5px;font-weight:800}
   .titlebar-platform-badge,.titlebar-window-buttons{display:none !important}
-  .titlebar-branch-pill{max-width:130px;font-size:10.5px}
-  .app-view-container{padding:10px}
+  .titlebar-center{min-width:0;flex:1;display:flex;justify-content:center}
+  .titlebar-branch-pill{
+    max-width:110px;height:22px;padding:0 6px;font-size:9.5px;border-radius:5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:4px;
+  }
+  .titlebar-branch-pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .titlebar-right{flex-shrink:0;display:flex;align-items:center}
+  .titlebar-sync-btn{
+    height:20px;padding:0 6px;font-size:9px;border-radius:5px;white-space:nowrap;
+    letter-spacing:.02em;font-weight:800;
+  }
+  .titlebar-latency-text{display:none !important}
+
+  /* Topbar Mobile (No Overlapping) */
+  .app-topbar-root{
+    height:40px;min-height:40px;padding:0 8px;
+    display:flex;align-items:center;justify-content:space-between;gap:6px;
+    background:var(--card);border-bottom:1px solid var(--line);overflow:hidden;
+  }
+  .topbar-title-section{min-width:0;flex:1;overflow:hidden}
+  .topbar-page-title{
+    font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;
+  }
+  .topbar-actions-section{
+    flex-shrink:0;display:flex;align-items:center;gap:5px;
+  }
+  .topbar-zoom-controls,.topbar-divider-v,.topbar-cloud-pill{display:none !important}
+  .topbar-lan-pill{
+    height:24px;padding:0 6px;font-size:10px;gap:4px;
+  }
+  .topbar-host-qr-btn{
+    height:24px;padding:0 7px;font-size:10px;gap:4px;
+  }
+  .topbar-ai-btn{
+    height:24px;padding:0 8px;font-size:10.5px;gap:4px;
+  }
+  .host-qr-text-full,.ai-btn-text-full{display:none !important}
+  .host-qr-text-short,.ai-btn-text-short{display:inline !important}
+
+  /* Mobile Nav Strip (Smooth Horizontal Scroll) */
+  .app-mobile-nav-strip{
+    display:flex !important;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    gap:6px;
+    padding:7px 8px;
+    background:color-mix(in srgb,var(--card) 92%,var(--bg));
+    border-bottom:1px solid var(--line);
+  }
+  .app-mobile-nav-strip::-webkit-scrollbar{display:none}
+  .app-mobile-nav-btn{
+    flex-shrink:0;padding:5px 10px;font-size:11px;border-radius:7px;white-space:nowrap;
+  }
+
+  /* View Container Mobile */
+  .app-view-container{padding:10px 8px}
+  .real-view-container{gap:10px}
+  .real-view-header{flex-direction:column;align-items:stretch;gap:8px}
+  .real-view-title{font-size:14px}
+  .real-view-subtitle{font-size:10.5px}
+  .tab-pill-group{
+    display:grid;grid-template-columns:1fr 1fr 1fr;width:100%;
+    background:var(--muted);border:1px solid var(--line);border-radius:8px;padding:2px;
+  }
+  .tab-pill-btn{
+    flex:1;text-align:center;justify-content:center;font-size:10.5px;padding:5px 2px;
+  }
+
+  /* Stat Cards Mobile */
+  .real-stat-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .real-stat-card{padding:10px 10px;border-radius:10px}
+  .stat-card-val{font-size:16px;letter-spacing:-.02em}
+  .stat-card-label{font-size:10px}
+  .stat-card-sub{font-size:9px}
+  .trend-badge{font-size:9px;padding:1px 4px}
 
   /* Architectural Deck */
   .deck-tabs{padding:3px;gap:3px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
@@ -1484,7 +1576,7 @@ footer{border-top:1px solid var(--line);padding:64px 0 36px;position:relative;
   .off-flow{flex-direction:column;gap:8px}
   .farrow{width:auto;height:20px;font-size:0}
   .farrow::before{display:none}
-  .farrow::after{content:"Γû╝";font-size:10px;color:var(--dim)}
+  .farrow::after{content:"▼";font-size:10px;color:var(--dim)}
   .off-dash{grid-template-columns:1fr;gap:14px}
 
   /* Host Sync Section */
@@ -1511,9 +1603,9 @@ footer{border-top:1px solid var(--line);padding:64px 0 36px;position:relative;
 
 /* Small Smartphone Breakpoint (<= 480px) */
 @media (max-width: 480px) {
-  .hero-telemetry-header{font-size:11px;padding:5px 12px;gap:6px;border-radius:999px;max-width:100%}
+  .hero-telemetry-header{font-size:10.5px;padding:4px 10px;gap:5px;border-radius:999px;max-width:100%}
   .telemetry-sep{display:none}
-  .telemetry-meta{font-size:10px;font-weight:700;color:var(--dim)}
+  .telemetry-meta{font-size:9.5px;font-weight:700;color:var(--dim)}
   .hero-title{font-size:clamp(26px,8.5vw,34px);letter-spacing:-.03em}
   .hero-metrics-strip{grid-template-columns:1fr 1fr;gap:6px;padding:8px}
   .hm-item{padding:8px 6px;gap:6px;border-radius:10px}
@@ -1523,6 +1615,13 @@ footer{border-top:1px solid var(--line);padding:64px 0 36px;position:relative;
   .foot-grid{grid-template-columns:1fr;gap:20px}
   .foot-brand{align-items:center;text-align:center}
   .foot-col{text-align:center}
+
+  /* Compact TitleBar & Topbar on extra narrow screens */
+  .titlebar-branch-pill{max-width:90px}
+  .topbar-page-title{max-width:90px;font-size:11px}
+  .topbar-lan-text{display:none !important}
+  .topbar-lan-pill{padding:0 5px}
+  .topbar-actions-section{gap:4px}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}

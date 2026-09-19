@@ -141,7 +141,8 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
             title="SQLite to Supabase Cloud sync status"
           >
             <span className={`sync-dot ${isSyncing ? 'pulse' : 'online'}`} />
-            <span>{isSyncing ? 'SYNCINGΓÇª' : 'ONLINE ┬╖ 42ms'}</span>
+            <span>{isSyncing ? 'SYNCING…' : 'ONLINE'}</span>
+            {!isSyncing && <span className="titlebar-latency-text"> · 42ms</span>}
           </button>
 
           <div className="titlebar-window-buttons">
@@ -192,8 +193,8 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
           <div className="sidebar-user-footer">
             <div className="user-avatar-circle">A</div>
             <div className="user-meta">
-              <div className="user-name">admin ┬╖ Owner</div>
-              <div className="user-role">KIVO-MAIN ┬╖ POS 01</div>
+              <div className="user-name">admin · Owner</div>
+              <div className="user-role">KIVO-MAIN · POS 01</div>
             </div>
           </div>
         </aside>
@@ -208,37 +209,38 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
 
             <div className="topbar-actions-section">
               {/* LAN Mesh Status */}
-              <div className="topbar-chip-pill" title="0-latency LAN mesh active on local subnet">
-                <Radio size={12} className="text-success animate-pulse" />
-                <span>LAN 1</span>
+              <div className="topbar-chip-pill topbar-lan-pill" title="0-latency LAN mesh active on local subnet">
+                <Radio size={12} className="text-success animate-pulse shrink-0" />
+                <span className="topbar-lan-text">LAN 1</span>
               </div>
 
               {/* v1.4.0 Host Web Terminal QR Button */}
               <button
                 type="button"
-                className="topbar-chip-pill cursor-pointer"
+                className="topbar-chip-pill topbar-host-qr-btn cursor-pointer"
                 onClick={() => setIsQrModalOpen(true)}
                 title="v1.4.0: Buka QR Host Terminal untuk Kasir HP / Tablet"
                 style={{ background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.35)', color: 'var(--primary)' }}
               >
-                <QrCode size={12} />
-                <span style={{ fontWeight: 700 }}>Host QR v1.4</span>
+                <QrCode size={12} className="shrink-0" />
+                <span className="host-qr-text-full" style={{ fontWeight: 700 }}>Host QR v1.4</span>
+                <span className="host-qr-text-short" style={{ fontWeight: 700, display: 'none' }}>QR</span>
               </button>
 
-              {/* Cloud Sync Status */}
+              {/* Cloud Sync Status (Hidden on mobile to prevent clutter) */}
               <div
-                className="topbar-chip-pill cursor-pointer"
+                className="topbar-chip-pill topbar-cloud-pill cursor-pointer"
                 onClick={triggerTopSync}
                 title="Click to trigger pull/push sync worker"
               >
                 {isSyncing ? (
                   <>
-                    <RefreshCw size={12} className="animate-spin text-warning" />
+                    <RefreshCw size={12} className="animate-spin text-warning shrink-0" />
                     <span className="text-warning">Syncing...</span>
                   </>
                 ) : (
                   <>
-                    <Cloud size={12} className="text-success" />
+                    <Cloud size={12} className="text-success shrink-0" />
                     <span className="text-success font-semibold">Online</span>
                   </>
                 )}
@@ -274,8 +276,9 @@ export const InteractiveAppWindow: React.FC<InteractiveAppWindowProps> = ({
                 onClick={() => setIsAiOpen(true)}
                 title="Open Kivo AI Assistant"
               >
-                <Sparkles size={13} />
-                <span>Kivo AI</span>
+                <Sparkles size={13} className="shrink-0" />
+                <span className="ai-btn-text-full">Kivo AI</span>
+                <span className="ai-btn-text-short" style={{ display: 'none' }}>AI</span>
               </button>
             </div>
           </header>

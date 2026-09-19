@@ -1101,6 +1101,29 @@ async fn handle_lan_rpc(
             let payload: serde_json::Value = p.get("payload").cloned().unwrap_or(serde_json::Value::Null);
             crate::commands::sync::receive_cloud_sync(table_name, payload, state).await.map(|_| serde_json::json!({ "success": true }))
         }
+        "get_available_workspaces" => {
+            crate::commands::sync::get_available_workspaces(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "sysadmin_get_workspaces" => {
+            crate::commands::sync::sysadmin_get_workspaces(state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "sysadmin_delete_workspace" => {
+            let workspace_id = p.get("workspaceId").or_else(|| p.get("workspace_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::sync::sysadmin_delete_workspace(workspace_id, state).await.map(|_| serde_json::json!({ "success": true }))
+        }
+        "sysadmin_create_workspace" => {
+            let name = p.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let code = p.get("code").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            crate::commands::sync::sysadmin_create_workspace(name, code, state).await.map(|d| serde_json::to_value(d).unwrap_or_default())
+        }
+        "assign_user_workspace" => {
+            let user_id = p.get("userId").or_else(|| p.get("user_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+            let workspace_id: Option<String> = p.get("workspaceId").or_else(|| p.get("workspace_id")).and_then(|v| serde_json::from_value(v.clone()).ok()).flatten();
+            crate::commands::auth::assign_user_workspace(user_id, workspace_id, state).await.map(|_| serde_json::json!({ "success": true }))
+        }
+        "leave_workspace" => {
+            crate::commands::sync::leave_workspace(state).await.map(|_| serde_json::json!({ "success": true }))
+        }
 
         unknown => Err(format!("Perintah RPC '{}' tidak didukung oleh Server Induk", unknown)),
     };
@@ -1115,7 +1138,7 @@ async fn handle_lan_rpc(
         "get_accounts" | "get_journal_entries" | "get_general_ledger" | "get_income_statement" | "get_balance_sheet" |
         "get_trial_balance" | "get_cash_flow_summary" | "get_promos" | "get_users" | "get_current_user" |
         "get_permission_definitions" | "get_role_default_permissions" | "get_user_permissions" |
-        "get_sync_status" | "get_lan_status" | "get_lan_peers" | "list_printers" | "send_ai_chat_request" |
+        "get_sync_status" | "get_available_workspaces" | "sysadmin_get_workspaces" | "get_lan_status" | "get_lan_peers" | "list_printers" | "send_ai_chat_request" |
         "login" | "logout" | "receive_cloud_sync"
     );
 

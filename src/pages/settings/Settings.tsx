@@ -608,6 +608,7 @@ export default function Settings() {
           await leaveWorkspace();
           setSyncStatus(null);
           await loadSyncStatus();
+          await handleFetchAvailableWorkspaces();
         } catch (e) { console.error(e); }
       },
     });
@@ -686,7 +687,7 @@ export default function Settings() {
 
           {/* Sub-Tab 2: Sysadmin Global Workspace Management */}
           {syncSubTab === 'manage' && (user?.username === 'admin' || isAdmin) ? (
-            <SysadminWorkspaceManagement />
+            <SysadminWorkspaceManagement onWorkspaceChanged={() => { loadSyncStatus(); handleFetchAvailableWorkspaces(); }} />
           ) : (
             /* Sub-Tab 1: Workspace Connection & Sync Status */
             <div className="flex flex-col gap-4 w-full">
@@ -1990,7 +1991,7 @@ function SettingRow({ config, onSave, disabled }: { config: { key: string; value
   );
 }
 
-function SysadminWorkspaceManagement() {
+function SysadminWorkspaceManagement({ onWorkspaceChanged }: { onWorkspaceChanged?: () => void }) {
   const [workspaces, setWorkspaces] = useState<WorkspaceListInfo[]>([]);
   const [allUsers, setAllUsers] = useState<UserRowFull[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2034,6 +2035,7 @@ function SysadminWorkspaceManagement() {
       setShowCreate(false);
       setNewName('');
       setNewCode('');
+      onWorkspaceChanged?.();
       await loadData();
     } catch (e: any) {
       setError(e.message || String(e));
@@ -2044,11 +2046,15 @@ function SysadminWorkspaceManagement() {
 
   const handleDeleteWorkspace = async () => {
     if (!wsToDelete) return;
-    setDeletingWsId(wsToDelete.id);
+    const targetId = wsToDelete.id;
+    setDeletingWsId(targetId);
     try {
-      await sysadminDeleteWorkspace(wsToDelete.id);
+      await sysadminDeleteWorkspace(targetId);
       toast.success('Workspace Dihapus', `Workspace "${wsToDelete.name}" berhasil dihapus.`);
       setWsToDelete(null);
+      setWorkspaces(prev => prev.filter(w => w.id !== targetId));
+      setAllUsers(prev => prev.map(u => u.workspace_id === targetId ? { ...u, workspace_id: undefined } : u));
+      onWorkspaceChanged?.();
       await loadData();
     } catch (e: any) {
       toast.error('Gagal Menghapus Workspace', e.message || String(e));
